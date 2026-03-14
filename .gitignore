@@ -1,0 +1,33 @@
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python / Django
+backend/venv/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+db.sqlite3
+
+# Django static/media cache
+staticfiles/
+media/
+
+# Node / React / Vite
+frontend/node_modules/
+frontend/dist/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Coverage / test
+coverage/
+htmlcov/
+.pytest_cache/
