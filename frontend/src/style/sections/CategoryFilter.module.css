@@ -1,0 +1,75 @@
+.categoriesWrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 48px;
+}
+
+.categories {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  flex: 1;
+  scroll-behavior: smooth;
+}
+
+.categories::-webkit-scrollbar {
+  height: 4px;
+}
+
+.categories::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 2px;
+}
+
+.categoryBadge {
+  padding: 8px 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.categoryBadge:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.categoryBadgeActive {
+  padding: 8px 16px;
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-full);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  flex-shrink: 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.scrollBtn {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+  transition: background 0.2s, color 0.2s;
+}
+
+.scrollBtn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}

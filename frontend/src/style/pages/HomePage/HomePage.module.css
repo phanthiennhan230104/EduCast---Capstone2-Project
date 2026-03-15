@@ -1,0 +1,15 @@
+.home {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--bg-primary);
+  width: 100%;
+}
+
+.container {
+  flex: 1;
+  max-width: 1200px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 0 40px;
+}

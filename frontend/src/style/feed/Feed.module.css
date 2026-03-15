@@ -1,0 +1,51 @@
+.feed {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+/* Tabs */
+.tabs {
+  display: flex;
+  gap: 4px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 6px;
+  position: fixed;
+  top: var(--header-height);
+  left: var(--sidebar-width);
+  right: var(--right-panel-width);
+  z-index: 10;
+  margin-bottom: 24px;
+}
+
+.tab {
+  flex: 1;
+  padding: 12px 0;
+  border-radius: var(--radius-md);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-muted);
+  transition: background 0.2s, color 0.2s;
+  text-align: center;
+}
+
+.tab:hover {
+  color: var(--text-secondary);
+  background: var(--bg-hover);
+}
+
+.tab.active {
+  background: #ffffff;
+  color: #171B36;
+  font-weight: 700;
+}
+
+/* Cards list */
+.cards {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: calc(40px + 24px);
+}

@@ -1,0 +1,94 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* ── Backgrounds ── */
+  --bg-primary:    #171B36;
+  --bg-secondary:  #1E2245;
+  --bg-card:       #222650;
+  --bg-hover:      #2A2F58;
+  --bg-input:      #131628;
+
+  /* ── Orange accent (primary) ── */
+  --accent:        #E8943A;
+  --accent-light:  #F0A84C;
+  --accent-dark:   #C97828;
+  --accent-soft:   rgba(232, 148, 58, 0.15);
+  --accent-glow:   rgba(232, 148, 58, 0.30);
+
+  /* ── Success green (follow button) ── */
+  --success:       #10B981;
+  --success-soft:  rgba(16, 185, 129, 0.15);
+
+  /* ── Text ── */
+  --text-primary:   #EFEFF5;
+  --text-secondary: #8B90B8;
+  --text-muted:     #555A7A;
+
+  /* ── Borders ── */
+  --border:        rgba(255, 255, 255, 0.07);
+  --border-light:  rgba(255, 255, 255, 0.04);
+  --border-active: rgba(232, 148, 58, 0.40);
+
+  /* ── Layout ── */
+  --header-height:      64px;
+  --sidebar-width:      240px;
+  --right-panel-width:  300px;
+  --player-height:      72px;
+
+  /* ── Radii ── */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-full: 9999px;
+
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+html, body {
+  height: 100%;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  height: 100%;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+}
+
+a {
+  text-decoration: none;
+  color: inherit;
+}
+
+input {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 2px;
+}

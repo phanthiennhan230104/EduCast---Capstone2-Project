@@ -1,0 +1,143 @@
+.hero {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  align-items: center;
+  gap: 100px;
+  padding: 60px 60px;
+  background: #1C203F;
+  margin-bottom: 64px;
+  border-radius: 0;
+  width: 100vw;
+  margin-left: calc(-50vw + 50%);
+  margin-right: calc(-50vw + 50%);
+  padding-left: calc(60px + max(0px, (100vw - 100%) / 2));
+  padding-right: calc(60px + max(0px, (100vw - 100%) / 2));
+}
+
+.left {
+  display: flex;
+  flex-direction: column;
+}
+
+.title {
+  font-size: 54px;
+  font-weight: 800;
+  color: var(--text-primary);
+  line-height: 1.15;
+  margin-bottom: 20px;
+  letter-spacing: -1.2px;
+}
+
+.highlight {
+  color: var(--accent-light);
+  font-weight: 800;
+}
+
+.subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  line-height: 1.7;
+  margin-bottom: 40px;
+}
+
+.buttons {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ctaPrimary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 28px;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-full);
+  font-size: 14px;
+  font-weight: 600;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.ctaPrimary:hover {
+  background: var(--accent-light);
+  transform: translateY(-2px);
+}
+
+.ctaSecondary {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.3s, transform 0.2s;
+}
+
+.ctaSecondary:hover {
+  background: var(--accent-light);
+  transform: scale(1.08);
+}
+
+.badge {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px;
+  background: rgba(232, 148, 58, 0.1);
+  border: 1px solid rgba(232, 148, 58, 0.3);
+  border-radius: var(--radius-full);
+  color: var(--accent);
+  font-size: 13px;
+  font-weight: 500;
+  margin-top: 20px;
+  width: fit-content;
+}
+
+.right {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.mockup {
+  width: 100%;
+  max-width: 380px;
+  height: auto;
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 1024px) {
+  .hero {
+    grid-template-columns: 1fr;
+    gap: 40px;
+    padding: 60px 32px;
+  }
+
+  .title {
+    font-size: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .hero {
+    padding: 40px 20px;
+    gap: 30px;
+  }
+
+  .buttons {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .title {
+    font-size: 32px;
+  }
+
+  .subtitle {
+    font-size: 14px;
+  }
+}
