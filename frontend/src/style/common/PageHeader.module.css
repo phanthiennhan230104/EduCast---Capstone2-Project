@@ -68,3 +68,38 @@
 .ctaBtn:hover {
   background: var(--accent-light);
 }
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.loginBtn,
+.freeBtn {
+  text-decoration: none;
+  border-radius: 999px;
+  padding: 12px 22px;
+  font-weight: 600;
+  transition: 0.2s ease;
+}
+
+.loginBtn {
+  color: #f5f0e8;
+  border: 1px solid rgba(245, 240, 232, 0.18);
+  background: transparent;
+}
+
+.freeBtn {
+  color: #111827;
+  background: #f4a227;
+  border: none;
+}
+
+.loginBtn:hover {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.freeBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(244, 162, 39, 0.22);
+}

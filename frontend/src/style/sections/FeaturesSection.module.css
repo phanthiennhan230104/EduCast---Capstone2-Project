@@ -1,31 +1,112 @@
-.section {
-  margin-bottom: 64px;
+.featuresSection {
+  padding: 110px 0 40px;
 }
 
-.header {
-  text-align: center;
-  margin-bottom: 40px;
+.headingBlock {
+  margin-bottom: 48px;
+  max-width: 760px;
+}
+
+.sectionEyebrow {
+  position: relative;
+  padding-left: 34px;
+  margin-bottom: 24px;
+  color: #00c4a7;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+}
+
+.sectionEyebrow::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 22px;
+  height: 2px;
+  background: #00c4a7;
+  transform: translateY(-50%);
+  border-radius: 999px;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: clamp(2.8rem, 6vw, 5.4rem);
+  line-height: 0.98;
+  letter-spacing: -0.05em;
+  font-weight: 900;
+  color: #f6efe7;
+}
+
+.sectionTitle span {
+  color: #f4a227;
+}
+
+.featuresGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 18px;
+}
+
+.featureCard {
+  min-height: 210px;
+  padding: 28px 24px;
+  border-radius: 26px;
+  background: rgba(14, 18, 34, 0.78);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.featureCard:hover {
+  transform: translateY(-4px);
+  border-color: rgba(244, 162, 39, 0.22);
+}
+
+.featureIcon {
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  margin-bottom: 22px;
+  font-size: 1.2rem;
+  background: rgba(244, 162, 39, 0.14);
 }
 
-.icon {
-  color: var(--accent);
-  flex-shrink: 0;
+.featureTitle {
+  margin: 0 0 14px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #fff6ee;
 }
 
-.title {
-  font-size: 28px;
-  font-weight: 800;
-  color: var(--text-primary);
-  letter-spacing: -0.5px;
-  margin-bottom: 8px;
+.featureDesc {
+  margin: 0;
+  color: rgba(245, 240, 232, 0.62);
+  font-size: 0.98rem;
+  line-height: 1.8;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 20px;
+@media (max-width: 992px) {
+  .featuresGrid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .featuresSection {
+    padding: 80px 0 20px;
+  }
+
+  .sectionTitle {
+    font-size: 2.5rem;
+    line-height: 1.02;
+  }
+
+  .featuresGrid {
+    grid-template-columns: 1fr;
+  }
 }
