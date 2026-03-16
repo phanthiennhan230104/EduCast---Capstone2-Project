@@ -1,15 +1,19 @@
 .home {
-  display: flex;
-  flex-direction: column;
   min-height: 100vh;
-  background: var(--bg-primary);
-  width: 100%;
+  background:
+    radial-gradient(circle at top left, rgba(244, 162, 39, 0.08), transparent 28%),
+    radial-gradient(circle at top right, rgba(91, 76, 245, 0.10), transparent 30%),
+    #0b1020;
+  color: #f5f0e8;
 }
 
-.container {
-  flex: 1;
-  max-width: 1200px;
+.main {
+  width: min(1200px, calc(100% - 48px));
   margin: 0 auto;
-  width: 100%;
-  padding: 0 40px;
+}
+
+@media (max-width: 768px) {
+  .main {
+    width: min(100% - 24px, 1200px);
+  }
 }
