@@ -1,44 +1,59 @@
-import { ArrowRight } from 'lucide-react'
-import TestimonialCard from '../cards/TestimonialCard'
-import styles from '../../style/sections/TestimonialsSection.module.css'
+import styles from "../../style/sections/TestimonialsSection.module.css";
 
-const TESTIMONIALS = [
+const testimonials = [
   {
-    avatar: 'https://i.pravatar.cc/48?img=1',
-    name: 'Nguyễn Minh Quân',
-    role: 'Kỹ sư phần mềm',
-    quote: 'EduCast thay đổi cách tôi học hỏi. Lúc đi xe buýt giờ tôi có thể nghe những bài học tuyệt vời.',
-    rating: 5
+    name: "Trần Hoàng Anh",
+    role: "Sinh viên Đại học Bách Khoa",
+    quote:
+      "Mình học được nhiều hơn từ 20 phút nghe podcast trên PodLearn hơn cả buổi học truyền thống. Cộng đồng ở đây cũng cực kỳ chất lượng.",
+    avatar: "🧑",
   },
   {
-    avatar: 'https://i.pravatar.cc/48?img=2',
-    name: 'Trần Hà My',
-    role: 'Chủ kinh doanh',
-    quote: 'Podcast về kinh doanh này rất giúp ích cho tôi. Chất lượng nội dung cực tốt!',
-    rating: 5
+    name: "Lê Phương Linh",
+    role: "Product Designer tại Grab",
+    quote:
+      "Tính năng Study Room thay đổi hoàn toàn cách mình học. Nghe cùng bạn bè và thảo luận ngay lập tức — không đâu có được trải nghiệm này.",
+    avatar: "👩",
   },
   {
-    avatar: 'https://i.pravatar.cc/48?img=3',
-    name: 'Lê Hoàng Anh',
-    role: 'Sinh viên',
-    quote: 'Ứng dụng rất dễ dùng, giao diện đẹp. Tôi yêu thích tính năng tải xuống offline.',
-    rating: 5
-  }
-]
+    name: "Nguyễn Đức Khải",
+    role: "Software Engineer",
+    quote:
+      "Mình dùng để học tiếng Anh chuyên ngành mỗi sáng. Sau 3 tháng, cấp trên nhận xét presentation của mình chuyên nghiệp hơn hẳn.",
+    avatar: "🧑",
+  },
+];
 
 export default function TestimonialsSection() {
   return (
-    <section className={styles.section}>
-      <div className={styles.header}>
-        <ArrowRight size={24} className={styles.icon} />
-        <h2 className={styles.title}>NGƯỜI DÙNG NÓI GÌ</h2>
+    <section className={styles.testimonialsSection}>
+      <div className={styles.headingBlock}>
+        <div className={styles.sectionEyebrow}>NGƯỜI HỌC NÓI GÌ</div>
+
+        <h2 className={styles.sectionTitle}>
+          Được tin yêu bởi
+          <br />
+          <span>200+ người dùng.</span>
+        </h2>
       </div>
-      <p className={styles.subtitle}>ĐƯỢC YÊU THÍCH BỞI <span className={styles.highlight}>200+ NGƯỜI DÙNG</span></p>
-      <div className={styles.grid}>
-        {TESTIMONIALS.map((testimonial, i) => (
-          <TestimonialCard key={i} {...testimonial} />
+
+      <div className={styles.testimonialsGrid}>
+        {testimonials.map((item) => (
+          <article key={item.name} className={styles.testimonialCard}>
+            <div className={styles.stars}>★★★★★</div>
+
+            <p className={styles.quote}>“{item.quote}”</p>
+
+            <div className={styles.author}>
+              <div className={styles.avatar}>{item.avatar}</div>
+              <div>
+                <div className={styles.name}>{item.name}</div>
+                <div className={styles.role}>{item.role}</div>
+              </div>
+            </div>
+          </article>
         ))}
       </div>
     </section>
-  )
+  );
 }

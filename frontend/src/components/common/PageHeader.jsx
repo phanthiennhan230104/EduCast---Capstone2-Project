@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom'
-import { Flag, Music } from 'lucide-react'
+import { Music } from 'lucide-react'
 import styles from '../../style/common/PageHeader.module.css'
 
-export default function PageHeader() {
+
+export default function PageHeader({ onOpenLogin, onOpenSignup }) {
   return (
     <header className={styles.header}>
       <Link to="/" className={styles.logo}>
@@ -11,15 +12,23 @@ export default function PageHeader() {
         </div>
         <span className={styles.logoText}>EduCast</span>
       </Link>
+
       <nav className={styles.nav}>
         <a href="#explore" className={styles.navLink}>Khám phá</a>
         <a href="#topics" className={styles.navLink}>Chủ đề</a>
         <a href="#community" className={styles.navLink}>Cộng đồng</a>
+        <a href="#ranking" className={styles.navLink}>Bảng xếp hạng</a>
       </nav>
-      <Link to="/feed" className={styles.ctaBtn}>
-        Tham gia ngay
-        <Flag size={16} />
-      </Link>
+
+      <div className={styles.actions}>
+        <button type="button" className={styles.loginBtn} onClick={onOpenLogin}>
+          Đăng nhập
+        </button>
+
+        <button type="button" className={styles.freeBtn} onClick={onOpenSignup}>
+          Dùng miễn phí
+        </button>
+      </div>
     </header>
   )
 }
