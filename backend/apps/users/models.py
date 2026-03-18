@@ -6,6 +6,11 @@ def generate_id():
     return uuid.uuid4().hex[:26]
 
 
+# ==========================================
+# MODEL USER
+# - bám đúng schema bảng users trong database
+# - KHÔNG dùng AbstractBaseUser nữa
+# ==========================================
 class User(models.Model):
     ROLE_CHOICES = (
         ("user", "User"),
@@ -28,12 +33,18 @@ class User(models.Model):
     id = models.CharField(primary_key=True, max_length=26, default=generate_id, editable=False)
     email = models.EmailField(unique=True, max_length=255)
     username = models.CharField(unique=True, max_length=100)
+
+    # DB hiện tại đang dùng password_hash
     password_hash = models.CharField(max_length=255)
+
     role = models.CharField(max_length=20, choices=ROLE_CHOICES, default="user")
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     auth_provider = models.CharField(max_length=20, choices=AUTH_PROVIDER_CHOICES, default="local")
     is_verified = models.BooleanField(default=False)
+
+    # DB hiện tại đang dùng last_login_at
     last_login_at = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -44,7 +55,20 @@ class User(models.Model):
     def __str__(self):
         return f"{self.username} ({self.email})"
 
+    # DRF/permission thường check thuộc tính này
+    @property
+    def is_authenticated(self):
+        return True
 
+    # để tương thích một số check cơ bản
+    @property
+    def is_anonymous(self):
+        return False
+
+
+# ==========================================
+# PROFILE CỦA USER
+# ==========================================
 class UserProfile(models.Model):
     AGE_GROUP_CHOICES = (
         ("16_22", "16_22"),
@@ -74,6 +98,9 @@ class UserProfile(models.Model):
         return f"Profile - {self.display_name}"
 
 
+# ==========================================
+# CÀI ĐẶT USER
+# ==========================================
 class UserSettings(models.Model):
     PROFILE_VISIBILITY_CHOICES = (
         ("public", "Public"),
@@ -117,6 +144,9 @@ class UserSettings(models.Model):
         return f"Settings - {self.user.username}"
 
 
+# ==========================================
+# REFRESH TOKEN TABLE
+# ==========================================
 class RefreshToken(models.Model):
     id = models.CharField(primary_key=True, max_length=26, default=generate_id, editable=False)
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="refresh_tokens")

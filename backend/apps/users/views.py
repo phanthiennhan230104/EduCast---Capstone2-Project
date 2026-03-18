@@ -1,217 +1,414 @@
-import json
-from datetime import timedelta
+import uuid
+import requests 
 
-from django.core import signing
-from django.contrib.auth.hashers import make_password, check_password
-from django.db import transaction
-from django.db.models import Q
-from django.http import JsonResponse
+from django.conf import settings
+from rest_framework import generics, status
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework_simplejwt.tokens import RefreshToken
+from django.contrib.auth.hashers import make_password
+
+from .models import User
+from .serializers import (
+    RegisterSerializer,
+    MyTokenObtainPairSerializer,
+    ResetPasswordSerializer,
+)
+from .utils import (
+    verify_otp,
+    verify_reset_token,
+    send_register_otp_email,
+    send_forgot_password_otp_email,
+    save_reset_token,
+)
+
+
+# ==========================================================
+# API ĐĂNG KÝ
+# - dùng generics.CreateAPIView giống DNF
+# - serializer chịu trách nhiệm validate + create user
+# - sau khi tạo user thì gửi OTP qua email
+# ==========================================================
+class RegisterView(generics.CreateAPIView):
+    serializer_class = RegisterSerializer
+    permission_classes = [AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        # Tự xử lý create để tránh DRF cố serialize lại field full_name
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # save() sẽ gọi hàm create() trong RegisterSerializer
+        user = serializer.save()
+
+        # Gửi mã OTP xác thực tài khoản qua email
+        send_register_otp_email(user)
+
+        # Frontend sẽ lấy email này để gọi API verify-otp
+        return Response(
+            {
+                "message": "Đăng ký thành công. OTP đã được gửi về email.",
+                "email": user.email,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+
+# ==========================================================
+# API XÁC THỰC OTP SAU ĐĂNG KÝ
+# - nếu OTP đúng thì kích hoạt tài khoản
+# ==========================================================
 from django.utils import timezone
-from django.views.decorators.csrf import csrf_exempt
-from django.views.decorators.http import require_http_methods
+from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, UserProfile, UserSettings
+class VerifyOTPView(APIView):
+    permission_classes = [AllowAny]
 
-TOKEN_MAX_AGE_SECONDS = 60 * 60 * 24 * 7  # 7 days
-TOKEN_SALT = "educast-auth-token"
+    def post(self, request):
+        # Lấy email + otp từ request
+        email = request.data.get("email", "").strip().lower()
+        otp = request.data.get("otp", "").strip()
+
+        # Thiếu dữ liệu thì trả lỗi 400
+        if not email or not otp:
+            return Response(
+                {"error": "Email và OTP là bắt buộc."},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Kiểm tra OTP
+        ok, msg = verify_otp(email, otp)
+        if not ok:
+            return Response(
+                {"error": msg},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Tìm user theo email
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Không tìm thấy người dùng."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        # Kích hoạt tài khoản sau khi OTP đúng
+        user.status = "active"
+        user.is_verified = True
+        user.last_login_at = timezone.now()
+        user.save(update_fields=["status", "is_verified", "last_login_at", "updated_at"])
+
+        # Tạo refresh token đúng cách
+        refresh = RefreshToken()
+
+        # Gắn thêm thông tin user vào token
+        refresh["user_id"] = str(user.id)
+        refresh["email"] = user.email
+        refresh["username"] = user.username
+        refresh["role"] = user.role
+
+        access = refresh.access_token
+        access["user_id"] = str(user.id)
+        access["email"] = user.email
+        access["username"] = user.username
+        access["role"] = user.role
+
+        profile = getattr(user, "profile", None)
+
+        # Trả token + user để frontend login luôn
+        return Response(
+            {
+                "message": "Xác thực OTP thành công.",
+                "refresh": str(refresh),
+                "access": str(access),
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "username": user.username,
+                    "role": user.role,
+                    "status": user.status,
+                    "is_verified": user.is_verified,
+                    "display_name": profile.display_name if profile else user.username,
+                    "avatar_url": profile.avatar_url if profile else None,
+                    "preferred_language": profile.preferred_language if profile else "vi",
+                }
+            },
+            status=status.HTTP_200_OK
+        )
 
 
-def parse_json_body(request):
-    try:
-        return json.loads(request.body.decode("utf-8"))
-    except Exception:
-        return None
+# ==========================================================
+# API ĐĂNG NHẬP
+# - serializer kiểm tra tài khoản + tạo JWT
+# - view chỉ việc gọi serializer và trả data
+# ==========================================================
+class MyTokenObtainPairView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = MyTokenObtainPairSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
-def make_token(user):
-    payload = {
-        "user_id": user.id,
-        "email": user.email,
-        "username": user.username,
-        "exp": (timezone.now() + timedelta(seconds=TOKEN_MAX_AGE_SECONDS)).timestamp(),
-    }
-    return signing.dumps(payload, salt=TOKEN_SALT)
-
-
-def get_user_from_token(request):
-    auth_header = request.headers.get("Authorization", "")
-    if not auth_header.startswith("Bearer "):
-        return None
-
-    token = auth_header.replace("Bearer ", "").strip()
-
-    try:
-        payload = signing.loads(token, salt=TOKEN_SALT, max_age=TOKEN_MAX_AGE_SECONDS)
-        user_id = payload.get("user_id")
-        return User.objects.filter(id=user_id).first()
-    except Exception:
-        return None
-
-
-def user_to_dict(user):
+# ==========================================================
+# API LẤY USER HIỆN TẠI
+# - cần access token hợp lệ
+# - request.user sẽ được DRF + SimpleJWT gắn vào
+# ==========================================================
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_current_user(request):
+    user = request.user
     profile = getattr(user, "profile", None)
 
-    return {
-        "id": user.id,
-        "email": user.email,
-        "username": user.username,
-        "role": user.role,
-        "status": user.status,
-        "is_verified": user.is_verified,
-        "display_name": profile.display_name if profile else user.username,
-        "avatar_url": profile.avatar_url if profile else None,
-        "preferred_language": profile.preferred_language if profile else "vi",
-    }
+    return Response(
+        {
+            "user": {
+                "id": str(user.id),
+                "email": user.email,
+                "username": user.username,
+                "role": user.role,
+                "status": user.status,
+                "is_verified": user.is_verified,
+                "display_name": profile.display_name if profile else user.username,
+                "avatar_url": profile.avatar_url if profile else None,
+                "preferred_language": profile.preferred_language if profile else "vi",
+            }
+        },
+        status=status.HTTP_200_OK,
+    )
 
 
-@csrf_exempt
-@require_http_methods(["POST"])
-def register_view(request):
-    data = parse_json_body(request)
-    if data is None:
-        return JsonResponse({"message": "Invalid JSON body."}, status=400)
+# ==========================================================
+# API QUÊN MẬT KHẨU
+# - nhận email
+# - nếu user tồn tại thì gửi OTP reset
+# ==========================================================
+class ForgotPasswordView(APIView):
+    permission_classes = [AllowAny]
 
-    full_name = str(data.get("full_name", "")).strip()
-    username = str(data.get("username", "")).strip()
-    email = str(data.get("email", "")).strip().lower()
-    password = str(data.get("password", "")).strip()
-    confirm_password = str(data.get("confirm_password", "")).strip()
+    def post(self, request):
+        email = request.data.get("email")
 
-    if not full_name:
-        return JsonResponse({"message": "Full name is required."}, status=400)
+        if not email:
+            return Response(
+                {"error": "Email là bắt buộc."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-    if not username:
-        return JsonResponse({"message": "Username is required."}, status=400)
+        try:
+            User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Không tìm thấy người dùng."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
-    if not email:
-        return JsonResponse({"message": "Email is required."}, status=400)
+        send_forgot_password_otp_email(email)
 
-    if not password:
-        return JsonResponse({"message": "Password is required."}, status=400)
+        return Response(
+            {"message": "OTP đặt lại mật khẩu đã được gửi về email."},
+            status=status.HTTP_200_OK,
+        )
 
-    if len(password) < 6:
-        return JsonResponse({"message": "Password must be at least 6 characters."}, status=400)
 
-    if password != confirm_password:
-        return JsonResponse({"message": "Passwords do not match."}, status=400)
+# ==========================================================
+# API VERIFY OTP RESET PASSWORD
+# - nếu OTP đúng thì tạo reset_token tạm thời
+# ==========================================================
+class VerifyResetOTPView(APIView):
+    permission_classes = [AllowAny]
 
-    if User.objects.filter(email__iexact=email).exists():
-        return JsonResponse({"message": "Email already exists."}, status=400)
+    def post(self, request):
+        email = request.data.get("email")
+        otp = request.data.get("otp")
 
-    if User.objects.filter(username__iexact=username).exists():
-        return JsonResponse({"message": "Username already exists."}, status=400)
+        if not email or not otp:
+            return Response(
+                {"error": "Email và OTP là bắt buộc."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
-    with transaction.atomic():
-        user = User.objects.create(
+        ok, msg = verify_otp(email, otp)
+        if not ok:
+            return Response(
+                {"error": msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Tạo token reset ngẫu nhiên sau khi OTP hợp lệ
+        reset_token = str(uuid.uuid4())
+        save_reset_token(email, reset_token)
+
+        return Response(
+            {
+                "message": "OTP hợp lệ.",
+                "reset_token": reset_token,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ==========================================================
+# API RESET PASSWORD
+# - nhận email + reset_token + password1/password2
+# - verify reset_token trước khi đổi mật khẩu
+# ==========================================================
+class ResetPasswordView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = request.data.get("email")
+        reset_token = request.data.get("reset_token")
+
+        if not email or not reset_token:
+            return Response(
+                {"error": "Email và reset_token là bắt buộc."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        ok, msg = verify_reset_token(email, reset_token)
+        if not ok:
+            return Response(
+                {"error": msg},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "Không tìm thấy người dùng."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Project này dùng password_hash nên hash thủ công
+        user.password_hash = make_password(serializer.validated_data["password1"])
+        user.status = "active"
+        user.save(update_fields=["password_hash", "status", "updated_at"])
+
+        return Response(
+            {"message": "Đặt lại mật khẩu thành công."},
+            status=status.HTTP_200_OK,
+        )
+
+
+# ==========================================================
+# API GOOGLE LOGIN
+# - giống tinh thần DNF
+# - verify id_token với Google
+# - tìm hoặc tạo user
+# - trả refresh/access token
+# ==========================================================
+class GoogleLoginView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        id_token = request.data.get("id_token")
+
+        if not id_token:
+            return Response(
+                {"detail": "Thiếu id_token"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        try:
+            r = requests.get(
+                "https://oauth2.googleapis.com/tokeninfo",
+                params={"id_token": id_token},
+                timeout=5,
+            )
+        except Exception:
+            return Response(
+                {"detail": "Lỗi xác thực token với Google"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if r.status_code != 200:
+            return Response(
+                {"detail": "Google token không hợp lệ"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        data = r.json()
+        aud = data.get("aud")
+        email = data.get("email")
+        email_verified = str(data.get("email_verified", "")).lower() in ["true", "1"]
+
+        # Kiểm tra đúng Google client id của project
+        if aud != settings.GOOGLE_CLIENT_ID:
+            return Response(
+                {"detail": "Sai client_id"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if not email or not email_verified:
+            return Response(
+                {"detail": "Email chưa được Google xác thực"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user = User.objects.filter(email=email).first()
+
+        # Nếu chưa có user thì tạo mới
+        if not user:
+            # username sinh tự động từ phần trước @
+            base_username = email.split("@")[0]
+            username = base_username
+
+            # Nếu username trùng thì nối thêm số
+            counter = 1
+            while User.objects.filter(username=username).exists():
+                username = f"{base_username}{counter}"
+                counter += 1
+
+            user = User.objects.create(
             email=email,
             username=username,
-            password_hash=make_password(password),
+            password_hash="",
             role="user",
             status="active",
-            auth_provider="local",
-            is_verified=False,
+            auth_provider="google",
+            is_verified=True,
+            )
+
+        refresh = RefreshToken()
+        refresh["user_id"] = str(user.id)
+        refresh["email"] = user.email
+        refresh["username"] = user.username
+        refresh["role"] = user.role
+
+        access = refresh.access_token
+        access["user_id"] = str(user.id)
+        access["email"] = user.email
+        access["username"] = user.username
+        access["role"] = user.role
+
+        profile = getattr(user, "profile", None)
+
+        return Response(
+            {
+                "refresh": str(refresh),
+                "access": str(access),
+                "user": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "username": user.username,
+                    "role": user.role,
+                    "status": user.status,
+                    "is_verified": user.is_verified,
+                    "display_name": profile.display_name if profile else user.username,
+                    "avatar_url": profile.avatar_url if profile else None,
+                    "preferred_language": profile.preferred_language if profile else "vi",
+                }
+            },
+            status=status.HTTP_200_OK
         )
-
-        UserProfile.objects.create(
-            user=user,
-            display_name=full_name,
-            preferred_language="vi",
-            interests=[],
-        )
-
-        UserSettings.objects.create(
-            user=user,
-            email_notifications=True,
-            push_notifications=True,
-            notify_likes=True,
-            notify_comments=True,
-            notify_follows=True,
-            notify_messages=True,
-            profile_visibility="public",
-            allow_messages_from="everyone",
-            autoplay_audio=True,
-            theme_mode="dark",
-            language_code="vi",
-        )
-
-    token = make_token(user)
-
-    return JsonResponse(
-        {
-            "message": "Register successful.",
-            "token": token,
-            "user": user_to_dict(user),
-        },
-        status=201,
-    )
-
-
-@csrf_exempt
-@require_http_methods(["POST", "OPTIONS"])
-def login_view(request):
-    if request.method == "OPTIONS":
-        return JsonResponse({"message": "OK"}, status=200)
-
-    data = parse_json_body(request)
-    if data is None:
-        return JsonResponse({"message": "Invalid JSON body."}, status=400)
-
-    identifier = str(data.get("identifier", "")).strip()
-    password = str(data.get("password", "")).strip()
-
-    if not identifier or not password:
-        return JsonResponse({"message": "Identifier and password are required."}, status=400)
-
-    user = User.objects.filter(
-        Q(email__iexact=identifier) | Q(username__iexact=identifier)
-    ).first()
-
-    if not user:
-        return JsonResponse({"message": "Invalid email/username or password."}, status=401)
-
-    if user.status != "active":
-        return JsonResponse({"message": f"Your account is currently {user.status}."}, status=403)
-
-    if not check_password(password, user.password_hash):
-        return JsonResponse({"message": "Invalid email/username or password."}, status=401)
-
-    user.last_login_at = timezone.now()
-    user.save(update_fields=["last_login_at", "updated_at"])
-
-    token = make_token(user)
-
-    return JsonResponse(
-        {
-            "message": "Login successful.",
-            "token": token,
-            "user": user_to_dict(user),
-        },
-        status=200,
-    )
-
-
-@csrf_exempt
-@require_http_methods(["GET", "OPTIONS"])
-def me_view(request):
-    if request.method == "OPTIONS":
-        return JsonResponse({"message": "OK"}, status=200)
-
-    user = get_user_from_token(request)
-    if not user:
-        return JsonResponse({"message": "Unauthorized."}, status=401)
-
-    return JsonResponse(
-        {
-            "user": user_to_dict(user),
-        },
-        status=200,
-    )
-
-
-@csrf_exempt
-@require_http_methods(["POST", "OPTIONS"])
-def logout_view(request):
-    if request.method == "OPTIONS":
-        return JsonResponse({"message": "OK"}, status=200)
-
-    return JsonResponse({"message": "Logout successful."}, status=200)

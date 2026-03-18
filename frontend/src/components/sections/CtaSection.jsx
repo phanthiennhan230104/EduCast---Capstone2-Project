@@ -22,13 +22,7 @@ export default function CtaSection({ onOpenSignup, onOpenLogin }) {
           Tạo tài khoản miễn phí
         </button>
 
-        <button
-          type="button"
-          className={styles.btnOutlineLg}
-          onClick={onOpenLogin}
-        >
-          Xem các gói học
-        </button>
+        
       </div>
     </section>
   )

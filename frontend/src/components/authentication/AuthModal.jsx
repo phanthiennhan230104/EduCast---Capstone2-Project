@@ -4,16 +4,24 @@ import { X, Music, User, AtSign, Mail, Lock, Eye, Chrome, Facebook } from 'lucid
 import styles from '../../style/authentication/AuthModal.module.css'
 import { apiRequest } from '../../utils/api'
 import { saveAuth } from '../../utils/auth'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
   const navigate = useNavigate()
+  const { login } = useAuth()
 
+  // -----------------------------
+  // State cho form đăng nhập
+  // -----------------------------
   const [loginData, setLoginData] = useState({
     email: '',
     password: '',
     rememberMe: false,
   })
 
+  // -----------------------------
+  // State cho form đăng ký
+  // -----------------------------
   const [signupData, setSignupData] = useState({
     fullName: '',
     username: '',
@@ -23,17 +31,33 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
     agreeTerms: false,
   })
 
+  // -----------------------------
+  // State cho popup OTP
+  // showOtpPopup = true thì hiện form nhập OTP
+  // otpData.email lấy từ email vừa đăng ký
+  // -----------------------------
+  const [showOtpPopup, setShowOtpPopup] = useState(false)
+  const [otpData, setOtpData] = useState({
+    email: '',
+    otp: '',
+  })
+
+  // -----------------------------
+  // State UI
+  // -----------------------------
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
+  // Xóa message cũ trước mỗi action
   const resetMessages = () => {
     setErrorMessage('')
     setSuccessMessage('')
   }
 
+  // Handle input login
   const handleLoginChange = (e) => {
     const { name, value, type, checked } = e.target
     setLoginData((prev) => ({
@@ -42,6 +66,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
     }))
   }
 
+  // Handle input signup
   const handleSignupChange = (e) => {
     const { name, value, type, checked } = e.target
     setSignupData((prev) => ({
@@ -50,6 +75,22 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
     }))
   }
 
+  // Handle input OTP
+  const handleOtpChange = (e) => {
+    const { name, value } = e.target
+    setOtpData((prev) => ({
+      ...prev,
+      [name]: value,
+    }))
+  }
+
+  // ==========================================================
+  // SUBMIT ĐĂNG NHẬP
+  // 1) Gọi /auth/login/
+  // 2) Nếu thành công => lưu token + user
+  // 3) Cập nhật AuthContext
+  // 4) Chuyển sang /feed
+  // ==========================================================
   const handleLoginSubmit = async (e) => {
     e.preventDefault()
     resetMessages()
@@ -70,9 +111,13 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         }),
       })
 
+      // Lưu access/refresh/user vào localStorage
       saveAuth(data)
-      setSuccessMessage('Đăng nhập thành công.')
 
+      // Ghi user vào context để UI biết là đã đăng nhập
+      login(data.user)
+
+      setSuccessMessage('Đăng nhập thành công.')
       onClose()
       navigate('/feed')
     } catch (error) {
@@ -82,6 +127,13 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
     }
   }
 
+  // ==========================================================
+  // SUBMIT ĐĂNG KÝ
+  // 1) Validate dữ liệu ở frontend
+  // 2) Gọi /auth/register/
+  // 3) Nếu thành công => KHÔNG login ngay
+  // 4) Mở popup OTP để user nhập mã
+  // ==========================================================
   const handleSignupSubmit = async (e) => {
     e.preventDefault()
     resetMessages()
@@ -135,13 +187,63 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         }),
       })
 
-      saveAuth(data)
-      setSuccessMessage('Đăng ký thành công.')
+      // Lưu email vừa đăng ký để dùng cho bước verify OTP
+      setOtpData({
+        email: data.email || signupData.email,
+        otp: '',
+      })
 
+      setSuccessMessage(data.message || 'Đăng ký thành công. OTP đã được gửi về email.')
+
+      // Mở popup OTP ngay sau khi signup thành công
+      setShowOtpPopup(true)
+    } catch (error) {
+      setErrorMessage(error.message || 'Đăng ký thất bại.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // ==========================================================
+  // SUBMIT XÁC THỰC OTP
+  // 1) Gọi /auth/verify-otp/
+  // 2) Backend trả access + refresh + user
+  // 3) Frontend lưu auth
+  // 4) Login luôn
+  // 5) Chuyển sang /feed
+  // ==========================================================
+  const handleVerifyOtpSubmit = async (e) => {
+    e.preventDefault()
+    resetMessages()
+
+    if (!otpData.otp.trim()) {
+      setErrorMessage('Vui lòng nhập mã OTP.')
+      return
+    }
+
+    try {
+      setLoading(true)
+
+      const data = await apiRequest('/auth/verify-otp/', {
+        method: 'POST',
+        body: JSON.stringify({
+          email: otpData.email,
+          otp: otpData.otp,
+        }),
+      })
+
+      // Lưu token + user vào localStorage
+      saveAuth(data)
+
+      // Cập nhật context đăng nhập
+      login(data.user)
+
+      setSuccessMessage('Xác thực OTP thành công.')
+      setShowOtpPopup(false)
       onClose()
       navigate('/feed')
     } catch (error) {
-      setErrorMessage(error.message || 'Đăng ký thất bại.')
+      setErrorMessage(error.message || 'Xác thực OTP thất bại.')
     } finally {
       setLoading(false)
     }
@@ -178,6 +280,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
               className={`${styles.tabBtn} ${mode === 'login' ? styles.activeTab : ''}`}
               onClick={() => {
                 resetMessages()
+                setShowOtpPopup(false)
                 onChangeMode('login')
               }}
             >
@@ -189,6 +292,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
               className={`${styles.tabBtn} ${mode === 'signup' ? styles.activeTab : ''}`}
               onClick={() => {
                 resetMessages()
+                setShowOtpPopup(false)
                 onChangeMode('signup')
               }}
             >
@@ -196,6 +300,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
             </button>
           </div>
 
+          {/* Hiển thị lỗi */}
           {errorMessage && (
             <div
               style={{
@@ -211,6 +316,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
             </div>
           )}
 
+          {/* Hiển thị thành công */}
           {successMessage && (
             <div
               style={{
@@ -226,7 +332,47 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
             </div>
           )}
 
-          {mode === 'login' ? (
+          {/* Nếu đang ở bước OTP thì render form OTP */}
+          {showOtpPopup ? (
+            <form className={styles.form} onSubmit={handleVerifyOtpSubmit}>
+              <label className={styles.signupLabel} style={{ marginTop: '20px' }}>
+                EMAIL
+                <div className={styles.inputWrap}>
+                  <Mail size={16} className={styles.inputIcon} />
+                  <input
+                    type="email"
+                    name="email"
+                    value={otpData.email}
+                    readOnly
+                    className={`${styles.input} ${styles.inputWithIcon}`}
+                  />
+                </div>
+              </label>
+
+              <label className={styles.signupLabel}>
+                OTP CODE
+                <div className={styles.inputWrap}>
+                  <Lock size={16} className={styles.inputIcon} />
+                  <input
+                    type="text"
+                    name="otp"
+                    value={otpData.otp}
+                    onChange={handleOtpChange}
+                    placeholder="Nhập mã OTP 6 số"
+                    className={`${styles.input} ${styles.inputWithIcon}`}
+                  />
+                </div>
+              </label>
+
+              <button type="submit" className={styles.submitBtn} disabled={loading}>
+                {loading ? 'Verifying...' : 'Verify OTP'}
+              </button>
+
+              <p className={styles.switchText}>
+                Chưa nhận được mã? Kiểm tra email hoặc đăng ký lại.
+              </p>
+            </form>
+          ) : mode === 'login' ? (
             <form className={styles.form} onSubmit={handleLoginSubmit}>
               <label className={styles.signupLabel} style={{ marginTop: '20px' }}>
                 EMAIL OR USERNAME
@@ -311,7 +457,6 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
             </form>
           ) : (
             <form className={styles.form} onSubmit={handleSignupSubmit}>
-
               <label className={styles.signupLabel}>
                 FULL NAME
                 <div className={styles.inputWrap}>
@@ -431,7 +576,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                     onChangeMode('login')
                   }}
                 >
-                  Log in instead
+                  Login instead
                 </button>
               </p>
             </form>

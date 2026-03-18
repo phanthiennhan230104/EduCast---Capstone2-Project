@@ -33,7 +33,7 @@ export default function TestimonialsSection() {
         <h2 className={styles.sectionTitle}>
           Được tin yêu bởi
           <br />
-          <span>120.000+ học viên.</span>
+          <span>200+ người dùng.</span>
         </h2>
       </div>
 

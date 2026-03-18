@@ -4,10 +4,7 @@ export default function HeroSection() {
   return (
     <section className={styles.hero}>
       <div className={styles.heroContent}>
-        <div className={styles.heroBadge}>
-          <span className={styles.badgePing}></span>
-          Mạng xã hội học tập #1 Việt Nam
-        </div>
+        
 
         <h1 className={styles.heroTitle}>
           Nghe · Học <br />
@@ -27,32 +24,10 @@ export default function HeroSection() {
             <ArrowRight size={16} />
           </button>
 
-          <button className={styles.btnOutlineCta}>
-            <Play size={16} />
-            Xem demo
-          </button>
+          
         </div>
 
-        <div className={styles.heroStats}>
-          <div className={styles.stat}>
-            <span className={styles.statNum}>120K+</span>
-            <span className={styles.statLabel}>Người học</span>
-          </div>
-
-          <div className={styles.statDivider}></div>
-
-          <div className={styles.stat}>
-            <span className={styles.statNum}>8.400+</span>
-            <span className={styles.statLabel}>Tập podcast</span>
-          </div>
-
-          <div className={styles.statDivider}></div>
-
-          <div className={styles.stat}>
-            <span className={styles.statNum}>340+</span>
-            <span className={styles.statLabel}>Chủ đề</span>
-          </div>
-        </div>
+        
       </div>
 
       <div className={styles.heroVisual}>
@@ -94,16 +69,8 @@ export default function HeroSection() {
 
         
 
-        <div className={`${styles.floatCard} ${styles.floatCardTwo}`}>
-  <div className={styles.floatIconWrap}>
-    <Users size={15} />
-  </div>
+        
 
-  <div className={styles.floatText}>
-    <div className={styles.floatMain}>2.341 người đang nghe</div>
-    <div className={styles.floatSub}>Cùng chủ đề với bạn</div>
-  </div>
-</div>
       </div>
     </section>
   )
