@@ -13,11 +13,19 @@ import os
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
-import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR.parent / ".env")
+
+dotenv_candidates = [
+    BASE_DIR / ".env",
+    BASE_DIR.parent / ".env",
+]
+
+for dotenv_path in dotenv_candidates:
+    if dotenv_path.exists():
+        load_dotenv(dotenv_path, override=False)
+        break
 
 
 # Quick-start development settings - unsuitable for production
@@ -99,8 +107,7 @@ DATABASES = {
     }
 }
 
-# AUTH_PASSWORD_VALIDATORS = [
-#     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
+# AUTH_PASSWORD_VALIDATORS = [#     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
 #     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
 #     {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
 #     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
@@ -172,14 +179,17 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get("SMTP_EMAIL")
-EMAIL_HOST_PASSWORD = os.environ.get("SMTP_APP_PASSWORD")
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
-EMAIL_TIMEOUT = 20
 
-SERVER_EMAIL = EMAIL_HOST_USER
-print("SMTP_EMAIL =", EMAIL_HOST_USER)
-print("SMTP_APP_PASSWORD exists =", bool(EMAIL_HOST_PASSWORD))
+# Đọc SMTP từ .env
+EMAIL_HOST_USER = (os.environ.get("SMTP_EMAIL") or os.environ.get("EMAIL_HOST_USER") or "").strip()
+
+# Xóa luôn khoảng trắng ở app password vì bạn đang lưu dạng:
+# "mxlh rabh uqdh xflz"
+EMAIL_HOST_PASSWORD = (os.environ.get("SMTP_APP_PASSWORD") or os.environ.get("EMAIL_HOST_PASSWORD") or "").replace(" ", "").strip()
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or "noreply@localhost"
+SERVER_EMAIL = DEFAULT_FROM_EMAIL
+EMAIL_TIMEOUT = 20
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -208,9 +218,8 @@ LOGGING = {
             'handlers': ['console'],
             'level': 'DEBUG',
             'propagate': False,
-        },
+},
     },
 }
-
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 CORS_ALLOW_CREDENTIALS = True

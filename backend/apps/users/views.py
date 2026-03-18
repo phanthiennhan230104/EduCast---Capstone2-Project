@@ -1,5 +1,6 @@
 import uuid
 import requests 
+import logging
 
 from django.conf import settings
 from rest_framework import generics, status
@@ -24,6 +25,8 @@ from .utils import (
     save_reset_token,
 )
 
+logger = logging.getLogger(__name__)
+
 
 # ==========================================================
 # API ĐĂNG KÝ
@@ -36,9 +39,15 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = [AllowAny]
 
     def create(self, request, *args, **kwargs):
+        # Log request data để debug
+        logger.info(f"Register request data: {request.data}")
+        
         # Tự xử lý create để tránh DRF cố serialize lại field full_name
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        
+        if not serializer.is_valid():
+            logger.error(f"Register validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
         # save() sẽ gọi hàm create() trong RegisterSerializer
         user = serializer.save()
