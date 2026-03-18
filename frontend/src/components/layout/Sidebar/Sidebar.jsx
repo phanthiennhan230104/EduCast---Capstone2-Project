@@ -14,6 +14,7 @@ const NAV_MAIN = [
 const NAV_OTHER = [
   { icon: MessageCircle, label: 'Tin nhắn',   to: '/messages' },
   { icon: User,          label: 'Trang cá nhân', to: '/profile' },
+  { icon: Plus,          label: 'Tạo Audio AI',   to: '/create-audio' },
   { icon: Settings,      label: 'Cài đặt',    to: '/settings' },
 ]
 
