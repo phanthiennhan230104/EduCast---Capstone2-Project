@@ -48,6 +48,10 @@ class User(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    # Để tương thích với Django's AUTH_USER_MODEL
+    USERNAME_FIELD = 'username'
+    REQUIRED_FIELDS = ['email']
+
     class Meta:
         db_table = "users"
         app_label = "users"
