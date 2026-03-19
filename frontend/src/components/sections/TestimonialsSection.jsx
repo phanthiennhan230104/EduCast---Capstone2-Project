@@ -33,11 +33,7 @@ export default function TestimonialsSection() {
         <h2 className={styles.sectionTitle}>
           Được tin yêu bởi
           <br />
-<<<<<<< HEAD
           <span>200+ người dùng.</span>
-=======
-          <span>120.000+ học viên.</span>
->>>>>>> d3e3f05 (Merge branch 'main' of https://github.com/phanthiennhan230104/EduCast---Capstone2-Project)
         </h2>
       </div>
 
