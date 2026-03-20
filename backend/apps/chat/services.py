@@ -1,0 +1,106 @@
+from django.core.cache import cache
+from django.db import transaction
+from django.db.models import Count
+
+from apps.users.models import User
+from .models import ChatRoom, ChatRoomMember, Message, MessageRead, generate_id
+
+PRESENCE_TTL_SECONDS = 90
+
+
+def presence_key(user_id: str) -> str:
+    return f"chat:presence:{user_id}"
+
+
+def mark_user_online(user_id: str):
+    cache.set(presence_key(str(user_id)), True, timeout=PRESENCE_TTL_SECONDS)
+
+
+def mark_user_offline(user_id: str):
+    cache.delete(presence_key(str(user_id)))
+
+
+def is_user_online(user_id: str) -> bool:
+    return bool(cache.get(presence_key(str(user_id))))
+
+
+def user_is_room_member(user, room_id: str) -> bool:
+    return ChatRoomMember.objects.filter(room_id=room_id, user=user).exists()
+
+
+def get_or_create_direct_room(user_a: User, user_b: User) -> ChatRoom:
+    room_ids_a = set(
+        ChatRoomMember.objects.filter(user=user_a).values_list("room_id", flat=True)
+    )
+    room_ids_b = set(
+        ChatRoomMember.objects.filter(user=user_b).values_list("room_id", flat=True)
+    )
+    common_room_ids = room_ids_a.intersection(room_ids_b)
+
+    room = (
+        ChatRoom.objects.filter(id__in=common_room_ids, room_type="direct")
+        .annotate(member_count=Count("members"))
+        .filter(member_count=2)
+        .first()
+    )
+    if room:
+        return room
+
+    with transaction.atomic():
+        room = ChatRoom.objects.create(
+            id=generate_id(),
+            room_type="direct",
+            created_by=user_a,
+        )
+        ChatRoomMember.objects.create(id=generate_id(), room=room, user=user_a)
+        ChatRoomMember.objects.create(id=generate_id(), room=room, user=user_b)
+
+    return room
+
+
+def create_message(*, room: ChatRoom, sender: User, content: str = "", message_type: str = "text", attachment_url: str | None = None) -> Message:
+    return Message.objects.create(
+        id=generate_id(),
+        room=room,
+        sender=sender,
+        content=content or "",
+        message_type=message_type,
+        attachment_url=attachment_url,
+    )
+
+
+def mark_room_as_read(*, room: ChatRoom, user: User) -> int:
+    unread_message_ids = list(
+        Message.objects.filter(room=room)
+        .exclude(sender=user)
+        .exclude(reads__user=user)
+        .values_list("id", flat=True)
+    )
+
+    MessageRead.objects.bulk_create(
+        [
+            MessageRead(id=generate_id(), message_id=message_id, user=user)
+            for message_id in unread_message_ids
+        ],
+        ignore_conflicts=True,
+    )
+
+    return len(unread_message_ids)
+
+
+def get_room_unread_count(*, room: ChatRoom, user: User) -> int:
+    return (
+        Message.objects.filter(room=room)
+        .exclude(sender=user)
+        .exclude(reads__user=user)
+        .count()
+    )
+
+
+def get_room_last_message(room: ChatRoom):
+    return room.messages.select_related("sender").order_by("-created_at").first()
+
+
+def get_room_other_user(room: ChatRoom, current_user: User):
+    member = room.members.exclude(user=current_user).select_related("user").first()
+    return member.user if member else None

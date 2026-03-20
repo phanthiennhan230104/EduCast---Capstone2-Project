@@ -44,10 +44,10 @@ class RegisterView(generics.CreateAPIView):
         
         # Tự xử lý create để tránh DRF cố serialize lại field full_name
         serializer = self.get_serializer(data=request.data)
-        
         if not serializer.is_valid():
             logger.error(f"Register validation errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
 
         # save() sẽ gọi hàm create() trong RegisterSerializer
         user = serializer.save()

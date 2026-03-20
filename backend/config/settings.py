@@ -16,16 +16,7 @@ from datetime import timedelta
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-dotenv_candidates = [
-    BASE_DIR / ".env",
-    BASE_DIR.parent / ".env",
-]
-
-for dotenv_path in dotenv_candidates:
-    if dotenv_path.exists():
-        load_dotenv(dotenv_path, override=False)
-        break
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
@@ -53,8 +44,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     # Cloudinary
+    'channels',
     "rest_framework",
     "apps.content",
+    'apps.chat.apps.ChatConfig',
 ]
 
 
@@ -88,6 +81,20 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'    
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(
+                os.getenv("REDIS_HOST", "127.0.0.1"),
+                int(os.getenv("REDIS_PORT", "6379")),
+            )],
+        },
+    }
+}
+
 AUTH_USER_MODEL = 'users.User'
 
 # Database
@@ -170,8 +177,8 @@ SIMPLE_JWT = {
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'educast-cache',
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': f"redis://{os.getenv('REDIS_HOST', '127.0.0.1')}:{os.getenv('REDIS_PORT', '6379')}/1",
     }
 }
 
@@ -223,3 +230,4 @@ LOGGING = {
 }
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 CORS_ALLOW_CREDENTIALS = True
+
