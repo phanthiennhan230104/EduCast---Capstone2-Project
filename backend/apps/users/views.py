@@ -23,7 +23,7 @@ from .utils import (
     send_register_otp_email,
     send_forgot_password_otp_email,
     save_reset_token,
-)   
+)
 
 logger = logging.getLogger(__name__)
 
@@ -41,6 +41,7 @@ class RegisterView(generics.CreateAPIView):
     def create(self, request, *args, **kwargs):
         # Log request data để debug
         logger.info(f"Register request data: {request.data}")
+        
         # Tự xử lý create để tránh DRF cố serialize lại field full_name
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
