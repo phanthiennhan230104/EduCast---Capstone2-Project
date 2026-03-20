@@ -201,6 +201,10 @@ def toggle_save_post(request, post_id):
     # Kiểm tra post tồn tại
     post = get_object_or_404(Post, id=post_id)
 
+    # Không cho save post của mình
+    if post.user_id == user.id:
+        return _json_error("You cannot save your own post", 403)
+
     # Kiểm tra xem user đã save post này chưa
     existing_saved = SavedPost.objects.filter(post_id=post.id, user_id=user.id).first()
 
@@ -477,6 +481,74 @@ def list_post_likers(request, post_id):
             "post_id": post.id,
             "likers": data,
             **_post_counts(post.id)
+        }
+    )
+
+
+# Follow / Unfollow user (toggle)
+@csrf_exempt
+@require_http_methods(["POST"])
+def toggle_follow_user(request, target_user_id):
+    # Lấy body JSON từ request
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+
+    # Lấy user hiện tại từ request hoặc body
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    # Không cho follow chính mình
+    if user.id == target_user_id:
+        return _json_error("You cannot follow yourself", 400)
+
+    # Kiểm tra target user tồn tại
+    target_user = get_object_or_404(User, id=target_user_id)
+
+    # Kiểm tra đã follow chưa
+    existing_follow = Follow.objects.filter(
+        follower_id=user.id,
+        following_id=target_user.id
+    ).first()
+
+    # Nếu đã follow thì unfollow
+    if existing_follow:
+        existing_follow.delete()
+        return _json_success(
+            "Unfollowed user successfully",
+            {
+                "followed": False,
+                "follower_id": user.id,
+                "following_id": target_user.id,
+            }
+        )
+
+    # Nếu chưa follow thì tạo mới
+    Follow.objects.create(
+        id=_generate_id("fol"),
+        follower_id=user.id,
+        following_id=target_user.id,
+        created_at=timezone.now()
+    )
+
+    # Tạo notification cho người được follow
+    _create_notification(
+        recipient_id=target_user.id,
+        actor_user_id=user.id,
+        notification_type="follow",
+        title="New follower",
+        body=f"{getattr(user, 'username', user.id)} started following you",
+        reference_type="user",
+        reference_id=user.id
+    )
+
+    return _json_success(
+        "Followed user successfully",
+        {
+            "followed": True,
+            "follower_id": user.id,
+            "following_id": target_user.id,
         }
     )
 

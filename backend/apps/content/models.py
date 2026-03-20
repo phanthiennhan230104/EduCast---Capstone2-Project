@@ -1,3 +1,70 @@
 from django.db import models
 
-# Create your models here.
+class Post(models.Model):
+    class VisibilityChoices(models.TextChoices):
+        PUBLIC = "public", "Public"
+        PRIVATE = "private", "Private"
+        UNLISTED = "unlisted", "Unlisted"
+
+    class SourceTypeChoices(models.TextChoices):
+        MANUAL = "manual", "Manual"
+        UPLOADED_DOCUMENT = "uploaded_document", "Uploaded Document"
+        AI_GENERATED = "ai_generated", "AI Generated"
+
+    class StatusChoices(models.TextChoices):
+        DRAFT = "draft", "Draft"
+        PROCESSING = "processing", "Processing"
+        PUBLISHED = "published", "Published"
+        FAILED = "failed", "Failed"
+        ARCHIVED = "archived", "Archived"
+        HIDDEN = "hidden", "Hidden"
+    
+    id = models.CharField(max_length=26, primary_key=True)
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, db_column='user_id', related_name='posts')
+    category_id = models.CharField(max_length=26, null=True, blank=True)
+    title = models.CharField(max_length=255)
+    slug = models.CharField(max_length=255)
+    description = models.TextField(null=True, blank=True)
+    original_text = models.TextField(null=True, blank=True)
+    summary_text = models.TextField(null=True, blank=True)
+    dialogue_script = models.TextField(null=True, blank=True)
+    transcript_text = models.TextField(null=True, blank=True)
+    source_type = models.CharField(
+        max_length=20,
+        choices=SourceTypeChoices.choices,
+        default=SourceTypeChoices.MANUAL,
+    )
+    is_ai_generated = models.BooleanField(default=False)
+    language_code = models.CharField(max_length=10, default="vi")
+    visibility = models.CharField(
+        max_length=20,
+        choices=VisibilityChoices.choices,
+        default=VisibilityChoices.PUBLIC,
+    )
+
+    status = models.CharField(
+        max_length=20,
+        choices=StatusChoices.choices,
+        default=StatusChoices.DRAFT,
+    )
+    age_group = models.CharField(max_length=20, null=True, blank=True)
+    learning_field = models.CharField(max_length=100, null=True, blank=True)
+    audio_url = models.CharField(max_length=500, null=True, blank=True)
+    thumbnail_url = models.CharField(max_length=500, null=True, blank=True)
+    duration_seconds = models.IntegerField(null=True, blank=True)
+    download_count = models.IntegerField(default=0)
+    view_count = models.IntegerField(default=0)
+    listen_count = models.IntegerField(default=0)
+    like_count = models.IntegerField(default=0)
+    comment_count = models.IntegerField(default=0)
+    save_count = models.IntegerField(default=0)
+    share_count = models.IntegerField(default=0)
+    published_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'posts'
+        managed = False  
+    def __str__(self):
+        return self.title
