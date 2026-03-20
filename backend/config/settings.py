@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "apps.content",
     'apps.chat.apps.ChatConfig',
+    "apps.social",
 ]
 
 
