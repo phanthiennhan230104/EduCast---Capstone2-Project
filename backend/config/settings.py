@@ -17,7 +17,7 @@ import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-load_dotenv(BASE_DIR.parent / ".env")
+load_dotenv(BASE_DIR / ".env")
 
 
 # Quick-start development settings - unsuitable for production
@@ -45,8 +45,10 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'rest_framework_simplejwt.token_blacklist',
     # Cloudinary
+    'channels',
     "rest_framework",
     "apps.content",
+    'apps.chat.apps.ChatConfig',
 ]
 
 
@@ -80,6 +82,20 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = 'config.wsgi.application'
+ASGI_APPLICATION = 'config.asgi.application'    
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [(
+                os.getenv("REDIS_HOST", "127.0.0.1"),
+                int(os.getenv("REDIS_PORT", "6379")),
+            )],
+        },
+    }
+}
+
 AUTH_USER_MODEL = 'users.User'
 
 # Database
@@ -163,8 +179,8 @@ SIMPLE_JWT = {
 
 CACHES = {
     'default': {
-        'BACKEND': 'django.core.cache.backends.locmem.LocMemCache',
-        'LOCATION': 'educast-cache',
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': f"redis://{os.getenv('REDIS_HOST', '127.0.0.1')}:{os.getenv('REDIS_PORT', '6379')}/1",
     }
 }
 
@@ -172,14 +188,24 @@ EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = os.environ.get("SMTP_EMAIL")
-EMAIL_HOST_PASSWORD = os.environ.get("SMTP_APP_PASSWORD")
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
+
+# Đọc SMTP từ backend/.env
+EMAIL_HOST_USER = os.environ.get("SMTP_EMAIL", "").strip()
+
+# Xóa luôn khoảng trắng ở app password vì bạn đang lưu dạng:
+# "mxlh rabh uqdh xflz"
+EMAIL_HOST_PASSWORD = os.environ.get("SMTP_APP_PASSWORD", "").replace(" ", "").strip()
+
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or "noreply@localhost"
+SERVER_EMAIL = EMAIL_HOST_USER or "noreply@localhost"
 EMAIL_TIMEOUT = 20
 
 SERVER_EMAIL = EMAIL_HOST_USER
+print("BASE_DIR =", BASE_DIR)
+print(".env path =", BASE_DIR.parent / ".env")
 print("SMTP_EMAIL =", EMAIL_HOST_USER)
-print("SMTP_APP_PASSWORD exists =", bool(EMAIL_HOST_PASSWORD))
+print("SMTP_APP_PASSWORD =", EMAIL_HOST_PASSWORD)
+print("available env keys =", list(os.environ.keys())[:10])
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
@@ -214,3 +240,4 @@ LOGGING = {
 
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 CORS_ALLOW_CREDENTIALS = True
+
