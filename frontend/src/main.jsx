@@ -1,10 +1,25 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
+import { ConfigProvider, theme } from 'antd'
+import { ToastContainer } from 'react-toastify'
+import 'react-toastify/dist/ReactToastify.css'
+import 'antd/dist/reset.css'
 import './style/index.css'
 import App from './App.jsx'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <App />
+    <ConfigProvider
+      theme={{
+        algorithm: theme.darkAlgorithm,
+        token: {
+          colorPrimary: '#f5a623',
+          borderRadius: 14,
+        },
+      }}
+    >
+      <App />
+      <ToastContainer position="top-right" autoClose={2200} />
+    </ConfigProvider>
   </StrictMode>,
-)
+) 

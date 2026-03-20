@@ -1,19 +1,22 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
-import HomePage from './pages/HomePage/HomePage'
-import FeedPage from './pages/FeedPage/FeedPage'
-import ProtectedRoute from './components/ProtectedRoute'
-import { AuthProvider, useAuth } from './components/contexts/AuthContext'
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import HomePage from "./pages/HomePage/HomePage";
+import FeedPage from "./pages/FeedPage/FeedPage";
+import ChatPage from "./pages/ChatPage/ChatPage";
+import ProtectedRoute from "./components/ProtectedRoute";
+import { AuthProvider, useAuth } from "./components/contexts/AuthContext";
 
 function RootRedirect() {
-  const { isAuthenticated, loading } = useAuth()
+  const { isAuthenticated, loading } = useAuth();
+
   if (loading) {
-    return <div style={{ padding: '24px', color: 'white' }}>Loading...</div>
-  }
-  if (isAuthenticated) {
-    return <Navigate to="/feed" replace />
+    return <div style={{ padding: 24 }}>Loading...</div>;
   }
 
-  return <HomePage />
+  if (isAuthenticated) {
+    return <Navigate to="/feed" replace />;
+  }
+
+  return <HomePage />;
 }
 
 function App() {
@@ -31,10 +34,19 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/messages"
+            element={
+              <ProtectedRoute>
+                <ChatPage />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
-  )
+  );
 }
 
-export default App
+export default App;
