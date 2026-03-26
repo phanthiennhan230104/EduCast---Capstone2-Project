@@ -7,8 +7,7 @@ import { saveAuth } from '../../utils/auth'
 import { useAuth } from '../contexts/AuthContext'
 // import ForgotPasswordModal from './ForgotPassword'
 
-
-
+const ForgotPasswordModal = () => null;
 
 export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
   const navigate = useNavigate()
