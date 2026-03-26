@@ -1,14 +1,14 @@
 import { useState } from 'react'
 import {
   Play, Pause, Heart, MessageCircle,
-  Share2, Bookmark, Bot, MoreHorizontal
+  Share2, Bookmark, Sparkles, MoreHorizontal
 } from 'lucide-react'
 import styles from '../../style/feed/PodcastCard.module.css'
 
 export default function PodcastCard({ podcast }) {
   const [playing, setPlaying] = useState(false)
   const [liked, setLiked] = useState(false)
-  const [saved, setSaved] = useState(false)
+  const [saved, setSaved] = useState(podcast.saved ?? false)
   const [progress, setProgress] = useState(podcast.progress ?? 30)
 
   const {
@@ -23,19 +23,29 @@ export default function PodcastCard({ podcast }) {
       <div className={styles.cardHeader}>
         <img src={avatar} alt={author} className={styles.authorAvatar} />
         <div className={styles.authorInfo}>
+        <div className={styles.authorMetaRow}>
           <span className={styles.authorName}>{author}</span>
-          <div className={styles.tagRow}>
-            {tags.map(t => (
-              <span key={t} className={styles.tag}>{t}</span>
-            ))}
-            {aiGenerated && (
-              <span className={styles.aiBadge}>
-                <Bot size={11} />
-                Được tạo bởi AI
-              </span>
-            )}
-          </div>
+          <span className={styles.metaDot}>•</span>
+          <span className={styles.authorMetaText}>{podcast.timeAgo}</span>
+          <span className={styles.metaDot}>•</span>
+          <span className={styles.authorMetaText}>{podcast.listens}</span>
         </div>
+
+        <div className={styles.tagRow}>
+          {tags.map(t => (
+            <span key={t} className={styles.tag}>
+              {t}
+            </span>
+          ))}
+
+          {aiGenerated && (
+            <span className={styles.aiBadge}>
+              <Sparkles size={13} />
+              Được tạo bởi AI
+            </span>
+          )}
+        </div>
+      </div>
         <button className={styles.menuBtn}><MoreHorizontal size={18} /></button>
       </div>
 

@@ -13,11 +13,8 @@ export default function MainLayout({ children, rightPanel }) {
       <main className={styles.main}>
         {children}
       </main>
-
-      <aside className={styles.rightPanel}>
-        {rightPanel || <RightPanel />}
-      </aside>
-
+      {/* Nếu page không truyền rightPanel riêng thì dùng default (RightPanel) */}
+      {rightPanel ?? <RightPanel />}
       <AudioPlayer />
     </div>
   )

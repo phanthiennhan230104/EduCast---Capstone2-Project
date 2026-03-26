@@ -94,3 +94,25 @@ class Notification(models.Model):
     def __str__(self):
         return f"Notification for {self.user} - {self.type}"
     
+class PostShare(models.Model):
+    TYPE_CHOICES = [
+        ("copy_link", "Copy Link"),
+        ("facebook", "Facebook"),
+        ("messenger", "Messenger"),
+        ("zalo", "Zalo"),
+        ("other", "Other"),
+    ]
+    id = models.CharField(max_length=26, primary_key=True)
+    post = models.ForeignKey('content.Post', on_delete=models.CASCADE, related_name='shares')
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='shared_posts')
+    share_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="copy_link")
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'post_shares'
+        managed = False
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} shared post {self.post_id} via {self.share_type}"
+    

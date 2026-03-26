@@ -2,11 +2,13 @@ import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import HomePage from "./pages/HomePage/HomePage";
 import FeedPage from "./pages/FeedPage/FeedPage";
 import ChatPage from "./pages/ChatPage/ChatPage";
+import FavoritesPage from './pages/FavoritesPage/FavoritesPage'
 import SettingsPage from "./pages/SettingsPage/SettingsPage";
 import AdminPage from "./components/admin/AdminPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminUsersPage from "./components/admin/AdminUsersPage";
 import { AuthProvider, useAuth } from "./components/contexts/AuthContext";
+import CommunityPage from "./pages/CommunityPage/CommunityPage";
 
 function RootRedirect() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -65,6 +67,25 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route 
+          path="/favorites" 
+          element={
+            <ProtectedRoute>
+              <FavoritesPage />
+            </ProtectedRoute>
+          } 
+          />
+
+          <Route 
+          path="/community" 
+          element={
+            <ProtectedRoute>
+              <CommunityPage />
+            </ProtectedRoute>
+          } 
+          />
+
 
           <Route
             path="/settings"
