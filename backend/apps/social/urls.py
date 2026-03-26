@@ -22,4 +22,9 @@ urlpatterns = [
     # Notifications
     path("notifications/", views.list_notifications, name="list_notifications"),
     path("notifications/mark-all-read/", views.mark_all_notifications_as_read, name="mark_all_notifications_as_read"),
+
+    #Share
+    path("posts/<str:post_id>/share/", views.share_post, name="share_post"),
+    path("posts/<str:post_id>/sharers/", views.list_post_sharers, name="list_post_sharers"),
+    path("posts/<str:post_id>/unshare/", views.delete_shared_post, name="delete_shared_post"),
 ]

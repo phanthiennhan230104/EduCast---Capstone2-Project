@@ -1,51 +1,56 @@
 .feed {
   display: flex;
   flex-direction: column;
-  gap: 0;
 }
 
 /* Tabs */
 .tabs {
   display: flex;
-  gap: 4px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 14px;
   padding: 6px;
   position: fixed;
-  top: var(--header-height);
-  left: var(--sidebar-width);
-  right: var(--right-panel-width);
+  top: calc(var(--header-height) + 12px);
+  left: calc(var(--sidebar-width) + 24px);
+  right: calc(var(--right-panel-width) + 24px);
   z-index: 10;
-  margin-bottom: 24px;
+  backdrop-filter: blur(10px);
 }
 
 .tab {
   flex: 1;
-  padding: 12px 0;
-  border-radius: var(--radius-md);
+  padding: 11px 0;
+  border-radius: 10px;
   font-size: 13px;
   font-weight: 500;
   color: var(--text-muted);
-  transition: background 0.2s, color 0.2s;
+  transition: all 0.2s ease;
   text-align: center;
 }
 
 .tab:hover {
   color: var(--text-secondary);
-  background: var(--bg-hover);
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .tab.active {
-  background: #ffffff;
-  color: #171B36;
-  font-weight: 700;
+  background: linear-gradient(
+    135deg,
+    rgba(232, 148, 58, 0.18),
+    rgba(232, 148, 58, 0.08)
+  );
+  color: var(--accent-light);
+  font-weight: 600;
+  border: 1px solid rgba(232, 148, 58, 0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 /* Cards list */
 .cards {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 18px;
   margin-top: calc(40px + 24px);
 }

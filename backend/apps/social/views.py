@@ -5,7 +5,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from .models import PostLike, SavedPost, Comment, Follow, Notification
+from .models import PostLike, SavedPost, Comment, Follow, Notification, PostShare
 from apps.content.models import Post
 from apps.users.models import User
 
@@ -79,12 +79,13 @@ def _create_notification(
         created_at=timezone.now(),
     )
 
-# Helper để đếm like/comment/save cho post
+# Helper để đếm like/comment/save/share cho post
 def _post_counts(post_id):
     return {
         "like_count": PostLike.objects.filter(post_id=post_id).count(),
         "comment_count": Comment.objects.filter(post_id=post_id).count(),
         "save_count": SavedPost.objects.filter(post_id=post_id).count(),
+        "share_count": PostShare.objects.filter(post_id=post_id).count(),
     }
 
 # Chuyển comment thành dict, có thể include replies nếu cần.
@@ -462,15 +463,19 @@ def delete_comment(request, comment_id):
 # Lấy danh sách user đã like post
 @require_http_methods(["GET"])
 def list_post_likers(request, post_id):
+    # Kiểm tra post tồn tại
     post = get_object_or_404(Post, id=post_id)
 
+    # Lấy tất cả like
     likes = PostLike.objects.filter(post_id=post.id).select_related("user").order_by("-created_at")
 
+    # Chuyển từng like thành dict
     data = []
     for like in likes:
         item = {
             "user_id": like.user_id,
         }
+        # Nếu bảng users có username thì dùng được. Nếu không có thì giữ user_id.
         if hasattr(like.user, "username"):
             item["username"] = like.user.username
         data.append(item)
@@ -585,3 +590,145 @@ def mark_all_notifications_as_read(request):
     Notification.objects.filter(user_id=user.id, is_read=False).update(is_read=True)
 
     return _json_success("All notifications marked as read")
+
+
+# Share post
+@csrf_exempt
+@require_http_methods(["POST"])
+def share_post(request, post_id):
+    # Lấy body JSON từ request
+    body = _parse_body(request)
+    if body is None:
+        return _json_error("Invalid JSON body", 400)
+
+    # Lấy user hiện tại từ request hoặc body
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    # Kiểm tra post tồn tại
+    post = get_object_or_404(Post, id=post_id)
+
+    # Lấy share_type từ body, mặc định là "copy_link" nếu không có
+    share_type = (body.get("share_type") or "copy_link").strip()
+
+    # Kiểm tra share_type hợp lệ
+    allowed_share_types = {
+        "copy_link",
+        "facebook",
+        "messenger",
+        "zalo",
+        "other",
+    }
+    # Nếu share_type không hợp lệ thì trả về lỗi
+    if share_type not in allowed_share_types:
+        return _json_error("Invalid share_type", 400)
+
+    # Tạo record share mới
+    share = PostShare.objects.create(
+        id=_generate_id("shr"),
+        post=post,
+        user=user,
+        share_type=share_type,
+        created_at=timezone.now()
+    )
+
+    # Thông báo cho chủ post nếu người share không phải chủ post
+    _create_notification(
+        recipient_id=post.user_id,
+        actor_user_id=user.id,
+        notification_type="new_post",  
+        title="Your post was shared",
+        body=f"{getattr(user, 'username', user.id)} shared your post",
+        reference_type="post",
+        reference_id=post.id
+    )
+
+    return _json_success(
+        "Post shared successfully",
+        {
+            "share": {
+                "id": share.id,
+                "post_id": share.post_id,
+                "user_id": share.user_id,
+                "share_type": share.share_type,
+                "created_at": share.created_at.isoformat() if share.created_at else None,
+            },
+            **_post_counts(post.id)
+        },
+        status=201
+    )
+
+
+# Xóa share post
+@csrf_exempt
+@require_http_methods(["DELETE"])
+def delete_shared_post(request, post_id):
+    # Lấy body JSON từ request
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+
+    # Lấy user hiện tại từ request hoặc body
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    # Kiểm tra post tồn tại
+    post = get_object_or_404(Post, id=post_id)
+
+    # Kiểm tra xem user đã share post này chưa
+    existing_share = PostShare.objects.filter(
+        post_id=post.id,
+        user_id=user.id
+    ).first()
+
+    # Nếu chưa share thì trả về lỗi
+    if not existing_share:
+        return _json_error("Shared post not found", 404)
+
+    # Xóa record share
+    existing_share.delete()
+
+    return _json_success(
+        "Unshared post successfully",
+        {
+            "shared": False,
+            "post_id": post.id,
+            "user_id": user.id,
+            **_post_counts(post.id)
+        }
+    )
+
+
+# List share post 
+@require_http_methods(["GET"])
+def list_post_sharers(request, post_id):
+    # Kiểm tra post tồn tại
+    post = get_object_or_404(Post, id=post_id)
+
+    # Lấy tất cả share
+    shares = PostShare.objects.filter(post_id=post.id).select_related("user").order_by("-created_at")
+
+    # Chuyển từng share thành dict
+    data = []
+    for share in shares:
+        item = {
+            "share_id": share.id,
+            "user_id": share.user_id,
+            "share_type": share.share_type,
+            "created_at": share.created_at.isoformat() if share.created_at else None,
+        }
+        # Nếu bảng users có username thì dùng được. Nếu không có thì giữ user_id.
+        if hasattr(share.user, "username"):
+            item["username"] = share.user.username
+        data.append(item)
+
+    return _json_success(
+        "Post sharers fetched successfully",
+        {
+            "post_id": post.id,
+            "sharers": data,
+            **_post_counts(post.id)
+        }
+    )

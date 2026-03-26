@@ -9,7 +9,7 @@
   margin-left: var(--sidebar-width);
   margin-right: var(--right-panel-width);
   margin-bottom: var(--player-height);
-  padding: 20px 24px;
+  padding: 20px 24px calc(var(--player-height) + 28px);
   min-height: calc(100vh - var(--header-height) - var(--player-height));
   overflow-y: auto;
 }
