@@ -4,20 +4,20 @@ import RightPanel from '../RightPanel/RightPanel'
 import AudioPlayer from '../AudioPlayer/AudioPlayer'
 import styles from '../../../style/layout/MainLayout.module.css'
 
-/**
- * MainLayout
- * Wraps any page with: Header, Sidebar, RightPanel, AudioPlayer.
- * Pass children as the main scrollable content (feed, library, etc.)
- */
-export default function MainLayout({ children }) {
+export default function MainLayout({ children, rightPanel }) {
   return (
-    <div className={styles.root}>
+    <div className={styles.layout}>
       <Header />
       <Sidebar />
+
       <main className={styles.main}>
         {children}
       </main>
-      <RightPanel />
+
+      <aside className={styles.rightPanel}>
+        {rightPanel || <RightPanel />}
+      </aside>
+
       <AudioPlayer />
     </div>
   )
