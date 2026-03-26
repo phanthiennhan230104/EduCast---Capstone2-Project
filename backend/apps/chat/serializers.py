@@ -1,3 +1,6 @@
+from urllib.parse import urljoin
+
+from django.conf import settings
 from rest_framework import serializers
 
 from apps.users.models import User
@@ -8,6 +11,26 @@ from .services import (
     get_room_unread_count,
     is_user_online,
 )
+
+
+def build_attachment_url(url: str | None) -> str | None:
+    if not url:
+        return None
+
+    url = str(url).strip()
+    if not url:
+        return None
+
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+
+    request = None
+
+    base_url = getattr(settings, "BACKEND_BASE_URL", "") or getattr(settings, "SITE_URL", "")
+    if base_url:
+        return urljoin(base_url.rstrip("/") + "/", url.lstrip("/"))
+
+    return url
 
 
 class ChatUserSerializer(serializers.ModelSerializer):
@@ -56,7 +79,14 @@ class MessageSerializer(serializers.ModelSerializer):
 
     def get_is_mine(self, obj):
         request = self.context.get("request")
-        return bool(request and request.user and str(request.user.id) == str(obj.sender_id))
+        if request and getattr(request, "user", None):
+            return str(request.user.id) == str(obj.sender_id)
+
+        user = self.context.get("user")
+        if user:
+            return str(user.id) == str(obj.sender_id)
+
+        return False
 
 
 class ConversationSerializer(serializers.ModelSerializer):

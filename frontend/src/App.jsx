@@ -7,6 +7,7 @@ import SettingsPage from "./pages/SettingsPage/SettingsPage";
 import AdminPage from "./components/admin/AdminPage";
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminUsersPage from "./components/admin/AdminUsersPage";
+import MainLayout from "./components/layout/MainLayout/MainLayout";
 import { AuthProvider, useAuth } from "./components/contexts/AuthContext";
 import CommunityPage from "./pages/CommunityPage/CommunityPage";
 
@@ -63,7 +64,9 @@ function App() {
             path="/messages"
             element={
               <ProtectedRoute>
-                <ChatPage />
+                <MainLayout>
+                  <ChatPage />
+                </MainLayout>
               </ProtectedRoute>
             }
           />

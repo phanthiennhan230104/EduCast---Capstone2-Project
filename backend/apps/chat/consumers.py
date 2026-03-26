@@ -158,7 +158,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
             message_type=message_type,
             attachment_url=attachment_url,
         )
-        return MessageSerializer(message, context={"request": None}).data
+        return MessageSerializer(message, context={"request": None, "user": self.user}).data
 
     @database_sync_to_async
     def _mark_room_read(self):
