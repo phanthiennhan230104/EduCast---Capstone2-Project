@@ -5,7 +5,7 @@ import styles from '../../style/authentication/AuthModal.module.css'
 import { apiRequest } from '../../utils/api'
 import { saveAuth } from '../../utils/auth'
 import { useAuth } from '../contexts/AuthContext'
-import ForgotPasswordModal from './ForgotPassword'
+// import ForgotPasswordModal from './ForgotPassword'
 
 
 

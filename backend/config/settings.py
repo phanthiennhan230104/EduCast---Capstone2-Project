@@ -199,8 +199,8 @@ DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or "noreply@localhost"
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 EMAIL_TIMEOUT = 20
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = BASE_DIR / 'media'
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 LOGGING = {
     'version': 1,
@@ -232,3 +232,4 @@ LOGGING = {
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 CORS_ALLOW_CREDENTIALS = True
 
+BACKEND_BASE_URL = "http://127.0.0.1:8000"

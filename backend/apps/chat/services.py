@@ -1,3 +1,6 @@
+from urllib.parse import urljoin
+
+from django.conf import settings
 from django.core.cache import cache
 from django.db import transaction
 from django.db.models import Count
@@ -58,6 +61,28 @@ def get_or_create_direct_room(user_a: User, user_b: User) -> ChatRoom:
     return room
 
 
+def normalize_attachment_url(url: str | None) -> str | None:
+    if not url:
+        return None
+
+    url = str(url).strip()
+    if not url:
+        return None
+
+    if url.startswith("http://") or url.startswith("https://"):
+        return url
+
+    base_url = getattr(settings, "BACKEND_BASE_URL", "") or getattr(settings, "SITE_URL", "")
+    if base_url:
+        return urljoin(base_url.rstrip("/") + "/", url.lstrip("/"))
+
+    media_url = getattr(settings, "MEDIA_URL", "/media/")
+    if url.startswith(media_url) or url.startswith("/media/"):
+        return url
+
+    return url
+
+
 def create_message(*, room: ChatRoom, sender: User, content: str = "", message_type: str = "text", attachment_url: str | None = None) -> Message:
     return Message.objects.create(
         id=generate_id(),
@@ -65,7 +90,7 @@ def create_message(*, room: ChatRoom, sender: User, content: str = "", message_t
         sender=sender,
         content=content or "",
         message_type=message_type,
-        attachment_url=attachment_url,
+        attachment_url=normalize_attachment_url(attachment_url),
     )
 
 

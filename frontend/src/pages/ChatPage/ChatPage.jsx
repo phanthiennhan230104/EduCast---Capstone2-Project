@@ -1,41 +1,12 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  Empty,
-  Input,
-  List,
-  Modal,
-  Space,
-  Spin,
-  Typography,
-  Upload,
-} from "antd";
-import {
-  AudioOutlined,
-  MessageOutlined,
-  PaperClipOutlined,
-  PlusOutlined,
-  SearchOutlined,
-  SendOutlined,
-  UserOutlined,
-  PictureOutlined,
-} from "@ant-design/icons";
+import { useCallback, useEffect, useMemo, useState, useRef } from "react";
+import { Avatar, Badge, Button, Card, Empty, Input, List, Modal, Space, Spin, Typography, Upload } from "antd";
+import { AudioOutlined, MessageOutlined, PaperClipOutlined, PlusOutlined, SendOutlined, UserOutlined, PictureOutlined } from "@ant-design/icons";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 
 import "./chat-page.css";
 import useChatSocket from "../../hooks/useChatSocket";
-import {
-  fetchConversations,
-  fetchMessages,
-  markRoomRead,
-  searchChatUsers,
-  startDirectChat,
-  uploadChatAttachment,
-} from "../../utils/chatApi";
+import { fetchConversations, fetchMessages, markRoomRead, searchChatUsers, startDirectChat, uploadChatAttachment } from "../../utils/chatApi";
 
 const { Text, Title } = Typography;
 const { Search, TextArea } = Input;
@@ -57,30 +28,34 @@ function ConversationItem({ item, active, onClick }) {
       className={`conversation-item ${active ? "active" : ""}`}
       onClick={onClick}
     >
-      <Space align="start" style={{ width: "100%", justifyContent: "space-between" }}>
-        <Space align="start">
+      <Space
+        align="start"
+        style={{ width: "100%", justifyContent: "space-between" }}
+      >
+        <Space align="start" size={12}>
           <Badge dot={peer?.is_online}>
             <Avatar icon={<UserOutlined />} src={peer?.avatar_url} />
           </Badge>
 
-          <div style={{ maxWidth: 180 }}>
-            <Text strong style={{ color: "white", display: "block" }}>
+          <div className="conversation-content">
+            <Text strong className="conversation-name">
               {peer?.display_name || peer?.username || "Unknown"}
             </Text>
-            <Text type="secondary" style={{ color: "#94a3b8" }}>
+            <Text className="conversation-preview">
               {getMessagePreview(lastMessage)}
             </Text>
           </div>
         </Space>
 
-        <div style={{ textAlign: "right" }}>
+        <div className="conversation-meta">
           {lastMessage?.created_at && (
-            <Text style={{ color: "#94a3b8", fontSize: 12 }}>
+            <Text className="conversation-time">
               {dayjs(lastMessage.created_at).format("HH:mm")}
             </Text>
           )}
+
           {!!item.unread_count && (
-            <div>
+            <div className="conversation-unread">
               <Badge count={item.unread_count} />
             </div>
           )}
@@ -90,38 +65,168 @@ function ConversationItem({ item, active, onClick }) {
   );
 }
 
-function MessageBubble({ message }) {
-  const mine = message.is_mine;
+function formatAudioTime(seconds) {
+  if (!Number.isFinite(seconds)) return "00:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function ChatAudioPlayer({ src, mine }) {
+  const audioRef = useRef(null);
+  const [playing, setPlaying] = useState(false);
+  const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const togglePlay = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+
+    if (playing) {
+      audio.pause();
+    } else {
+      audio.play();
+    }
+  };
+
+  const handleLoadedMetadata = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    setDuration(audio.duration || 0);
+  };
+
+  const handleTimeUpdate = () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    setCurrentTime(audio.currentTime || 0);
+  };
+
+  const handleSeek = (e) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const value = Number(e.target.value);
+    audio.currentTime = value;
+    setCurrentTime(value);
+  };
 
   return (
-    <div className={`message-row ${mine ? "mine" : ""}`}>
-      <div className="message-bubble">
-        {message.message_type === "text" && <div>{message.content}</div>}
+    <div className={`chat-audio ${mine ? "mine" : ""}`}>
+      <audio
+        ref={audioRef}
+        src={src}
+        onLoadedMetadata={handleLoadedMetadata}
+        onTimeUpdate={handleTimeUpdate}
+        onPlay={() => setPlaying(true)}
+        onPause={() => setPlaying(false)}
+        onEnded={() => setPlaying(false)}
+      />
 
-        {message.message_type === "image" && (
-          <div>
-            {message.content ? <div>{message.content}</div> : null}
+      <button
+        type="button"
+        className="chat-audio-play"
+        onClick={togglePlay}
+        aria-label={playing ? "Pause audio" : "Play audio"}
+      >
+        {playing ? "❚❚" : "▶"}
+      </button>
+
+      <div className="chat-audio-body">
+        <div className="chat-audio-wave">
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+          <span />
+        </div>
+
+        <input
+          className="chat-audio-range"
+          type="range"
+          min={0}
+          max={duration || 0}
+          step={0.1}
+          value={Math.min(currentTime, duration || 0)}
+          onChange={handleSeek}
+        />
+
+        <div className="chat-audio-time">
+          <span>{formatAudioTime(currentTime)}</span>
+          <span>{formatAudioTime(duration)}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MessageBubble({ message }) {
+  const mine = message.is_mine;
+  const [previewOpen, setPreviewOpen] = useState(false);
+
+  const isText = message.message_type === "text";
+  const isImage = message.message_type === "image";
+  const isAudio = message.message_type === "audio";
+  const isFile = message.message_type === "file";
+
+  return (
+    <>
+      <div className={`message-row ${mine ? "mine" : ""}`}>
+        {isText && (
+          <div className="message-bubble">
+            <div>{message.content}</div>
+            <div className="message-time">
+              <Text style={{ color: "#dbeafe", fontSize: 11 }}>
+                {dayjs(message.created_at).format("HH:mm")}
+              </Text>
+            </div>
+          </div>
+        )}
+
+        {isImage && (
+          <div className={`message-media message-media-image ${mine ? "mine" : ""}`}>
+            {message.content ? (
+              <div className="message-media-caption">{message.content}</div>
+            ) : null}
+
             <img
-              className="attachment-preview"
+              className="attachment-preview attachment-preview-clickable"
               src={message.attachment_url}
               alt="attachment"
+              onClick={() => setPreviewOpen(true)}
             />
+
+            <div className="message-media-time">
+              <Text style={{ color: "#cbd5e1", fontSize: 11 }}>
+                {dayjs(message.created_at).format("HH:mm")}
+              </Text>
+            </div>
           </div>
         )}
 
-        {message.message_type === "audio" && (
-          <div>
-            {message.content ? <div>{message.content}</div> : null}
-            <audio
-              controls
-              src={message.attachment_url}
-              style={{ width: "100%", marginTop: 8 }}
-            />
+        {isAudio && (
+          <div className={`message-media message-media-audio ${mine ? "mine" : ""}`}>
+            {message.content ? (
+              <div className="message-media-caption">{message.content}</div>
+            ) : null}
+
+            <ChatAudioPlayer src={message.attachment_url} mine={mine} />
+
+            <div className="message-media-time">
+              <Text style={{ color: "#cbd5e1", fontSize: 11 }}>
+                {dayjs(message.created_at).format("HH:mm")}
+              </Text>
+            </div>
           </div>
         )}
 
-        {message.message_type === "file" && (
-          <div>
+        {isFile && (
+          <div className="message-bubble">
             {message.content ? <div>{message.content}</div> : null}
             <a
               href={message.attachment_url}
@@ -131,16 +236,30 @@ function MessageBubble({ message }) {
             >
               Mở file đính kèm
             </a>
+            <div className="message-time">
+              <Text style={{ color: "#dbeafe", fontSize: 11 }}>
+                {dayjs(message.created_at).format("HH:mm")}
+              </Text>
+            </div>
           </div>
         )}
-
-        <div style={{ marginTop: 8, textAlign: "right" }}>
-          <Text style={{ color: "#dbeafe", fontSize: 11 }}>
-            {dayjs(message.created_at).format("HH:mm")}
-          </Text>
-        </div>
       </div>
-    </div>
+
+      <Modal
+        open={previewOpen}
+        footer={null}
+        onCancel={() => setPreviewOpen(false)}
+        centered
+        width="auto"
+        className="image-preview-modal"
+      >
+        <img
+          src={message.attachment_url}
+          alt="preview"
+          className="image-preview-modal-img"
+        />
+      </Modal>
+    </>
   );
 }
 
@@ -209,6 +328,12 @@ export default function ChatPage() {
   const [openNewChat, setOpenNewChat] = useState(false);
   const [uploading, setUploading] = useState(false);
 
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = useCallback((behavior = "smooth") => {
+    messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
+  }, []);
+
   const activeConversation = useMemo(
     () => conversations.find((item) => item.id === activeRoomId) || null,
     [conversations, activeRoomId]
@@ -241,12 +366,29 @@ export default function ChatPage() {
 
   useEffect(() => {
     loadConversations();
-  }, []);
+  }, [loadConversations]);
 
   useEffect(() => {
     if (!activeRoomId) return;
     loadMessages(activeRoomId);
-  }, [activeRoomId]);
+  }, [activeRoomId, loadMessages]);
+
+  useEffect(() => {
+    scrollToBottom("auto");
+  }, [activeRoomId, scrollToBottom]);
+
+  useEffect(() => {
+    scrollToBottom("smooth");
+  }, [messages, scrollToBottom]);
+
+  useEffect(() => {
+    loadConversations();
+  }, [loadConversations]);
+
+  useEffect(() => {
+    if (!activeRoomId) return;
+    loadMessages(activeRoomId);
+  }, [activeRoomId, loadMessages]);
 
   const handleIncomingMessage = useCallback((message) => {
     setMessages((prev) => {
@@ -283,27 +425,29 @@ export default function ChatPage() {
     );
   }, []);
 
-  const handleRead = useCallback(({ room_id, user_id }) => {
-    if (room_id !== activeRoomId) return;
+  const handleRead = useCallback(
+    ({ room_id, user_id }) => {
+      if (room_id !== activeRoomId) return;
 
-    setMessages((prev) =>
-      prev.map((msg) => {
-        if (String(msg.sender?.id) === String(user_id)) return msg;
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (String(msg.sender?.id) === String(user_id)) return msg;
 
-        const readBy = new Set(msg.read_by_user_ids || []);
-        readBy.add(user_id);
+          const readBy = new Set(msg.read_by_user_ids || []);
+          readBy.add(user_id);
 
-        return {
-          ...msg,
-          read_by_user_ids: Array.from(readBy),
-        };
-      })
-    );
-  }, [activeRoomId]);
+          return {
+            ...msg,
+            read_by_user_ids: Array.from(readBy),
+          };
+        })
+      );
+    },
+    [activeRoomId]
+  );
 
-  const { status, sendTextMessage, sendAttachmentMessage, markRead } = useChatSocket(
-    activeRoomId,
-    {
+  const { status, sendTextMessage, sendAttachmentMessage, markRead } =
+    useChatSocket(activeRoomId, {
       onMessage: handleIncomingMessage,
       onPresence: handlePresence,
       onRead: handleRead,
@@ -315,8 +459,7 @@ export default function ChatPage() {
           } catch (_) {}
         }
       },
-    }
-  );
+    });
 
   const handleSendText = () => {
     const value = draft.trim();
@@ -327,6 +470,7 @@ export default function ChatPage() {
       toast.error("WebSocket chưa kết nối");
       return;
     }
+
     setDraft("");
   };
 
@@ -367,20 +511,29 @@ export default function ChatPage() {
 
   if (loading) {
     return (
-      <div className="chat-empty">
-        <Spin size="large" />
+      <div className="chat-page chat-page-in-layout">
+        <div className="chat-empty">
+          <Spin size="large" />
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="chat-page">
+    <div className="chat-page chat-page-in-layout">
       <div className="chat-layout">
         <Card className="chat-card chat-sidebar" bodyStyle={{ padding: 16 }}>
-          <Space style={{ width: "100%", justifyContent: "space-between", marginBottom: 12 }}>
+          <Space
+            style={{
+              width: "100%",
+              justifyContent: "space-between",
+              marginBottom: 12,
+            }}
+          >
             <Title level={3} style={{ color: "white", margin: 0 }}>
               Tin nhắn
             </Title>
+
             <Button
               type="primary"
               shape="circle"
@@ -389,7 +542,7 @@ export default function ChatPage() {
             />
           </Space>
 
-          <div style={{ overflowY: "auto", flex: 1 }}>
+          <div className="conversation-list">
             {conversations.length === 0 ? (
               <Empty description="Chưa có cuộc trò chuyện" />
             ) : (
@@ -417,12 +570,17 @@ export default function ChatPage() {
                       icon={<UserOutlined />}
                     />
                   </Badge>
+
                   <div>
                     <Text strong style={{ color: "white", display: "block" }}>
-                      {activeConversation.peer?.display_name || activeConversation.peer?.username}
+                      {activeConversation.peer?.display_name ||
+                        activeConversation.peer?.username}
                     </Text>
+
                     <Text style={{ color: "#94a3b8" }}>
-                      {status === "open" ? "Đã kết nối realtime" : "Đang kết nối..."}
+                      {status === "open"
+                        ? "Đã kết nối realtime"
+                        : "Đang kết nối..."}
                     </Text>
                   </div>
                 </Space>
@@ -432,36 +590,41 @@ export default function ChatPage() {
                 {messages.length === 0 ? (
                   <Empty description="Chưa có tin nhắn" />
                 ) : (
-                  messages.map((message) => (
-                    <MessageBubble key={message.id} message={message} />
-                  ))
+                  <>
+                    {messages.map((message) => (
+                      <MessageBubble key={message.id} message={message} />
+                    ))}
+                    <div ref={messagesEndRef} />
+                  </>
                 )}
               </div>
 
               <div className="chat-composer">
-                <Upload
-                  showUploadList={false}
-                  beforeUpload={handleUploadAndSend}
-                  disabled={uploading}
-                >
-                  <Button icon={<PictureOutlined />} loading={uploading} />
-                </Upload>
+                <div className="chat-composer-actions">
+                  <Upload
+                    showUploadList={false}
+                    beforeUpload={handleUploadAndSend}
+                    disabled={uploading}
+                  >
+                    <Button icon={<PictureOutlined />} loading={uploading} />
+                  </Upload>
 
-                <Upload
-                  showUploadList={false}
-                  beforeUpload={handleUploadAndSend}
-                  disabled={uploading}
-                >
-                  <Button icon={<AudioOutlined />} loading={uploading} />
-                </Upload>
+                  <Upload
+                    showUploadList={false}
+                    beforeUpload={handleUploadAndSend}
+                    disabled={uploading}
+                  >
+                    <Button icon={<AudioOutlined />} loading={uploading} />
+                  </Upload>
 
-                <Upload
-                  showUploadList={false}
-                  beforeUpload={handleUploadAndSend}
-                  disabled={uploading}
-                >
-                  <Button icon={<PaperClipOutlined />} loading={uploading} />
-                </Upload>
+                  <Upload
+                    showUploadList={false}
+                    beforeUpload={handleUploadAndSend}
+                    disabled={uploading}
+                  >
+                    <Button icon={<PaperClipOutlined />} loading={uploading} />
+                  </Upload>
+                </div>
 
                 <TextArea
                   value={draft}
@@ -476,7 +639,11 @@ export default function ChatPage() {
                   }}
                 />
 
-                <Button type="primary" icon={<SendOutlined />} onClick={handleSendText} />
+                <Button
+                  type="primary"
+                  icon={<SendOutlined />}
+                  onClick={handleSendText}
+                />
               </div>
             </>
           ) : (
@@ -494,14 +661,22 @@ export default function ChatPage() {
                 src={activeConversation.peer.avatar_url}
                 icon={<UserOutlined />}
               />
+
               <Title level={4} style={{ color: "white", margin: 0 }}>
-                {activeConversation.peer.display_name || activeConversation.peer.username}
+                {activeConversation.peer.display_name ||
+                  activeConversation.peer.username}
               </Title>
 
-              <Text style={{ color: "#94a3b8" }}>{activeConversation.peer.email}</Text>
+              <Text style={{ color: "#94a3b8" }}>
+                {activeConversation.peer.email}
+              </Text>
 
               <div>
-                <span className={`status-dot ${activeConversation.peer.is_online ? "" : "offline"}`} />
+                <span
+                  className={`status-dot ${
+                    activeConversation.peer.is_online ? "" : "offline"
+                  }`}
+                />
                 <Text style={{ color: "#94a3b8" }}>
                   {activeConversation.peer.is_online ? "Đang online" : "Offline"}
                 </Text>
