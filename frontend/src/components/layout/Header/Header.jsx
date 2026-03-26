@@ -1,61 +1,141 @@
-import { useState } from 'react'
-import { Search, Bell, Plus, ChevronDown } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Search, Bell, Plus, ChevronDown, Settings, LogOut } from 'lucide-react'
 import styles from '../../../style/layout/Header.module.css'
+import { useAuth } from '../../contexts/AuthContext'
 
 export default function Header() {
+  const navigate = useNavigate()
+  const { user, logout } = useAuth()
   const [query, setQuery] = useState('')
+  const [openMenu, setOpenMenu] = useState(false)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setOpenMenu(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const displayName = useMemo(
+    () => user?.full_name || user?.name || user?.display_name || user?.username || 'Người dùng',
+    [user]
+  )
+
+  const avatarUrl = user?.avatar || user?.avatar_url || ''
+  const avatarFallback = displayName.charAt(0).toUpperCase()
+
+  const handleGoSettings = () => {
+    setOpenMenu(false)
+    navigate('/settings')
+  }
+
+  const handleLogout = async () => {
+    await logout()
+    setOpenMenu(false)
+    navigate('/', { replace: true })
+  }
 
   return (
     <header className={styles.header}>
-      {/* Logo */}
       <div className={styles.logo}>
         <div className={styles.logoIcon}>
           <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path d="M9 19V6l12-3v13" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-            <circle cx="6" cy="19" r="3" stroke="#fff" strokeWidth="2"/>
-            <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="2"/>
+            <path
+              d="M9 19V6l12-3v13"
+              stroke="#fff"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+            <circle cx="6" cy="19" r="3" stroke="#fff" strokeWidth="2" />
+            <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="2" />
           </svg>
         </div>
         <span className={styles.logoText}>EduCast</span>
       </div>
 
-      {/* Search */}
       <div className={styles.searchWrap}>
         <Search size={15} className={styles.searchIcon} />
         <input
           className={styles.searchInput}
           type="text"
-          placeholder="Tìm kiếm podcast, khóa học, tác giả..."
+          placeholder="Tìm kiếm Podcast, chủ đề, người tạo..."
           value={query}
-          onChange={e => setQuery(e.target.value)}
+          onChange={(e) => setQuery(e.target.value)}
         />
       </div>
 
-      {/* Right actions */}
       <div className={styles.actions}>
-        <button className={styles.iconBtn} aria-label="Thông báo">
+        <button className={styles.iconBtn} aria-label="Thông báo" type="button">
           <Bell size={18} />
           <span className={styles.badge}>3</span>
         </button>
 
-        <button className={styles.createBtn}>
+        <button className={styles.createBtn} type="button">
           <Plus size={16} />
           Tạo Podcast
         </button>
 
-        <button className={styles.langBtn}>
+        <button className={styles.langBtn} type="button">
           <span className={styles.flag}>🇻🇳</span>
-          <ChevronDown size={13} />
         </button>
 
-        <button className={styles.avatar} aria-label="Trang cá nhân">
-          <img
-            src="https://i.pravatar.cc/36?img=12"
-            alt="avatar"
-            width={36}
-            height={36}
-          />
-        </button>
+        <div className={styles.userMenuWrap} ref={menuRef}>
+          <button
+            className={styles.userTrigger}
+            aria-label="Mở menu người dùng"
+            onClick={() => setOpenMenu((prev) => !prev)}
+            type="button"
+          >
+            <div className={styles.avatar}>
+              {avatarUrl ? (
+                <img src={avatarUrl} alt={displayName} width={36} height={36} />
+              ) : (
+                <span className={styles.avatarFallback}>{avatarFallback}</span>
+              )}
+            </div>
+            <ChevronDown
+              size={14}
+              className={`${styles.userChevron} ${openMenu ? styles.userChevronOpen : ''}`}
+            />
+          </button>
+
+          <div className={`${styles.dropdownMenu} ${openMenu ? styles.dropdownMenuOpen : ''}`}>
+            <div className={styles.dropdownHeader}>
+              <div className={styles.dropdownAvatar}>
+                {avatarUrl ? (
+                  <img src={avatarUrl} alt={displayName} width={40} height={40} />
+                ) : (
+                  <span className={styles.avatarFallback}>{avatarFallback}</span>
+                )}
+              </div>
+              <div className={styles.dropdownMeta}>
+                <strong>{displayName}</strong>
+                <span>{user?.email || 'Tài khoản EduCast'}</span>
+              </div>
+            </div>
+
+            <button type="button" className={styles.dropdownItem} onClick={handleGoSettings}>
+              <Settings size={16} />
+              <span>Cài đặt</span>
+            </button>
+
+            <button
+              type="button"
+              className={`${styles.dropdownItem} ${styles.logoutItem}`}
+              onClick={handleLogout}
+            >
+              <LogOut size={16} />
+              <span>Đăng xuất</span>
+            </button>
+          </div>
+        </div>
       </div>
     </header>
   )
