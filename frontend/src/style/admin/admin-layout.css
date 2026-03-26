@@ -23,6 +23,7 @@
 @media (max-width: 860px) {
   .admin-layout {
     grid-template-columns: 1fr;
+    
   }
 
   .admin-layout-main {

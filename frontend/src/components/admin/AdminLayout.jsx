@@ -11,6 +11,7 @@ export default function AdminLayout({ title, subtitle, children }) {
         <AdminHeader title={title} subtitle={subtitle} />
 
         <main className="admin-layout-main">
+          
           {children}
         </main>
       </section>

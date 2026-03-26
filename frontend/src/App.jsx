@@ -20,6 +20,7 @@ function RootRedirect() {
   }
 
   return <HomePage />;
+  
 }
 
 function App() {

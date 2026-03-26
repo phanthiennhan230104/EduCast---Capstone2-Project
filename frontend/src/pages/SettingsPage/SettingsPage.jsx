@@ -454,5 +454,6 @@ export default function SettingsPage() {
         <div className={styles.contentArea}>{renderContent()}</div>
       </div>
     </MainLayout>
+    
   )
 }

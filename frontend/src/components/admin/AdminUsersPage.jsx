@@ -14,6 +14,7 @@ function formatJoinDate(dateString) {
     month: "long",
     year: "numeric",
   }).format(date);
+  
 }
 
 function getInitial(value = "U") {

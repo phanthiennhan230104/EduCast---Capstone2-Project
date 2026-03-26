@@ -10,4 +10,5 @@ class IsAdminRole(BasePermission):
             user
             and getattr(user, "is_authenticated", False)
             and getattr(user, "role", None) == "admin"
+            
         )
