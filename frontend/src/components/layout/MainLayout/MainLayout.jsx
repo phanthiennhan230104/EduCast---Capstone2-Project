@@ -6,9 +6,10 @@ import styles from '../../../style/layout/MainLayout.module.css'
 
 export default function MainLayout({ children, rightPanel }) {
   return (
-    <div className={styles.root}>
+    <div className={styles.layout}>
       <Header />
       <Sidebar />
+
       <main className={styles.main}>
         {children}
       </main>

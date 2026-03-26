@@ -1,14 +1,21 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { X, Music, User, AtSign, Mail, Lock, Eye, Chrome, Facebook } from 'lucide-react'
+import { X, Music, User, AtSign, Mail, Lock, Eye, Chrome } from 'lucide-react'
 import styles from '../../style/authentication/AuthModal.module.css'
 import { apiRequest } from '../../utils/api'
 import { saveAuth } from '../../utils/auth'
 import { useAuth } from '../contexts/AuthContext'
+import ForgotPasswordModal from './ForgotPassword'
+
+
+
 
 export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
   const navigate = useNavigate()
   const { login } = useAuth()
+  const googleAppId = import.meta.env.VITE_GG_APP_ID
+  const googleButtonRef = useRef(null)
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
 
   // -----------------------------
   // State cho form đăng nhập
@@ -28,7 +35,6 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
     email: '',
     password: '',
     confirmPassword: '',
-    agreeTerms: false,
   })
 
   // -----------------------------
@@ -108,18 +114,21 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         body: JSON.stringify({
           identifier: loginData.email,
           password: loginData.password,
+          remember_me: loginData.rememberMe,
         }),
       })
 
-      // Lưu access/refresh/user vào localStorage
-      saveAuth(data)
-
-      // Ghi user vào context để UI biết là đã đăng nhập
+      saveAuth(data, loginData.rememberMe)
       login(data.user)
 
       setSuccessMessage('Đăng nhập thành công.')
       onClose()
-      navigate('/feed')
+
+      if (data?.user?.role === 'admin') {
+        navigate('/admin')
+      } else {
+        navigate('/feed')
+      }
     } catch (error) {
       setErrorMessage(error.message || 'Đăng nhập thất bại.')
     } finally {
@@ -165,11 +174,6 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
 
     if (signupData.password !== signupData.confirmPassword) {
       setErrorMessage('Mật khẩu xác nhận không khớp.')
-      return
-    }
-
-    if (!signupData.agreeTerms) {
-      setErrorMessage('Bạn cần đồng ý Điều khoản dịch vụ.')
       return
     }
 
@@ -229,19 +233,22 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         body: JSON.stringify({
           email: otpData.email,
           otp: otpData.otp,
+          remember_me: loginData.rememberMe,
         }),
       })
 
-      // Lưu token + user vào localStorage
-      saveAuth(data)
-
-      // Cập nhật context đăng nhập
+      saveAuth(data, loginData.rememberMe)
       login(data.user)
 
       setSuccessMessage('Xác thực OTP thành công.')
       setShowOtpPopup(false)
       onClose()
-      navigate('/feed')
+
+      if (data?.user?.role === 'admin') {
+        navigate('/admin')
+      } else {
+        navigate('/feed')
+      }
     } catch (error) {
       setErrorMessage(error.message || 'Xác thực OTP thất bại.')
     } finally {
@@ -249,6 +256,98 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
     }
   }
 
+  //DANG NHAP BANG GOOGLE
+  const handleGoogleLoginSuccess = async (googleResponse) => {
+    resetMessages()
+
+    try {
+      setLoading(true)
+
+      const idToken = googleResponse?.credential || ''
+
+      if (!idToken) {
+        throw new Error('Không lấy được Google id_token.')
+      }
+
+      const data = await apiRequest('/auth/login/google/', {
+        method: 'POST',
+        body: JSON.stringify({
+          id_token: idToken,
+        }),
+      })
+
+      saveAuth(data, true)
+      login(data.user)
+
+      setSuccessMessage('Đăng nhập Google thành công.')
+      onClose()
+
+      if (data?.user?.role === 'admin') {
+        navigate('/admin')
+      } else {
+        navigate('/feed')
+      }
+    } catch (error) {
+      setErrorMessage(error.message || 'Đăng nhập Google thất bại.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleGoogleLoginFail = () => {
+    setErrorMessage('Đăng nhập Google thất bại.')
+  }
+  useEffect(() => {
+    if (!isOpen || mode !== 'login') return
+    if (!googleAppId) return
+
+    const renderGoogleButton = () => {
+      if (!window.google || !googleButtonRef.current) return
+
+      googleButtonRef.current.innerHTML = ''
+
+      window.google.accounts.id.initialize({
+        client_id: googleAppId,
+        callback: async (response) => {
+          try {
+            await handleGoogleLoginSuccess(response)
+          } catch {
+            setErrorMessage('Đăng nhập Google thất bại.')
+          }
+        },
+      })
+
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: 'outline',
+        size: 'large',
+        text: 'signin_with',
+        shape: 'pill',
+        width: 260,
+      })
+    }
+
+    const existingScript = document.querySelector(
+      'script[src="https://accounts.google.com/gsi/client"]'
+    )
+
+    if (existingScript) {
+      renderGoogleButton()
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://accounts.google.com/gsi/client'
+    script.async = true
+    script.defer = true
+    script.onload = renderGoogleButton
+    document.body.appendChild(script)
+
+    return () => {
+      if (window.google?.accounts?.id) {
+        window.google.accounts.id.cancel()
+      }
+    }
+  }, [isOpen, mode, googleAppId])
   if (!isOpen) return null
 
   return (
@@ -410,6 +509,17 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                     <Eye size={16} />
                   </button>
                 </div>
+
+                <button
+  type="button"
+  className={styles.forgotBtn}
+  onClick={() => {
+    resetMessages()
+    setShowForgotPassword(true)
+  }}
+>
+  Forgot password?
+</button>
               </label>
 
               <label className={styles.rememberRow}>
@@ -431,16 +541,15 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
               </div>
 
               <div className={styles.socialRow}>
-                <button type="button" className={styles.socialBtn}>
-                  <Chrome size={16} />
-                  <span>Google</span>
-                </button>
-                <button type="button" className={styles.socialBtn}>
-                  <Facebook size={16} />
-                  <span>Facebook</span>
-                </button>
+                {googleAppId ? (
+                  <div ref={googleButtonRef} className={styles.googleButtonWrap}></div>
+                ) : (
+                  <button type="button" className={styles.socialBtn} disabled>
+                    <Chrome size={16} />
+                    <span>Thiếu VITE_GG_APP_ID</span>
+                  </button>
+                )}
               </div>
-
               <p className={styles.switchText}>
                 Don't have an account?{' '}
                 <button
@@ -550,18 +659,6 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                 </div>
               </label>
 
-              <label className={styles.agreeRow}>
-                <input
-                  type="checkbox"
-                  name="agreeTerms"
-                  checked={signupData.agreeTerms}
-                  onChange={handleSignupChange}
-                />
-                <span>
-                  I agree to the <a href="/">Terms of Service</a> and <a href="/">Privacy Policy</a>.
-                </span>
-              </label>
-
               <button type="submit" className={styles.submitBtn} disabled={loading}>
                 {loading ? 'Creating Account...' : 'Create Account'}
               </button>
@@ -583,6 +680,21 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
           )}
         </div>
       </div>
+      <ForgotPasswordModal
+        open={showForgotPassword}
+        onClose={() => setShowForgotPassword(false)}
+        defaultEmail={loginData.email}
+        onSuccess={(email) => {
+          setShowForgotPassword(false)
+          setLoginData((prev) => ({
+            ...prev,
+            email,
+            password: '',
+          }))
+          resetMessages()
+          setSuccessMessage('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.')
+        }}
+      />
     </div>
   )
 }

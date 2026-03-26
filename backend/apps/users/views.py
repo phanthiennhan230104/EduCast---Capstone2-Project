@@ -1,7 +1,6 @@
 import uuid
 import requests 
 import logging
-
 from django.conf import settings
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
@@ -10,13 +9,19 @@ from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password
+from django.utils import timezone
+from datetime import timedelta
+from rest_framework_simplejwt.tokens import RefreshToken
+from .permissions import IsAdminRole
 
 from .models import User
 from .serializers import (
     RegisterSerializer,
     MyTokenObtainPairSerializer,
     ResetPasswordSerializer,
+    AdminUserListSerializer,
 )
+from .permissions import IsAdminRole
 from .utils import (
     verify_otp,
     verify_reset_token,
@@ -26,6 +31,7 @@ from .utils import (
 )
 
 logger = logging.getLogger(__name__)
+
 
 
 # ==========================================================
@@ -77,18 +83,16 @@ class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
-        # Lấy email + otp từ request
         email = request.data.get("email", "").strip().lower()
         otp = request.data.get("otp", "").strip()
+        remember_me = request.data.get("remember_me", True)
 
-        # Thiếu dữ liệu thì trả lỗi 400
         if not email or not otp:
             return Response(
                 {"error": "Email và OTP là bắt buộc."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Kiểm tra OTP
         ok, msg = verify_otp(email, otp)
         if not ok:
             return Response(
@@ -96,7 +100,6 @@ class VerifyOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        # Tìm user theo email
         try:
             user = User.objects.get(email=email)
         except User.DoesNotExist:
@@ -105,35 +108,44 @@ class VerifyOTPView(APIView):
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # Kích hoạt tài khoản sau khi OTP đúng
         user.status = "active"
         user.is_verified = True
         user.last_login_at = timezone.now()
         user.save(update_fields=["status", "is_verified", "last_login_at", "updated_at"])
 
-        # Tạo refresh token đúng cách
-        refresh = RefreshToken()
+        if remember_me:
+            access_lifetime = timedelta(days=7)
+            refresh_lifetime = timedelta(days=30)
+        else:
+            access_lifetime = timedelta(hours=8)
+            refresh_lifetime = timedelta(days=1)
 
-        # Gắn thêm thông tin user vào token
+        refresh = RefreshToken()
+        refresh.set_exp(lifetime=refresh_lifetime)
+
         refresh["user_id"] = str(user.id)
         refresh["email"] = user.email
         refresh["username"] = user.username
         refresh["role"] = user.role
+        refresh["remember_me"] = remember_me
 
         access = refresh.access_token
+        access.set_exp(lifetime=access_lifetime)
+
         access["user_id"] = str(user.id)
         access["email"] = user.email
         access["username"] = user.username
         access["role"] = user.role
+        access["remember_me"] = remember_me
 
         profile = getattr(user, "profile", None)
 
-        # Trả token + user để frontend login luôn
         return Response(
             {
                 "message": "Xác thực OTP thành công.",
                 "refresh": str(refresh),
                 "access": str(access),
+                "remember_me": remember_me,
                 "user": {
                     "id": str(user.id),
                     "email": user.email,
@@ -148,7 +160,6 @@ class VerifyOTPView(APIView):
             },
             status=status.HTTP_200_OK
         )
-
 
 # ==========================================================
 # API ĐĂNG NHẬP
@@ -420,4 +431,29 @@ class GoogleLoginView(APIView):
                 }
             },
             status=status.HTTP_200_OK
+        )
+
+class AdminUsersListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        users = User.objects.select_related("profile").order_by("-created_at")
+        serializer = AdminUserListSerializer(users, many=True)
+
+        total_users = users.count()
+        total_admins = users.filter(role="admin").count()
+        total_active = users.filter(status="active").count()
+        total_locked = users.filter(status__in=["suspended", "banned"]).count()
+
+        return Response(
+            {
+                "stats": {
+                    "total_users": total_users,
+                    "total_admins": total_admins,
+                    "total_active": total_active,
+                    "total_locked": total_locked,
+                },
+                "users": serializer.data,
+            },
+            status=status.HTTP_200_OK,
         )

@@ -152,6 +152,9 @@
   color: #9b67ff;
   cursor: pointer;
   font-size: 0.82rem;
+  padding: 8px 0;
+  margin-top: 12px;
+  display: block;
 }
 
 .input {
@@ -174,9 +177,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  margin: 0 0 22px;
+  margin: -12px 0 22px;
   color: rgba(255, 255, 255, 0.65);
   font-size: 0.95rem;
+  position: relative;
+  z-index: 1;
 }
 
 .submitBtn {
@@ -205,21 +210,29 @@
   flex: 1;
   height: 1px;
   background: rgba(255, 255, 255, 0.08);
+  
 }
 
 .socialRow {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 14px;
 }
 
 .socialBtn {
-  height: 46px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  background: transparent;
-  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  padding: 10px 12px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   cursor: pointer;
+  width: fit-content;
+  min-width: 140px;
+  margin: 0 auto;
 }
 
 .terms {
@@ -291,7 +304,7 @@
   top: 50%;
   transform: translateY(-50%);
   color: rgba(255, 255, 255, 0.35);
-  pointer-events: none;
+  pointer-events: auto;
 }
 
 .inputWithIcon {
@@ -366,4 +379,34 @@
   .twoCols {
     grid-template-columns: 1fr;
   }
+}
+
+.googleButtonWrap {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.googleButtonWrap > div {
+  margin: 0 auto;
+}
+
+.passwordHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.88);
+}
+
+.forgotBtn {
+  align-self: flex-end;
+  margin-top: 8px;
+  background: transparent;
+  border: none;
+  color: #9b67ff;
+  cursor: pointer;
+  font-size: 0.82rem;
+  padding: 0;
 }
