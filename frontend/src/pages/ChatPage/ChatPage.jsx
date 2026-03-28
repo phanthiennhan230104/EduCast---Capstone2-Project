@@ -32,6 +32,7 @@ import dayjs from "dayjs";
 
 import "./chat-page.css";
 import useChatSocket from "../../hooks/useChatSocket";
+import useChatInboxSocket from "../../hooks/useChatInboxSocket";
 import {
   fetchConversations,
   fetchMessages,
@@ -479,40 +480,67 @@ export default function ChatPage() {
     return () => cancelAnimationFrame(id);
   }, [messages, scrollToBottom]);
 
-  const handleIncomingMessage = useCallback((message) => {
-    setMessages((prev) => {
-      const exists = prev.some((item) => item.id === message.id);
-      if (exists) return prev;
-      return [...prev, message];
+  const mergeConversation = useCallback((conversation) => {
+  if (!conversation?.id) return;
+
+  setConversations((prev) => {
+    const next = [...prev];
+    const index = next.findIndex((item) => item.id === conversation.id);
+
+    if (index >= 0) {
+      next[index] = {
+        ...next[index],
+        ...conversation,
+      };
+    } else {
+      next.unshift(conversation);
+    }
+
+    next.sort((a, b) => {
+      const aTime = a.last_message?.created_at || a.created_at || "";
+      const bTime = b.last_message?.created_at || b.created_at || "";
+      return dayjs(bTime).valueOf() - dayjs(aTime).valueOf();
     });
 
-    setConversations((prev) =>
-      prev.map((conversation) =>
-        conversation.id === message.room
-          ? {
-              ...conversation,
-              last_message: message,
-            }
-          : conversation
-      )
-    );
-  }, []);
+    return next;
+  });
 
-  const handlePresence = useCallback(({ user_id, status }) => {
-    setConversations((prev) =>
-      prev.map((conversation) =>
-        conversation.peer?.id === user_id
-          ? {
-              ...conversation,
-              peer: {
-                ...conversation.peer,
-                is_online: status === "online",
-              },
-            }
-          : conversation
-      )
-    );
-  }, []);
+  setActiveRoomId((prev) => prev || conversation.id);
+}, []);
+
+const handleIncomingMessage = useCallback((message) => {
+  setMessages((prev) => {
+    const exists = prev.some((item) => item.id === message.id);
+    if (exists) return prev;
+    return [...prev, message];
+  });
+
+  mergeConversation({
+    id: message.room,
+    last_message: message,
+  });
+}, [mergeConversation]);
+
+const handlePresence = useCallback(({ user_id, status }) => {
+  setConversations((prev) =>
+    prev.map((conversation) =>
+      conversation.peer?.id === user_id
+        ? {
+            ...conversation,
+            peer: {
+              ...conversation.peer,
+              is_online: status === "online",
+            },
+          }
+        : conversation
+    )
+  );
+}, []);
+
+  useChatInboxSocket({
+    onConversationCreated: mergeConversation,
+    onConversationUpdated: mergeConversation,
+  });
 
   const handleRead = useCallback(
     ({ room_id, user_id }) => {
@@ -602,7 +630,6 @@ export default function ChatPage() {
     try {
       const data = await startDirectChat(user.id);
       setOpenNewChat(false);
-      await loadConversations();
       setActiveRoomId(data.room_id);
       await loadMessages(data.room_id);
     } catch (error) {
