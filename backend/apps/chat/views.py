@@ -13,6 +13,7 @@ from .serializers import (
     UploadAttachmentSerializer,
 )
 from .services import (
+    broadcast_room_snapshot,
     get_or_create_direct_room,
     mark_room_as_read,
     user_is_room_member,
@@ -64,6 +65,7 @@ class StartChatView(APIView):
 
         target_user = User.objects.get(id=serializer.validated_data["target_user_id"])
         room = get_or_create_direct_room(request.user, target_user)
+        broadcast_room_snapshot(room=room, event_type="conversation_created")
         return Response({"room_id": room.id}, status=status.HTTP_200_OK)
 
 

@@ -7,7 +7,9 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from .models import ChatRoom
 from .serializers import MessageSerializer
 from .services import (
+    broadcast_room_snapshot,
     create_message,
+    inbox_group_name,
     mark_room_as_read,
     mark_user_offline,
     mark_user_online,
@@ -103,9 +105,12 @@ class ChatConsumer(AsyncWebsocketConsumer):
             self.group_name,
             {
                 "type": "message_event",
+                "event_type": "message_created",
                 "message": serialized,
             },
         )
+
+        await self._broadcast_room_snapshot("conversation_updated")
 
     async def _handle_mark_read(self):
         read_count = await self._mark_room_read()
@@ -118,6 +123,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 "read_count": read_count,
             },
         )
+
+        await self._broadcast_room_snapshot("conversation_updated")
 
     async def message_event(self, event):
         await self.send(text_data=json.dumps({
@@ -175,6 +182,32 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return MessageSerializer(message, context={"request": None, "user": self.user}).data
 
     @database_sync_to_async
+    def _broadcast_room_snapshot(self, event_type):
+        room = ChatRoom.objects.get(id=self.room_id)
+        broadcast_room_snapshot(room=room, event_type=event_type)
+
+    @database_sync_to_async
     def _mark_room_read(self):
         room = ChatRoom.objects.get(id=self.room_id)
         return mark_room_as_read(room=room, user=self.user)
+    
+class ChatInboxConsumer(AsyncWebsocketConsumer):
+    async def connect(self):
+        self.user = self.scope.get("user")
+        if not self.user:
+            await self.close(code=4001)
+            return
+
+        self.group_name = inbox_group_name(self.user.id)
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+
+    async def disconnect(self, close_code):
+        if getattr(self, "channel_layer", None) and getattr(self, "group_name", None):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+
+    async def inbox_event(self, event):
+        await self.send(text_data=json.dumps({
+            "type": event["event_type"],
+            "conversation": event["conversation"],
+        }))

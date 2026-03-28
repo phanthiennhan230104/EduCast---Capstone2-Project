@@ -58,3 +58,8 @@ export function createChatSocket(roomId) {
   const token = getToken();
   return new WebSocket(`${WS_BASE}/ws/chat/${roomId}/?token=${token}`);
 }
+
+export function createChatInboxSocket() {
+  const token = getToken();
+  return new WebSocket(`${WS_BASE}/ws/chat/inbox/?token=${token}`);
+}
