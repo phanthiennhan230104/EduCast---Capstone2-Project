@@ -86,6 +86,8 @@ class Message(models.Model):
     content = models.TextField(null=True, blank=True)
     message_type = models.CharField(max_length=20, choices=MESSAGE_TYPE_CHOICES, default="text")
     attachment_url = models.CharField(max_length=500, null=True, blank=True)
+    original_filename = models.CharField(max_length=255, null=True, blank=True)
+    file_size = models.BigIntegerField(null=True, blank=True)
     is_edited = models.BooleanField(default=False)
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

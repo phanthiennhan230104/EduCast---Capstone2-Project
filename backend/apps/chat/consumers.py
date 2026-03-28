@@ -74,14 +74,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
         action = payload.get("action")
 
         if action == "send_message":
-            await self._handle_send_message(payload)
+          await self._handle_send_message(payload)
         elif action == "mark_read":
-            await self._handle_mark_read()
+          await self._handle_mark_read()
 
     async def _handle_send_message(self, payload):
         message_type = payload.get("message_type", "text")
         content = (payload.get("content") or "").strip()
         attachment_url = payload.get("attachment_url")
+        original_filename = payload.get("filename")
+        file_size = payload.get("size")
 
         if message_type == "text" and not content:
             return
@@ -93,6 +95,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             content=content,
             message_type=message_type,
             attachment_url=attachment_url,
+            original_filename=original_filename,
+            file_size=file_size,
         )
 
         await self.channel_layer.group_send(
@@ -149,7 +153,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
         mark_user_offline(self.user.id)
 
     @database_sync_to_async
-    def _create_and_serialize_message(self, *, content, message_type, attachment_url):
+    def _create_and_serialize_message(
+        self,
+        *,
+        content,
+        message_type,
+        attachment_url,
+        original_filename=None,
+        file_size=None,
+    ):
         room = ChatRoom.objects.get(id=self.room_id)
         message = create_message(
             room=room,
@@ -157,6 +169,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
             content=content,
             message_type=message_type,
             attachment_url=attachment_url,
+            original_filename=original_filename,
+            file_size=file_size,
         )
         return MessageSerializer(message, context={"request": None, "user": self.user}).data
 

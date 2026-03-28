@@ -24,8 +24,6 @@ def build_attachment_url(url: str | None) -> str | None:
     if url.startswith("http://") or url.startswith("https://"):
         return url
 
-    request = None
-
     base_url = getattr(settings, "BACKEND_BASE_URL", "") or getattr(settings, "SITE_URL", "")
     if base_url:
         return urljoin(base_url.rstrip("/") + "/", url.lstrip("/"))
@@ -56,6 +54,7 @@ class MessageSerializer(serializers.ModelSerializer):
     sender = ChatUserSerializer(read_only=True)
     read_by_user_ids = serializers.SerializerMethodField()
     is_mine = serializers.SerializerMethodField()
+    attachment_url = serializers.SerializerMethodField()
 
     class Meta:
         model = Message
@@ -66,6 +65,8 @@ class MessageSerializer(serializers.ModelSerializer):
             "content",
             "message_type",
             "attachment_url",
+            "original_filename",
+            "file_size",
             "is_edited",
             "is_deleted",
             "created_at",
@@ -73,6 +74,9 @@ class MessageSerializer(serializers.ModelSerializer):
             "read_by_user_ids",
             "is_mine",
         ]
+
+    def get_attachment_url(self, obj):
+        return build_attachment_url(obj.attachment_url)
 
     def get_read_by_user_ids(self, obj):
         return list(obj.reads.values_list("user_id", flat=True))

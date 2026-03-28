@@ -83,15 +83,26 @@ def normalize_attachment_url(url: str | None) -> str | None:
     return url
 
 
-def create_message(*, room: ChatRoom, sender: User, content: str = "", message_type: str = "text", attachment_url: str | None = None) -> Message:
-    return Message.objects.create(
-        id=generate_id(),
-        room=room,
-        sender=sender,
-        content=content or "",
-        message_type=message_type,
-        attachment_url=normalize_attachment_url(attachment_url),
-    )
+def create_message(
+        *,
+        room: ChatRoom,
+        sender: User,
+        content: str = "",
+        message_type: str = "text",
+        attachment_url: str | None = None,
+        original_filename: str | None = None,
+        file_size: int | None = None,
+    ) -> Message:
+        return Message.objects.create(
+            id=generate_id(),
+            room=room,
+            sender=sender,
+            content=content or "",
+            message_type=message_type,
+            attachment_url=normalize_attachment_url(attachment_url),
+            original_filename=original_filename,
+            file_size=file_size,
+        )
 
 
 def mark_room_as_read(*, room: ChatRoom, user: User) -> int:

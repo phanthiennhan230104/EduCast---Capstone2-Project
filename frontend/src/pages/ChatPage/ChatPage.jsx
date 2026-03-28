@@ -1,12 +1,45 @@
-import { useCallback, useEffect, useMemo, useState, useRef } from "react";
-import { Avatar, Badge, Button, Card, Empty, Input, List, Modal, Space, Spin, Typography, Upload } from "antd";
-import { AudioOutlined, MessageOutlined, PaperClipOutlined, PlusOutlined, SendOutlined, UserOutlined, PictureOutlined } from "@ant-design/icons";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Avatar,
+  Badge,
+  Button,
+  Card,
+  Empty,
+  Input,
+  List,
+  Modal,
+  Space,
+  Spin,
+  Typography,
+  Upload,
+} from "antd";
+import {
+  AudioOutlined,
+  DownloadOutlined,
+  FileOutlined,
+  FilePdfOutlined,
+  FileTextOutlined,
+  FileWordOutlined,
+  MessageOutlined,
+  PaperClipOutlined,
+  PictureOutlined,
+  PlusOutlined,
+  SendOutlined,
+  UserOutlined,
+} from "@ant-design/icons";
 import { toast } from "react-toastify";
 import dayjs from "dayjs";
 
 import "./chat-page.css";
 import useChatSocket from "../../hooks/useChatSocket";
-import { fetchConversations, fetchMessages, markRoomRead, searchChatUsers, startDirectChat, uploadChatAttachment } from "../../utils/chatApi";
+import {
+  fetchConversations,
+  fetchMessages,
+  markRoomRead,
+  searchChatUsers,
+  startDirectChat,
+  uploadChatAttachment,
+} from "../../utils/chatApi";
 
 const { Text, Title } = Typography;
 const { Search, TextArea } = Input;
@@ -15,8 +48,44 @@ function getMessagePreview(message) {
   if (!message) return "Chưa có tin nhắn";
   if (message.message_type === "image") return "Đã gửi một hình ảnh";
   if (message.message_type === "audio") return "Đã gửi một audio";
-  if (message.message_type === "file") return "Đã gửi một file";
+  if (message.message_type === "file") {
+    return message.original_filename || "Đã gửi một file";
+  }
   return message.content || "Tin nhắn";
+}
+
+function getFileNameFromUrl(url = "") {
+  try {
+    const cleanUrl = url.split("?")[0];
+    const rawName = cleanUrl.substring(cleanUrl.lastIndexOf("/") + 1);
+    return decodeURIComponent(rawName || "attachment");
+  } catch {
+    return "attachment";
+  }
+}
+
+function getFileExtension(filename = "") {
+  const parts = filename.split(".");
+  return parts.length > 1 ? parts.pop().toLowerCase() : "";
+}
+
+function formatFileSize(bytes) {
+  if (!bytes || Number.isNaN(Number(bytes))) return "";
+  const value = Number(bytes);
+
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(2)} KB`;
+  if (value < 1024 * 1024 * 1024) {
+    return `${(value / (1024 * 1024)).toFixed(2)} MB`;
+  }
+  return `${(value / (1024 * 1024 * 1024)).toFixed(2)} GB`;
+}
+
+function FileTypeIcon({ ext }) {
+  if (ext === "pdf") return <FilePdfOutlined />;
+  if (["doc", "docx"].includes(ext)) return <FileWordOutlined />;
+  if (["txt", "md"].includes(ext)) return <FileTextOutlined />;
+  return <FileOutlined />;
 }
 
 function ConversationItem({ item, active, onClick }) {
@@ -82,11 +151,8 @@ function ChatAudioPlayer({ src, mine }) {
     const audio = audioRef.current;
     if (!audio) return;
 
-    if (playing) {
-      audio.pause();
-    } else {
-      audio.play();
-    }
+    if (playing) audio.pause();
+    else audio.play();
   };
 
   const handleLoadedMetadata = () => {
@@ -169,6 +235,11 @@ function MessageBubble({ message }) {
   const mine = message.is_mine;
   const [previewOpen, setPreviewOpen] = useState(false);
 
+  const fileName =
+    message.original_filename || getFileNameFromUrl(message.attachment_url || "");
+  const fileExt = getFileExtension(fileName);
+  const fileSize = formatFileSize(message.file_size);
+
   const isText = message.message_type === "text";
   const isImage = message.message_type === "image";
   const isAudio = message.message_type === "audio";
@@ -189,7 +260,9 @@ function MessageBubble({ message }) {
         )}
 
         {isImage && (
-          <div className={`message-media message-media-image ${mine ? "mine" : ""}`}>
+          <div
+            className={`message-media message-media-image ${mine ? "mine" : ""}`}
+          >
             {message.content ? (
               <div className="message-media-caption">{message.content}</div>
             ) : null}
@@ -210,7 +283,9 @@ function MessageBubble({ message }) {
         )}
 
         {isAudio && (
-          <div className={`message-media message-media-audio ${mine ? "mine" : ""}`}>
+          <div
+            className={`message-media message-media-audio ${mine ? "mine" : ""}`}
+          >
             {message.content ? (
               <div className="message-media-caption">{message.content}</div>
             ) : null}
@@ -226,18 +301,37 @@ function MessageBubble({ message }) {
         )}
 
         {isFile && (
-          <div className="message-bubble">
-            {message.content ? <div>{message.content}</div> : null}
+          <div className={`message-file ${mine ? "mine" : ""}`}>
+            {message.content ? (
+              <div className="message-media-caption">{message.content}</div>
+            ) : null}
+
             <a
               href={message.attachment_url}
               target="_blank"
               rel="noreferrer"
-              style={{ color: "white", textDecoration: "underline" }}
+              className="file-card"
             >
-              Mở file đính kèm
+              <div className="file-card-icon">
+                <FileTypeIcon ext={fileExt} />
+              </div>
+
+              <div className="file-card-info">
+                <div className="file-card-name" title={fileName}>
+                  {fileName}
+                </div>
+                <div className="file-card-meta">
+                  {fileSize || fileExt.toUpperCase() || "FILE"}
+                </div>
+              </div>
+
+              <div className="file-card-action">
+                <DownloadOutlined />
+              </div>
             </a>
-            <div className="message-time">
-              <Text style={{ color: "#dbeafe", fontSize: 11 }}>
+
+            <div className="message-media-time">
+              <Text style={{ color: "#cbd5e1", fontSize: 11 }}>
                 {dayjs(message.created_at).format("HH:mm")}
               </Text>
             </div>
@@ -345,15 +439,16 @@ export default function ChatPage() {
       const data = await fetchConversations();
       setConversations(data);
 
-      if (!activeRoomId && data.length > 0) {
-        setActiveRoomId(data[0].id);
-      }
+      setActiveRoomId((prev) => {
+        if (prev) return prev;
+        return data.length > 0 ? data[0].id : null;
+      });
     } catch (error) {
       toast.error(error.message || "Không tải được conversations");
     } finally {
       setLoading(false);
     }
-  }, [activeRoomId]);
+  }, []);
 
   const loadMessages = useCallback(async (roomId) => {
     try {
@@ -378,17 +473,11 @@ export default function ChatPage() {
   }, [activeRoomId, scrollToBottom]);
 
   useEffect(() => {
-    scrollToBottom("smooth");
+    const id = requestAnimationFrame(() => {
+      scrollToBottom("auto");
+    });
+    return () => cancelAnimationFrame(id);
   }, [messages, scrollToBottom]);
-
-  useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
-
-  useEffect(() => {
-    if (!activeRoomId) return;
-    loadMessages(activeRoomId);
-  }, [activeRoomId, loadMessages]);
 
   const handleIncomingMessage = useCallback((message) => {
     setMessages((prev) => {
@@ -465,6 +554,11 @@ export default function ChatPage() {
     const value = draft.trim();
     if (!value) return;
 
+    if (status !== "open") {
+      toast.error("Vui lòng chờ kết nối chat hoàn tất");
+      return;
+    }
+
     const ok = sendTextMessage(value);
     if (!ok) {
       toast.error("WebSocket chưa kết nối");
@@ -475,6 +569,11 @@ export default function ChatPage() {
   };
 
   const handleUploadAndSend = async (file) => {
+    if (status !== "open") {
+      toast.error("Vui lòng chờ kết nối chat hoàn tất");
+      return false;
+    }
+
     try {
       setUploading(true);
       const uploaded = await uploadChatAttachment(file);
@@ -482,6 +581,8 @@ export default function ChatPage() {
       const ok = sendAttachmentMessage({
         messageType: uploaded.message_type,
         attachmentUrl: uploaded.attachment_url,
+        filename: uploaded.filename,
+        size: uploaded.size,
         content: "",
       });
 
@@ -604,25 +705,37 @@ export default function ChatPage() {
                   <Upload
                     showUploadList={false}
                     beforeUpload={handleUploadAndSend}
-                    disabled={uploading}
+                    disabled={uploading || status !== "open"}
                   >
-                    <Button icon={<PictureOutlined />} loading={uploading} />
+                    <Button
+                      icon={<PictureOutlined />}
+                      loading={uploading}
+                      disabled={status !== "open"}
+                    />
                   </Upload>
 
                   <Upload
                     showUploadList={false}
                     beforeUpload={handleUploadAndSend}
-                    disabled={uploading}
+                    disabled={uploading || status !== "open"}
                   >
-                    <Button icon={<AudioOutlined />} loading={uploading} />
+                    <Button
+                      icon={<AudioOutlined />}
+                      loading={uploading}
+                      disabled={status !== "open"}
+                    />
                   </Upload>
 
                   <Upload
                     showUploadList={false}
                     beforeUpload={handleUploadAndSend}
-                    disabled={uploading}
+                    disabled={uploading || status !== "open"}
                   >
-                    <Button icon={<PaperClipOutlined />} loading={uploading} />
+                    <Button
+                      icon={<PaperClipOutlined />}
+                      loading={uploading}
+                      disabled={status !== "open"}
+                    />
                   </Upload>
                 </div>
 
@@ -630,7 +743,12 @@ export default function ChatPage() {
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   autoSize={{ minRows: 1, maxRows: 4 }}
-                  placeholder="Nhập tin nhắn..."
+                  placeholder={
+                    status === "open"
+                      ? "Nhập tin nhắn..."
+                      : "Đang kết nối realtime..."
+                  }
+                  disabled={status !== "open"}
                   onPressEnter={(e) => {
                     if (!e.shiftKey) {
                       e.preventDefault();
@@ -643,6 +761,7 @@ export default function ChatPage() {
                   type="primary"
                   icon={<SendOutlined />}
                   onClick={handleSendText}
+                  disabled={status !== "open"}
                 />
               </div>
             </>
