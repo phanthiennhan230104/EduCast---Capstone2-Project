@@ -42,6 +42,8 @@ import {
   uploadChatAttachment,
 } from "../../utils/chatApi";
 
+import { useAuth } from "../../components/contexts/AuthContext";
+
 const { Text, Title } = Typography;
 const { Search, TextArea } = Input;
 
@@ -135,11 +137,36 @@ function ConversationItem({ item, active, onClick }) {
   );
 }
 
+
 function formatAudioTime(seconds) {
   if (!Number.isFinite(seconds)) return "00:00";
   const mins = Math.floor(seconds / 60);
   const secs = Math.floor(seconds % 60);
   return `${String(mins).padStart(2, "0")}:${String(secs).padStart(2, "0")}`;
+}
+
+function normalizeMessageOwnership(message, currentUserId) {
+  if (!message) return message;
+
+  const senderId = message.sender?.id;
+  if (!senderId || !currentUserId) return message;
+
+  return {
+    ...message,
+    is_mine: String(senderId) === String(currentUserId),
+  };
+}
+
+function normalizeConversationOwnership(conversation, currentUserId) {
+  if (!conversation) return conversation;
+
+  return {
+    ...conversation,
+    last_message: normalizeMessageOwnership(
+      conversation.last_message,
+      currentUserId
+    ),
+  };
 }
 
 function ChatAudioPlayer({ src, mine }) {
@@ -415,6 +442,7 @@ function NewChatModal({ open, onClose, onSelectUser }) {
 }
 
 export default function ChatPage() {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
@@ -438,27 +466,33 @@ export default function ChatPage() {
     try {
       setLoading(true);
       const data = await fetchConversations();
-      setConversations(data);
+      const normalizedData = data.map((item) =>
+        normalizeConversationOwnership(item, user?.id)
+      );
+
+      setConversations(normalizedData);
 
       setActiveRoomId((prev) => {
         if (prev) return prev;
-        return data.length > 0 ? data[0].id : null;
+        return normalizedData.length > 0 ? normalizedData[0].id : null;
       });
     } catch (error) {
       toast.error(error.message || "Không tải được conversations");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [user?.id]);
 
   const loadMessages = useCallback(async (roomId) => {
     try {
       const data = await fetchMessages(roomId);
-      setMessages(data);
+      setMessages(
+        data.map((item) => normalizeMessageOwnership(item, user?.id))
+      );
     } catch (error) {
       toast.error(error.message || "Không tải được messages");
     }
-  }, []);
+  }, [user?.id]);
 
   useEffect(() => {
     loadConversations();
@@ -483,17 +517,24 @@ export default function ChatPage() {
   const mergeConversation = useCallback((conversation) => {
   if (!conversation?.id) return;
 
+  const normalizedConversation = normalizeConversationOwnership(
+    conversation,
+    user?.id
+  );
+
   setConversations((prev) => {
     const next = [...prev];
-    const index = next.findIndex((item) => item.id === conversation.id);
+    const index = next.findIndex(
+      (item) => item.id === normalizedConversation.id
+    );
 
     if (index >= 0) {
       next[index] = {
         ...next[index],
-        ...conversation,
+        ...normalizedConversation,
       };
     } else {
-      next.unshift(conversation);
+      next.unshift(normalizedConversation);
     }
 
     next.sort((a, b) => {
@@ -505,21 +546,23 @@ export default function ChatPage() {
     return next;
   });
 
-  setActiveRoomId((prev) => prev || conversation.id);
-}, []);
+  setActiveRoomId((prev) => prev || normalizedConversation.id);
+}, [user?.id]);
 
 const handleIncomingMessage = useCallback((message) => {
+  const normalizedMessage = normalizeMessageOwnership(message, user?.id);
+
   setMessages((prev) => {
-    const exists = prev.some((item) => item.id === message.id);
+    const exists = prev.some((item) => item.id === normalizedMessage.id);
     if (exists) return prev;
-    return [...prev, message];
+    return [...prev, normalizedMessage];
   });
 
   mergeConversation({
     id: message.room,
-    last_message: message,
+    last_message: normalizedMessage,
   });
-}, [mergeConversation]);
+}, [mergeConversation, user?.id]);
 
 const handlePresence = useCallback(({ user_id, status }) => {
   setConversations((prev) =>
