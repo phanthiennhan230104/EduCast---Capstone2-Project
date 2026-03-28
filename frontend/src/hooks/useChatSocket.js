@@ -57,6 +57,7 @@ export default function useChatSocket(roomId, handlers = {}) {
     if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
       return false;
     }
+
     socketRef.current.send(JSON.stringify(data));
     return true;
   };
@@ -68,12 +69,20 @@ export default function useChatSocket(roomId, handlers = {}) {
       content,
     });
 
-  const sendAttachmentMessage = ({ messageType, attachmentUrl, content = "" }) =>
+  const sendAttachmentMessage = ({
+    messageType,
+    attachmentUrl,
+    filename = "",
+    size = null,
+    content = "",
+  }) =>
     sendJson({
       action: "send_message",
       message_type: messageType,
       content,
       attachment_url: attachmentUrl,
+      filename,
+      size,
     });
 
   const markRead = () =>
