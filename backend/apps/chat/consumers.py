@@ -7,6 +7,7 @@ from channels.generic.websocket import AsyncWebsocketConsumer
 from .models import ChatRoom
 from .serializers import MessageSerializer
 from .services import (
+    broadcast_presence_to_related_users,
     broadcast_room_snapshot,
     create_message,
     inbox_group_name,
@@ -39,32 +40,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             logger.warning("WS rejected: user %s not in room %s", self.user.id, self.room_id)
             await self.close(code=4003)
             return
-
+        
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
-        await self._mark_online()
-        await self.channel_layer.group_send(
-            self.group_name,
-            {
-                "type": "presence_event",
-                "user_id": str(self.user.id),
-                "status": "online",
-            },
-        )
+        became_online = await self._mark_online()
+        if became_online:
+            await self._broadcast_presence("online")
 
     async def disconnect(self, close_code):
         if getattr(self, "user", None):
-            await self._mark_offline()
-            if getattr(self, "channel_layer", None):
-                await self.channel_layer.group_send(
-                    self.group_name,
-                    {
-                        "type": "presence_event",
-                        "user_id": str(self.user.id),
-                        "status": "offline",
-                    },
-                )
+            became_offline = await self._mark_offline()
+            if became_offline:
+                await self._broadcast_presence("offline")
+
         if getattr(self, "channel_layer", None):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
@@ -153,11 +142,15 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def _mark_online(self):
-        mark_user_online(self.user.id)
+        return mark_user_online(self.user.id)
 
     @database_sync_to_async
     def _mark_offline(self):
-        mark_user_offline(self.user.id)
+        return mark_user_offline(self.user.id)
+
+    @database_sync_to_async
+    def _broadcast_presence(self, status):
+        broadcast_presence_to_related_users(user=self.user, status=status)
 
     @database_sync_to_async
     def _create_and_serialize_message(
@@ -202,7 +195,16 @@ class ChatInboxConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.group_name, self.channel_name)
         await self.accept()
 
+        became_online = await self._mark_online()
+        if became_online:
+            await self._broadcast_presence("online")
+
     async def disconnect(self, close_code):
+        if getattr(self, "user", None):
+            became_offline = await self._mark_offline()
+            if became_offline:
+                await self._broadcast_presence("offline")
+
         if getattr(self, "channel_layer", None) and getattr(self, "group_name", None):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
@@ -211,3 +213,22 @@ class ChatInboxConsumer(AsyncWebsocketConsumer):
             "type": event["event_type"],
             "conversation": event["conversation"],
         }))
+
+    async def presence_event(self, event):
+        await self.send(text_data=json.dumps({
+            "type": "presence",
+            "user_id": event["user_id"],
+            "status": event["status"],
+        }))
+
+    @database_sync_to_async
+    def _mark_online(self):
+        return mark_user_online(self.user.id)
+
+    @database_sync_to_async
+    def _mark_offline(self):
+        return mark_user_offline(self.user.id)
+
+    @database_sync_to_async
+    def _broadcast_presence(self, status):
+        broadcast_presence_to_related_users(user=self.user, status=status)
