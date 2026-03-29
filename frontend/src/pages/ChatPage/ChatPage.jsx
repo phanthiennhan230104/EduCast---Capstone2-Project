@@ -100,11 +100,8 @@ function ConversationItem({ item, active, onClick }) {
       className={`conversation-item ${active ? "active" : ""}`}
       onClick={onClick}
     >
-      <Space
-        align="start"
-        style={{ width: "100%", justifyContent: "space-between" }}
-      >
-        <Space align="start" size={12}>
+      <div className="conversation-row">
+        <div className="conversation-left">
           <Badge dot={peer?.is_online}>
             <Avatar icon={<UserOutlined />} src={peer?.avatar_url} />
           </Badge>
@@ -117,7 +114,7 @@ function ConversationItem({ item, active, onClick }) {
               {getMessagePreview(lastMessage)}
             </Text>
           </div>
-        </Space>
+        </div>
 
         <div className="conversation-meta">
           {lastMessage?.created_at && (
@@ -132,11 +129,10 @@ function ConversationItem({ item, active, onClick }) {
             </div>
           )}
         </div>
-      </Space>
+      </div>
     </div>
   );
 }
-
 
 function formatAudioTime(seconds) {
   if (!Number.isFinite(seconds)) return "00:00";
@@ -262,6 +258,7 @@ function ChatAudioPlayer({ src, mine }) {
 function MessageBubble({ message }) {
   const mine = message.is_mine;
   const [previewOpen, setPreviewOpen] = useState(false);
+  const timeLabel = dayjs(message.created_at).format("HH:mm");
 
   const fileName =
     message.original_filename || getFileNameFromUrl(message.attachment_url || "");
@@ -277,12 +274,12 @@ function MessageBubble({ message }) {
     <>
       <div className={`message-row ${mine ? "mine" : ""}`}>
         {isText && (
-          <div className="message-bubble">
-            <div>{message.content}</div>
+          <div className="message-content-shell">
+            <div className="message-bubble">
+              <div className="message-text">{message.content}</div>
+            </div>
             <div className="message-time">
-              <Text style={{ color: "#dbeafe", fontSize: 11 }}>
-                {dayjs(message.created_at).format("HH:mm")}
-              </Text>
+              <Text className="message-time-text">{timeLabel}</Text>
             </div>
           </div>
         )}
@@ -303,9 +300,7 @@ function MessageBubble({ message }) {
             />
 
             <div className="message-media-time">
-              <Text style={{ color: "#cbd5e1", fontSize: 11 }}>
-                {dayjs(message.created_at).format("HH:mm")}
-              </Text>
+              <Text className="message-time-text">{timeLabel}</Text>
             </div>
           </div>
         )}
@@ -321,9 +316,7 @@ function MessageBubble({ message }) {
             <ChatAudioPlayer src={message.attachment_url} mine={mine} />
 
             <div className="message-media-time">
-              <Text style={{ color: "#cbd5e1", fontSize: 11 }}>
-                {dayjs(message.created_at).format("HH:mm")}
-              </Text>
+              <Text className="message-time-text">{timeLabel}</Text>
             </div>
           </div>
         )}
@@ -359,9 +352,7 @@ function MessageBubble({ message }) {
             </a>
 
             <div className="message-media-time">
-              <Text style={{ color: "#cbd5e1", fontSize: 11 }}>
-                {dayjs(message.created_at).format("HH:mm")}
-              </Text>
+              <Text className="message-time-text">{timeLabel}</Text>
             </div>
           </div>
         )}
@@ -483,16 +474,17 @@ export default function ChatPage() {
     }
   }, [user?.id]);
 
-  const loadMessages = useCallback(async (roomId) => {
-    try {
-      const data = await fetchMessages(roomId);
-      setMessages(
-        data.map((item) => normalizeMessageOwnership(item, user?.id))
-      );
-    } catch (error) {
-      toast.error(error.message || "Không tải được messages");
-    }
-  }, [user?.id]);
+  const loadMessages = useCallback(
+    async (roomId) => {
+      try {
+        const data = await fetchMessages(roomId);
+        setMessages(data.map((item) => normalizeMessageOwnership(item, user?.id)));
+      } catch (error) {
+        toast.error(error.message || "Không tải được messages");
+      }
+    },
+    [user?.id]
+  );
 
   useEffect(() => {
     loadConversations();
@@ -514,71 +506,77 @@ export default function ChatPage() {
     return () => cancelAnimationFrame(id);
   }, [messages, scrollToBottom]);
 
-  const mergeConversation = useCallback((conversation) => {
-  if (!conversation?.id) return;
+  const mergeConversation = useCallback(
+    (conversation) => {
+      if (!conversation?.id) return;
 
-  const normalizedConversation = normalizeConversationOwnership(
-    conversation,
-    user?.id
+      const normalizedConversation = normalizeConversationOwnership(
+        conversation,
+        user?.id
+      );
+
+      setConversations((prev) => {
+        const next = [...prev];
+        const index = next.findIndex(
+          (item) => item.id === normalizedConversation.id
+        );
+
+        if (index >= 0) {
+          next[index] = {
+            ...next[index],
+            ...normalizedConversation,
+          };
+        } else {
+          next.unshift(normalizedConversation);
+        }
+
+        next.sort((a, b) => {
+          const aTime = a.last_message?.created_at || a.created_at || "";
+          const bTime = b.last_message?.created_at || b.created_at || "";
+          return dayjs(bTime).valueOf() - dayjs(aTime).valueOf();
+        });
+
+        return next;
+      });
+
+      setActiveRoomId((prev) => prev || normalizedConversation.id);
+    },
+    [user?.id]
   );
 
-  setConversations((prev) => {
-    const next = [...prev];
-    const index = next.findIndex(
-      (item) => item.id === normalizedConversation.id
+  const handleIncomingMessage = useCallback(
+    (message) => {
+      const normalizedMessage = normalizeMessageOwnership(message, user?.id);
+
+      setMessages((prev) => {
+        const exists = prev.some((item) => item.id === normalizedMessage.id);
+        if (exists) return prev;
+        return [...prev, normalizedMessage];
+      });
+
+      mergeConversation({
+        id: message.room,
+        last_message: normalizedMessage,
+      });
+    },
+    [mergeConversation, user?.id]
+  );
+
+  const handlePresence = useCallback(({ user_id, status }) => {
+    setConversations((prev) =>
+      prev.map((conversation) =>
+        conversation.peer?.id === user_id
+          ? {
+              ...conversation,
+              peer: {
+                ...conversation.peer,
+                is_online: status === "online",
+              },
+            }
+          : conversation
+      )
     );
-
-    if (index >= 0) {
-      next[index] = {
-        ...next[index],
-        ...normalizedConversation,
-      };
-    } else {
-      next.unshift(normalizedConversation);
-    }
-
-    next.sort((a, b) => {
-      const aTime = a.last_message?.created_at || a.created_at || "";
-      const bTime = b.last_message?.created_at || b.created_at || "";
-      return dayjs(bTime).valueOf() - dayjs(aTime).valueOf();
-    });
-
-    return next;
-  });
-
-  setActiveRoomId((prev) => prev || normalizedConversation.id);
-}, [user?.id]);
-
-const handleIncomingMessage = useCallback((message) => {
-  const normalizedMessage = normalizeMessageOwnership(message, user?.id);
-
-  setMessages((prev) => {
-    const exists = prev.some((item) => item.id === normalizedMessage.id);
-    if (exists) return prev;
-    return [...prev, normalizedMessage];
-  });
-
-  mergeConversation({
-    id: message.room,
-    last_message: normalizedMessage,
-  });
-}, [mergeConversation, user?.id]);
-
-const handlePresence = useCallback(({ user_id, status }) => {
-  setConversations((prev) =>
-    prev.map((conversation) =>
-      conversation.peer?.id === user_id
-        ? {
-            ...conversation,
-            peer: {
-              ...conversation.peer,
-              is_online: status === "online",
-            },
-          }
-        : conversation
-    )
-  );
-}, []);
+  }, []);
 
   useChatInboxSocket({
     onConversationCreated: mergeConversation,
@@ -669,9 +667,9 @@ const handlePresence = useCallback(({ user_id, status }) => {
     return false;
   };
 
-  const handleCreateConversation = async (user) => {
+  const handleCreateConversation = async (selectedUser) => {
     try {
-      const data = await startDirectChat(user.id);
+      const data = await startDirectChat(selectedUser.id);
       setOpenNewChat(false);
       setActiveRoomId(data.room_id);
       await loadMessages(data.room_id);
@@ -701,7 +699,7 @@ const handlePresence = useCallback(({ user_id, status }) => {
               marginBottom: 12,
             }}
           >
-            <Title level={3} style={{ color: "white", margin: 0 }}>
+            <Title level={3} className="chat-sidebar-title">
               Tin nhắn
             </Title>
 
@@ -743,12 +741,16 @@ const handlePresence = useCallback(({ user_id, status }) => {
                   </Badge>
 
                   <div>
-                    <Text strong style={{ color: "white", display: "block" }}>
+                    <Text strong className="chat-header-name">
                       {activeConversation.peer?.display_name ||
                         activeConversation.peer?.username}
                     </Text>
 
-                    <Text style={{ color: "#94a3b8" }}>
+                    <Text
+                      className={`chat-header-status ${
+                        status === "open" ? "online" : "connecting"
+                      }`}
+                    >
                       {status === "open"
                         ? "Đã kết nối realtime"
                         : "Đang kết nối..."}
@@ -778,6 +780,7 @@ const handlePresence = useCallback(({ user_id, status }) => {
                     disabled={uploading || status !== "open"}
                   >
                     <Button
+                      className="composer-icon-btn"
                       icon={<PictureOutlined />}
                       loading={uploading}
                       disabled={status !== "open"}
@@ -790,6 +793,7 @@ const handlePresence = useCallback(({ user_id, status }) => {
                     disabled={uploading || status !== "open"}
                   >
                     <Button
+                      className="composer-icon-btn"
                       icon={<AudioOutlined />}
                       loading={uploading}
                       disabled={status !== "open"}
@@ -802,6 +806,7 @@ const handlePresence = useCallback(({ user_id, status }) => {
                     disabled={uploading || status !== "open"}
                   >
                     <Button
+                      className="composer-icon-btn"
                       icon={<PaperClipOutlined />}
                       loading={uploading}
                       disabled={status !== "open"}
@@ -829,6 +834,7 @@ const handlePresence = useCallback(({ user_id, status }) => {
 
                 <Button
                   type="primary"
+                  className="composer-send-btn"
                   icon={<SendOutlined />}
                   onClick={handleSendText}
                   disabled={status !== "open"}
@@ -851,7 +857,7 @@ const handlePresence = useCallback(({ user_id, status }) => {
                 icon={<UserOutlined />}
               />
 
-              <Title level={4} style={{ color: "white", margin: 0 }}>
+              <Title level={4} className="chat-profile-name">
                 {activeConversation.peer.display_name ||
                   activeConversation.peer.username}
               </Title>
