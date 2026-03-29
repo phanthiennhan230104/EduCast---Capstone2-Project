@@ -13,6 +13,47 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
 PRESENCE_TTL_SECONDS = 90
+PRESENCE_CONNECTIONS_TTL_SECONDS = 120
+
+
+def presence_connections_key(user_id: str) -> str:
+    return f"chat:presence:connections:{user_id}"
+
+
+def mark_user_online(user_id: str):
+    user_id = str(user_id)
+    key = presence_connections_key(user_id)
+
+    try:
+        connections = cache.get(key, 0) or 0
+        connections = int(connections) + 1
+    except Exception:
+        connections = 1
+
+    cache.set(key, connections, timeout=PRESENCE_CONNECTIONS_TTL_SECONDS)
+    cache.set(presence_key(user_id), True, timeout=PRESENCE_TTL_SECONDS)
+    return connections == 1
+
+
+def mark_user_offline(user_id: str):
+    user_id = str(user_id)
+    key = presence_connections_key(user_id)
+
+    try:
+        connections = int(cache.get(key, 0) or 0)
+    except Exception:
+        connections = 0
+
+    connections = max(connections - 1, 0)
+
+    if connections <= 0:
+        cache.delete(key)
+        cache.delete(presence_key(user_id))
+        return True
+
+    cache.set(key, connections, timeout=PRESENCE_CONNECTIONS_TTL_SECONDS)
+    cache.set(presence_key(user_id), True, timeout=PRESENCE_TTL_SECONDS)
+    return False
 
 
 def presence_key(user_id: str) -> str:
@@ -145,6 +186,39 @@ def inbox_group_name(user_id: str) -> str:
 
 def get_room_members(room: ChatRoom):
     return User.objects.filter(chat_room_memberships__room=room).distinct()
+
+def get_related_users_for_presence(user: User):
+    room_ids = ChatRoomMember.objects.filter(user=user).values_list("room_id", flat=True)
+
+    return (
+        User.objects.filter(chat_room_memberships__room_id__in=room_ids)
+        .exclude(id=user.id)
+        .distinct()
+    )
+
+
+def push_presence_to_user(*, target_user: User, changed_user: User, status: str):
+    channel_layer = get_channel_layer()
+    if not channel_layer:
+        return
+
+    async_to_sync(channel_layer.group_send)(
+        inbox_group_name(target_user.id),
+        {
+            "type": "presence_event",
+            "user_id": str(changed_user.id),
+            "status": status,
+        },
+    )
+
+
+def broadcast_presence_to_related_users(*, user: User, status: str):
+    for related_user in get_related_users_for_presence(user):
+        push_presence_to_user(
+            target_user=related_user,
+            changed_user=user,
+            status=status,
+        )
 
 
 def serialize_conversation_for_user(room: ChatRoom, user: User):

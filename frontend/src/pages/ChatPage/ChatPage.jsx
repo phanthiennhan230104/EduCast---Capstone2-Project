@@ -10,6 +10,7 @@ import {
   Modal,
   Space,
   Spin,
+  Tabs,
   Typography,
   Upload,
 } from "antd";
@@ -23,6 +24,7 @@ import {
   MessageOutlined,
   PaperClipOutlined,
   PictureOutlined,
+  PlayCircleOutlined,
   PlusOutlined,
   SendOutlined,
   UserOutlined,
@@ -102,9 +104,10 @@ function ConversationItem({ item, active, onClick }) {
     >
       <div className="conversation-row">
         <div className="conversation-left">
-          <Badge dot={peer?.is_online}>
+          <div className="conversation-avatar-wrap">
             <Avatar icon={<UserOutlined />} src={peer?.avatar_url} />
-          </Badge>
+            {!!item.unread_count && <span className="conversation-unread-dot" />}
+          </div>
 
           <div className="conversation-content">
             <Text strong className="conversation-name">
@@ -255,7 +258,7 @@ function ChatAudioPlayer({ src, mine }) {
   );
 }
 
-function MessageBubble({ message }) {
+function MessageBubble({ message, containerRef }) {
   const mine = message.is_mine;
   const [previewOpen, setPreviewOpen] = useState(false);
   const timeLabel = dayjs(message.created_at).format("HH:mm");
@@ -272,7 +275,7 @@ function MessageBubble({ message }) {
 
   return (
     <>
-      <div className={`message-row ${mine ? "mine" : ""}`}>
+      <div ref={containerRef} className={`message-row ${mine ? "mine" : ""}`}>
         {isText && (
           <div className="message-content-shell">
             <div className="message-bubble">
@@ -376,6 +379,167 @@ function MessageBubble({ message }) {
   );
 }
 
+function HistoryList({ type, items, onJumpToMessage, onPreviewImage }) {
+  if (!items.length) {
+    return <Empty description="Chưa có dữ liệu" image={Empty.PRESENTED_IMAGE_SIMPLE} />;
+  }
+
+  return (
+    <div className="chat-history-list">
+      {items.map((item) => {
+        const fileName =
+          item.original_filename || getFileNameFromUrl(item.attachment_url || "");
+        const fileExt = getFileExtension(fileName);
+        const fileSize = formatFileSize(item.file_size);
+
+        return (
+          <button
+            key={item.id}
+            type="button"
+            className="chat-history-item"
+            onClick={() => {
+              if (type === "image") {
+                onPreviewImage(item.attachment_url);
+              }
+              onJumpToMessage(item.id);
+            }}
+          >
+            <div className="chat-history-thumb">
+              {type === "image" ? (
+                <img src={item.attachment_url} alt={fileName} />
+              ) : type === "audio" ? (
+                <div className="chat-history-thumb-icon audio">
+                  <PlayCircleOutlined />
+                </div>
+              ) : (
+                <div className="chat-history-thumb-icon file">
+                  <FileTypeIcon ext={fileExt} />
+                </div>
+              )}
+            </div>
+
+            <div className="chat-history-info">
+              <div className="chat-history-name" title={fileName}>
+                {type === "audio" ? fileName || "Audio" : fileName}
+              </div>
+
+              <div className="chat-history-meta">
+                <span>{dayjs(item.created_at).format("DD/MM • HH:mm")}</span>
+                {type === "file" && (fileSize || fileExt.toUpperCase()) ? (
+                  <span>{fileSize || fileExt.toUpperCase()}</span>
+                ) : null}
+              </div>
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+function ChatHistoryPanel({ messages, onJumpToMessage }) {
+  const [previewImage, setPreviewImage] = useState(null);
+
+  const imageItems = useMemo(
+    () =>
+      messages
+        .filter((item) => item.message_type === "image" && item.attachment_url)
+        .slice()
+        .reverse(),
+    [messages]
+  );
+
+  const audioItems = useMemo(
+    () =>
+      messages
+        .filter((item) => item.message_type === "audio" && item.attachment_url)
+        .slice()
+        .reverse(),
+    [messages]
+  );
+
+  const fileItems = useMemo(
+    () =>
+      messages
+        .filter((item) => item.message_type === "file" && item.attachment_url)
+        .slice()
+        .reverse(),
+    [messages]
+  );
+
+  return (
+    <>
+      <div className="chat-history-panel">
+        <div className="chat-history-header">
+          <Text strong className="chat-history-title">
+            Lịch sử chia sẻ
+          </Text>
+          <Text className="chat-history-subtitle">
+            Ảnh, audio và file trong cuộc trò chuyện này
+          </Text>
+        </div>
+
+        <Tabs
+          className="chat-history-tabs"
+          defaultActiveKey="images"
+          items={[
+            {
+              key: "images",
+              label: `Ảnh`, 
+              children: (
+                <HistoryList
+                  type="image"
+                  items={imageItems}
+                  onJumpToMessage={onJumpToMessage}
+                  onPreviewImage={setPreviewImage}
+                />
+              ),
+            },
+            {
+              key: "audio",
+              label: `Audio`,
+              children: (
+                <HistoryList
+                  type="audio"
+                  items={audioItems}
+                  onJumpToMessage={onJumpToMessage}
+                  onPreviewImage={setPreviewImage}
+                />
+              ),
+            },
+            {
+              key: "files",
+              label: `File`,
+              children: (
+                <HistoryList
+                  type="file"
+                  items={fileItems}
+                  onJumpToMessage={onJumpToMessage}
+                  onPreviewImage={setPreviewImage}
+                />
+              ),
+            },
+          ]}
+        />
+      </div>
+
+      <Modal
+        open={!!previewImage}
+        footer={null}
+        onCancel={() => setPreviewImage(null)}
+        centered
+        width="auto"
+        className="image-preview-modal"
+      >
+        <img
+          src={previewImage || ""}
+          alt="preview"
+          className="image-preview-modal-img"
+        />
+      </Modal>
+    </>
+  );
+}
 function NewChatModal({ open, onClose, onSelectUser }) {
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
@@ -443,6 +607,7 @@ export default function ChatPage() {
   const [uploading, setUploading] = useState(false);
 
   const messagesEndRef = useRef(null);
+  const messageNodeRefs = useRef({});
 
   const scrollToBottom = useCallback((behavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
@@ -581,6 +746,7 @@ export default function ChatPage() {
   useChatInboxSocket({
     onConversationCreated: mergeConversation,
     onConversationUpdated: mergeConversation,
+    onPresence: handlePresence,
   });
 
   const handleRead = useCallback(
@@ -667,6 +833,18 @@ export default function ChatPage() {
     return false;
   };
 
+  const scrollToMessage = useCallback((messageId) => {
+    const node = messageNodeRefs.current[messageId];
+    if (!node) return;
+
+    node.scrollIntoView({ behavior: "smooth", block: "center" });
+    node.classList.add("message-row-highlight");
+
+    window.setTimeout(() => {
+      node.classList.remove("message-row-highlight");
+    }, 1600);
+  }, []);
+
   const handleCreateConversation = async (selectedUser) => {
     try {
       const data = await startDirectChat(selectedUser.id);
@@ -732,13 +910,11 @@ export default function ChatPage() {
             <>
               <div className="chat-header">
                 <Space>
-                  <Badge dot={activeConversation.peer?.is_online}>
-                    <Avatar
-                      size={44}
-                      src={activeConversation.peer?.avatar_url}
-                      icon={<UserOutlined />}
-                    />
-                  </Badge>
+                  <Avatar
+                    size={44}
+                    src={activeConversation.peer?.avatar_url}
+                    icon={<UserOutlined />}
+                  />
 
                   <div>
                     <Text strong className="chat-header-name">
@@ -746,14 +922,15 @@ export default function ChatPage() {
                         activeConversation.peer?.username}
                     </Text>
 
-                    <Text
-                      className={`chat-header-status ${
-                        status === "open" ? "online" : "connecting"
-                      }`}
-                    >
-                      {status === "open"
-                        ? "Đã kết nối realtime"
-                        : "Đang kết nối..."}
+                    <Text className="chat-header-status">
+                      <span
+                        className={`status-dot ${
+                          activeConversation.peer?.is_online ? "" : "offline"
+                        }`}
+                      />
+                      <span className="chat-header-status-label">
+                        {activeConversation.peer?.is_online ? "Online" : "Offline"}
+                      </span>
                     </Text>
                   </div>
                 </Space>
@@ -765,7 +942,14 @@ export default function ChatPage() {
                 ) : (
                   <>
                     {messages.map((message) => (
-                      <MessageBubble key={message.id} message={message} />
+                      <MessageBubble
+                        key={message.id}
+                        message={message}
+                        containerRef={(node) => {
+                          if (node) messageNodeRefs.current[message.id] = node;
+                          else delete messageNodeRefs.current[message.id];
+                        }}
+                      />
                     ))}
                     <div ref={messagesEndRef} />
                   </>
@@ -866,20 +1050,14 @@ export default function ChatPage() {
                 {activeConversation.peer.email}
               </Text>
 
-              <div>
-                <span
-                  className={`status-dot ${
-                    activeConversation.peer.is_online ? "" : "offline"
-                  }`}
-                />
-                <Text style={{ color: "#94a3b8" }}>
-                  {activeConversation.peer.is_online ? "Đang online" : "Offline"}
-                </Text>
-              </div>
-
               <Button icon={<MessageOutlined />} block>
                 Hồ sơ
               </Button>
+
+              <ChatHistoryPanel
+                messages={messages}
+                onJumpToMessage={scrollToMessage}
+              />
             </Space>
           ) : (
             <Empty description="Không có thông tin" />

@@ -35,6 +35,10 @@ export default function useChatInboxSocket(handlers = {}) {
         if (payload.type === "conversation_updated") {
           handlers.onConversationUpdated?.(payload.conversation);
         }
+
+        if (payload.type === "presence") {
+          handlers.onPresence?.(payload);
+        }
       } catch (error) {
         console.error("Inbox WS parse error:", error);
       }
