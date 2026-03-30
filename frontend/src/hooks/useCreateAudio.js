@@ -5,13 +5,14 @@ import {
   previewAudio,
   saveDraftWithAudio,
   uploadDocument,
-  getDraftDetail, 
+  getDraftDetail,
 } from '../utils/contentApi'
+import { formatDurationVi } from '../utils/formatDuration'
 
 const VOICE_NAME_MAP = {
   'minh-tuan': 'Minh Tuấn',
   'lan-anh': 'Lan Anh',
-  'hung': 'Hùng',
+  hung: 'Hùng',
   'thu-ha': 'Thu Hà',
 }
 
@@ -42,6 +43,7 @@ export function useCreateAudio() {
   ]
 
   const formats = ['MP3', 'WAV', 'OGG', 'AAC']
+
   const aiModes = [
     { value: 'summary', label: 'Tóm tắt AI' },
     { value: 'dialogue', label: 'Đổi sang hội thoại' },
@@ -86,19 +88,16 @@ export function useCreateAudio() {
   const [recentDrafts, setRecentDrafts] = useState([])
   const [description, setDescription] = useState('')
 
-  // THÊM
   const [activeDraftId, setActiveDraftId] = useState('')
   const [isLoadingDraft, setIsLoadingDraft] = useState(false)
+  const [durationSeconds, setDurationSeconds] = useState(0)
 
   const selectedVoiceName = useMemo(() => {
     return VOICE_NAME_MAP[voice] || 'Minh Tuấn'
   }, [voice])
 
   const currentSourceText = useMemo(() => {
-    if (sourceTab === 'upload') {
-      return uploadedExtractedText || ''
-    }
-    return text || ''
+    return sourceTab === 'upload' ? uploadedExtractedText || '' : text || ''
   }, [sourceTab, text, uploadedExtractedText])
 
   const words = useMemo(() => {
@@ -109,10 +108,9 @@ export function useCreateAudio() {
   }, [processedText, currentSourceText])
 
   const estLabel = useMemo(() => {
-    if (!words) return '— phút'
-    const mins = words / 130
-    if (mins < 1) return '< 1 phút'
-    return `${mins.toFixed(1)} phút`
+    if (!words) return '—'
+    const estimatedSeconds = Math.round((words / 130) * 60)
+    return formatDurationVi(estimatedSeconds)
   }, [words])
 
   const resetGenerateState = useCallback(() => {
@@ -125,6 +123,7 @@ export function useCreateAudio() {
     setProcStep('')
     setAiSuggestedTopics([])
     setDescription('')
+    setDurationSeconds(0)
   }, [])
 
   const loadRecentDrafts = useCallback(async () => {
@@ -144,6 +143,7 @@ export function useCreateAudio() {
   const clearText = useCallback(() => {
     setText('')
     setActiveDraftId('')
+    setDurationSeconds(0)
     resetGenerateState()
   }, [resetGenerateState])
 
@@ -151,6 +151,7 @@ export function useCreateAudio() {
     setSourceTab('text')
     setActiveDraftId('')
     setText(demoText)
+    setDurationSeconds(0)
     resetGenerateState()
     toast.success('Đã chèn văn bản mẫu')
   }, [demoText, resetGenerateState])
@@ -163,57 +164,61 @@ export function useCreateAudio() {
     setUploadedDocPublicId('')
     setUploadedExtractedText('')
     setActiveDraftId('')
+    setDurationSeconds(0)
     resetGenerateState()
   }, [resetGenerateState])
 
-  const handleFile = useCallback(async (selectedFile) => {
-    if (!selectedFile) return
+  const handleFile = useCallback(
+    async (selectedFile) => {
+      if (!selectedFile) return
 
-    try {
-      setActiveDraftId('')
-      setFile(selectedFile)
-      setFileReady(false)
-      setIsUploadingFile(true)
-      setUploadedDocUrl('')
-      setUploadedDocPublicId('')
-      setUploadedExtractedText('')
-      resetGenerateState()
+      try {
+        setActiveDraftId('')
+        setFile(selectedFile)
+        setFileReady(false)
+        setIsUploadingFile(true)
+        setUploadedDocUrl('')
+        setUploadedDocPublicId('')
+        setUploadedExtractedText('')
+        resetGenerateState()
 
-      const formData = new FormData()
-      formData.append('file', selectedFile)
+        const formData = new FormData()
+        formData.append('file', selectedFile)
 
-      const res = await uploadDocument(formData)
-      const payload = res?.data || {}
+        const res = await uploadDocument(formData)
+        const payload = res?.data || {}
+        const extractedText = (payload.extracted_text || '').trim()
 
-      const extractedText = (payload.extracted_text || '').trim()
+        if (!extractedText) {
+          throw new Error('Không thể trích xuất nội dung từ file')
+        }
 
-      if (!extractedText) {
-        throw new Error('Không thể trích xuất nội dung từ file')
+        setUploadedDocUrl(payload.document_url || '')
+        setUploadedDocPublicId(payload.public_id || '')
+        setUploadedExtractedText(extractedText)
+        setFileReady(true)
+
+        toast.success(`Đã tải và phân tích file: ${selectedFile.name}`)
+      } catch (error) {
+        console.error('Upload document error:', error)
+        setFile(null)
+        setFileReady(false)
+        setUploadedDocUrl('')
+        setUploadedDocPublicId('')
+        setUploadedExtractedText('')
+        toast.error(error?.message || 'Upload file thất bại')
+      } finally {
+        setIsUploadingFile(false)
       }
-
-      setUploadedDocUrl(payload.document_url || '')
-      setUploadedDocPublicId(payload.public_id || '')
-      setUploadedExtractedText(extractedText)
-      setFileReady(true)
-
-      toast.success(`Đã tải và phân tích file: ${selectedFile.name}`)
-    } catch (error) {
-      console.error('Upload document error:', error)
-      setFile(null)
-      setFileReady(false)
-      setUploadedDocUrl('')
-      setUploadedDocPublicId('')
-      setUploadedExtractedText('')
-      toast.error(error?.message || 'Upload file thất bại')
-    } finally {
-      setIsUploadingFile(false)
-    }
-  }, [resetGenerateState])
+    },
+    [resetGenerateState]
+  )
 
   const loadDraftToForm = useCallback(async (draftId) => {
     if (!draftId) return
 
     try {
+      setActiveDraftId(draftId)
       setIsLoadingDraft(true)
 
       const res = await getDraftDetail(draftId)
@@ -225,8 +230,12 @@ export function useCreateAudio() {
         : null
 
       const hasDocument = draft.source_type === 'uploaded_document'
+      const resolvedAudioUrl = draft.audio_url || defaultAudio?.audio_url || ''
+      const resolvedDurationSeconds = Number(
+        draft.duration_seconds || defaultAudio?.duration_seconds || 0
+      )
+      const resolvedFormat = String(defaultAudio?.format || 'mp3').toUpperCase()
 
-      setActiveDraftId(draft.id || draftId)
       setSourceTab(hasDocument ? 'upload' : 'text')
 
       const originalText = draft.original_text || ''
@@ -234,9 +243,10 @@ export function useCreateAudio() {
       setUploadedExtractedText(hasDocument ? originalText : '')
 
       setDescription(draft.description || '')
-      setAudioUrl(draft.audio_url || defaultAudio?.audio_url || '')
+      setAudioUrl(resolvedAudioUrl)
       setPublicId('')
       setFileReady(hasDocument)
+      setDurationSeconds(resolvedDurationSeconds)
 
       setUploadedDocUrl(documents[0]?.document_url || '')
       setUploadedDocPublicId(documents[0]?.storage_path || '')
@@ -269,27 +279,19 @@ export function useCreateAudio() {
 
       setProcessedText(processed)
 
-      const durationSeconds = Number(
-        draft.duration_seconds || defaultAudio?.duration_seconds || 0
-      )
-
-      if (durationSeconds > 0) {
-        const mins = Math.floor(durationSeconds / 60)
-        const secs = String(durationSeconds % 60).padStart(2, '0')
-        setResultDur(`${mins}:${secs} phút • ${String(
-          defaultAudio?.format || 'mp3'
-        ).toUpperCase()}`)
+      if (resolvedDurationSeconds > 0) {
+        setResultDur(`${formatDurationVi(resolvedDurationSeconds)} • ${resolvedFormat}`)
       } else {
         setResultDur('')
       }
 
-      setFormat(String(defaultAudio?.format || 'mp3').toUpperCase())
+      setFormat(resolvedFormat)
       setVoice(VOICE_ID_BY_NAME[defaultAudio?.voice_name] || 'minh-tuan')
 
-      setGenState(draft.audio_url ? 'done' : 'idle')
+      setGenState(resolvedAudioUrl ? 'done' : 'idle')
       setProgress(0)
       setProcStep('')
-      setStep(draft.audio_url ? 3 : 2)
+      setStep(resolvedAudioUrl ? 3 : 2)
 
       toast.success('Đã tải lại bản nháp lên giao diện')
     } catch (error) {
@@ -340,6 +342,7 @@ export function useCreateAudio() {
       setResultDur('')
       setAiSuggestedTopics([])
       setDescription('')
+      setDurationSeconds(0)
 
       const res = await previewAudio({
         original_text: inputText,
@@ -348,16 +351,20 @@ export function useCreateAudio() {
       })
 
       const preview = res?.data || {}
+      const resolvedAudioUrl = preview.audio_url || ''
+      const resolvedDurationSeconds = Number(preview.duration_seconds || 0)
 
       setProcessedText(preview.processed_text || '')
-      setAudioUrl(preview.audio_url || '')
+      setAudioUrl(resolvedAudioUrl)
       setPublicId(preview.public_id || '')
       setDescription(preview.generated_description || '')
+      setDurationSeconds(resolvedDurationSeconds)
 
-      const durationSeconds = Number(preview.duration_seconds || 0)
-      const mins = Math.floor(durationSeconds / 60)
-      const secs = String(durationSeconds % 60).padStart(2, '0')
-      setResultDur(`${mins}:${secs} phút • ${format}`)
+      if (resolvedDurationSeconds > 0) {
+        setResultDur(`${formatDurationVi(resolvedDurationSeconds)} • ${format}`)
+      } else {
+        setResultDur('')
+      }
 
       if (Array.isArray(preview.suggested_topics)) {
         setAiSuggestedTopics(preview.suggested_topics)
@@ -365,7 +372,7 @@ export function useCreateAudio() {
 
       setProgress(100)
       setProcStep('Hoàn tất')
-      setGenState('done')
+      setGenState(resolvedAudioUrl ? 'done' : 'idle')
 
       toast.success('Tạo podcast thành công')
     } catch (error) {
@@ -422,7 +429,7 @@ export function useCreateAudio() {
 
       toast.success(res?.message || 'Lưu nháp thành công')
       setActiveDraftId(res?.data?.id || '')
-      loadRecentDrafts()
+      await loadRecentDrafts()
     } catch (error) {
       console.error('Save draft error:', error)
       toast.error(error?.message || 'Lưu nháp thất bại')
@@ -472,6 +479,7 @@ export function useCreateAudio() {
     progress,
     procStep,
     resultDur,
+    durationSeconds,
     audioUrl,
     textError,
     words,
@@ -493,5 +501,7 @@ export function useCreateAudio() {
     activeDraftId,
     isLoadingDraft,
     loadDraftToForm,
+    setDurationSeconds,
+    setResultDur, 
   }
 }
