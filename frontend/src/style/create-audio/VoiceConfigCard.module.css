@@ -1,0 +1,122 @@
+.card {
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%) !important;
+  border: 1px solid rgba(245, 240, 232, 0.08) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+  overflow: hidden;
+}
+
+.card :global(.ant-card-body) {
+  padding: 16px !important;
+}
+
+.head {
+  color: #f5f0e8 !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+}
+
+.sectionTitle {
+  color: #f5f0e8 !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+}
+
+.sliderBlock {
+  width: 100%;
+}
+
+.sliderHeader {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+}
+
+.sliderLabel {
+  color: rgba(245, 240, 232, 0.65) !important;
+  font-size: 13px !important;
+}
+
+.sliderValue {
+  color: #f4a227 !important;
+  font-weight: 600 !important;
+  font-size: 13px !important;
+}
+
+.voiceGroup {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.voiceButton {
+  width: 100% !important;
+  height: auto !important;
+  padding: 12px !important;
+  border-radius: 12px !important;
+  text-align: left !important;
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(245, 240, 232, 0.08) !important;
+  color: #f5f0e8 !important;
+  transition: all 0.2s ease;
+}
+
+.voiceButton:hover {
+  border-color: rgba(244, 162, 39, 0.35) !important;
+  background: rgba(244, 162, 39, 0.06) !important;
+}
+
+.topicTag {
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(245, 240, 232, 0.04);
+  border: 1px solid rgba(245, 240, 232, 0.08);
+  color: rgba(245, 240, 232, 0.72);
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.topicTag:hover {
+  border-color: rgba(244, 162, 39, 0.35);
+  color: #f4a227;
+  background: rgba(244, 162, 39, 0.08);
+}
+
+.select {
+  width: 100%;
+  margin-top: 12px;
+}
+
+.select :global(.ant-select-selector) {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 1px solid rgba(245, 240, 232, 0.08) !important;
+  border-radius: 12px !important;
+  color: #f5f0e8 !important;
+  box-shadow: none !important;
+  transition: all 0.2s ease;
+}
+
+.select :global(.ant-select-selector:hover) {
+  border-color: rgba(244, 162, 39, 0.25) !important;
+}
+
+.select :global(.ant-select-selection-placeholder) {
+  color: rgba(245, 240, 232, 0.42) !important;
+}
+
+.select :global(.ant-select-arrow) {
+  color: rgba(245, 240, 232, 0.58) !important;
+}
+
+.sliderBlock :global(.ant-slider-rail) {
+  background: rgba(245, 240, 232, 0.09) !important;
+}
+
+.sliderBlock :global(.ant-slider-track) {
+  background: linear-gradient(90deg, #f4a227, #ff5f3d) !important;
+}
+
+.sliderBlock :global(.ant-slider-handle::after) {
+  box-shadow: 0 0 0 2px #f4a227 !important;
+}

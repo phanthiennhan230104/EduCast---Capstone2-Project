@@ -23,7 +23,7 @@ class Post(models.Model):
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, db_column='user_id', related_name='posts')
     category_id = models.CharField(max_length=26, null=True, blank=True)
     title = models.CharField(max_length=255)
-    slug = models.CharField(max_length=255)
+    slug = models.CharField(max_length=255, unique=True)
     description = models.TextField(null=True, blank=True)
     original_text = models.TextField(null=True, blank=True)
     summary_text = models.TextField(null=True, blank=True)
@@ -39,7 +39,7 @@ class Post(models.Model):
     visibility = models.CharField(
         max_length=20,
         choices=VisibilityChoices.choices,
-        default=VisibilityChoices.PUBLIC,
+        default=VisibilityChoices.PRIVATE,
     )
 
     status = models.CharField(
@@ -68,3 +68,49 @@ class Post(models.Model):
         managed = False  
     def __str__(self):
         return self.title
+    
+class PostDocument(models.Model):
+    id = models.CharField(max_length=26, primary_key=True)
+    post = models.ForeignKey(
+        'content.Post',
+        on_delete=models.CASCADE,
+        db_column='post_id',
+        related_name='documents'
+    )
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=50)
+    file_size = models.BigIntegerField()
+    document_url = models.CharField(max_length=500)
+    storage_path = models.CharField(max_length=500, null=True, blank=True)
+    uploaded_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'post_documents'
+        managed = False
+
+    def __str__(self):
+        return self.file_name
+    
+class PostAudioVersion(models.Model):
+    id = models.CharField(max_length=26, primary_key=True)
+    post = models.ForeignKey(
+        'content.Post',
+        on_delete=models.CASCADE,
+        db_column='post_id',
+        related_name='audio_versions'
+    )
+    voice_name = models.CharField(max_length=100)
+    format = models.CharField(max_length=20, default='mp3')
+    bitrate_kbps = models.IntegerField(null=True, blank=True)
+    duration_seconds = models.IntegerField(null=True, blank=True)
+    audio_url = models.CharField(max_length=500)
+    storage_path = models.CharField(max_length=500, null=True, blank=True)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'post_audio_versions'
+        managed = False
+
+    def __str__(self):
+        return f"{self.post.id} - {self.voice_name}"

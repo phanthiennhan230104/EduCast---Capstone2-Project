@@ -1,0 +1,82 @@
+.wrapper {
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%) !important;
+  border: 1px solid rgba(245, 240, 232, 0.08) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+  padding: 16px !important;
+  overflow: hidden;
+}
+
+.wrapper :global(.ant-card-body) {
+  padding: 0 !important;
+}
+
+.title {
+  margin: 0 !important;
+  color: #f5f0e8 !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+}
+
+.desc {
+  color: rgba(245, 240, 232, 0.65) !important;
+  font-size: 13px !important;
+  margin-top: 6px !important;
+  display: block;
+}
+
+.badge {
+  background: rgba(244, 162, 39, 0.1) !important;
+  color: #f4a227 !important;
+  box-shadow: none !important;
+  border: 1px solid rgba(244, 162, 39, 0.28) !important;
+  border-radius: 8px !important;
+  padding: 0 10px !important;
+  height: 26px !important;
+  line-height: 26px !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+/* Steps styling */
+.steps :global(.ant-steps) {
+  width: 100%;
+}
+
+.steps :global(.ant-steps-item-title) {
+  color: rgba(245, 240, 232, 0.78) !important;
+  font-size: 13px !important;
+  font-weight: 600;
+}
+
+.steps :global(.ant-steps-item-process .ant-steps-item-title) {
+  color: #f5f0e8 !important;
+}
+
+.steps :global(.ant-steps-item-finish .ant-steps-item-title) {
+  color: #00c4a7 !important;
+}
+
+.steps :global(.ant-steps-item-icon) {
+  background-color: rgba(245, 240, 232, 0.12) !important;
+  border-color: rgba(245, 240, 232, 0.2) !important;
+}
+
+.steps :global(.ant-steps-item-process .ant-steps-item-icon) {
+  background: linear-gradient(135deg, #f4a227, #ff5f3d) !important;
+  border-color: transparent !important;
+}
+
+.steps :global(.ant-steps-item-finish .ant-steps-item-icon) {
+  background-color: rgba(0, 196, 167, 0.15) !important;
+  border-color: #00c4a7 !important;
+}
+
+.steps :global(.ant-steps-item-icon > .ant-steps-icon) {
+  color: #f5f0e8 !important;
+}
+
+.steps :global(.ant-steps-item-finish .ant-steps-icon) {
+  color: #00c4a7 !important;
+}

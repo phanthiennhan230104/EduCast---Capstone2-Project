@@ -1,0 +1,109 @@
+.card {
+  border-radius: 20px !important;
+  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%) !important;
+  border: 1px solid rgba(245, 240, 232, 0.08) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+  overflow: hidden;
+}
+
+.card :global(.ant-card-body) {
+  padding: 16px !important;
+}
+
+.head {
+  color: #f5f0e8 !important;
+  font-size: 15px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.01em;
+}
+
+.body {
+  padding-top: 8px !important;
+}
+
+.block {
+  width: 100%;
+}
+
+.helperText {
+  color: rgba(245, 240, 232, 0.65) !important;
+  font-size: 13px !important;
+}
+
+.filePreview {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(245, 240, 232, 0.06) !important;
+  transition: all 0.2s ease;
+}
+
+.filePreview:hover {
+  border-color: rgba(244, 162, 39, 0.25) !important;
+  background: rgba(0, 0, 0, 0.25) !important;
+}
+
+.fileName {
+  color: #f5f0e8 !important;
+  font-size: 14px !important;
+  font-weight: 600;
+}
+
+.fileMetaReady {
+  color: #00c4a7 !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+.fileMetaLoading {
+  color: #f4a227 !important;
+  font-weight: 600 !important;
+  font-size: 12px !important;
+}
+
+.urlTag {
+  cursor: pointer;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(245, 240, 232, 0.04);
+  border: 1px solid rgba(245, 240, 232, 0.08);
+  color: rgba(245, 240, 232, 0.72);
+  font-size: 12px;
+  transition: all 0.2s ease;
+}
+
+.urlTag:hover {
+  border-color: rgba(244, 162, 39, 0.35);
+  color: #f4a227;
+  background: rgba(244, 162, 39, 0.08);
+}
+
+.counterRow {
+  width: 100%;
+  justify-content: space-between;
+}
+
+.dragger :global(.ant-upload) {
+  background: transparent !important;
+}
+
+.dragger :global(.ant-upload-drag) {
+  background: rgba(0, 0, 0, 0.2) !important;
+  border: 2px dashed rgba(245, 240, 232, 0.12) !important;
+  border-radius: 14px !important;
+  transition: all 0.2s ease;
+}
+
+.dragger :global(.ant-upload-drag:hover) {
+  border-color: rgba(244, 162, 39, 0.35) !important;
+  background: rgba(244, 162, 39, 0.04) !important;
+}
+
+.dragger :global(.ant-upload-text) {
+  color: #f5f0e8 !important;
+  font-weight: 600 !important;
+}
+
+.dragger :global(.ant-upload-hint) {
+  color: rgba(245, 240, 232, 0.6) !important;
+  font-size: 12px !important;
+}
