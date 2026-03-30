@@ -6,7 +6,7 @@ cloudinary.config(
     cloud_name=settings.CLOUDINARY_STORAGE["CLOUD_NAME"],
     api_key=settings.CLOUDINARY_STORAGE["API_KEY"],
     api_secret=settings.CLOUDINARY_STORAGE["API_SECRET"],
-    secure=True
+    secure=True,
 )
 
 
@@ -25,3 +25,13 @@ def upload_file_to_cloudinary(file, folder="educast/files", resource_type="auto"
         "bytes": result.get("bytes"),
         "created_at": result.get("created_at"),
     }
+
+
+def delete_file_from_cloudinary(public_id, resource_type="auto"):
+    if not public_id:
+        return None
+
+    return cloudinary.uploader.destroy(
+        public_id,
+        resource_type=resource_type
+    )

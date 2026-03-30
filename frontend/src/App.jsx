@@ -1,10 +1,10 @@
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import HomePage from "./pages/HomePage/HomePage";
-import FeedPage from "./pages/FeedPage/FeedPage";
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import HomePage from './pages/HomePage/HomePage'
+import FeedPage from './pages/FeedPage/FeedPage'
 import ChatPage from "./pages/ChatPage/ChatPage";
-import FavoritesPage from './pages/FavoritesPage/FavoritesPage'
-import SettingsPage from "./pages/SettingsPage/SettingsPage";
 import AdminPage from "./components/admin/AdminPage";
+import FavoritesPage from "./pages/FavoritesPage/FavoritesPage";
+import CreateAudioPage from './pages/CreateAudioPage/CreateAudioPage'
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminUsersPage from "./components/admin/AdminUsersPage";
 import MainLayout from "./components/layout/MainLayout/MainLayout";
@@ -23,6 +23,7 @@ function RootRedirect() {
   }
 
   return <HomePage />;
+  
   
 }
 
@@ -59,17 +60,16 @@ function App() {
               </ProtectedRoute>
             }
           />
-
           <Route
-            path="/messages"
+            path="/create-audio"
             element={
               <ProtectedRoute>
-                <MainLayout>
-                  <ChatPage />
-                </MainLayout>
+                  <CreateAudioPage />
               </ProtectedRoute>
             }
           />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
 
           <Route 
           path="/favorites" 
@@ -91,10 +91,12 @@ function App() {
 
 
           <Route
-            path="/settings"
+            path="/messages"
             element={
               <ProtectedRoute>
-                <SettingsPage />
+                <MainLayout>
+                  <ChatPage />
+                </MainLayout>
               </ProtectedRoute>
             }
           />
