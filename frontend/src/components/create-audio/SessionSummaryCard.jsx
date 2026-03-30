@@ -1,6 +1,7 @@
 import { Card, Descriptions, Space, Tag, Typography } from 'antd'
 import { CheckCircleOutlined } from '@ant-design/icons'
 import styles from '../../style/create-audio/SessionSummaryCard.module.css'
+import { formatDurationVi } from '../../utils/formatDuration'
 
 const { Text } = Typography
 
@@ -29,9 +30,9 @@ export default function SessionSummaryCard({ vm }) {
               children: `${(vm?.words || 0).toLocaleString()} từ`,
             },
             {
-              key: 'estimate',
-              label: 'Ước tính thời gian',
-              children: vm?.estLabel || '—',
+              key: 'duration',
+              label: 'Thời lượng',
+              children: vm?.durationSeconds > 0 ? formatDurationVi(vm.durationSeconds) : '—',
             },
             {
               key: 'voice',

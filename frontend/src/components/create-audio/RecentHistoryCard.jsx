@@ -1,6 +1,7 @@
 import { Button, Card, Space, Typography } from 'antd'
 import { ClockCircleOutlined, HistoryOutlined } from '@ant-design/icons'
 import styles from '../../style/create-audio/RecentHistoryCard.module.css'
+import { formatDurationVi } from '../../utils/formatDuration'
 
 const { Text, Paragraph } = Typography
 
@@ -16,35 +17,34 @@ export default function RecentHistoryCard({ vm }) {
       styles={{ header: { color: '#fff' } }}
     >
       {!history.length ? (
-        <Text className={styles.meta}>Chưa có bản nháp nào</Text>
+        <div className={styles.emptyState}>
+          <Text className={styles.meta}>Chưa có bản nháp nào</Text>
+        </div>
       ) : (
-        <div>
+        <div className={styles.list}>
           {history.map((item) => {
             const isActive = vm.activeDraftId === item.id
+            const durationSeconds = Number(item.duration_seconds || 0)
 
             return (
               <button
                 key={item.id}
                 type="button"
                 className={`${styles.item} ${isActive ? styles.itemActive : ''}`}
-                onClick={() => vm.loadDraftToForm(item.id)}
-                disabled={vm.isLoadingDraft}
-                style={{
-                  width: '100%',
-                  textAlign: 'left',
-                  background: 'transparent',
-                  border: 'none',
-                  padding: 0,
-                  cursor: 'pointer',
+                onClick={() => {
+                  if (!vm.isLoadingDraft) {
+                    vm.loadDraftToForm(item.id)
+                  }
                 }}
+                disabled={vm.isLoadingDraft}
               >
                 <div className={styles.row}>
-                  <Space align="start">
+                  <div className={styles.left}>
                     <div className={styles.iconWrap}>
                       <HistoryOutlined />
                     </div>
 
-                    <Space orientation="vertical" size={2}>
+                    <div className={styles.content}>
                       <Text strong className={styles.title}>
                         {item.title || 'Bản nháp không tên'}
                       </Text>
@@ -58,19 +58,20 @@ export default function RecentHistoryCard({ vm }) {
                       {!!item.description && (
                         <Paragraph
                           ellipsis={{ rows: 2 }}
-                          className={styles.meta}
-                          style={{ marginBottom: 0 }}
+                          className={styles.description}
                         >
                           {item.description}
                         </Paragraph>
                       )}
-                    </Space>
-                  </Space>
+                    </div>
+                  </div>
 
-                  <Text className={styles.duration}>
-                    <ClockCircleOutlined />{' '}
-                    {item.duration_seconds ? `${item.duration_seconds}s` : '—'}
-                  </Text>
+                  <div className={styles.right}>
+                    <Text className={styles.duration}>
+                      <ClockCircleOutlined />{' '}
+                      {durationSeconds > 0 ? formatDurationVi(durationSeconds) : '—'}
+                    </Text>
+                  </div>
                 </div>
               </button>
             )

@@ -7,6 +7,7 @@ import {
 } from '@ant-design/icons'
 import { toast } from 'react-toastify'
 import styles from '../../style/create-audio/GenerateSection.module.css'
+import { formatDurationVi } from '../../utils/formatDuration'
 
 const { Text, Title } = Typography
 const { TextArea } = Input
@@ -28,6 +29,15 @@ export default function GenerateSection({ vm }) {
     }
 
     window.open(vm.audioUrl, '_blank')
+  }
+
+  const handleAudioLoadedMetadata = (e) => {
+    const actualSeconds = Math.floor(e.currentTarget.duration || 0)
+
+    if (actualSeconds > 0 && actualSeconds !== vm.durationSeconds) {
+      vm.setDurationSeconds(actualSeconds)
+      vm.setResultDur(`${formatDurationVi(actualSeconds)} • ${vm.format}`)
+    }
   }
 
   return (
@@ -67,7 +77,12 @@ export default function GenerateSection({ vm }) {
             </div>
 
             {vm.audioUrl && (
-              <audio key={vm.audioUrl} controls className={styles.audio}>
+              <audio
+                key={vm.audioUrl}
+                controls
+                className={styles.audio}
+                onLoadedMetadata={handleAudioLoadedMetadata}
+              >
                 <source src={vm.audioUrl} type="audio/mpeg" />
                 Trình duyệt không hỗ trợ phát audio.
               </audio>
