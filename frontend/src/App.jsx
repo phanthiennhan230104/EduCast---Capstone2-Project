@@ -10,6 +10,7 @@ import AdminUsersPage from "./components/admin/AdminUsersPage";
 import MainLayout from "./components/layout/MainLayout/MainLayout";
 import { AuthProvider, useAuth } from "./components/contexts/AuthContext";
 import CommunityPage from "./pages/CommunityPage/CommunityPage";
+import SettingsPage from "./pages/SettingsPage/SettingsPage";
 
 function RootRedirect() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -97,6 +98,15 @@ function App() {
                 <MainLayout>
                   <ChatPage />
                 </MainLayout>
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <SettingsPage />
               </ProtectedRoute>
             }
           />
