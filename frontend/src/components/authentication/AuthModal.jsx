@@ -5,8 +5,8 @@ import styles from '../../style/authentication/AuthModal.module.css'
 import { apiRequest } from '../../utils/api'
 import { saveAuth } from '../../utils/auth'
 import { useAuth } from '../contexts/AuthContext'
-// import ForgotPasswordModal from './ForgotPassword'
-const ForgotPasswordModal = () => null;
+import ForgotPasswordModal from './ForgotPassword'
+
 
 
 
@@ -366,10 +366,10 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
           <p className={styles.brandSub}>AI-Powered</p>
           <p className={styles.brandDesc}>Social Audio Learning</p>
 
-          <div className={styles.brandStats}>
+          {/* <div className={styles.brandStats}>
             Join 50,000+ learners <br />
             worldwide
-          </div>
+          </div> */}
         </div>
 
         <div className={styles.rightPanel}>
@@ -383,7 +383,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                 onChangeMode('login')
               }}
             >
-              Login
+              Đăng Nhập
             </button>
 
             <button
@@ -395,7 +395,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                 onChangeMode('signup')
               }}
             >
-              Sign Up
+              Đăng Ký
             </button>
           </div>
 
@@ -474,7 +474,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
           ) : mode === 'login' ? (
             <form className={styles.form} onSubmit={handleLoginSubmit}>
               <label className={styles.signupLabel} style={{ marginTop: '20px' }}>
-                EMAIL OR USERNAME
+                Tài Khoản hoặc Email
                 <div className={styles.inputWrap}>
                   <Mail size={16} className={styles.inputIcon} />
                   <input
@@ -489,7 +489,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
               </label>
 
               <label className={styles.signupLabel}>
-                PASSWORD
+                Mật Khẩu
                 <div className={styles.inputWrap}>
                   <Lock size={16} className={styles.inputIcon} />
                   <input
@@ -510,34 +510,49 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                   </button>
                 </div>
 
-                <button
-  type="button"
-  className={styles.forgotBtn}
-  onClick={() => {
-    resetMessages()
-    setShowForgotPassword(true)
-  }}
->
-  Forgot password?
-</button>
+                {/* <button
+                  type="button"
+                  className={styles.forgotBtn}
+                  onClick={() => {
+                    resetMessages()
+                    setShowForgotPassword(true)
+                  }}
+                >
+                  Forgot password?
+                </button> */}
               </label>
 
-              <label className={styles.rememberRow}>
-                <input
-                  type="checkbox"
-                  name="rememberMe"
-                  checked={loginData.rememberMe}
-                  onChange={handleLoginChange}
-                />
-                <span>Remember me</span>
-              </label>
+
+              <div className={styles.authOptions}>
+                <label className={styles.rememberRow}>
+                  <input
+                    type="checkbox"
+                    name="rememberMe"
+                    checked={loginData.rememberMe}
+                    onChange={handleLoginChange}
+                  />
+                  <span>Nhớ tôi</span>
+                </label>
+
+                <button
+                  type="button"
+                  className={styles.forgotBtn}
+                  onClick={() => {
+                    resetMessages()
+                    setShowForgotPassword(true)
+                  }}
+                >
+                  Quên mật khẩu?
+                </button>
+              </div>
+              
 
               <button type="submit" className={styles.submitBtn} disabled={loading}>
-                {loading ? 'Signing In...' : 'Sign In'}
+                {loading ? 'Đang đăng nhập...' : 'Đăng Nhập'}
               </button>
 
               <div className={styles.divider}>
-                <span>Or continue with</span>
+                <span>Đăng Nhập Với</span>
               </div>
 
               <div className={styles.socialRow}>
@@ -551,7 +566,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                 )}
               </div>
               <p className={styles.switchText}>
-                Don't have an account?{' '}
+                Chưa có tài khoản?{' '}
                 <button
                   type="button"
                   className={styles.switchBtn}
@@ -560,14 +575,14 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                     onChangeMode('signup')
                   }}
                 >
-                  Sign up instead
+                  Đăng ký ngay
                 </button>
               </p>
             </form>
           ) : (
             <form className={styles.form} onSubmit={handleSignupSubmit}>
               <label className={styles.signupLabel}>
-                FULL NAME
+                Họ và Tên
                 <div className={styles.inputWrap}>
                   <User size={16} className={styles.inputIcon} />
                   <input
@@ -583,7 +598,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
 
               <div className={styles.twoCols}>
                 <label className={styles.signupLabel}>
-                  USERNAME
+                  Tài Khoản
                   <div className={styles.inputWrap}>
                     <AtSign size={16} className={styles.inputIcon} />
                     <input
@@ -614,7 +629,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
               </div>
 
               <label className={styles.signupLabel}>
-                PASSWORD
+                Mật Khẩu
                 <div className={styles.inputWrap}>
                   <Lock size={16} className={styles.inputIcon} />
                   <input
@@ -637,7 +652,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
               </label>
 
               <label className={styles.signupLabel}>
-                CONFIRM PASSWORD
+                Xác Nhận Mật Khẩu
                 <div className={styles.inputWrap}>
                   <Lock size={16} className={styles.inputIcon} />
                   <input
@@ -660,11 +675,11 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
               </label>
 
               <button type="submit" className={styles.submitBtn} disabled={loading}>
-                {loading ? 'Creating Account...' : 'Create Account'}
+                {loading ? 'Đang tạo tài khoản...' : 'Đăng Ký'}
               </button>
 
               <p className={styles.switchText}>
-                Already have an account?{' '}
+                Đã có tài khoản?{' '}
                 <button
                   type="button"
                   className={styles.switchBtn}
@@ -673,7 +688,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                     onChangeMode('login')
                   }}
                 >
-                  Login instead
+                  Đăng nhập
                 </button>
               </p>
             </form>
