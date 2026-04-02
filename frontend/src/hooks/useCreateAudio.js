@@ -501,6 +501,7 @@ export function useCreateAudio() {
     activeDraftId,
     isLoadingDraft,
     loadDraftToForm,
+    loadRecentDrafts,
     setDurationSeconds,
     setResultDur, 
   }

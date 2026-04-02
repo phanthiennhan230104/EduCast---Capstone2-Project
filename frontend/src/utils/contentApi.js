@@ -49,6 +49,14 @@ export const deleteDraft = async (postId) => {
   })
 }
 
+// Lưu trữ nháp (chuyển sang trạng thái 'archived')
+export const archiveDraft = async (postId) => {
+  return await apiRequest(`/content/drafts/${postId}/update/`, {
+    method: 'PUT',
+    body: JSON.stringify({ status: 'archived' }),
+  })
+}
+
 // Upload tài liệu để trích xuất text
 export const uploadDocument = async (formData) => {
   return await apiRequest('/content/drafts/upload-document/', {

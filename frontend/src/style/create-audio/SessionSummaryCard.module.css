@@ -1,36 +1,36 @@
 .card {
-  border-radius: 20px !important;
-  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%) !important;
-  border: 1px solid rgba(245, 240, 232, 0.08) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%);
+  border: 1px solid rgba(245, 240, 232, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
 
 .card :global(.ant-card-body) {
-  padding: 16px !important;
+  padding: 16px;
 }
 
 .head {
-  color: #f5f0e8 !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
+  color: #f5f0e8;
+  font-size: 15px;
+  font-weight: 700;
   letter-spacing: -0.01em;
-  margin-bottom: 12px !important;
+  margin-bottom: 12px;
 }
 
 .label {
-  color: rgba(245, 240, 232, 0.6) !important;
-  font-size: 12px !important;
+  color: rgba(245, 240, 232, 0.6);
+  font-size: 12px;
   font-weight: 600;
 }
 
 .value {
-  color: #f5f0e8 !important;
-  font-size: 14px !important;
+  color: #f5f0e8;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .statusLabel {
-  color: rgba(245, 240, 232, 0.6) !important;
-  font-size: 12px !important;
+  color: rgba(245, 240, 232, 0.6);
+  font-size: 12px;
 }

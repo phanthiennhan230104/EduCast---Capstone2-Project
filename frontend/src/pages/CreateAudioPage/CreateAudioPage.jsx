@@ -7,12 +7,13 @@ import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import CreateAudioHeader from '../../components/create-audio/CreateAudioHeader'
 import SourceCard from '../../components/create-audio/SourceCard'
 import VoiceConfigCard from '../../components/create-audio/VoiceConfigCard'
+import AllDraftsPanel from '../../components/create-audio/AllDraftsPanel'
 import SessionSummaryCard from '../../components/create-audio/SessionSummaryCard'
 import GenerateSection from '../../components/create-audio/GenerateSection'
 import RecentHistoryCard from '../../components/create-audio/RecentHistoryCard'
 
 import { useCreateAudio } from '../../hooks/useCreateAudio'
-import styles from '../../style/pages/user/CreateAudioPage.module.css'
+import styles from '../../style/pages/CreateAudioPage/CreateAudioPage.module.css'
 
 export default function CreateAudioPage() {
   const vm = useCreateAudio()
@@ -31,6 +32,7 @@ export default function CreateAudioPage() {
               <div className={styles.leftCol}>
                 <SourceCard vm={vm} />
                 <VoiceConfigCard vm={vm} />
+                <AllDraftsPanel vm={vm} />
               </div>
 
               <div className={styles.rightCol}>

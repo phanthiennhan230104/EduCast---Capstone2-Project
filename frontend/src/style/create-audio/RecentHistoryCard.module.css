@@ -1,23 +1,23 @@
 .card {
-  border-radius: 20px !important;
-  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%) !important;
-  border: 1px solid rgba(245, 240, 232, 0.08) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%);
+  border: 1px solid rgba(245, 240, 232, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
 
 .card :global(.ant-card-body) {
-  padding: 0 !important;
+  padding: 0;
 }
 
 .card :global(.ant-card-head) {
-  border-bottom: 1px solid rgba(245, 240, 232, 0.06) !important;
+  border-bottom: 1px solid rgba(245, 240, 232, 0.06);
 }
 
 .card :global(.ant-card-head-title) {
-  color: #f5f0e8 !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
+  color: #f5f0e8;
+  font-size: 15px;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
@@ -26,8 +26,8 @@
 }
 
 .card :global(.ant-btn-link) {
-  color: #f4a227 !important;
-  padding-inline: 0 !important;
+  color: #f4a227;
+  padding-inline: 0;
 }
 
 .list {
@@ -107,33 +107,33 @@
 }
 
 .title {
-  color: #f5f0e8 !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-  line-height: 1.35 !important;
-  margin-bottom: 0 !important;
+  color: #f5f0e8;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.35;
+  margin-bottom: 0;
 }
 
 .meta {
-  color: rgba(245, 240, 232, 0.58) !important;
-  font-size: 12px !important;
-  line-height: 1.4 !important;
+  color: rgba(245, 240, 232, 0.58);
+  font-size: 12px;
+  line-height: 1.4;
 }
 
 .description {
-  color: rgba(245, 240, 232, 0.7) !important;
-  font-size: 12px !important;
-  line-height: 1.5 !important;
-  margin-bottom: 0 !important;
+  color: rgba(245, 240, 232, 0.7);
+  font-size: 12px;
+  line-height: 1.5;
+  margin-bottom: 0;
 }
 
 .duration {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  color: #f4a227 !important;
-  font-weight: 600 !important;
-  font-size: 12px !important;
+  color: #f4a227;
+  font-weight: 600;
+  font-size: 12px;
   padding: 6px 10px;
   border-radius: 999px;
   background: rgba(244, 162, 39, 0.08);
@@ -154,7 +154,7 @@
   }
 
   .duration {
-    font-size: 11px !important;
+    font-size: 11px;
     padding: 5px 8px;
   }
 }
