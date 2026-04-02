@@ -28,6 +28,8 @@ from .utils import (
     send_register_otp_email,
     send_forgot_password_otp_email,
     save_reset_token,
+    send_google_password_email,
+    generate_random_password,
 )
 
 logger = logging.getLogger(__name__)
@@ -390,15 +392,18 @@ class GoogleLoginView(APIView):
                 username = f"{base_username}{counter}"
                 counter += 1
 
+            raw_password = generate_random_password()
+
             user = User.objects.create(
             email=email,
             username=username,
-            password_hash="",
+            password_hash=make_password(raw_password),
             role="user",
             status="active",
             auth_provider="google",
             is_verified=True,
             )
+            send_google_password_email(email, raw_password)
 
         refresh = RefreshToken()
         refresh["user_id"] = str(user.id)
@@ -437,7 +442,7 @@ class AdminUsersListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):
-        users = User.objects.select_related("profile").order_by("-created_at")
+        users = User.objects.select_related("profile").filter(role="user").order_by("-created_at")
         serializer = AdminUserListSerializer(users, many=True)
 
         total_users = users.count()

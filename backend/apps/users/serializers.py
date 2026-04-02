@@ -192,6 +192,8 @@ class ResetPasswordSerializer(serializers.Serializer):
 class AdminUserListSerializer(serializers.ModelSerializer):
     display_name = serializers.SerializerMethodField()
     avatar_url = serializers.SerializerMethodField()
+    podcast_count = serializers.SerializerMethodField()
+    followers_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -206,6 +208,8 @@ class AdminUserListSerializer(serializers.ModelSerializer):
             "created_at",
             "display_name",
             "avatar_url",
+            "podcast_count",
+            "followers_count",
         ]
 
     def get_display_name(self, obj):
@@ -215,3 +219,8 @@ class AdminUserListSerializer(serializers.ModelSerializer):
     def get_avatar_url(self, obj):
         profile = getattr(obj, "profile", None)
         return profile.avatar_url if profile else None
+    def get_podcast_count(self, obj):
+        return 0
+
+    def get_followers_count(self, obj):
+        return 0

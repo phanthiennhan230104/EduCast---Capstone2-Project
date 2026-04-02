@@ -1,6 +1,7 @@
 import random
 import threading
 import logging
+import string
 
 from django.core.cache import cache
 from django.core.mail import get_connection, EmailMessage
@@ -135,3 +136,24 @@ def verify_reset_token(email, token):
         return False, "Reset token không hợp lệ."
 
     return True, None
+
+
+def generate_random_password(length=12):
+    chars = string.ascii_letters + string.digits + "@#$%&*!?"
+    return "".join(random.choice(chars) for _ in range(length))
+
+def send_google_password_email(email, raw_password):
+    subject = "EduCast - Mật khẩu tạm cho tài khoản Google"
+    message = (
+        f"Xin chào {email},\n\n"
+        "Tài khoản EduCast của bạn đã được tạo bằng Google Login.\n"
+        f"Mật khẩu tạm thời của bạn là: {raw_password}\n\n"
+        "Vui lòng đăng nhập và đổi mật khẩu sớm để đảm bảo an toàn.\n\n"
+        "Trân trọng,\nĐội ngũ EduCast."
+    )
+
+    threading.Thread(
+        target=send_email_async,
+        args=(subject, message, email),
+        daemon=True,
+    ).start()

@@ -135,61 +135,87 @@ export default function AdminUsersPage() {
             <div style={{ padding: 16, color: "#ff6b6b" }}>{error}</div>
           ) : (
             <div className="admin-users-table-wrap">
-              <table className="admin-users-table">
-                <thead>
-                  <tr>
-                    <th>NGƯỜI DÙNG</th>
-                    <th>VAI TRÒ</th>
-                    <th>TRẠNG THÁI</th>
-                    <th>XÁC THỰC</th>
-                    <th>ĐĂNG NHẬP GẦN NHẤT</th>
-                    <th>NGÀY THAM GIA</th>
-                  </tr>
-                </thead>
+  <table className="admin-users-table">
+  <thead>
+    <tr>
+      <th>NGƯỜI DÙNG</th>
+      <th>VAI TRÒ</th>
+      <th>PODCAST</th>
+      <th>NGƯỜI THEO DÕI</th>
+      <th>TRẠNG THÁI</th>
+      <th>NGÀY THAM GIA</th>
+      <th>THAO TÁC</th>
+    </tr>
+  </thead>
 
-                <tbody>
-                  {filteredUsers.map((user) => {
-                    const status = mapStatus(user.status);
-                    return (
-                      <tr key={user.id}>
-                        <td>
-                          <div className="admin-users-user-cell">
-                            <div className="admin-users-avatar blue">
-                              {getInitial(user.display_name || user.username || user.email)}
-                            </div>
+  <tbody>
+    {filteredUsers.map((user) => {
+      const status = mapStatus(user.status);
 
-                            <div className="admin-users-user-info">
-                              <div className="admin-users-user-name">{user.display_name || user.username}</div>
-                              <div className="admin-users-user-email">{user.email}</div>
-                            </div>
-                          </div>
-                        </td>
+      return (
+        <tr key={user.id}>
+          <td>
+            <div className="admin-users-user-cell">
+              <div className="admin-users-avatar blue">
+                {getInitial(user.display_name || user.username || user.email)}
+              </div>
 
-                        <td>
-                          <span className={`admin-users-role admin-users-role-${user.role}`}>
-                            {roleLabel(user.role)}
-                          </span>
-                        </td>
-
-                        <td>
-                          <span className={`admin-users-status admin-users-status-${status.type}`}>
-                            {status.label}
-                          </span>
-                        </td>
-
-                        <td className="admin-users-center">
-                          {user.is_verified ? "Đã xác thực" : "Chưa xác thực"}
-                        </td>
-                        <td className="admin-users-date">
-                          {user.last_login_at ? new Date(user.last_login_at).toLocaleString("vi-VN") : "-"}
-                        </td>
-                        <td className="admin-users-date">{formatJoinDate(user.created_at)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+              <div className="admin-users-user-info">
+                <div className="admin-users-user-name">
+                  {user.display_name || user.username}
+                </div>
+                <div className="admin-users-user-email">{user.email}</div>
+              </div>
             </div>
+          </td>
+
+          <td>
+            <span className={`admin-users-role admin-users-role-${user.role}`}>
+              {roleLabel(user.role)}
+            </span>
+          </td>
+
+          <td className="admin-users-center">
+            {user.podcast_count ?? 0}
+          </td>
+
+          <td className="admin-users-center">
+            {user.followers_count ?? 0}
+          </td>
+
+          <td>
+            <span className={`admin-users-status admin-users-status-${status.type}`}>
+              {status.label}
+            </span>
+          </td>
+
+          <td className="admin-users-date">
+            {formatJoinDate(user.created_at)}
+          </td>
+
+          <td>
+            <div className="admin-users-actions">
+              <button className="admin-users-btn admin-users-btn-view">
+                Xem
+              </button>
+
+              <button
+                className={`admin-users-btn ${
+                  status.type === "locked"
+                    ? "admin-users-btn-restore"
+                    : "admin-users-btn-lock"
+                }`}
+              >
+                {status.type === "locked" ? "Khôi phục" : "Khóa"}
+              </button>
+            </div>
+          </td>
+        </tr>
+      );
+    })}
+  </tbody>
+</table>
+</div>
           )}
         </section>
       </div>
