@@ -247,7 +247,6 @@
 
 .admin-users-center {
   text-align: center;
-  color: #f6f8ff;
 }
 
 .admin-users-date {
@@ -257,20 +256,32 @@
 
 .admin-users-actions {
   display: flex;
-  align-items: center;
   gap: 8px;
+  align-items: center;
 }
 
+
 .admin-users-btn {
-  border: 0;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 12px;
   cursor: pointer;
-  font-weight: 500;
+}
+
+.admin-users-btn-lock {
+  background: #7f1d1d;
+  color: #fff;
+}
+
+.admin-users-btn-restore {
+  background: #065f46;
+  color: #fff;
 }
 
 .admin-users-btn-view {
-  background: rgba(220, 220, 220, 0.16);
-  color: #ececec;
-  border: 1px solid rgba(236, 236, 236, 0.16);
+  background: #6b7280;
+  color: #fff;
 }
 
 .admin-users-btn-danger {
