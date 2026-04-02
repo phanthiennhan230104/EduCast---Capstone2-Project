@@ -297,9 +297,11 @@ class MyDraftListView(APIView):
 
     def get(self, request):
         try:
+            # Exclude archived drafts from the list
             drafts = Post.objects.filter(
                 user=request.user,
-                status=Post.StatusChoices.DRAFT,
+            ).exclude(
+                status=Post.StatusChoices.ARCHIVED,
             ).order_by("-created_at")
 
             return Response(
@@ -325,7 +327,6 @@ class DraftDetailView(APIView):
             post = Post.objects.get(
                 id=post_id,
                 user=request.user,
-                status=Post.StatusChoices.DRAFT,
             )
 
             return Response(
@@ -358,7 +359,6 @@ class DraftUpdateView(APIView):
             post = Post.objects.get(
                 id=post_id,
                 user=request.user,
-                status=Post.StatusChoices.DRAFT,
             )
         except Post.DoesNotExist:
             return Response(
@@ -372,6 +372,10 @@ class DraftUpdateView(APIView):
 
         try:
             text_changed = False
+
+            # Handle status update (e.g., archiving)
+            if "status" in data and data["status"]:
+                post.status = data["status"]
 
             if "title" in data and data["title"]:
                 post.title = data["title"]
@@ -479,7 +483,6 @@ class DraftDeleteView(APIView):
             post = Post.objects.get(
                 id=post_id,
                 user=request.user,
-                status=Post.StatusChoices.DRAFT,
             )
         except Post.DoesNotExist:
             return Response(

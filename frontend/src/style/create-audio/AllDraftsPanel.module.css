@@ -1,0 +1,144 @@
+.card {
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%);
+  border: 1px solid rgba(245, 240, 232, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.card :global(.ant-card-body) {
+  padding: 0;
+}
+
+.card :global(.ant-card-head) {
+  border-bottom: 1px solid rgba(245, 240, 232, 0.08);
+  padding: 18px 24px;
+}
+
+.card :global(.ant-card-head-title) {
+  color: #f5f0e8;
+  font-size: 16px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.card :global(.ant-card-extra) {
+  padding-inline-start: 8px;
+  margin-inline-end: 0;
+}
+
+.tableContainer {
+  overflow-x: auto;
+}
+
+.tableContainer :global(.ant-table) {
+  background: transparent;
+  color: #f5f0e8;
+}
+
+.tableContainer :global(.ant-table-thead > tr > th) {
+  background: rgba(245, 240, 232, 0.02);
+  border-bottom: 2px solid rgba(244, 162, 39, 0.2);
+  color: #f4a227;
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  padding: 16px 16px;
+}
+
+.tableContainer :global(.ant-table-tbody > tr) {
+  border-bottom: 1px solid rgba(245, 240, 232, 0.04);
+  transition: all 0.2s ease;
+}
+
+.tableContainer :global(.ant-table-tbody > tr > td) {
+  color: #f5f0e8;
+  padding: 16px;
+  background: transparent;
+  font-size: 13px;
+}
+
+.tableContainer :global(.ant-table-tbody > tr:hover > td) {
+  background: rgba(244, 162, 39, 0.05);
+}
+
+.tableContainer :global(.ant-table-tbody > tr:last-child) {
+  border-bottom: none;
+}
+
+.tableContainer :global(.ant-tag) {
+  border: none;
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.tableContainer :global(.ant-tag-orange) {
+  background: rgba(244, 162, 39, 0.16);
+  color: #ffb84d;
+}
+
+.tableContainer :global(.ant-tag-blue) {
+  background: rgba(24, 144, 255, 0.16);
+  color: #69b1ff;
+}
+
+.tableContainer :global(.ant-tag-green) {
+  background: rgba(82, 196, 26, 0.16);
+  color: #85ce61;
+}
+
+.tableContainer :global(.ant-tag-red) {
+  background: rgba(255, 77, 79, 0.16);
+  color: #ff7875;
+}
+
+.tableContainer :global(.ant-tag-default) {
+  background: rgba(245, 240, 232, 0.08);
+  color: rgba(245, 240, 232, 0.6);
+}
+
+.tableContainer :global(.ant-space-item) {
+  display: flex;
+  align-items: center;
+}
+
+.tableContainer :global(.ant-btn-link) {
+  color: #f4a227;
+  font-weight: 600;
+  font-size: 12px;
+}
+
+.tableContainer :global(.ant-btn-link:hover) {
+  color: #ffb84d;
+}
+
+.tableContainer :global(.ant-btn-text) {
+  color: #ff6b6b;
+  padding: 4px 8px;
+}
+
+.tableContainer :global(.ant-btn-text:hover) {
+  color: #ff7875;
+  background: rgba(255, 77, 79, 0.08);
+}
+
+.collapsedInfo {
+  padding: 20px 24px;
+  background: rgba(245, 240, 232, 0.02);
+}
+
+.collapsedText {
+  color: rgba(245, 240, 232, 0.75);
+  font-size: 13px;
+  letter-spacing: 0.2px;
+}
+
+.toggleBtn :global(.ant-btn) {
+  color: #f4a227;
+  font-size: 16px;
+}

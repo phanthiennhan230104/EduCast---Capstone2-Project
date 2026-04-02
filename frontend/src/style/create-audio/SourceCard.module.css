@@ -1,24 +1,24 @@
 .card {
-  border-radius: 20px !important;
-  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%) !important;
-  border: 1px solid rgba(245, 240, 232, 0.08) !important;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2) !important;
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%);
+  border: 1px solid rgba(245, 240, 232, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
 
 .card :global(.ant-card-body) {
-  padding: 16px !important;
+  padding: 16px;
 }
 
 .head {
-  color: #f5f0e8 !important;
-  font-size: 15px !important;
-  font-weight: 700 !important;
+  color: #f5f0e8;
+  font-size: 15px;
+  font-weight: 700;
   letter-spacing: -0.01em;
 }
 
 .body {
-  padding-top: 8px !important;
+  padding-top: 8px;
 }
 
 .block {
@@ -26,38 +26,38 @@
 }
 
 .helperText {
-  color: rgba(245, 240, 232, 0.65) !important;
-  font-size: 13px !important;
+  color: rgba(245, 240, 232, 0.65);
+  font-size: 13px;
 }
 
 .filePreview {
-  background: rgba(0, 0, 0, 0.2) !important;
-  border-radius: 14px !important;
-  border: 1px solid rgba(245, 240, 232, 0.06) !important;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 14px;
+  border: 1px solid rgba(245, 240, 232, 0.06);
   transition: all 0.2s ease;
 }
 
 .filePreview:hover {
-  border-color: rgba(244, 162, 39, 0.25) !important;
-  background: rgba(0, 0, 0, 0.25) !important;
+  border-color: rgba(244, 162, 39, 0.25);
+  background: rgba(0, 0, 0, 0.25);
 }
 
 .fileName {
-  color: #f5f0e8 !important;
-  font-size: 14px !important;
+  color: #f5f0e8;
+  font-size: 14px;
   font-weight: 600;
 }
 
 .fileMetaReady {
-  color: #00c4a7 !important;
-  font-weight: 600 !important;
-  font-size: 12px !important;
+  color: #00c4a7;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .fileMetaLoading {
-  color: #f4a227 !important;
-  font-weight: 600 !important;
-  font-size: 12px !important;
+  color: #f4a227;
+  font-weight: 600;
+  font-size: 12px;
 }
 
 .urlTag {
@@ -83,27 +83,27 @@
 }
 
 .dragger :global(.ant-upload) {
-  background: transparent !important;
+  background: transparent;
 }
 
 .dragger :global(.ant-upload-drag) {
-  background: rgba(0, 0, 0, 0.2) !important;
-  border: 2px dashed rgba(245, 240, 232, 0.12) !important;
-  border-radius: 14px !important;
+  background: rgba(0, 0, 0, 0.2);
+  border: 2px dashed rgba(245, 240, 232, 0.12);
+  border-radius: 14px;
   transition: all 0.2s ease;
 }
 
 .dragger :global(.ant-upload-drag:hover) {
-  border-color: rgba(244, 162, 39, 0.35) !important;
-  background: rgba(244, 162, 39, 0.04) !important;
+  border-color: rgba(244, 162, 39, 0.35);
+  background: rgba(244, 162, 39, 0.04);
 }
 
 .dragger :global(.ant-upload-text) {
-  color: #f5f0e8 !important;
-  font-weight: 600 !important;
+  color: #f5f0e8;
+  font-weight: 600;
 }
 
 .dragger :global(.ant-upload-hint) {
-  color: rgba(245, 240, 232, 0.6) !important;
-  font-size: 12px !important;
+  color: rgba(245, 240, 232, 0.6);
+  font-size: 12px;
 }

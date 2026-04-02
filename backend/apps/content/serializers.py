@@ -177,6 +177,18 @@ class DraftUpdateSerializer(serializers.Serializer):
     voice_name = serializers.CharField(required=False, allow_blank=True)
     format = serializers.CharField(required=False, allow_blank=True)
     duration_seconds = serializers.IntegerField(required=False, allow_null=True)
+    
+    status = serializers.ChoiceField(
+        choices=[
+            Post.StatusChoices.DRAFT,
+            Post.StatusChoices.PROCESSING,
+            Post.StatusChoices.PUBLISHED,
+            Post.StatusChoices.FAILED,
+            Post.StatusChoices.ARCHIVED,
+            Post.StatusChoices.HIDDEN,
+        ],
+        required=False,
+    )
 
 
 class UploadDocumentSerializer(serializers.Serializer):
