@@ -146,10 +146,16 @@
 .avatar {
   width: 48px;
   height: 48px;
-  object-fit: cover;
   border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.12);
+  border: 2px solid rgba(102, 126, 234, 0.3);
   flex: 0 0 auto;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
 }
 
 .profileInfo {

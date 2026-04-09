@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import 'antd/dist/reset.css'
 import './style/index.css'
 import App from './App.jsx'
+import './style/theme.css'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

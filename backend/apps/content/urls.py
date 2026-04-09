@@ -1,4 +1,5 @@
 from django.urls import path
+from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView
 from .views import (
     DraftCreateView,
     AudioPreviewView,
@@ -11,6 +12,10 @@ from .views import (
 )
 
 urlpatterns = [
+    path("upload-test/", TestCloudinaryUploadView.as_view(), name="upload-test"),
+    path("feed/", FeedAPIView.as_view(), name="feed"),
+    path("search/", SearchAPIView.as_view(), name="search"),
+
     path("drafts/", DraftCreateView.as_view(), name="draft-create"),
     path("drafts/preview-audio/", AudioPreviewView.as_view(), name="draft-preview-audio"),
     path("drafts/save-with-audio/", DraftSaveWithAudioView.as_view(), name="draft-save-with-audio"),

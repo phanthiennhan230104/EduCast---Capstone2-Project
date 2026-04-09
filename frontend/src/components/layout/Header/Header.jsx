@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Search, Bell, Plus, ChevronDown, Settings, LogOut } from 'lucide-react'
+import { Search, Plus, ChevronDown, Settings, LogOut } from 'lucide-react'
 import styles from '../../../style/layout/Header.module.css'
 import { useAuth } from '../../contexts/AuthContext'
+import { getInitials } from '../../../utils/getInitials'
+import NotificationPanel from '../NotificationPanel/NotificationPanel'
 
 export default function Header() {
   const navigate = useNavigate()
@@ -27,8 +29,7 @@ export default function Header() {
     [user]
   )
 
-  const avatarUrl = user?.avatar || user?.avatar_url || ''
-  const avatarFallback = displayName.charAt(0).toUpperCase()
+  const avatarFallback = getInitials(user)
 
   const handleGoSettings = () => {
     setOpenMenu(false)
@@ -39,6 +40,20 @@ export default function Header() {
     await logout()
     setOpenMenu(false)
     navigate('/', { replace: true })
+  }
+
+  const handleSearch = (e) => {
+    if (e.key === 'Enter' && query.trim()) {
+      navigate(`/search?q=${encodeURIComponent(query.trim())}`)
+      setQuery('')
+    }
+  }
+
+  const handleSearchClick = () => {
+    if (query.trim()) {
+      navigate(`/search?q=${encodeURIComponent(query.trim())}`)
+      setQuery('')
+    }
   }
 
   return (
@@ -61,21 +76,19 @@ export default function Header() {
       </div>
 
       <div className={styles.searchWrap}>
-        <Search size={15} className={styles.searchIcon} />
+        <Search size={15} className={styles.searchIcon} onClick={handleSearchClick} />
         <input
           className={styles.searchInput}
           type="text"
           placeholder="Tìm kiếm Podcast, chủ đề, người tạo..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={handleSearch}
         />
       </div>
 
       <div className={styles.actions}>
-        <button className={styles.iconBtn} aria-label="Thông báo" type="button">
-          <Bell size={18} />
-          <span className={styles.badge}>3</span>
-        </button>
+        <NotificationPanel />
 
         <button className={styles.createBtn} type="button">
           <Plus size={16} />
@@ -94,11 +107,7 @@ export default function Header() {
             type="button"
           >
             <div className={styles.avatar}>
-              {avatarUrl ? (
-                <img src={avatarUrl} alt={displayName} width={36} height={36} />
-              ) : (
-                <span className={styles.avatarFallback}>{avatarFallback}</span>
-              )}
+              <span className={styles.avatarFallback}>{avatarFallback}</span>
             </div>
             <ChevronDown
               size={14}
@@ -109,11 +118,7 @@ export default function Header() {
           <div className={`${styles.dropdownMenu} ${openMenu ? styles.dropdownMenuOpen : ''}`}>
             <div className={styles.dropdownHeader}>
               <div className={styles.dropdownAvatar}>
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt={displayName} width={40} height={40} />
-                ) : (
-                  <span className={styles.avatarFallback}>{avatarFallback}</span>
-                )}
+                <span className={styles.avatarFallback}>{avatarFallback}</span>
               </div>
               <div className={styles.dropdownMeta}>
                 <strong>{displayName}</strong>

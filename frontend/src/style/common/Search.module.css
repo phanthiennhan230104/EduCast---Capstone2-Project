@@ -1,0 +1,213 @@
+.searchContainer {
+  position: relative;
+  width: 100%;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.searchBoxWrapper {
+  position: relative;
+}
+
+.searchInputGroup {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 24px;
+  padding: 8px 12px;
+  backdrop-filter: blur(10px);
+}
+
+.searchInput {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: #fff;
+  font-size: 14px;
+  padding: 8px 12px;
+}
+
+.searchInput::placeholder {
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.searchTypeSelect {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff;
+  border-radius: 16px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  outline: none;
+}
+
+.searchTypeSelect:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.searchTypeSelect option {
+  background: #1a1a2e;
+  color: #fff;
+}
+
+.resultsDropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  background: rgba(26, 26, 46, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  max-height: 500px;
+  overflow-y: auto;
+  z-index: 1000;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  backdrop-filter: blur(10px);
+}
+
+.loading {
+  padding: 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 14px;
+}
+
+.noResults {
+  padding: 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 14px;
+}
+
+.resultSection {
+  padding: 12px 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.resultSection:last-child {
+  border-bottom: none;
+}
+
+.sectionTitle {
+  padding: 8px 16px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.resultsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.resultItem {
+  display: flex;
+  gap: 12px;
+  padding: 8px 12px;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  align-items: center;
+}
+
+.resultItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.resultThumbnail,
+.resultAvatar {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.resultThumbnail img,
+.resultAvatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.resultAvatar {
+  border-radius: 50%;
+}
+
+.resultContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.resultTitle {
+  margin: 0 0 4px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resultAuthor {
+  margin: 0 0 4px 0;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.resultMeta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.tagsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 12px;
+}
+
+.tagBadge {
+  display: inline-block;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 12px;
+  text-decoration: none;
+  transition: all 0.2s;
+}
+
+.tagBadge:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: rgba(255, 255, 255, 0.3);
+}
+
+/* Scrollbar styling */
+.resultsDropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.resultsDropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.resultsDropdown::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+.resultsDropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}

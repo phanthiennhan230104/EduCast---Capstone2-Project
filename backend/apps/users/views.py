@@ -438,6 +438,68 @@ class GoogleLoginView(APIView):
             status=status.HTTP_200_OK
         )
 
+
+class UpdateUserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        user = request.user
+        profile = user.profile if hasattr(user, 'profile') else None
+        
+        if not profile:
+            return Response(
+                {"error": "Profile not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        
+        # Import cloudinary service
+        from apps.content.services.cloudinary_service import upload_file_to_cloudinary
+        
+        # Update display_name if provided
+        if 'display_name' in request.data:
+            profile.display_name = request.data['display_name']
+        
+        # Handle avatar upload
+        if 'avatar' in request.FILES:
+            try:
+                avatar_file = request.FILES['avatar']
+                
+                # Upload to Cloudinary
+                result = upload_file_to_cloudinary(
+                    avatar_file,
+                    folder='avatars',
+                    resource_type='image'
+                )
+                
+                if result and 'secure_url' in result:
+                    profile.avatar_url = result['secure_url']
+                    print(f"Avatar uploaded: {profile.avatar_url}")
+                else:
+                    return Response(
+                        {"error": "Failed to upload avatar"},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+            except Exception as e:
+                return Response(
+                    {"error": f"Upload failed: {str(e)}"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        # Save profile
+        profile.save()
+        
+        return Response(
+            {
+                "message": "Profile updated successfully",
+                "data": {
+                    "display_name": profile.display_name,
+                    "avatar_url": profile.avatar_url,
+                }
+            },
+            status=status.HTTP_200_OK
+        )
+
+
 class AdminUsersListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 

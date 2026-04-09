@@ -9,16 +9,15 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  background: rgba(255, 255, 255, 0.015);
-  border-left: 1px solid var(--border-light);
+  background: rgba(14, 20, 42, 0.72);
+  border-left: 1px solid rgba(255, 255, 255, 0.06);
 }
 
-/* Widget */
 .widget {
   background: rgba(255, 255, 255, 0.025);
-  border: 1px solid var(--border-light);
+  border: 1px solid rgba(255, 255, 255, 0.07);
   padding: 15px;
-  border-radius: var(--radius-lg);
+  border-radius: 20px;
 }
 
 .widgetTitle {
@@ -27,18 +26,17 @@
   gap: 7px;
   font-size: 13px;
   font-weight: 700;
-  color: var(--text-primary);
+  color: #f3f6ff;
   margin-bottom: 12px;
 }
 
 .widgetTitle svg {
-  color: var(--accent);
+  color: #a9b3ff;
 }
 
-/* Roadmap */
 .roadmapSub {
   font-size: 11.5px;
-  color: var(--text-muted);
+  color: #8792ba;
   margin-bottom: 10px;
   margin-top: -6px;
 }
@@ -54,40 +52,39 @@
   align-items: center;
   gap: 8px;
   font-size: 12.5px;
-  color: var(--text-muted);
-  padding: 6px 8px;
-  border-radius: var(--radius-sm);
+  color: #8f99c0;
+  padding: 7px 9px;
+  border-radius: 12px;
 }
 
 .roadmapItem .check {
   flex-shrink: 0;
-  color: var(--bg-hover);
+  color: rgba(255,255,255,0.10);
 }
 
 .roadmapItem.done {
-  color: var(--text-secondary);
+  color: #c2cae7;
 }
 
 .roadmapItem.done .check {
-  color: #059669;
+  color: #53d3a8;
 }
 
 .roadmapItem.active {
-  background: var(--accent-soft);
-  color: var(--accent-light);
+  background: rgba(132,146,255,0.14);
+  color: #dce1ff;
 }
 
 .roadmapItem.active .check {
-  color: var(--accent);
+  color: #9ca7ff;
 }
 
-/* Trending */
 .trendItem {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border-light);
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
 .trendItem:last-child {
@@ -96,28 +93,27 @@
 
 .trendTag {
   font-size: 13px;
-  color: var(--text-secondary);
+  color: #c4cdeb;
   font-weight: 600;
   cursor: pointer;
 }
 
 .trendTag:hover {
-  text-decoration: underline;
-  color: var(--accent-light);
+  color: #ffffff;
 }
 
 .trendCount {
   font-size: 11px;
-  color: var(--text-muted);
+  color: #8894bc;
 }
 
-/* Suggestions */
 .suggestion {
-  display: flex;
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
   align-items: center;
-  gap: 9px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border-light);
+  gap: 7px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
 }
 
 .suggestion:last-child {
@@ -125,8 +121,8 @@
 }
 
 .suggestionAvatar {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -139,9 +135,9 @@
 
 .suggestionName {
   display: block;
-  font-size: 12.5px;
-  font-weight: 600;
-  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 650;
+  color: #f2f5ff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -149,33 +145,45 @@
 
 .suggestionFollowers {
   font-size: 11px;
-  color: var(--text-muted);
+  color: #919cc4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .followBtn {
-  padding: 4px 12px;
-  border-radius: var(--radius-full);
-  border: 1px solid rgba(232,148,58,0.45);
-  color: var(--accent-light);
-  background: rgba(232,148,58,0.04);
-  font-size: 12px;
+  min-width: 20px;
+  height: 28px;
+  padding: 4px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(132,146,255,0.24);
+  color: #d4dbff;
+  background: rgba(132,146,255,0.10);
+  font-size: 10px;
   font-weight: 600;
-  flex-shrink: 0;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin-left: auto;
+  transform: translateX(2px);
   transition: background 0.2s, color 0.2s;
 }
 
 .followBtn:hover {
-  background: var(--accent);
-  color: #fff;
+  background: rgba(132,146,255,0.18);
 }
 
 .followBtn.following {
-  background: var(--success-soft);
-  border-color: var(--success);
-  color: var(--success);
+  font-size: 10px;
+  font-weight: 600;
+  min-width: 6px;
+  background: rgba(46, 183, 130, 0.10);
+  border-color: rgba(46, 183, 130, 0.26);
+  color: #6ee1b6;
 }
 
-/* Chat widget */
 .chatWidget {
   flex-shrink: 0;
 }
@@ -192,22 +200,22 @@
 .msg {
   font-size: 12.5px;
   padding: 8px 10px;
-  border-radius: var(--radius-md);
+  border-radius: 14px;
   line-height: 1.5;
   max-width: 90%;
 }
 
 .msgAi {
   background: rgba(255,255,255,0.03);
-  border: 1px solid var(--border-light);
-  color: var(--text-secondary);
+  border: 1px solid rgba(255,255,255,0.06);
+  color: #c7d0ee;
   align-self: flex-start;
 }
 
 .msgUser {
-  background: rgba(232,148,58,0.12);
-  color: #f2b766;
-  border: 1px solid rgba(232,148,58,0.2);
+  background: rgba(132,146,255,0.12);
+  color: #e2e7ff;
+  border: 1px solid rgba(132,146,255,0.18);
   align-self: flex-end;
 }
 
@@ -218,38 +226,37 @@
 
 .chatInput input {
   flex: 1;
-  height: 34px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
+  height: 36px;
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
   padding: 0 10px;
-  color: var(--text-primary);
+  color: #f1f5ff;
   font-size: 12.5px;
   outline: none;
-  transition: border-color 0.2s;
 }
 
 .chatInput input:focus {
-  border-color: var(--accent);
+  border-color: rgba(132,146,255,0.32);
 }
 
 .chatInput input::placeholder {
-  color: var(--text-muted);
+  color: #8e9ac0;
 }
 
 .sendBtn {
-  width: 34px;
-  height: 34px;
-  background: var(--accent);
-  border-radius: var(--radius-md);
+  width: 36px;
+  height: 36px;
+  background: rgba(132,146,255,0.14);
+  border: 1px solid rgba(132,146,255,0.20);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #fff;
+  color: #e2e7ff;
   flex-shrink: 0;
-  transition: background 0.2s;
 }
 
 .sendBtn:hover {
-  background: var(--accent-light);
+  background: rgba(132,146,255,0.20);
 }

@@ -41,12 +41,38 @@ class Comment(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
     created_at = models.DateTimeField()
     updated_at = models.DateTimeField()
+    like_count = models.IntegerField(default=0)
     class Meta:
         db_table = 'comments'
         managed = False
         ordering = ['-created_at']
     def __str__(self):
         return f"{self.user} commented on post {self.post_id}"
+
+class CommentLike(models.Model):
+    id = models.CharField(primary_key=True, max_length=26)
+    comment = models.ForeignKey(
+        'social.Comment',
+        on_delete=models.CASCADE,
+        db_column='comment_id',
+        related_name='comment_likes'
+    )
+    user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        db_column='user_id',
+        related_name='liked_comments'
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'comment_likes'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['comment', 'user'],
+                name='uq_comment_like'
+            )
+        ]
 
 class Follow(models.Model):
     id = models.CharField(max_length=26, primary_key=True)
@@ -116,3 +142,28 @@ class PostShare(models.Model):
     def __str__(self):
         return f"{self.user} shared post {self.post_id} via {self.share_type}"
     
+class PlaybackHistory(models.Model):
+    id = models.CharField(max_length=26, primary_key=True)
+    user = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE,
+        related_name="playback_histories",
+    )
+    post = models.ForeignKey(
+        "content.Post",
+        on_delete=models.CASCADE,
+        related_name="playback_histories",
+    )
+    progress_seconds = models.IntegerField(default=0)
+    duration_seconds = models.IntegerField(default=0)
+    completed_ratio = models.DecimalField(max_digits=5, decimal_places=2, default=0)
+    is_completed = models.BooleanField(default=False)
+    last_played_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "playback_history"
+        managed = False
+        ordering = ["-last_played_at"]
+
+    def __str__(self):
+        return f"{self.user_id} - {self.post_id}"

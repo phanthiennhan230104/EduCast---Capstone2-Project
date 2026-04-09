@@ -1,0 +1,128 @@
+from django.db.models import Count
+
+from apps.content.models import Post, PostTag
+from apps.social.models import PostLike, SavedPost, Follow, PlaybackHistory
+
+
+class FeedService:
+    @staticmethod
+    def get_feed(user, limit=20, feed_type="for_you"):
+        followed_author_ids = list(
+            Follow.objects.filter(follower_id=user.id)
+            .values_list("following_id", flat=True)
+        )
+
+        posts_qs = (
+            Post.objects
+            .select_related("user", "user__profile")
+            .annotate(
+                likes_count=Count("likes", distinct=True),
+                comments_count=Count("comments", distinct=True),
+                shares_count=Count("shares", distinct=True),
+                saves_count=Count("saved_by_users", distinct=True),
+            )
+        )
+
+        if feed_type == "following":
+            if not followed_author_ids:
+                return []  
+            posts_qs = posts_qs.filter(user_id__in=followed_author_ids)
+
+        elif feed_type == "latest":
+            posts_qs = posts_qs.order_by("-created_at")
+
+        elif feed_type == "trending":
+            posts_qs = posts_qs.order_by(
+                "-likes_count",
+                "-comments_count",
+                "-shares_count",
+                "-created_at",
+            )
+
+        else:  # for_you
+            posts_qs = posts_qs.order_by("-created_at")
+
+        posts = list(posts_qs[:limit])
+        post_ids = [post.id for post in posts]
+        author_ids = [post.user_id for post in posts]
+
+        liked_post_ids = set(
+            PostLike.objects.filter(user_id=user.id, post_id__in=post_ids)
+            .values_list("post_id", flat=True)
+        )
+
+        saved_post_ids = set(
+            SavedPost.objects.filter(user_id=user.id, post_id__in=post_ids)
+            .values_list("post_id", flat=True)
+        )
+
+        following_author_ids = set(
+            Follow.objects.filter(follower_id=user.id, following_id__in=author_ids)
+            .values_list("following_id", flat=True)
+        )
+
+        playback_map = {
+            row.post_id: row
+            for row in PlaybackHistory.objects.filter(user_id=user.id, post_id__in=post_ids)
+        }
+
+        tag_rows = (
+            PostTag.objects
+            .filter(post_id__in=post_ids)
+            .select_related("tag")
+            .values("post_id", "tag__id", "tag__name", "tag__slug")
+        )
+
+        tag_map = {}
+        for row in tag_rows:
+            tag_map.setdefault(row["post_id"], []).append({
+                "id": row["tag__id"],
+                "name": row["tag__name"],
+                "slug": row["tag__slug"],
+            })
+
+        items = []
+
+        for post in posts:
+            playback = playback_map.get(post.id)
+            tags = tag_map.get(post.id, [])
+
+            item = {
+                "id": post.id,
+                "title": post.title,
+                "description": post.description,
+                "created_at": post.created_at,
+                "thumbnail_url": getattr(post, "thumbnail_url", None),
+                "listen_count": getattr(post, "listen_count", 0) or 0,
+                "author": {
+                    "id": post.user.id,
+                    "username": post.user.username,
+                    "name": getattr(post.user.profile, "display_name", None) if hasattr(post.user, "profile") and post.user.profile else post.user.username,
+                    "avatar_url": getattr(post.user.profile, "avatar_url", None) if hasattr(post.user, "profile") and post.user.profile else None,
+                },
+                "tags": tags,
+                "audio": {
+                    "id": f"post-{post.id}",
+                    "voice_name": None,
+                    "audio_url": post.audio_url,
+                    "duration_seconds": post.duration_seconds,
+                } if post.audio_url else None,
+                "stats": {
+                    "likes": post.likes_count,
+                    "comments": post.comments_count,
+                    "shares": post.shares_count,
+                    "saves": post.saves_count,
+                },
+                "viewer_state": {
+                    "is_liked": post.id in liked_post_ids,
+                    "is_saved": post.id in saved_post_ids,
+                    "is_following_author": post.user_id in following_author_ids,
+                    "progress_seconds": getattr(playback, "progress_seconds", 0) or 0,
+                    "duration_seconds": getattr(playback, "duration_seconds", 0) or 0,
+                    "completed_ratio": float(getattr(playback, "completed_ratio", 0) or 0),
+                    "is_completed": bool(getattr(playback, "is_completed", 0) or 0),
+                },
+            }
+            items.append(item)
+
+        return items

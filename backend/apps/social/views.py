@@ -5,9 +5,12 @@ from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 
-from .models import PostLike, SavedPost, Comment, Follow, Notification, PostShare
+from .models import PostLike, SavedPost, Comment, CommentLike, Follow, Notification, PostShare, PlaybackHistory
 from apps.content.models import Post
 from apps.users.models import User
+from apps.users.authentication import CustomJWTAuthentication
+from apps.social.models import PlaybackHistory
+from django.db.models import F
 
 # Tạo response thành công thống nhất.
 def _json_success(message, data=None, status=200):
@@ -38,10 +41,19 @@ def _parse_body(request):
     except json.JSONDecodeError:
         return None
 
-# Lấy user hiện tại từ body hoặc query param
+# Lấy user hiện tại từ request hoặc body. Ưu tiên authenticate bằng JWT, sau đó là user_id từ query params hoặc body.
 def _get_current_user(request, body=None):
     if hasattr(request, "user") and request.user and request.user.is_authenticated:
         return request.user
+
+    # Thử authenticate bằng JWT từ header Authorization
+    try:
+        auth_result = CustomJWTAuthentication().authenticate(request)
+        if auth_result:
+            user, _token = auth_result
+            return user
+    except Exception:
+        pass
 
     user_id = request.GET.get("user_id")
     if not user_id and body:
@@ -89,7 +101,10 @@ def _post_counts(post_id):
     }
 
 # Chuyển comment thành dict, có thể include replies nếu cần.
-def _comment_to_dict(comment, include_replies=False):
+def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None):
+    liked_comment_ids = liked_comment_ids or set()
+    like_count = CommentLike.objects.filter(comment_id=comment.id).count()
+
     data = {
         "id": comment.id,
         "post_id": comment.post_id,
@@ -97,20 +112,34 @@ def _comment_to_dict(comment, include_replies=False):
         "parent_comment_id": comment.parent_comment_id,
         "content": comment.content,
         "status": comment.status,
+        "like_count": like_count,
+        "is_liked": comment.id in liked_comment_ids,
         "created_at": comment.created_at.isoformat() if comment.created_at else None,
         "updated_at": comment.updated_at.isoformat() if comment.updated_at else None,
     }
 
-    # Nếu bảng users có username thì dùng được. Nếu không có thì giữ user_id.
     if hasattr(comment.user, "username"):
         data["username"] = comment.user.username
 
-    # Nếu include_replies=True thì đệ quy lấy replies cho comment này.
+    if hasattr(comment, "reply_to_user_id"):
+        data["reply_to_user_id"] = comment.reply_to_user_id
+
+    if hasattr(comment, "reply_to_username"):
+        data["reply_to_username"] = comment.reply_to_username
+
     if include_replies:
         replies = Comment.objects.filter(
-            parent_comment_id=comment.id,
-        ).select_related("user").order_by("created_at")
-        data["replies"] = [_comment_to_dict(reply, include_replies=False) for reply in replies]
+            parent_comment_id=comment.id
+        ).select_related("user").order_by("-created_at")
+
+        data["replies"] = [
+            _comment_to_dict(
+                reply,
+                include_replies=True,
+                liked_comment_ids=liked_comment_ids
+            )
+            for reply in replies
+        ]
 
     return data
 
@@ -202,10 +231,6 @@ def toggle_save_post(request, post_id):
     # Kiểm tra post tồn tại
     post = get_object_or_404(Post, id=post_id)
 
-    # Không cho save post của mình
-    if post.user_id == user.id:
-        return _json_error("You cannot save your own post", 403)
-
     # Kiểm tra xem user đã save post này chưa
     existing_saved = SavedPost.objects.filter(post_id=post.id, user_id=user.id).first()
 
@@ -240,23 +265,76 @@ def toggle_save_post(request, post_id):
 # Comment: list
 @require_http_methods(["GET"])
 def list_post_comments(request, post_id):
-    # Kiểm tra post tồn tại
     post = get_object_or_404(Post, id=post_id)
- 
-    # Lấy tất cả comment cha kèm user info, sắp xếp mới nhất trước
+
+    user = _get_current_user(request)
+
+    liked_comment_ids = set()
+    if user:
+        liked_comment_ids = set(
+            CommentLike.objects.filter(user_id=user.id).values_list("comment_id", flat=True)
+        )
+
     top_level_comments = Comment.objects.filter(
         post_id=post.id,
         parent_comment_id__isnull=True,
     ).select_related("user").order_by("-created_at")
 
-    # Chuyển từng comment thành dict
-    comments_data = [_comment_to_dict(comment, include_replies=True) for comment in top_level_comments]
+    comments_data = [
+        _comment_to_dict(
+            comment,
+            include_replies=True,
+            liked_comment_ids=liked_comment_ids
+        )
+        for comment in top_level_comments
+    ]
 
     return _json_success(
         "Comments fetched successfully",
         {
             "post_id": post.id,
             "comments": comments_data,
+            **_post_counts(post.id)
+        }
+    )
+
+# List commmentors
+@require_http_methods(["GET"])
+def list_post_commenters(request, post_id):
+    post = get_object_or_404(Post, id=post_id)
+
+    comments = (
+        Comment.objects.filter(post_id=post.id)
+        .select_related("user")
+        .order_by("-created_at")
+    )
+
+    seen_user_ids = set()
+    data = []
+
+    for comment in comments:
+        if comment.user_id in seen_user_ids:
+            continue
+
+        seen_user_ids.add(comment.user_id)
+
+        item = {
+            "user_id": comment.user_id,
+            "comment_id": comment.id,
+            "content": comment.content,
+            "created_at": comment.created_at.isoformat() if comment.created_at else None,
+        }
+
+        if hasattr(comment.user, "username"):
+            item["username"] = comment.user.username
+
+        data.append(item)
+
+    return _json_success(
+        "Post commenters fetched successfully",
+        {
+            "post_id": post.id,
+            "commenters": data,
             **_post_counts(post.id)
         }
     )
@@ -314,42 +392,102 @@ def create_comment(request, post_id):
         status=201
     )
 
-# Tạo reply cho comment
+# Toggle like/unlike comment
 @csrf_exempt
 @require_http_methods(["POST"])
-def reply_comment(request, comment_id):
-    # Lấy body JSON từ request
+def toggle_comment_like(request, comment_id):
     body = _parse_body(request)
     if body is None:
-        return _json_error("Invalid JSON body", 400)
+        body = {}
 
-    # Lấy user hiện tại từ request hoặc body
     user = _get_current_user(request, body)
     if not user:
         return _json_error("Authentication required", 401)
 
-    # Lấy content từ body
+    comment = get_object_or_404(Comment, id=comment_id)
+
+    existing_like = CommentLike.objects.filter(
+        comment_id=comment.id,
+        user_id=user.id
+    ).first()
+
+    if existing_like:
+        existing_like.delete()
+
+        like_count = CommentLike.objects.filter(comment_id=comment.id).count()
+
+        Comment.objects.filter(id=comment.id).update(like_count=like_count)
+
+        return _json_success(
+            "Unliked comment successfully",
+            {
+                "comment_id": comment.id,
+                "liked": False,
+                "like_count": like_count
+            }
+        )
+
+    CommentLike.objects.create(
+        id=_generate_id("clk"),
+        comment_id=comment.id,
+        user_id=user.id,
+        created_at=timezone.now()
+    )
+
+    like_count = CommentLike.objects.filter(comment_id=comment.id).count()
+
+    Comment.objects.filter(id=comment.id).update(like_count=like_count)
+
+    _create_notification(
+        recipient_id=comment.user_id,
+        actor_user_id=user.id,
+        notification_type="like",
+        title="New comment like",
+        body=f"{getattr(user, 'username', user.id)} liked your comment",
+        reference_type="comment",
+        reference_id=comment.id
+    )
+
+    return _json_success(
+        "Liked comment successfully",
+        {
+            "comment_id": comment.id,
+            "liked": True,
+            "like_count": like_count
+        }
+    )
+
+# Tạo reply cho comment
+@csrf_exempt
+@require_http_methods(["POST"])
+def reply_comment(request, comment_id):
+    body = _parse_body(request)
+    if body is None:
+        return _json_error("Invalid JSON body", 400)
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
     content = (body.get("content") or "").strip()
     if not content:
         return _json_error("content is required", 400)
 
-    # Kiểm tra comment cha tồn tại và đang active
-    parent_comment = get_object_or_404(Comment, id=comment_id)
+    target_comment = get_object_or_404(Comment, id=comment_id)
 
-    # Tạo comment mới với parent_comment_id = comment_id
+    # luôn gom reply về comment cha gốc
     reply = Comment.objects.create(
         id=_generate_id("cmt"),
-        post_id=parent_comment.post_id,
+        post_id=target_comment.post_id,
         user=user,
-        parent_comment=parent_comment,
+        parent_comment=target_comment,
         content=content,
         created_at=timezone.now(),
         updated_at=timezone.now()
     )
 
-    # 1) Notify người có comment cha nếu không phải chính mình
     _create_notification(
-        recipient_id=parent_comment.user_id,
+        recipient_id=target_comment.user_id,
         actor_user_id=user.id,
         notification_type="comment",
         title="New reply",
@@ -358,9 +496,8 @@ def reply_comment(request, comment_id):
         reference_id=reply.id
     )
 
-    # 2) Notify chủ post nếu khác actor và khác owner comment cha
-    post = parent_comment.post
-    if post.user_id not in [user.id, parent_comment.user_id]:
+    post = reply.post
+    if post.user_id not in [user.id, target_comment.user_id]:
         _create_notification(
             recipient_id=post.user_id,
             actor_user_id=user.id,
@@ -371,11 +508,15 @@ def reply_comment(request, comment_id):
             reference_id=reply.id
         )
 
+    data = _comment_to_dict(reply, include_replies=True)
+    data["reply_to_user_id"] = target_comment.user_id
+    data["reply_to_username"] = getattr(target_comment.user, "username", target_comment.user_id)
+
     return _json_success(
         "Reply created successfully",
         {
-            "comment": _comment_to_dict(reply),
-            **_post_counts(parent_comment.post_id)
+            "comment": data,
+            **_post_counts(target_comment.post_id)
         },
         status=201
     )
@@ -487,6 +628,37 @@ def list_post_likers(request, post_id):
             "likers": data,
             **_post_counts(post.id)
         }
+    )
+
+
+# Get following list of current user
+@csrf_exempt
+@require_http_methods(["GET"])
+def get_following_list(request):
+    # Lấy user hiện tại từ request
+    user = _get_current_user(request)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    # Lấy danh sách user mà current user đang follow
+    following_list = Follow.objects.filter(
+        follower_id=user.id
+    ).select_related('following').values(
+        'id', 'following_id', 'following__username', 'following__display_name'
+    )
+
+    following = [
+        {
+            'id': f['following_id'],
+            'username': f['following__username'],
+            'display_name': f['following__display_name']
+        }
+        for f in following_list
+    ]
+
+    return _json_success(
+        "Following list retrieved successfully",
+        {"following": following}
     )
 
 
@@ -730,5 +902,66 @@ def list_post_sharers(request, post_id):
             "post_id": post.id,
             "sharers": data,
             **_post_counts(post.id)
+        }
+    )
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def track_listen(request, post_id):
+    body = _parse_body(request) or {}
+    user = _get_current_user(request, body)
+
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    post = get_object_or_404(Post, id=post_id)
+
+    progress = int(body.get("progress_seconds", 0))
+    duration = int(body.get("duration_seconds", 0))
+
+    history, created = PlaybackHistory.objects.get_or_create(
+        user_id=user.id,
+        post_id=post.id,
+        defaults={
+            "id": _generate_id("ph"),
+            "progress_seconds": progress,
+            "duration_seconds": duration,
+            "completed_ratio": (progress / duration) if duration else 0,
+            "is_completed": (progress / duration) >= 0.9 if duration else False,
+            "last_played_at": timezone.now(),
+        }
+    )
+
+    if not created:
+        old_progress = history.progress_seconds or 0
+
+        history.progress_seconds = progress
+        history.duration_seconds = duration
+        history.last_played_at = timezone.now()
+        history.completed_ratio = (progress / duration) if duration else 0
+        history.is_completed = history.completed_ratio >= 0.9
+        history.save()
+
+        # chỉ tăng 1 lần khi lần đầu vượt mốc 10s
+        if old_progress < 10 and progress >= 10:
+            Post.objects.filter(id=post.id).update(
+                listen_count=F("listen_count") + 1
+            )
+            post.refresh_from_db(fields=["listen_count"])
+    else:
+        # nếu record vừa tạo mà đã >=10s thì tăng luôn
+        if progress >= 10:
+            Post.objects.filter(id=post.id).update(
+                listen_count=F("listen_count") + 1
+            )
+        post.refresh_from_db(fields=["listen_count"])
+
+    return _json_success(
+        "Tracked listen",
+        {
+            "post_id": post.id,
+            "listen_count": post.listen_count,
+            "progress_seconds": progress,
+            "duration_seconds": duration,
         }
     )

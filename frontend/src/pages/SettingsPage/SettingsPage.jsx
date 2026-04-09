@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import { useAuth } from '../../components/contexts/AuthContext'
+import { getInitials } from '../../utils/getInitials'
 import styles from '../../style/pages/SettingsPage/SettingsPage.module.css'
 
 const TABS = [
@@ -157,7 +158,9 @@ function AccountSettings({ profile }) {
         </div>
 
         <div className={styles.profileBox}>
-          <img src={profile.avatar} alt={profile.name} className={styles.avatar} />
+          <div className={styles.avatar}>
+            {getInitials(profile.username || profile.name)}
+          </div>
           <div className={styles.profileInfo}>
             <h4>{profile.name}</h4>
             <p>{profile.email}</p>
@@ -476,12 +479,13 @@ export default function SettingsPage() {
       user?.name ||
       user?.display_name ||
       user?.username ||
-      (user?.email ? user.email.split('@')[0] : 'huhu')
+      (user?.email ? user.email.split('@')[0] : 'User')
 
     return {
       name: fallbackName,
+      username: user?.username || '',
       email: user?.email || 'le7024863@gmail.com',
-      avatar: user?.avatar || user?.avatar_url || 'https://i.pravatar.cc/120?img=12',
+      avatar: user?.avatar || user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=667eea&color=fff&size=120`,
       bio: user?.bio || 'Tâm lý học · Lập trình · Khởi nghiệp',
     }
   }, [user])

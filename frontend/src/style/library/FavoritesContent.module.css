@@ -223,7 +223,6 @@
 
 .collectionCard:hover {
   border-color: rgba(232, 148, 58, 0.22);
-  background: rgba(255, 255, 255, 0.05);
   transform: translateY(-1px);
 }
 

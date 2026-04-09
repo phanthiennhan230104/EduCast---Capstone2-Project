@@ -1,6 +1,9 @@
 .layout {
   min-height: 100vh;
-  background: #171b45;
+  background:
+    radial-gradient(circle at top left, rgba(57, 72, 140, 0.20), transparent 22%),
+    radial-gradient(circle at top right, rgba(95, 73, 161, 0.12), transparent 18%),
+    linear-gradient(180deg, #0b1020 0%, #0d1326 100%);
 }
 
 .main {

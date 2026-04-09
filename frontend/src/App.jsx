@@ -5,10 +5,12 @@ import ChatPage from "./pages/ChatPage/ChatPage";
 import AdminPage from "./components/admin/AdminPage";
 import FavoritesPage from "./pages/FavoritesPage/FavoritesPage";
 import CreateAudioPage from './pages/CreateAudioPage/CreateAudioPage'
+import SearchResultsPage from './pages/SearchResultsPage/SearchResultsPage'
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminUsersPage from "./components/admin/AdminUsersPage";
 import MainLayout from "./components/layout/MainLayout/MainLayout";
 import { AuthProvider, useAuth } from "./components/contexts/AuthContext";
+import { AudioPlayerProvider } from "./components/contexts/AudioPlayerContext";
 import CommunityPage from "./pages/CommunityPage/CommunityPage";
 import SettingsPage from "./pages/SettingsPage/SettingsPage";
 
@@ -31,8 +33,9 @@ function RootRedirect() {
 function App() {
   return (
     <AuthProvider>
-      <BrowserRouter>
-        <Routes>
+      <AudioPlayerProvider>
+        <BrowserRouter>
+          <Routes>
           <Route path="/" element={<RootRedirect />} />
 
           <Route
@@ -40,6 +43,15 @@ function App() {
             element={
               <ProtectedRoute>
                 <FeedPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/search"
+            element={
+              <ProtectedRoute>
+                <SearchResultsPage />
               </ProtectedRoute>
             }
           />
@@ -70,8 +82,6 @@ function App() {
             }
           />
 
-          <Route path="*" element={<Navigate to="/" replace />} />
-
           <Route 
           path="/favorites" 
           element={
@@ -89,7 +99,6 @@ function App() {
             </ProtectedRoute>
           } 
           />
-
 
           <Route
             path="/messages"
@@ -110,8 +119,11 @@ function App() {
               </ProtectedRoute>
             }
           />
+
+          <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </BrowserRouter>
+        </BrowserRouter>
+      </AudioPlayerProvider>
     </AuthProvider>
   );
 }
