@@ -1,9 +1,42 @@
-import { Button, Card, Space, Typography } from 'antd'
+import { useEffect, useState } from 'react'
+import { Button, Card, Space, Typography, Skeleton } from 'antd'
 import { ClockCircleOutlined, HistoryOutlined } from '@ant-design/icons'
 import styles from '../../style/create-audio/RecentHistoryCard.module.css'
-import { formatDurationVi } from '../../utils/formatDuration'
+import { formatDurationVi, getAudioDuration } from '../../utils/formatDuration'
 
 const { Text, Paragraph } = Typography
+
+function HistoryItemDuration({ audioUrl, fallbackDuration }) {
+  const [duration, setDuration] = useState(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    const fetchDuration = async () => {
+      if (!audioUrl) {
+        isMounted && setDuration(0)
+        return
+      }
+
+      const actualDuration = await getAudioDuration(audioUrl)
+      if (isMounted) {
+        setDuration(actualDuration > 0 ? actualDuration : (fallbackDuration || 0))
+      }
+    }
+
+    fetchDuration()
+
+    return () => {
+      isMounted = false
+    }
+  }, [audioUrl, fallbackDuration])
+
+  if (duration === null) {
+    return <Skeleton.Button size="small" />
+  }
+
+  return duration > 0 ? formatDurationVi(duration) : '—'
+}
 
 export default function RecentHistoryCard({ vm }) {
   const history = vm?.recentDrafts || []
@@ -24,7 +57,6 @@ export default function RecentHistoryCard({ vm }) {
         <div className={styles.list}>
           {history.map((item) => {
             const isActive = vm.activeDraftId === item.id
-            const durationSeconds = Number(item.duration_seconds || 0)
 
             return (
               <button
@@ -69,7 +101,10 @@ export default function RecentHistoryCard({ vm }) {
                   <div className={styles.right}>
                     <Text className={styles.duration}>
                       <ClockCircleOutlined />{' '}
-                      {durationSeconds > 0 ? formatDurationVi(durationSeconds) : '—'}
+                      <HistoryItemDuration
+                        audioUrl={item.audio_url}
+                        fallbackDuration={item.duration_seconds}
+                      />
                     </Text>
                   </div>
                 </div>

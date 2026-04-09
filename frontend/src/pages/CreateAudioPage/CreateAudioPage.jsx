@@ -1,6 +1,8 @@
 import { ToastContainer } from 'react-toastify'
 import 'antd/dist/reset.css'
 import 'react-toastify/dist/ReactToastify.css'
+import { useEffect } from 'react'
+import { Modal } from 'antd'
 
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 
@@ -13,10 +15,28 @@ import GenerateSection from '../../components/create-audio/GenerateSection'
 import RecentHistoryCard from '../../components/create-audio/RecentHistoryCard'
 
 import { useCreateAudio } from '../../hooks/useCreateAudio'
+import { useBlockNavigation } from '../../hooks/useBlockNavigation'
 import styles from '../../style/pages/CreateAudioPage/CreateAudioPage.module.css'
 
 export default function CreateAudioPage() {
   const vm = useCreateAudio()
+
+  // Ngăn chặn người dùng rời khỏi trang khi đang tạo audio với confirmation
+  useBlockNavigation(vm.genState === 'processing')
+
+  // Ngăn chặn người dùng rời khỏi tab/cửa sổ khi đang tạo audio
+  useEffect(() => {
+    const handleBeforeUnload = (e) => {
+      if (vm.genState === 'processing') {
+        e.preventDefault()
+        e.returnValue = ''
+        return ''
+      }
+    }
+
+    window.addEventListener('beforeunload', handleBeforeUnload)
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
+  }, [vm.genState])
 
   return (
     <>

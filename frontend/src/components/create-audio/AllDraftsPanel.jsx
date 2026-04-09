@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Button, Card, Table, Popconfirm, Tag, Space } from 'antd'
+import { useMemo, useState, useEffect } from 'react'
+import { Button, Card, Table, Popconfirm, Tag, Space, Skeleton } from 'antd'
 import {
   DownOutlined,
   UpOutlined,
@@ -8,7 +8,7 @@ import {
 } from '@ant-design/icons'
 import { toast } from 'react-toastify'
 import styles from '../../style/create-audio/AllDraftsPanel.module.css'
-import { formatDurationVi } from '../../utils/formatDuration'
+import { formatDurationVi, getAudioDuration } from '../../utils/formatDuration'
 import { archiveDraft } from '../../utils/contentApi'
 
 const STATUS_META = {
@@ -23,8 +23,42 @@ const STATUS_META = {
 export default function AllDraftsPanel({ vm }) {
   const [isExpanded, setIsExpanded] = useState(false)
   const [archivingId, setArchivingId] = useState('')
+  const [durationCache, setDurationCache] = useState({})
 
   const allDrafts = vm?.recentDrafts || []
+
+  // Load actual durations from audio files for all drafts
+  useEffect(() => {
+    let isMounted = true
+    let activeRequests = 0
+
+    const loadDurations = async () => {
+      for (const draft of allDrafts) {
+        if (!draft.id || !draft.audio_url) continue
+        if (durationCache[draft.id] !== undefined) continue
+
+        activeRequests++
+
+        try {
+          const duration = await getAudioDuration(draft.audio_url)
+          if (isMounted && duration > 0) {
+            setDurationCache((prev) => ({
+              ...prev,
+              [draft.id]: duration,
+            }))
+          }
+        } catch (error) {
+          console.error(`Failed to load duration for draft ${draft.id}:`, error)
+        }
+      }
+    }
+
+    loadDurations()
+
+    return () => {
+      isMounted = false
+    }
+  }, [allDrafts, durationCache])
 
   const getStatusMeta = (status) => {
     return STATUS_META[status] || { label: status || 'Không xác định', color: 'default' }
@@ -79,12 +113,23 @@ export default function AllDraftsPanel({ vm }) {
     },
     {
       title: 'Thời lượng',
-      dataIndex: 'duration_seconds',
-      key: 'duration_seconds',
+      dataIndex: 'id',
+      key: 'duration',
       width: 100,
-      render: (seconds) => {
-        const num = Number(seconds || 0)
-        return num > 0 ? formatDurationVi(num) : '—'
+      render: (draftId, record) => {
+        const cachedDuration = durationCache[draftId]
+
+        if (cachedDuration !== undefined) {
+          return cachedDuration > 0 ? formatDurationVi(cachedDuration) : '—'
+        }
+
+        // Show fallback from database or skeleton
+        const num = Number(record.duration_seconds || 0)
+        if (num > 0) {
+          return formatDurationVi(num)
+        }
+
+        return '—'
       },
     },
     {
