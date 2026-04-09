@@ -24,7 +24,12 @@ class SimpleCORSMiddleware:
             response["Access-Control-Allow-Credentials"] = "true"
             response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
             response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-            response["Access-Control-Max-Age"] = "86400"
+            response["Access-Control-Max-Age"] = "3600"
+        else:
+            # For any origin, allow at least basic CORS
+            response["Access-Control-Allow-Origin"] = "*"
+            response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
+            response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
 
         response["Vary"] = "Origin"
 

@@ -1,0 +1,362 @@
+.searchResultsContainer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.header {
+  margin-bottom: 40px;
+  animation: fadeInDown 0.5s ease-out;
+}
+
+.title {
+  font-size: 27px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 12px 0;
+  background: linear-gradient(135deg, #f1f2fa 0%, #976bda 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.query {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  margin: 0;
+  font-weight: 500;
+}
+
+.query strong {
+  color: #667eea;
+  font-weight: 700;
+}
+
+.emptyState,
+.loadingState,
+.errorState {
+  text-align: center;
+  padding: 80px 20px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+}
+
+.loadingState,
+.errorState {
+  animation: fadeIn 0.3s ease-out;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 32px;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  overflow-x: auto;
+  padding-bottom: 0;
+}
+
+.tab {
+  padding: 14px 24px;
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+  position: relative;
+}
+
+.tab:hover {
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.tab.active {
+  color: #fff;
+  border-bottom-color: #667eea;
+  background: linear-gradient(to bottom, rgba(102, 126, 234, 0.1), transparent);
+}
+
+.section {
+  margin-bottom: 48px;
+  animation: fadeIn 0.4s ease-out;
+}
+
+.podcastsGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 24px;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.authorsList {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 24px;
+  animation: fadeIn 0.5s ease-out;
+}
+
+.authorCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 28px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.08) 0%, rgba(118, 75, 162, 0.08) 100%);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 16px;
+  text-align: center;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+}
+
+.authorCard:hover {
+  border-color: rgba(102, 126, 234, 0.35);
+  transform: translateY(-1px);
+}
+
+.authorAvatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin-bottom: 16px;
+  border: 3px solid rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+  transition: all 0.3s ease;
+}
+
+.authorCard:hover .authorAvatar {
+  border-color: rgba(102, 126, 234, 0.6);
+  transform: scale(1.03);
+}
+
+.authorAvatarFallback {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  margin-bottom: 16px;
+  border: 3px solid rgba(102, 126, 234, 0.3);
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 28px;
+  color: #fff;
+  box-shadow: 0 8px 16px rgba(102, 126, 234, 0.2);
+  transition: all 0.3s ease;
+}
+
+.authorCard:hover .authorAvatarFallback {
+  border-color: rgba(102, 126, 234, 0.6);
+  box-shadow: 0 12px 24px rgba(102, 126, 234, 0.3);
+  transform: scale(1.08);
+}
+
+.authorName {
+  font-size: 17px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 6px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.authorUsername {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.5);
+  margin: 0 0 16px 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.followBtn {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.followBtn:hover {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.6);
+  color: #667eea;
+}
+
+.followBtn:active {
+  background: rgba(102, 126, 234, 0.15);
+}
+
+.followBtn.following {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: #667eea;
+}
+
+.followBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tagsList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.tagCard {
+  display: inline-block;
+  padding: 12px 18px;
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.1), rgba(118, 75, 162, 0.1));
+  border: 1px solid rgba(102, 126, 234, 0.25);
+  border-radius: 20px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.tagCard:hover {
+  background: linear-gradient(135deg, rgba(102, 126, 234, 0.15), rgba(118, 75, 162, 0.15));
+  border-color: rgba(102, 126, 234, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(102, 126, 234, 0.15);
+}
+
+.tagName {
+  color: #fff;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.divider {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(102, 126, 234, 0.2), transparent);
+  margin: 32px 0;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.noResults {
+  text-align: center;
+  padding: 80px 20px;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 16px;
+  animation: fadeIn 0.3s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .searchResultsContainer {
+    padding: 24px 16px;
+  }
+
+  .title {
+    font-size: 28px;
+  }
+
+  .podcastsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 16px;
+  }
+
+  .authorsList {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+  }
+
+  .authorCard {
+    padding: 20px;
+  }
+
+  .authorAvatar,
+  .authorAvatarFallback {
+    width: 80px;
+    height: 80px;
+    font-size: 20px;
+    border: 2px solid rgba(102, 126, 234, 0.3);
+  }
+
+  .authorName {
+    font-size: 15px;
+  }
+
+  .tabs {
+    gap: 4px;
+  }
+
+  .tab {
+    padding: 12px 16px;
+    font-size: 13px;
+  }
+
+  .sectionTitle {
+    font-size: 18px;
+  }
+}
+
+@media (max-width: 480px) {
+  .searchResultsContainer {
+    padding: 16px 12px;
+  }
+
+  .title {
+    font-size: 24px;
+  }
+
+  .podcastsGrid {
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+
+  .authorsList {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+
+  .authorCard {
+    padding: 16px;
+  }
+
+  .followBtn {
+    padding: 8px 14px;
+    font-size: 11px;
+  }
+
+  .emptyState,
+  .loadingState,
+  .errorState,
+  .noResults {
+    padding: 40px 16px;
+  }
+}

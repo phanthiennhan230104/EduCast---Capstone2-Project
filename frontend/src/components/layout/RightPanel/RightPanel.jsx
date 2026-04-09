@@ -100,7 +100,7 @@ export default function RightPanel() {
               className={`${styles.followBtn} ${followed[name] ? styles.following : ''}`}
               onClick={() => toggleFollow(name)}
             >
-              {followed[name] ? 'Đang theo' : 'Theo dõi'}
+              {followed[name] ? 'Đang theo dõi' : 'Theo dõi'}
             </button>
           </div>
         ))}

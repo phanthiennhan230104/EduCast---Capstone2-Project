@@ -2,13 +2,14 @@ import os
 import tempfile
 import ulid
 
-from django.db import transaction
+
+from django.db import transaction, models
 from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
-
+from apps.content.services.feed_service import FeedService
 from .models import Post, PostAudioVersion, PostDocument
 from .serializers import (
     DraftCreateSerializer,
@@ -17,11 +18,20 @@ from .serializers import (
     DraftDetailSerializer,
     DraftUpdateSerializer,
     UploadDocumentSerializer,
+    FeedItemSerializer,
 )
 from .services.cloudinary_service import (
     upload_file_to_cloudinary,
     delete_file_from_cloudinary,
 )
+
+
+class TestCloudinaryUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        pass
+
 from .services.text_processor import process_text_by_mode, generate_ai_description
 from .services.tts_service import generate_audio_file
 from .services.slug_service import generate_unique_slug
@@ -574,5 +584,152 @@ class UploadDocumentView(APIView):
         except Exception as e:
             return Response(
                 {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
+        
+class FeedAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        limit = int(request.query_params.get("limit", 20))
+        feed_type = request.query_params.get("tab", "for_you")
+
+        items = FeedService.get_feed(
+            user=request.user,
+            limit=limit,
+            feed_type=feed_type,
+        )
+
+        serializer = FeedItemSerializer(items, many=True)
+        return Response({
+            "items": serializer.data
+        }, status=status.HTTP_200_OK)
+
+
+class SearchAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        query = request.query_params.get("q", "").strip()
+        search_type = request.query_params.get("type", "all")  # all, posts, authors, tags
+        limit = int(request.query_params.get("limit", 20))
+        offset = int(request.query_params.get("offset", 0))
+
+        if not query or len(query) < 2:
+            return Response({
+                "posts": [],
+                "authors": [],
+            }, status=status.HTTP_200_OK)
+
+        results = {
+            "posts": [],
+            "authors": [],
+        }
+
+        # Search Posts (Podcasts) - bao gồm posts với tag + posts của authors
+        if search_type in ["all", "posts"]:
+            from apps.content.models import Tag, PostTag
+            from apps.users.models import User
+            
+            # Tìm direct by title/description
+            posts_qs = Post.objects.filter(
+                status="published",
+                visibility="public"
+            ).filter(
+                models.Q(title__icontains=query) |
+                models.Q(description__icontains=query)
+            ).select_related("user", "user__profile").order_by("-created_at")
+            
+            # Thêm posts của authors có display_name chứa query
+            authors_matching = User.objects.filter(
+                models.Q(username__icontains=query) |
+                models.Q(profile__display_name__icontains=query)
+            )
+            if authors_matching.exists():
+                author_post_ids = Post.objects.filter(
+                    user__in=authors_matching,
+                    status="published",
+                    visibility="public"
+                ).values_list("id", flat=True)
+                
+                posts_by_author = Post.objects.filter(
+                    id__in=author_post_ids
+                ).select_related("user", "user__profile").order_by("-created_at")
+                
+                posts_qs = posts_qs | posts_by_author
+            
+            # Nếu tìm tag, thêm posts của tag đó
+            tags = Tag.objects.filter(name__icontains=query)
+            if tags.exists():
+                tag_post_ids = PostTag.objects.filter(
+                    tag__in=tags
+                ).values_list("post_id", flat=True)
+                
+                posts_with_tag = Post.objects.filter(
+                    id__in=tag_post_ids,
+                    status="published",
+                    visibility="public"
+                ).select_related("user", "user__profile").order_by("-created_at")
+                
+                posts_qs = posts_qs | posts_with_tag
+            
+            posts_qs = posts_qs.distinct().order_by("-created_at")[offset:offset+limit]
+
+            posts_data = []
+            for post in posts_qs:
+                author_name = post.user.username
+                if hasattr(post.user, 'profile') and post.user.profile:
+                    author_name = post.user.profile.display_name or post.user.username
+                    
+                posts_data.append({
+                    "id": post.id,
+                    "title": post.title,
+                    "description": post.description,
+                    "author": author_name,
+                    "author_id": post.user.id,
+                    "thumbnail_url": post.thumbnail_url,
+                    "listen_count": post.listen_count,
+                    "duration_seconds": post.duration_seconds,
+                    "created_at": post.created_at.isoformat(),
+                })
+            results["posts"] = posts_data
+
+        # Search Authors
+        if search_type in ["all", "authors"]:
+            from apps.users.models import User
+            from django.db.models import Q
+            
+            authors_qs = User.objects.filter(
+                Q(username__icontains=query) |
+                Q(profile__display_name__icontains=query)
+            ).select_related("profile")[:limit]
+
+            authors_data = []
+            for author in authors_qs:
+                avatar_url = None
+                if hasattr(author, 'profile') and author.profile:
+                    avatar_url = author.profile.avatar_url
+                
+                display_name = getattr(author.profile, 'display_name', None) if hasattr(author, 'profile') and author.profile else author.username
+                
+                # Fix local path avatar - check if it's a file system path
+                if avatar_url and (':\\' in avatar_url or avatar_url.startswith('/')):
+                    # It's a local file path, generate fallback
+                    avatar_url = None
+                
+                # Generate fallback avatar if not available
+                if not avatar_url:
+                    avatar_url = f'https://ui-avatars.com/api/?name={display_name.replace(" ", "%20")}&background=667eea&color=fff&size=96'
+                
+                print(f"DEBUG: {author.username} - avatar_url: {avatar_url}")
+                
+                authors_data.append({
+                    "id": author.id,
+                    "username": author.username,
+                    "display_name": display_name,
+                    "avatar_url": avatar_url,
+                })
+            
+            results["authors"] = authors_data
+
+        return Response(results, status=status.HTTP_200_OK)

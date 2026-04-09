@@ -1,18 +1,19 @@
-import { UserPlus, Bell } from 'lucide-react'
+import { useState } from 'react'
+import { Target, UserPlus, Bell } from 'lucide-react'
 import styles from '../../style/community/CommunityRightPanel.module.css'
 
-const FOLLOWING = [
-  { id: 1, name: 'Bạch Thiên', desc: 'Ngoại ngữ', count: '29 người theo dõi' },
-  { id: 2, name: 'Trâm', desc: 'Lập trình', count: '12 người theo dõi' },
-  { id: 3, name: 'Tin', desc: 'Tâm lý học', count: '20 người theo dõi' },
-  { id: 4, name: 'Hoàng', desc: 'Tâm lý học', count: '24 người theo dõi' },
-  { id: 5, name: 'Nhân', desc: 'Ngoại ngữ', count: '23 người theo dõi' },
+const INITIAL_FOLLOWING = [
+  { id: 1, name: 'Bạch Thiên', count: '29 người theo dõi', following: true },
+  { id: 2, name: 'Trâm', count: '12 người theo dõi', following: true },
+  { id: 3, name: 'Tin', count: '20 người theo dõi', following: true },
+  { id: 4, name: 'Hoàng', count: '24 người theo dõi', following: true },
+  { id: 5, name: 'Nhân', count: '23 người theo dõi', following: true },
 ]
 
-const SUGGESTIONS = [
-  { id: 1, name: 'YongBGTik', desc: 'Lập trình' },
-  { id: 2, name: 'Nuzzc', desc: 'Tâm lý học' },
-  { id: 3, name: 'LittleBoiz', desc: 'Tâm lý học' },
+const INITIAL_SUGGESTIONS = [
+  { id: 1, name: 'YongBGTik', desc: 'Lập trình', following: false },
+  { id: 2, name: 'Nuzzc', desc: 'Tâm lý học', following: false },
+  { id: 3, name: 'LittleBoiz', desc: 'Tâm lý học', following: false },
 ]
 
 const ACTIVITIES = [
@@ -21,72 +22,104 @@ const ACTIVITIES = [
 ]
 
 export default function CommunityRightPanel() {
+  const [followingList, setFollowingList] = useState(INITIAL_FOLLOWING)
+  const [suggestions, setSuggestions] = useState(INITIAL_SUGGESTIONS)
+
+  const toggleFollowing = id => {
+    setFollowingList(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, following: !item.following } : item
+      )
+    )
+  }
+
+  const toggleSuggestion = id => {
+    setSuggestions(prev =>
+      prev.map(item =>
+        item.id === id ? { ...item, following: !item.following } : item
+      )
+    )
+  }
+
   return (
-    <aside className={styles.panel}>      
-      {/* ĐANG THEO DÕI */}
+    <aside className={styles.panel}>
       <div className={styles.card}>
-        <div className={styles.cardTitle}>
+        <h3 className={styles.cardTitle}>
+          <Target size={16} />
           <span>Đang theo dõi</span>
           <span className={styles.count}>12</span>
+        </h3>
+
+        <div className={styles.userList}>
+          {followingList.map(item => (
+            <div key={item.id} className={styles.userRow}>
+              <div className={styles.avatar} />
+
+              <div className={styles.userInfo}>
+                <div className={styles.name}>{item.name}</div>
+                <div className={styles.meta}>{item.count}</div>
+              </div>
+
+              <button
+                className={`${styles.followBtn} ${item.following ? styles.following : ''}`}
+                onClick={() => toggleFollowing(item.id)}
+              >
+                {item.following ? 'Đang theo dõi' : 'Theo dõi'}
+              </button>
+            </div>
+          ))}
         </div>
 
-        {FOLLOWING.map(item => (
-          <div key={item.id} className={styles.userRow}>
-            <div className={styles.avatar} />
-
-            <div className={styles.userInfo}>
-              <div className={styles.name}>{item.name}</div>
-              <div className={styles.meta}>{item.count}</div>
-            </div>
-
-            <button className={styles.followingBtn}>Đang theo dõi</button>
-          </div>
-        ))}
-
-        <button className={styles.viewMore}>
-          Xem tất cả 12 người →
+        <button type="button" className={styles.viewMore}>
+          Xem tất cả 12 người <span aria-hidden="true">→</span>
         </button>
       </div>
 
-      {/* GỢI Ý */}
       <div className={styles.card}>
-        <div className={styles.cardTitle}>
+        <h3 className={styles.cardTitle}>
           <UserPlus size={16} />
-          Gợi ý theo dõi
-        </div>
+          <span>Gợi ý theo dõi</span>
+        </h3>
 
-        {SUGGESTIONS.map(item => (
-          <div key={item.id} className={styles.userRow}>
-            <div className={styles.avatar} />
+        <div className={styles.userList}>
+          {suggestions.map(item => (
+            <div key={item.id} className={styles.userRow}>
+              <div className={styles.avatar} />
 
-            <div className={styles.userInfo}>
-              <div className={styles.name}>{item.name}</div>
-              <div className={styles.meta}>{item.desc}</div>
+              <div className={styles.userInfo}>
+                <div className={styles.name}>{item.name}</div>
+                <div className={styles.meta}>{item.desc}</div>
+              </div>
+
+              <button
+                className={`${styles.followBtn} ${item.following ? styles.following : ''}`}
+                onClick={() => toggleSuggestion(item.id)}
+              >
+                {item.following ? 'Đang theo dõi' : 'Theo dõi'}
+              </button>
             </div>
-
-            <button className={styles.followBtn}>+ Theo dõi</button>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
 
-      {/* HOẠT ĐỘNG */}
       <div className={styles.card}>
-        <div className={styles.cardTitle}>
+        <h3 className={styles.cardTitle}>
           <Bell size={16} />
-          Hoạt động gần đây
-        </div>
+          <span>Hoạt động gần đây</span>
+        </h3>
 
-        {ACTIVITIES.map(item => (
-          <div key={item.id} className={styles.activityRow}>
-            <div className={styles.dot} />
-            <div>
-              <div className={styles.activityText}>{item.text}</div>
-              <div className={styles.activityTime}>{item.time}</div>
+        <div className={styles.activityList}>
+          {ACTIVITIES.map(item => (
+            <div key={item.id} className={styles.activityRow}>
+              <div className={styles.dot} />
+              <div className={styles.activityContent}>
+                <div className={styles.activityText}>{item.text}</div>
+                <div className={styles.activityTime}>{item.time}</div>
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-
     </aside>
   )
 }

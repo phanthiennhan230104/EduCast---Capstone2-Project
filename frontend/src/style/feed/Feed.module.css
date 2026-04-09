@@ -5,51 +5,74 @@
   min-width: 0;
 }
 
-/* Tabs */
 .tabs {
-  display: flex;
-  gap: 6px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
   width: 100%;
-  background: rgba(255, 255, 255, 0.025);
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 14px;
-  padding: 6px;
-  box-sizing: border-box;
+  padding: 8px;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02));
+  border: 1px solid rgba(255,255,255,0.07);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
   backdrop-filter: blur(10px);
 }
 
 .tab {
-  flex: 1;
-  padding: 11px 0;
-  border-radius: 10px;
-  font-size: 13px;
-  font-weight: 500;
+  appearance: none;
+  border: none;
+  background: transparent;
+  min-height: 46px;
+  border-radius: 13px;
+  font-size: 14px;
+  font-weight: 600;
   color: var(--text-muted);
-  transition: all 0.2s ease;
-  text-align: center;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+  cursor: pointer;
 }
 
 .tab:hover {
-  color: var(--text-secondary);
-  background: rgba(255, 255, 255, 0.04);
+  color: #eef2ff;
+  background: rgba(255, 255, 255, 0.035);
 }
 
 .tab.active {
-  background: linear-gradient(
-    135deg,
-    rgba(232, 148, 58, 0.18),
-    rgba(232, 148, 58, 0.08)
-  );
-  color: var(--accent-light);
+  background: rgba(132, 146, 255, 0.12);
+  color: #dfe4ff;
   font-weight: 600;
-  border: 1px solid rgba(232, 148, 58, 0.25);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(132, 146, 255, 0.16);
+  box-shadow: inset 0 0 0 1px rgba(132, 146, 255, 0.06);
 }
 
-/* Cards list */
 .cards {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  margin-top: 18px;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.feedState,
+.feedError {
+  margin-top: 6px;
+  padding: 18px 20px;
+  border-radius: 16px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.feedState {
+  color: var(--text-secondary);
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.feedError {
+  color: #ffd3d9;
+  background: rgba(255, 84, 112, 0.08);
+  border: 1px solid rgba(255, 84, 112, 0.16);
 }

@@ -1,46 +1,61 @@
 import { useState } from 'react'
 import {
   Play, Pause, SkipBack, SkipForward,
-  Volume2, Shuffle, Repeat, ListMusic, Heart
+  Volume2, Shuffle, Repeat, ListMusic, Heart,
+  ChevronDown, ChevronUp
 } from 'lucide-react'
 import styles from '../../../style/layout/AudioPlayer.module.css'
-
-const NOW_PLAYING = {
-  title: 'Python cho AI: Từ cơ bản đến nâng cao – Tập 3',
-  author: 'Minh Khoa AI',
-  cover: 'https://picsum.photos/seed/py3/56/56',
-  duration: 1125, // seconds
-  current: 312,
-}
-
-function formatTime(s) {
-  const m = Math.floor(s / 60)
-  const sec = s % 60
-  return `${m}:${sec.toString().padStart(2, '0')}`
-}
+import { useAudioPlayer } from "../../contexts/AudioPlayerContext";
 
 export default function AudioPlayer() {
-  const [playing, setPlaying] = useState(false)
   const [liked, setLiked] = useState(false)
-  const [progress, setProgress] = useState(
-    Math.round((NOW_PLAYING.current / NOW_PLAYING.duration) * 100)
-  )
-  const [volume, setVolume] = useState(80)
   const [shuffle, setShuffle] = useState(false)
   const [repeat, setRepeat] = useState(false)
+  const [collapsed, setCollapsed] = useState(false)
 
-  const currentSec = Math.round((progress / 100) * NOW_PLAYING.duration)
+  const {
+    currentTrack,
+    playing,
+    volume,
+    progressPercent,
+    formattedCurrentTime,
+    formattedDuration,
+    togglePlay,
+    seekToPercent,
+    setVolume,
+    playNext,
+    playPrev,
+  } = useAudioPlayer()
+
+  if (!currentTrack) {
+    return (
+      <footer className={`${styles.player} ${styles.idle}`}>
+        <div className={styles.trackInfo}>
+          <div className={styles.meta}>
+            <span className={styles.title}>Chưa có audio đang phát</span>
+            <span className={styles.author}>Hãy chọn một podcast từ feed</span>
+          </div>
+        </div>
+      </footer>
+    )
+  }
 
   return (
-    <footer className={styles.player}>
-      {/* Track info */}
+    <footer className={`${styles.player} ${collapsed ? styles.collapsed : ''}`}>
       <div className={styles.trackInfo}>
-        <img src={NOW_PLAYING.cover} alt={NOW_PLAYING.title} className={styles.cover} />
+        <img
+          src={currentTrack.cover || 'https://picsum.photos/seed/default/56/56'}
+          alt={currentTrack.title}
+          className={styles.cover}
+        />
+
         <div className={styles.meta}>
-          <span className={styles.title}>{NOW_PLAYING.title}</span>
-          <span className={styles.author}>{NOW_PLAYING.author}</span>
+          <span className={styles.title}>{currentTrack.title}</span>
+          <span className={styles.author}>{currentTrack.author}</span>
         </div>
+
         <button
+          type="button"
           className={`${styles.iconBtn} ${liked ? styles.liked : ''}`}
           onClick={() => setLiked(l => !l)}
           aria-label="Yêu thích"
@@ -49,63 +64,71 @@ export default function AudioPlayer() {
         </button>
       </div>
 
-      {/* Controls + progress */}
       <div className={styles.controls}>
         <div className={styles.buttons}>
           <button
+            type="button"
             className={`${styles.iconBtn} ${shuffle ? styles.active : ''}`}
             onClick={() => setShuffle(s => !s)}
             aria-label="Xáo trộn"
           >
-            <Shuffle size={16} />
+            <Shuffle size={15} />
           </button>
-          <button className={styles.iconBtn} aria-label="Trước">
-            <SkipBack size={20} />
+
+          <button type="button" className={styles.iconBtn} aria-label="Trước" onClick={playPrev}>
+            <SkipBack size={18} />
           </button>
+
           <button
+            type="button"
             className={styles.playBtn}
-            onClick={() => setPlaying(p => !p)}
+            onClick={togglePlay}
             aria-label={playing ? 'Tạm dừng' : 'Phát'}
           >
-            {playing ? <Pause size={20} /> : <Play size={20} />}
+            {playing ? <Pause size={18} /> : <Play size={18} />}
           </button>
-          <button className={styles.iconBtn} aria-label="Tiếp theo">
-            <SkipForward size={20} />
+
+          <button type="button" className={styles.iconBtn} aria-label="Tiếp theo" onClick={playNext}>
+            <SkipForward size={18} />
           </button>
+
           <button
+            type="button"
             className={`${styles.iconBtn} ${repeat ? styles.active : ''}`}
             onClick={() => setRepeat(r => !r)}
             aria-label="Lặp lại"
           >
-            <Repeat size={16} />
+            <Repeat size={15} />
           </button>
         </div>
 
         <div className={styles.progressRow}>
-          <span className={styles.time}>{formatTime(currentSec)}</span>
+          <span className={styles.time}>{formattedCurrentTime}</span>
+
           <div className={styles.progressBar}>
             <input
               type="range"
               min={0}
               max={100}
-              value={progress}
-              onChange={e => setProgress(Number(e.target.value))}
+              value={progressPercent}
+              onChange={e => seekToPercent(Number(e.target.value))}
               className={styles.range}
             />
-            <div className={styles.fill} style={{ width: `${progress}%` }} />
+            <div className={styles.fill} style={{ width: `${progressPercent}%` }} />
           </div>
-          <span className={styles.time}>{formatTime(NOW_PLAYING.duration)}</span>
+
+          <span className={styles.time}>{formattedDuration}</span>
         </div>
       </div>
 
-      {/* Volume + extras */}
       <div className={styles.extras}>
-        <button className={styles.iconBtn} aria-label="Danh sách phát">
-          <ListMusic size={18} />
+        <button type="button" className={styles.iconBtn} aria-label="Danh sách phát">
+          <ListMusic size={17} />
         </button>
+
         <div className={styles.volumeRow}>
-          <Volume2 size={16} className={styles.volIcon} />
-          <div className={styles.progressBar} style={{ width: 80 }}>
+          <Volume2 size={15} className={styles.volIcon} />
+          <div className={`${styles.progressBar} ${styles.volumeBar}`}>
             <input
               type="range"
               min={0}
@@ -117,6 +140,16 @@ export default function AudioPlayer() {
             <div className={styles.fill} style={{ width: `${volume}%` }} />
           </div>
         </div>
+
+        <button
+          type="button"
+          className={styles.collapseBtn}
+          onClick={() => setCollapsed(prev => !prev)}
+          aria-label={collapsed ? 'Mở rộng trình phát' : 'Thu gọn trình phát'}
+          title={collapsed ? 'Mở rộng' : 'Thu gọn'}
+        >
+          {collapsed ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
+        </button>
       </div>
     </footer>
   )
