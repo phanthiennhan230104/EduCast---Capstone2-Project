@@ -38,7 +38,13 @@ export default function VoiceConfigCard({ vm }) {
 
           <Radio.Group
             value={vm.voice}
-            onChange={(e) => vm.setVoice(e.target.value)}
+            onChange={(e) => {
+              if (vm.genState === 'processing') {
+                return
+              }
+              vm.setVoice(e.target.value)
+            }}
+            disabled={vm.genState === 'processing'}
             className={styles.voiceGroup}
           >
             <Row gutter={[12, 12]}>
@@ -62,7 +68,13 @@ export default function VoiceConfigCard({ vm }) {
           </Text>
           <Select
             value={vm.format}
-            onChange={vm.setFormat}
+            onChange={(value) => {
+              if (vm.genState === 'processing') {
+                return
+              }
+              vm.setFormat(value)
+            }}
+            disabled={vm.genState === 'processing'}
             className={styles.select}
             options={vm.formats.map((item) => ({
               value: item,
@@ -82,7 +94,13 @@ export default function VoiceConfigCard({ vm }) {
             showSearch={{ optionFilterProp: 'label' }}
             placeholder="Chọn chủ đề có sẵn hoặc chủ đề AI đề xuất"
             value={vm.topics}
-            onChange={vm.setTopics}
+            onChange={(value) => {
+              if (vm.genState === 'processing') {
+                return
+              }
+              vm.setTopics(value)
+            }}
+            disabled={vm.genState === 'processing'}
             className={styles.select}
             style={{ width: '100%', marginTop: 12 }}
             options={mergedTopicOptions}

@@ -92,6 +92,33 @@ export function useCreateAudio() {
   const [isLoadingDraft, setIsLoadingDraft] = useState(false)
   const [durationSeconds, setDurationSeconds] = useState(0)
 
+  // Auto-increment progress when generating
+  useEffect(() => {
+    if (genState !== 'processing') return
+
+    let intervalId = null
+
+    const incrementProgress = () => {
+      setProgress((prevProgress) => {
+        if (prevProgress >= 90) return prevProgress
+
+        // Random increment between 2-6%
+        const increment = Math.floor(Math.random() * 5) + 2
+        const newProgress = Math.min(prevProgress + increment, 90)
+        return newProgress
+      })
+    }
+
+    // Start incrementing after 500ms, then every 800-1200ms
+    intervalId = window.setInterval(incrementProgress, 800 + Math.random() * 400)
+
+    return () => {
+      if (intervalId) {
+        window.clearInterval(intervalId)
+      }
+    }
+  }, [genState])
+
   const selectedVoiceName = useMemo(() => {
     return VOICE_NAME_MAP[voice] || 'Minh Tuấn'
   }, [voice])
@@ -329,7 +356,7 @@ export function useCreateAudio() {
     try {
       setGenState('processing')
       setStep(3)
-      setProgress(20)
+      setProgress(0)
       setProcStep(
         sourceTab === 'upload'
           ? 'Đang xử lý nội dung từ tài liệu...'

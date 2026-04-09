@@ -154,11 +154,18 @@ class AudioPreviewView(APIView):
                 output_path=temp_audio_path,
             )
 
+            if not os.path.exists(temp_audio_path) or os.path.getsize(temp_audio_path) == 0:
+                raise ValueError("TTS không tạo ra file audio hợp lệ.")
+
             uploaded = upload_file_to_cloudinary(
                 file=temp_audio_path,
                 folder="educast/audio_preview",
                 resource_type="video",
             )
+
+            audio_url = uploaded.get("secure_url")
+            if not audio_url:
+                raise ValueError("Upload Cloudinary thành công nhưng không nhận được secure_url.")
 
             return Response(
                 {
@@ -167,7 +174,7 @@ class AudioPreviewView(APIView):
                         "mode": data["mode"],
                         "processed_text": processed_text,
                         "generated_description": generated_description,
-                        "audio_url": uploaded.get("secure_url"),
+                        "audio_url": audio_url,
                         "public_id": uploaded.get("public_id"),
                         "voice_name": data["voice_name"],
                         "format": uploaded.get("format") or "mp3",
@@ -181,7 +188,7 @@ class AudioPreviewView(APIView):
 
         except Exception as e:
             return Response(
-                {"error": str(e)},
+                {"error": f"TTS preview failed: {str(e)}"},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 

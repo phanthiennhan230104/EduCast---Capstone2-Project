@@ -1,13 +1,15 @@
-import { Button, Card, Input, Progress, Space, Typography } from 'antd'
+import { Button, Card, Input, Progress, Space, Typography, Modal } from 'antd'
 import {
   DownloadOutlined,
   PlayCircleOutlined,
   RocketOutlined,
   SaveOutlined,
+  CloseOutlined,
 } from '@ant-design/icons'
 import { toast } from 'react-toastify'
 import styles from '../../style/create-audio/GenerateSection.module.css'
 import { formatDurationVi } from '../../utils/formatDuration'
+import { showCancelConfirm } from './CancelAudioConfirmModal'
 
 const { Text, Title } = Typography
 const { TextArea } = Input
@@ -29,6 +31,14 @@ export default function GenerateSection({ vm }) {
     }
 
     window.open(vm.audioUrl, '_blank')
+  }
+
+  const handleCancelProcess = () => {
+    if (vm.genState === 'processing') {
+      showCancelConfirm(() => {
+        vm.resetGenerateState?.()
+      })
+    }
   }
 
   const handleAudioLoadedMetadata = (e) => {
@@ -57,9 +67,19 @@ export default function GenerateSection({ vm }) {
       {vm.genState === 'processing' && (
         <Card className={styles.card} variant="borderless">
           <Space orientation="vertical" size={12} style={{ width: '100%' }}>
-            <Title level={5} className={styles.title}>
-              AI đang xử lý...
-            </Title>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <Title level={5} className={styles.title} style={{ margin: 0 }}>
+                AI đang xử lý...
+              </Title>
+              <Button
+                type="text"
+                danger
+                icon={<CloseOutlined />}
+                size="small"
+                onClick={handleCancelProcess}
+                title="Dừng quá trình tạo audio"
+              />
+            </div>
             <Text className={styles.subText}>{vm.procStep}</Text>
             <Progress percent={vm.progress} status="active" />
           </Space>
