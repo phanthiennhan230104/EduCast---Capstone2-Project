@@ -13,6 +13,7 @@ import { AuthProvider, useAuth } from "./components/contexts/AuthContext";
 import { AudioPlayerProvider } from "./components/contexts/AudioPlayerContext";
 import CommunityPage from "./pages/CommunityPage/CommunityPage";
 import SettingsPage from "./pages/SettingsPage/SettingsPage";
+import AssistantWidget from "./components/assistant/AssistantWidget";
 
 function RootRedirect() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -48,13 +49,40 @@ function App() {
           />
 
           <Route
-            path="/search"
-            element={
-              <ProtectedRoute>
-                <SearchResultsPage />
-              </ProtectedRoute>
-            }
-          />
+              path="/feed"
+              element={
+                <ProtectedRoute>
+                  <FeedPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/favorites"
+              element={
+                <ProtectedRoute>
+                  <FavoritesPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/social"
+              element={
+                <ProtectedRoute>
+                  <FeedPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/community"
+              element={
+                <ProtectedRoute>
+                  <CommunityPage />
+                </ProtectedRoute>
+              }
+            />
 
           <Route
             path="/admin"
@@ -122,6 +150,8 @@ function App() {
 
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
+        <AssistantWidget />
+      </BrowserRouter>
         </BrowserRouter>
       </AudioPlayerProvider>
     </AuthProvider>

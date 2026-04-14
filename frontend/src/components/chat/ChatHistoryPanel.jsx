@@ -1,11 +1,13 @@
 import { useMemo, useState } from "react";
-import { Empty, Modal, Tabs, Typography } from "antd";
+import { Button, Empty, Modal, Tabs, Typography } from "antd";
 import {
+  DownOutlined,
   FileOutlined,
   FilePdfOutlined,
   FileTextOutlined,
   FileWordOutlined,
   PlayCircleOutlined,
+  RightOutlined,
 } from "@ant-design/icons";
 import dayjs from "dayjs";
 import {
@@ -47,9 +49,7 @@ function HistoryList({ type, items, onJumpToMessage, onPreviewImage }) {
             type="button"
             className="chat-history-item"
             onClick={() => {
-              if (type === "image") {
-                onPreviewImage(item.attachment_url);
-              }
+              if (type === "image") onPreviewImage(item.attachment_url);
               onJumpToMessage(item.id);
             }}
           >
@@ -88,6 +88,7 @@ function HistoryList({ type, items, onJumpToMessage, onPreviewImage }) {
 
 export default function ChatHistoryPanel({ messages, onJumpToMessage }) {
   const [previewImage, setPreviewImage] = useState(null);
+  const [expanded, setExpanded] = useState(true);
 
   const imageItems = useMemo(
     () =>
@@ -119,57 +120,70 @@ export default function ChatHistoryPanel({ messages, onJumpToMessage }) {
   return (
     <>
       <div className="chat-history-panel">
-        <div className="chat-history-header">
-          <Text strong className="chat-history-title">
-            Lịch sử chia sẻ
-          </Text>
-          <Text className="chat-history-subtitle">
-            Ảnh, audio và file trong cuộc trò chuyện này
-          </Text>
+        <div className="chat-history-header chat-history-header-collapsible">
+          <div>
+            <Text strong className="chat-history-title">
+              Lịch sử chia sẻ
+            </Text>
+            <Text className="chat-history-subtitle">
+              Ảnh, audio và file trong cuộc trò chuyện này
+            </Text>
+          </div>
+
+          <Button
+            type="text"
+            shape="circle"
+            className="chat-history-toggle-btn"
+            icon={expanded ? <DownOutlined /> : <RightOutlined />}
+            onClick={() => setExpanded((prev) => !prev)}
+            aria-label={expanded ? "Ẩn lịch sử chia sẻ" : "Hiện lịch sử chia sẻ"}
+          />
         </div>
 
-        <Tabs
-          className="chat-history-tabs"
-          defaultActiveKey="images"
-          items={[
-            {
-              key: "images",
-              label: "Ảnh",
-              children: (
-                <HistoryList
-                  type="image"
-                  items={imageItems}
-                  onJumpToMessage={onJumpToMessage}
-                  onPreviewImage={setPreviewImage}
-                />
-              ),
-            },
-            {
-              key: "audio",
-              label: "Audio",
-              children: (
-                <HistoryList
-                  type="audio"
-                  items={audioItems}
-                  onJumpToMessage={onJumpToMessage}
-                  onPreviewImage={setPreviewImage}
-                />
-              ),
-            },
-            {
-              key: "files",
-              label: "File",
-              children: (
-                <HistoryList
-                  type="file"
-                  items={fileItems}
-                  onJumpToMessage={onJumpToMessage}
-                  onPreviewImage={setPreviewImage}
-                />
-              ),
-            },
-          ]}
-        />
+        {expanded && (
+          <Tabs
+            className="chat-history-tabs"
+            defaultActiveKey="images"
+            items={[
+              {
+                key: "images",
+                label: "Ảnh",
+                children: (
+                  <HistoryList
+                    type="image"
+                    items={imageItems}
+                    onJumpToMessage={onJumpToMessage}
+                    onPreviewImage={setPreviewImage}
+                  />
+                ),
+              },
+              {
+                key: "audio",
+                label: "Audio",
+                children: (
+                  <HistoryList
+                    type="audio"
+                    items={audioItems}
+                    onJumpToMessage={onJumpToMessage}
+                    onPreviewImage={setPreviewImage}
+                  />
+                ),
+              },
+              {
+                key: "files",
+                label: "File",
+                children: (
+                  <HistoryList
+                    type="file"
+                    items={fileItems}
+                    onJumpToMessage={onJumpToMessage}
+                    onPreviewImage={setPreviewImage}
+                  />
+                ),
+              },
+            ]}
+          />
+        )}
       </div>
 
       <Modal

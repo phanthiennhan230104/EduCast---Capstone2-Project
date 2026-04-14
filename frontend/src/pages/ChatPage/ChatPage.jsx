@@ -56,6 +56,7 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [openNewChat, setOpenNewChat] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [rightPanelOpen, setRightPanelOpen] = useState(true);
 
   const messagesEndRef = useRef(null);
   const messageNodeRefs = useRef({});
@@ -319,7 +320,7 @@ export default function ChatPage() {
 
   return (
     <div className="chat-page chat-page-in-layout">
-      <div className="chat-layout">
+      <div className={`chat-layout ${rightPanelOpen ? "" : "right-panel-hidden"}`}>
         <Card className="chat-card chat-sidebar" bodyStyle={{ padding: 16 }}>
           <Space
             style={{
@@ -359,7 +360,11 @@ export default function ChatPage() {
         <Card className="chat-card chat-messages-wrap" bodyStyle={{ padding: 0 }}>
           {activeConversation ? (
             <>
-              <ChatHeader peer={activeConversation.peer} />
+              <ChatHeader
+                peer={activeConversation.peer}
+                rightPanelOpen={rightPanelOpen}
+                onToggleInfoPanel={() => setRightPanelOpen((prev) => !prev)}
+              />
 
               <div className="chat-messages">
                 {messages.length === 0 ? (
@@ -426,7 +431,7 @@ export default function ChatPage() {
                 <TextArea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  autoSize={{ minRows: 1, maxRows: 4 }}
+                  autoSize={{ minRows: 1, maxRows: 3 }}
                   placeholder={
                     status === "open"
                       ? "Nhập tin nhắn..."
@@ -457,7 +462,10 @@ export default function ChatPage() {
           )}
         </Card>
 
-        <Card className="chat-card right-panel" bodyStyle={{ padding: 16 }}>
+       <Card
+          className={`chat-card right-panel ${rightPanelOpen ? "is-open" : "is-hidden"}`}
+          bodyStyle={{ padding: 16 }}
+        >
           {activeConversation?.peer ? (
             <Space direction="vertical" style={{ width: "100%" }}>
               <Avatar
