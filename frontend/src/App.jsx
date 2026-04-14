@@ -152,7 +152,6 @@ function App() {
         </Routes>
         <AssistantWidget />
       </BrowserRouter>
-        </BrowserRouter>
       </AudioPlayerProvider>
     </AuthProvider>
   );
