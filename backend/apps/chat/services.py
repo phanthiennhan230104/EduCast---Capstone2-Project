@@ -34,7 +34,7 @@ def mark_user_online(user_id: str):
     cache.set(presence_key(user_id), True, timeout=PRESENCE_TTL_SECONDS)
     return connections == 1
 
-
+# Khi user tat ung dung, giam so luong ket noi trong cache, neu khong con ket noi nao thi moi danh dau user offline
 def mark_user_offline(user_id: str):
     user_id = str(user_id)
     key = presence_connections_key(user_id)
@@ -55,25 +55,27 @@ def mark_user_offline(user_id: str):
     cache.set(presence_key(user_id), True, timeout=PRESENCE_TTL_SECONDS)
     return False
 
-
+# Dinh nghia key de luu trang thai online/offline cua user trong cache, key se co dinh dang la "chat:presence:{user_id}"
 def presence_key(user_id: str) -> str:
     return f"chat:presence:{user_id}"
 
+# danh dau user online khi ket noi ung dung, luu cache de hien thi user online
 def mark_user_online(user_id: str):
     cache.set(presence_key(str(user_id)), True, timeout=PRESENCE_TTL_SECONDS)
 
+# danh dau user offline khi tat ung dung, xoa cache de user khong con hien thi online
 def mark_user_offline(user_id: str):
     cache.delete(presence_key(str(user_id)))
 
-
+# kiem tra user co online hay khong bang cach check cache
 def is_user_online(user_id: str) -> bool:
     return bool(cache.get(presence_key(str(user_id))))
 
-
+# Kiem tra user co phai la thanh vien cua room hay khong
 def user_is_room_member(user, room_id: str) -> bool:
     return ChatRoomMember.objects.filter(room_id=room_id, user=user).exists()
 
-
+# Lay room truc tiep giua 2 user, neu khong ton tai thi tao moi
 def get_or_create_direct_room(user_a: User, user_b: User) -> ChatRoom:
     room_ids_a = set(
         ChatRoomMember.objects.filter(user=user_a).values_list("room_id", flat=True)
@@ -103,6 +105,7 @@ def get_or_create_direct_room(user_a: User, user_b: User) -> ChatRoom:
 
     return room
 
+# Chuyen doi attachment_url ve dang URL hoac absolute URL, neu la relative URL thi se them base URL vao truoc
 def normalize_attachment_url(url: str | None) -> str | None:
     if not url:
         return None
@@ -124,6 +127,7 @@ def normalize_attachment_url(url: str | None) -> str | None:
 
     return url
 
+# Tao message moi trong room, co the la text hoac attachment, neu la attachment thi se chuyen doi URL ve dang absolute URL
 def create_message(
         *,
         room: ChatRoom,
@@ -145,6 +149,7 @@ def create_message(
             file_size=file_size,
         )
 
+# Danh dau tat ca message trong room la da doc boi user, tra ve so luong message da duoc danh dau
 def mark_room_as_read(*, room: ChatRoom, user: User) -> int:
     unread_message_ids = list(
         Message.objects.filter(room=room)
@@ -163,6 +168,7 @@ def mark_room_as_read(*, room: ChatRoom, user: User) -> int:
 
     return len(unread_message_ids)
 
+# Lay so luong message chua doc trong room cua user, chi dem nhung message do sender khac user va chua co record MessageRead nao cho user do
 def get_room_unread_count(*, room: ChatRoom, user: User) -> int:
     return (
         Message.objects.filter(room=room)
