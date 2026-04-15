@@ -1,5 +1,6 @@
 from django.urls import path
 from rest_framework_simplejwt.views import TokenRefreshView
+from .admin_views import AdminUsersListView, AdminUserLockView, AdminUserUnlockView
 
 from .views import (
     RegisterView,
@@ -13,6 +14,7 @@ from .views import (
     AdminUsersListView,
     UpdateUserProfileView,
 )
+from .admin_views import AdminUserUnlockView, AdminUsersListView
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
@@ -26,5 +28,7 @@ urlpatterns = [
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
     path("login/google/", GoogleLoginView.as_view(), name="google-login"),
     path("admin/users/", AdminUsersListView.as_view(), name="admin-users-list"),
+    path("admin/users/<str:user_id>/lock/", AdminUserLockView.as_view(), name="admin-user-lock"),
+    path("admin/users/<str:user_id>/unlock/", AdminUserUnlockView.as_view(), name="admin-user-unlock"),
     
 ]

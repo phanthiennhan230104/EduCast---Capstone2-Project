@@ -1,5 +1,6 @@
 from datetime import timedelta
 import uuid
+import logging
 
 from django.contrib.auth.hashers import make_password, check_password
 from django.utils import timezone
@@ -7,6 +8,9 @@ from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .models import User, UserProfile, UserSettings
+from .utils import get_active_lock, sync_user_lock_status, unlock_expired_lock_for_user
+
+logger = logging.getLogger(__name__)
 
 
 # ==========================================================
@@ -56,39 +60,15 @@ class RegisterSerializer(serializers.Serializer):
         return attrs
 
     def create(self, validated_data):
-        user = User.objects.create(
-            email=validated_data["email"],
-            username=validated_data["username"],
-            password_hash=make_password(validated_data["password"]),
-            role="user",
-            status="inactive",
-            auth_provider="local",
-            is_verified=False,
-        )
-
-        UserProfile.objects.create(
-            user=user,
-            display_name=validated_data["full_name"],
-            preferred_language="vi",
-            interests=[],
-        )
-
-        UserSettings.objects.create(
-            user=user,
-            email_notifications=True,
-            push_notifications=True,
-            notify_likes=True,
-            notify_comments=True,
-            notify_follows=True,
-            notify_messages=True,
-            profile_visibility="public",
-            allow_messages_from="everyone",
-            autoplay_audio=True,
-            theme_mode="dark",
-            language_code="vi",
-        )
-
-        return user
+        # Không tạo user ở bước này
+        # Dữ liệu sẽ được lưu vào database chỉ sau khi verify OTP thành công
+        # Trả về dict để RegisterView lưu vào cache
+        return {
+            "email": validated_data["email"],
+            "username": validated_data["username"],
+            "full_name": validated_data["full_name"],
+            "password": validated_data["password"],
+        }
     
 
 
@@ -109,24 +89,61 @@ class MyTokenObtainPairSerializer(serializers.Serializer):
         password = attrs.get("password", "").strip()
         remember_me = attrs.get("remember_me", False)
 
+        logger.info(f"Validating login - identifier: {identifier}, remember_me: {remember_me}")
+
         if not identifier:
-            raise serializers.ValidationError({"identifier": "Email hoặc username là bắt buộc."})
+            error = {"identifier": "Email hoặc username là bắt buộc."}
+            logger.error(f"Login validation failed: {error}")
+            raise serializers.ValidationError(error)
 
         if not password:
-            raise serializers.ValidationError({"password": "Mật khẩu là bắt buộc."})
+            error = {"password": "Mật khẩu là bắt buộc."}
+            logger.error(f"Login validation failed: {error}")
+            raise serializers.ValidationError(error)
 
         user = User.objects.filter(email__iexact=identifier).first()
         if not user:
             user = User.objects.filter(username__iexact=identifier).first()
 
         if not user:
-            raise serializers.ValidationError({"detail": "Sai email/username hoặc mật khẩu."})
+            error = {"detail": "Sai email/username hoặc mật khẩu."}
+            logger.error(f"Login validation failed: user not found for identifier {identifier}")
+            raise serializers.ValidationError(error)
 
         if not check_password(password, user.password_hash):
-            raise serializers.ValidationError({"detail": "Sai email/username hoặc mật khẩu."})
+            error = {"detail": "Sai email/username hoặc mật khẩu."}
+            logger.error(f"Login validation failed: invalid password for user {user.id}")
+            raise serializers.ValidationError(error)
+
+        unlock_expired_lock_for_user(user)
+        sync_user_lock_status(user)
+        active_lock = get_active_lock(user)
+        if active_lock:
+            if active_lock.lock_type == "permanent":
+                error = {
+                    "detail": f"Tài khoản của bạn đã bị khóa vĩnh viễn. Lý do: {active_lock.reason}"
+                }
+                logger.error(f"Login validation failed: user {user.id} account permanently locked")
+                raise serializers.ValidationError(error)
+
+            error = {
+                "detail": f"Tài khoản của bạn đang bị khóa đến {active_lock.locked_until}. Lý do: {active_lock.reason}"
+            }
+            logger.error(f"Login validation failed: user {user.id} account locked until {active_lock.locked_until}")
+            raise serializers.ValidationError(error)
+
+        if user.status == "locked":
+            error = {"detail": "Tài khoản của bạn đang bị khóa."}
+            logger.error(f"Login validation failed: user {user.id} status is locked")
+            raise serializers.ValidationError(error)
 
         if user.status != "active":
-            raise serializers.ValidationError({"detail": "Tài khoản hiện không hoạt động."})
+            error = {"detail": "Tài khoản hiện không hoạt động."}
+            logger.error(f"Login validation failed: user {user.id} status is {user.status}")
+            raise serializers.ValidationError(error)
+
+        logger.info(f"Login validation successful for user {user.id}")
+        self.user = user
 
         # Thời gian sống token theo remember_me
         if remember_me:
@@ -190,10 +207,10 @@ class ResetPasswordSerializer(serializers.Serializer):
         return attrs
     
 class AdminUserListSerializer(serializers.ModelSerializer):
-    display_name = serializers.SerializerMethodField()
-    avatar_url = serializers.SerializerMethodField()
-    podcast_count = serializers.SerializerMethodField()
-    followers_count = serializers.SerializerMethodField()
+    display_name = serializers.CharField(source="profile.display_name", read_only=True)
+    avatar_url = serializers.CharField(source="profile.avatar_url", read_only=True)
+    lock_history = serializers.SerializerMethodField()
+    current_lock = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -206,21 +223,113 @@ class AdminUserListSerializer(serializers.ModelSerializer):
             "is_verified",
             "last_login_at",
             "created_at",
+            "updated_at",
             "display_name",
             "avatar_url",
-            "podcast_count",
-            "followers_count",
+            
+            "current_lock",
+            "lock_history",
         ]
 
-    def get_display_name(self, obj):
-        profile = getattr(obj, "profile", None)
-        return profile.display_name if profile else obj.username
+    def get_lock_history(self, obj):
+        logs = obj.lock_logs.all()[:10]
+        return [
+            {
+                "id": log.id,
+                "reason": log.reason,
+                "lock_type": log.lock_type,
+                "locked_at": log.locked_at,
+                "locked_until": log.locked_until,
+                "unlocked_at": log.unlocked_at,
+                "unlock_reason": log.unlock_reason,
+                "locked_by_id": log.locked_by_id,
+                "unlocked_by_id": log.unlocked_by_id,
+            }
+            for log in logs
+        ]
 
-    def get_avatar_url(self, obj):
-        profile = getattr(obj, "profile", None)
-        return profile.avatar_url if profile else None
-    def get_podcast_count(self, obj):
-        return 0
+    def get_current_lock(self, obj):
+        log = get_active_lock(obj)
+        if not log:
+            return None
+        return {
+            "id": log.id,
+            "reason": log.reason,
+            "lock_type": log.lock_type,
+            "locked_at": log.locked_at,
+            "locked_until": log.locked_until,
+            "locked_by_id": log.locked_by_id,
+        }
 
-    def get_followers_count(self, obj):
-        return 0
+class AdminLockUserSerializer(serializers.Serializer):
+    LOCK_TYPE_CHOICES = (
+        ("temporary", "temporary"),
+        ("permanent", "permanent"),
+    )
+
+    LOCK_PRESET_CHOICES = (
+        ("24h", "24h"),
+        ("1d", "1d"),
+        ("3d", "3d"),
+        ("7d", "7d"),
+        ("custom", "custom"),
+        ("permanent", "permanent"),
+    )
+
+    reason = serializers.CharField()
+    preset = serializers.ChoiceField(choices=LOCK_PRESET_CHOICES, required=False, allow_null=True)
+    lock_type = serializers.ChoiceField(choices=LOCK_TYPE_CHOICES, required=False)
+    locked_until = serializers.DateTimeField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        preset = attrs.get("preset")
+        lock_type = attrs.get("lock_type")
+        locked_until = attrs.get("locked_until")
+        now = timezone.now()
+
+        # Ưu tiên preset nếu frontend gửi preset
+        if preset:
+            if preset == "permanent":
+                attrs["lock_type"] = "permanent"
+                attrs["locked_until"] = None
+                return attrs
+
+            attrs["lock_type"] = "temporary"
+
+            if preset == "24h":
+                attrs["locked_until"] = now + timedelta(hours=24)
+            elif preset == "1d":
+                attrs["locked_until"] = now + timedelta(days=1)
+            elif preset == "3d":
+                attrs["locked_until"] = now + timedelta(days=3)
+            elif preset == "7d":
+                attrs["locked_until"] = now + timedelta(days=7)
+            elif preset == "custom":
+                if not locked_until:
+                    raise serializers.ValidationError({
+                        "locked_until": "Vui lòng chọn ngày giờ khóa."
+                    })
+                if locked_until <= now:
+                    raise serializers.ValidationError({
+                        "locked_until": "Thời gian khóa phải lớn hơn hiện tại."
+                    })
+            return attrs
+
+        # Fallback cho kiểu cũ nếu frontend vẫn gửi lock_type + locked_until
+        if lock_type == "temporary":
+            if not locked_until:
+                raise serializers.ValidationError({
+                    "locked_until": "Khóa tạm thời cần thời gian hết hạn."
+                })
+            if locked_until <= now:
+                raise serializers.ValidationError({
+                    "locked_until": "Thời gian khóa phải lớn hơn hiện tại."
+                })
+
+        if lock_type == "permanent":
+            attrs["locked_until"] = None
+
+        return attrs
+
+class AdminUnlockUserSerializer(serializers.Serializer):
+    unlock_reason = serializers.CharField(required=False, allow_blank=True, allow_null=True)

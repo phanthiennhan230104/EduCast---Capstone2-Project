@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Mail, Lock, ShieldCheck, X, Eye, EyeOff } from 'lucide-react'
-import { toast } from 'react-toastify'
+import notify from '../../utils/toast'
 import styles from '../../style/authentication/ForgotPassword.module.css'
 import { apiRequest } from '../../utils/api'
 
@@ -76,7 +76,7 @@ export default function ForgotPasswordModal({
 
   const sendOtp = async () => {
     if (!normalizedEmail) {
-      toast.error('Please enter your email.')
+      notify.error('Vui lòng nhập email của bạn.')
       return
     }
 
@@ -93,9 +93,9 @@ export default function ForgotPasswordModal({
       setResetToken('')
       setStep(2)
       setResendTimer(RESEND_SECONDS)
-      toast.success('Mã OTP đã được gửi đến email của bạn.')
+      notify.success('Mã OTP đã được gửi đến email của bạn.')
     } catch (error) {
-      toast.error(error.message || 'Không thể gửi mã OTP.')
+      notify.error(error.message || 'Không thể gửi mã OTP.')
     } finally {
       setLoading(false)
     }
@@ -103,7 +103,7 @@ export default function ForgotPasswordModal({
 
   const verifyOtp = async () => {
     if (!normalizedOtp) {
-      toast.error('Please enter the OTP code.')
+      notify.error('Vui lòng nhập mã OTP.')
       return
     }
 
@@ -120,9 +120,9 @@ export default function ForgotPasswordModal({
       setResetToken(data.reset_token || '')
       setFormData((prev) => ({ ...prev, email: normalizedEmail, otp: normalizedOtp }))
       setStep(3)
-      toast.success(data.message || 'Mã OTP đã được xác minh thành công.')
+      notify.success(data.message || 'Mã OTP đã được xác minh thành công.')
     } catch (error) {
-      toast.error(error.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.')
+      notify.error(error.message || 'Mã OTP không hợp lệ hoặc đã hết hạn.')
     } finally {
       setLoading(false)
     }
@@ -130,17 +130,17 @@ export default function ForgotPasswordModal({
 
   const resetPassword = async () => {
     if (!formData.new_password || !formData.confirm_password) {
-      toast.error('Hãy nhập mật khẩu mới.')
+      notify.error('Hãy nhập mật khẩu mới.')
       return
     }
 
     if (formData.new_password !== formData.confirm_password) {
-      toast.error('Mật khẩu xác nhận không khớp.')
+      notify.error('Mật khẩu xác nhận không khớp.')
       return
     }
 
     if (!resetToken) {
-      toast.error('Phiên đặt lại mật khẩu đã hết hạn. Vui lòng xác minh OTP lại.')
+      notify.error('Phiên đặt lại mật khẩu đã hết hạn. Vui lòng xác minh OTP lại.')
       setStep(2)
       return
     }
@@ -157,7 +157,7 @@ export default function ForgotPasswordModal({
         })
       })
 
-      toast.success('Password reset successfully.')
+      notify.success('Password reset successfully.')
 
       if (onSuccess) {
         onSuccess(normalizedEmail)
@@ -165,7 +165,7 @@ export default function ForgotPasswordModal({
         onClose()
       }
     } catch (error) {
-      toast.error(error.message || 'Failed to reset password.')
+      notify.error(error.message || 'Failed to reset password.')
     } finally {
       setLoading(false)
     }
