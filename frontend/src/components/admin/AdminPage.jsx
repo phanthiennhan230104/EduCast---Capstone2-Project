@@ -7,6 +7,16 @@ import {
 import AdminLayout from "./AdminLayout";
 import "../../style/admin/admin-page.css";
 
+function formatSubtitle() {
+  const today = new Date();
+  const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
+  const dayName = days[today.getDay()];
+  const date = String(today.getDate()).padStart(2, "0");
+  const month = today.getMonth() + 1;
+  const year = today.getFullYear();
+  return `EduCast · ${dayName}, ${date} tháng ${month}, ${year}`;
+}
+
 const statCards = [
   {
     title: "TỔNG NGƯỜI DÙNG",
@@ -140,7 +150,7 @@ export default function AdminPage() {
   return (
     <AdminLayout
       title="TỔNG QUAN"
-      subtitle="EduCast · Chủ Nhật, 08 tháng 3, 2026"
+      subtitle={formatSubtitle()}
     >
       <section className="admin-stats-grid">
         {statCards.map((card) => {

@@ -4,6 +4,7 @@ import "../../style/admin/admin-header.css";
 export default function AdminHeader({
   title = "TỔNG QUAN",
   subtitle = "EduCast · Chủ Nhật, 08 tháng 3, 2026",
+  onlineUsers = 1255,
 }) {
   return (
     <header className="admin-header">
@@ -13,8 +14,9 @@ export default function AdminHeader({
       </div>
 
       <div className="admin-header-right">
-        <div className="admin-online-pill">• 1,255 online</div>
-        
+        <div className="admin-online-pill">
+          • {Number(onlineUsers || 0).toLocaleString("vi-VN")} online
+        </div>
 
         <button className="admin-icon-btn" type="button" aria-label="Thông báo">
           <Bell size={16} />

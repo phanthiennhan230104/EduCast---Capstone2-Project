@@ -316,3 +316,258 @@
     grid-template-columns: 1fr;
   }
 }
+
+.admin-user-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5, 10, 30, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+}
+
+.admin-user-modal {
+  width: min(720px, 100%);
+  border-radius: 18px;
+  border: 1px solid rgba(162, 175, 255, 0.18);
+  background: linear-gradient(180deg, rgba(27, 35, 82, 0.98) 0%, rgba(18, 24, 61, 0.98) 100%);
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.admin-user-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 18px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-user-modal-header h3 {
+  margin: 0;
+  color: #ffffff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.admin-user-modal-close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.admin-user-modal-close:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+.admin-user-modal-body {
+  padding: 20px;
+}
+
+.admin-user-modal-profile {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 22px;
+}
+
+.admin-user-modal-avatar-image,
+.admin-user-modal-avatar-fallback {
+  width: 72px;
+  height: 72px;
+  border-radius: 18px;
+  flex-shrink: 0;
+}
+
+.admin-user-modal-avatar-image {
+  object-fit: cover;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-user-modal-avatar-fallback {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(180deg, #49b8ff 0%, #245dff 100%);
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.admin-user-modal-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: #ffffff;
+}
+
+.admin-user-modal-email {
+  margin-top: 4px;
+  font-size: 13px;
+  color: #9fb0e8;
+}
+
+.admin-user-modal-badges {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-user-modal-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.admin-user-modal-item {
+  padding: 14px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-user-modal-item span {
+  display: block;
+  font-size: 12px;
+  color: #8fa1dc;
+  margin-bottom: 6px;
+}
+
+.admin-user-modal-item strong {
+  display: block;
+  color: #ffffff;
+  font-size: 14px;
+  word-break: break-word;
+}
+
+.admin-user-modal-item-full {
+  grid-column: 1 / -1;
+}
+
+.admin-user-modal-url {
+  color: #c9d6ff;
+}
+
+@media (max-width: 640px) {
+  .admin-user-modal-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-user-modal-profile {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}
+
+.admin-users-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-users-avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.admin-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.admin-form-group label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #dbe4ff;
+}
+
+.admin-form-group textarea,
+.admin-form-group input,
+.admin-form-group select {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 12px;
+  border: 1px solid rgba(162, 175, 255, 0.18);
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+  padding: 12px 14px;
+  font-size: 14px;
+  outline: none;
+  transition: 0.2s ease;
+  box-sizing: border-box;
+}
+
+.admin-form-group textarea {
+  min-height: 110px;
+  resize: vertical;
+}
+
+.admin-form-group textarea::placeholder,
+.admin-form-group input::placeholder {
+  color: #96a5d6;
+}
+
+.admin-form-group textarea:focus,
+.admin-form-group input:focus,
+.admin-form-group select:focus {
+  border-color: rgba(255, 181, 69, 0.7);
+  box-shadow: 0 0 0 3px rgba(255, 181, 69, 0.12);
+}
+
+.admin-form-group select option {
+  color: #111827;
+}
+
+.admin-user-modal-lock {
+  width: min(560px, 100%);
+}
+
+.admin-user-modal-user-box {
+  padding: 14px 16px;
+  margin-bottom: 18px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.admin-user-modal-user-box span {
+  display: block;
+  font-size: 12px;
+  color: #8fa1dc;
+  margin-bottom: 6px;
+}
+
+.admin-user-modal-user-box strong {
+  color: #ffffff;
+  font-size: 15px;
+}
+
+.admin-user-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.admin-user-modal-actions .admin-users-btn {
+  min-width: 120px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 600;
+}

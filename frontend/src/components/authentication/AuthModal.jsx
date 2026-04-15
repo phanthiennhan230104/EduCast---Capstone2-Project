@@ -4,6 +4,7 @@ import { X, Music, User, AtSign, Mail, Lock, Eye, Chrome } from 'lucide-react'
 import styles from '../../style/authentication/AuthModal.module.css'
 import { apiRequest } from '../../utils/api'
 import { saveAuth } from '../../utils/auth'
+import notify from '../../utils/toast'
 import { useAuth } from '../contexts/AuthContext'
 import ForgotPasswordModal from './ForgotPassword'
 
@@ -56,8 +57,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
-
-  // Xóa message cũ trước mỗi action
+  
   const resetMessages = () => {
     setErrorMessage('')
     setSuccessMessage('')
@@ -102,7 +102,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
     resetMessages()
 
     if (!loginData.email.trim() || !loginData.password.trim()) {
-      setErrorMessage('Vui lòng nhập email/username và mật khẩu.')
+      notify.error('Vui lòng nhập email/username và mật khẩu.')
       return
     }
 
@@ -121,7 +121,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
       saveAuth(data, loginData.rememberMe)
       login(data.user)
 
-      setSuccessMessage('Đăng nhập thành công.')
+      notify.success('Đăng nhập thành công.')
       onClose()
 
       if (data?.user?.role === 'admin') {
@@ -130,7 +130,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         navigate('/feed')
       }
     } catch (error) {
-      setErrorMessage(error.message || 'Đăng nhập thất bại.')
+      notify.error(error.message || 'Đăng nhập thất bại.')
     } finally {
       setLoading(false)
     }
@@ -140,7 +140,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
   // SUBMIT ĐĂNG KÝ
   // 1) Validate dữ liệu ở frontend
   // 2) Gọi /auth/register/
-  // 3) Nếu thành công => KHÔNG login ngay
+  // 3) Nếu thành công => KHÔNG tạo tài khoản, chỉ lưu temp
   // 4) Mở popup OTP để user nhập mã
   // ==========================================================
   const handleSignupSubmit = async (e) => {
@@ -148,32 +148,32 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
     resetMessages()
 
     if (!signupData.fullName.trim()) {
-      setErrorMessage('Vui lòng nhập họ tên.')
+      notify.error('Vui lòng nhập họ tên.')
       return
     }
 
     if (!signupData.username.trim()) {
-      setErrorMessage('Vui lòng nhập username.')
+      notify.error('Vui lòng nhập username.')
       return
     }
 
     if (!signupData.email.trim()) {
-      setErrorMessage('Vui lòng nhập email.')
+      notify.error('Vui lòng nhập email.')
       return
     }
 
     if (!signupData.password.trim()) {
-      setErrorMessage('Vui lòng nhập mật khẩu.')
+      notify.error('Vui lòng nhập mật khẩu.')
       return
     }
 
     if (signupData.password.length < 6) {
-      setErrorMessage('Mật khẩu phải có ít nhất 6 ký tự.')
+      notify.error('Mật khẩu phải có ít nhất 6 ký tự.')
       return
     }
 
     if (signupData.password !== signupData.confirmPassword) {
-      setErrorMessage('Mật khẩu xác nhận không khớp.')
+      notify.error('Mật khẩu xác nhận không khớp.')
       return
     }
 
@@ -197,12 +197,13 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         otp: '',
       })
 
-      setSuccessMessage(data.message || 'Đăng ký thành công. OTP đã được gửi về email.')
+      setSuccessMessage('Đăng ký thành công. OTP đã được gửi về email. Vui lòng kiểm tra email của bạn.')
+      notify.success('OTP đã được gửi. Vui lòng kiểm tra email.')
 
       // Mở popup OTP ngay sau khi signup thành công
       setShowOtpPopup(true)
     } catch (error) {
-      setErrorMessage(error.message || 'Đăng ký thất bại.')
+      notify.error(error.message || 'Đăng ký thất bại.')
     } finally {
       setLoading(false)
     }
@@ -211,7 +212,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
   // ==========================================================
   // SUBMIT XÁC THỰC OTP
   // 1) Gọi /auth/verify-otp/
-  // 2) Backend trả access + refresh + user
+  // 2) Backend tạo user vào database + trả JWT
   // 3) Frontend lưu auth
   // 4) Login luôn
   // 5) Chuyển sang /feed
@@ -221,7 +222,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
     resetMessages()
 
     if (!otpData.otp.trim()) {
-      setErrorMessage('Vui lòng nhập mã OTP.')
+      notify.error('Vui lòng nhập mã OTP.')
       return
     }
 
@@ -240,7 +241,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
       saveAuth(data, loginData.rememberMe)
       login(data.user)
 
-      setSuccessMessage('Xác thực OTP thành công.')
+      notify.success('Xác thực OTP thành công. Tài khoản đã được tạo.')
       setShowOtpPopup(false)
       onClose()
 
@@ -250,7 +251,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         navigate('/feed')
       }
     } catch (error) {
-      setErrorMessage(error.message || 'Xác thực OTP thất bại.')
+      notify.error(error.message || 'Xác thực OTP thất bại.')
     } finally {
       setLoading(false)
     }
@@ -279,7 +280,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
       saveAuth(data, true)
       login(data.user)
 
-      setSuccessMessage('Đăng nhập Google thành công.')
+      notify.success('Đăng nhập Google thành công.')
       onClose()
 
       if (data?.user?.role === 'admin') {
@@ -288,14 +289,14 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         navigate('/feed')
       }
     } catch (error) {
-      setErrorMessage(error.message || 'Đăng nhập Google thất bại.')
+      notify.error(error.message || 'Đăng nhập Google thất bại.')
     } finally {
       setLoading(false)
     }
   }
 
   const handleGoogleLoginFail = () => {
-    setErrorMessage('Đăng nhập Google thất bại.')
+    notify.error('Đăng nhập Google thất bại.')
   }
   useEffect(() => {
     if (!isOpen || mode !== 'login') return
@@ -312,7 +313,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
           try {
             await handleGoogleLoginSuccess(response)
           } catch {
-            setErrorMessage('Đăng nhập Google thất bại.')
+            notify.error('Đăng nhập Google thất bại.')
           }
         },
       })
@@ -399,37 +400,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
             </button>
           </div>
 
-          {/* Hiển thị lỗi */}
-          {errorMessage && (
-            <div
-              style={{
-                marginBottom: '12px',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                background: '#ffe5e5',
-                color: '#b42318',
-                fontSize: '14px',
-              }}
-            >
-              {errorMessage}
-            </div>
-          )}
-
-          {/* Hiển thị thành công */}
-          {successMessage && (
-            <div
-              style={{
-                marginBottom: '12px',
-                padding: '10px 12px',
-                borderRadius: '10px',
-                background: '#e8fff1',
-                color: '#027a48',
-                fontSize: '14px',
-              }}
-            >
-              {successMessage}
-            </div>
-          )}
+          
 
           {/* Nếu đang ở bước OTP thì render form OTP */}
           {showOtpPopup ? (
@@ -545,7 +516,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                   Quên mật khẩu?
                 </button>
               </div>
-              
+
 
               <button type="submit" className={styles.submitBtn} disabled={loading}>
                 {loading ? 'Đang đăng nhập...' : 'Đăng Nhập'}
@@ -581,6 +552,18 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
             </form>
           ) : (
             <form className={styles.form} onSubmit={handleSignupSubmit}>
+              {errorMessage && (
+                <div style={{ color: '#ff6b6b', marginBottom: '15px', padding: '10px', backgroundColor: 'rgba(255, 107, 107, 0.1)', borderRadius: '4px' }}>
+                  {errorMessage}
+                </div>
+              )}
+
+              {successMessage && (
+                <div style={{ color: '#51cf66', marginBottom: '15px', padding: '10px', backgroundColor: 'rgba(81, 207, 102, 0.1)', borderRadius: '4px' }}>
+                  {successMessage}
+                </div>
+              )}
+
               <label className={styles.signupLabel}>
                 Họ và Tên
                 <div className={styles.inputWrap}>
@@ -590,7 +573,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                     name="fullName"
                     value={signupData.fullName}
                     onChange={handleSignupChange}
-                    placeholder="Minh Hoàng"
+                    placeholder="Họ và tên"
                     className={`${styles.input} ${styles.inputWithIcon}`}
                   />
                 </div>
@@ -606,7 +589,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
                       name="username"
                       value={signupData.username}
                       onChange={handleSignupChange}
-                      placeholder="minhhoang"
+                      placeholder="username"
                       className={`${styles.input} ${styles.inputWithIcon}`}
                     />
                   </div>
@@ -707,7 +690,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
             password: '',
           }))
           resetMessages()
-          setSuccessMessage('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.')
+          notify.success('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.')
         }}
       />
     </div>

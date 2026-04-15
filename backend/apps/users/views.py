@@ -10,19 +10,19 @@ from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
-from datetime import timedelta
-from rest_framework_simplejwt.tokens import RefreshToken
 from .permissions import IsAdminRole
+from datetime import timedelta
 
-from .models import User
+
+from .models import User, UserProfile, UserSettings
 from .serializers import (
     RegisterSerializer,
     MyTokenObtainPairSerializer,
     ResetPasswordSerializer,
-    AdminUserListSerializer,
 )
-from .permissions import IsAdminRole
 from .utils import (
+    get_active_lock,
+    sync_user_lock_status,
     verify_otp,
     verify_reset_token,
     send_register_otp_email,
@@ -30,6 +30,10 @@ from .utils import (
     save_reset_token,
     send_google_password_email,
     generate_random_password,
+    unlock_expired_lock_for_user,
+    save_signup_temp_data,
+    get_signup_temp_data,
+    delete_signup_temp_data,
 )
 
 logger = logging.getLogger(__name__)
@@ -50,24 +54,36 @@ class RegisterView(generics.CreateAPIView):
         # Log request data để debug
         logger.info(f"Register request data: {request.data}")
         
-        # Tự xử lý create để tránh DRF cố serialize lại field full_name
+        # Validate dữ liệu
         serializer = self.get_serializer(data=request.data)
         if not serializer.is_valid():
             logger.error(f"Register validation errors: {serializer.errors}")
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
+        # Lấy dữ liệu validate từ serializer
+        validated_data = serializer.validated_data
+        email = validated_data["email"]
 
-        # save() sẽ gọi hàm create() trong RegisterSerializer
-        user = serializer.save()
+        # Lưu dữ liệu tạm vào cache (chưa lưu vào database)
+        # Dữ liệu sẽ được xóa sau 15 phút nếu không verify OTP
+        signup_data = {
+            "full_name": validated_data["full_name"],
+            "username": validated_data["username"],
+            "email": email,
+            "password": validated_data["password"],
+        }
+        save_signup_temp_data(email, signup_data)
 
-        # Gửi mã OTP xác thực tài khoản qua email
-        send_register_otp_email(user)
+        # Gửi OTP xác thực
+        send_register_otp_email(email)
 
-        # Frontend sẽ lấy email này để gọi API verify-otp
+        logger.info(f"Register temp data saved for email: {email}")
+
+        # Trả về email để frontend dùng cho bước verify OTP
         return Response(
             {
                 "message": "Đăng ký thành công. OTP đã được gửi về email.",
-                "email": user.email,
+                "email": email,
             },
             status=status.HTTP_201_CREATED,
         )
@@ -76,11 +92,13 @@ class RegisterView(generics.CreateAPIView):
 
 # ==========================================================
 # API XÁC THỰC OTP SAU ĐĂNG KÝ
-# - nếu OTP đúng thì kích hoạt tài khoản
+# - nếu OTP đúng thì:
+#   1) Lấy dữ liệu từ cache
+#   2) Tạo user vào database
+#   3) Tạo profile + settings
+#   4) Tạo JWT tokens
+#   5) Xóa dữ liệu tạm từ cache
 # ==========================================================
-from django.utils import timezone
-from rest_framework_simplejwt.tokens import RefreshToken
-
 class VerifyOTPView(APIView):
     permission_classes = [AllowAny]
 
@@ -95,6 +113,7 @@ class VerifyOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Verify OTP
         ok, msg = verify_otp(email, otp)
         if not ok:
             return Response(
@@ -102,19 +121,70 @@ class VerifyOTPView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        try:
-            user = User.objects.get(email=email)
-        except User.DoesNotExist:
+        # Lấy dữ liệu tạm từ cache
+        signup_data = get_signup_temp_data(email)
+        if not signup_data:
             return Response(
-                {"error": "Không tìm thấy người dùng."},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Dữ liệu đăng ký đã hết hạn. Vui lòng đăng ký lại."},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        user.status = "active"
-        user.is_verified = True
-        user.last_login_at = timezone.now()
-        user.save(update_fields=["status", "is_verified", "last_login_at", "updated_at"])
+        # Tạo user vào database
+        try:
+            user = User.objects.create(
+                email=email,
+                username=signup_data["username"],
+                password_hash=make_password(signup_data["password"]),
+                role="user",
+                status="active",  # Active ngay sau verify OTP
+                auth_provider="local",
+                is_verified=True,
+                last_login_at=timezone.now(),
+            )
 
+            # Tạo profile
+            UserProfile.objects.create(
+                user=user,
+                display_name=signup_data["full_name"],
+                preferred_language="vi",
+                interests=[],
+            )
+
+            # Tạo settings
+            UserSettings.objects.create(
+                user=user,
+                email_notifications=True,
+                push_notifications=True,
+                notify_likes=True,
+                notify_comments=True,
+                notify_follows=True,
+                notify_messages=True,
+                profile_visibility="public",
+                allow_messages_from="everyone",
+                autoplay_audio=True,
+                theme_mode="dark",
+                language_code="vi",
+            )
+
+            logger.info(f"User account created for email: {email}")
+        except Exception as e:
+            logger.error(f"Error creating user account: {str(e)}")
+            # Nếu user đã tồn tại, xóa dữ liệu tạm từ cache
+            delete_signup_temp_data(email)
+            
+            error_msg = str(e)
+            if "unique constraint" in error_msg.lower() or "duplicate" in error_msg.lower():
+                return Response(
+                    {"error": "Email hoặc username này đã tồn tại. Vui lòng thử lại với email khác."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            return Response(
+                {"error": "Lỗi tạo tài khoản. Vui lòng thử lại."},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+        # Tạo JWT tokens
         if remember_me:
             access_lifetime = timedelta(days=7)
             refresh_lifetime = timedelta(days=30)
@@ -142,9 +212,12 @@ class VerifyOTPView(APIView):
 
         profile = getattr(user, "profile", None)
 
+        # Xóa dữ liệu tạm từ cache
+        delete_signup_temp_data(email)
+
         return Response(
             {
-                "message": "Xác thực OTP thành công.",
+                "message": "Xác thực OTP thành công. Tài khoản đã được tạo.",
                 "refresh": str(refresh),
                 "access": str(access),
                 "remember_me": remember_me,
@@ -172,8 +245,14 @@ class MyTokenObtainPairView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request):
+        logger.info(f"Login request data: {request.data}")
         serializer = MyTokenObtainPairSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            logger.error(f"Login validation errors: {serializer.errors}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        user = serializer.user
+        user.last_login_at = timezone.now()
+        user.save(update_fields=["last_login_at", "updated_at"])
         return Response(serializer.validated_data, status=status.HTTP_200_OK)
 
 
@@ -312,6 +391,15 @@ class ResetPasswordView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
+        unlock_expired_lock_for_user(user)
+        sync_user_lock_status(user)
+        active_lock = get_active_lock(user)
+        if active_lock or user.status == "locked":
+            return Response(
+                {"error": "Tài khoản của bạn đang bị khóa."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         # Project này dùng password_hash nên hash thủ công
         user.password_hash = make_password(serializer.validated_data["password1"])
         user.status = "active"
@@ -364,8 +452,9 @@ class GoogleLoginView(APIView):
         aud = data.get("aud")
         email = data.get("email")
         email_verified = str(data.get("email_verified", "")).lower() in ["true", "1"]
+        google_name = data.get("name", "").strip()
+        google_picture = data.get("picture", "").strip()
 
-        # Kiểm tra đúng Google client id của project
         if aud != settings.GOOGLE_CLIENT_ID:
             return Response(
                 {"detail": "Sai client_id"},
@@ -380,13 +469,26 @@ class GoogleLoginView(APIView):
 
         user = User.objects.filter(email=email).first()
 
-        # Nếu chưa có user thì tạo mới
+        if user:
+            unlock_expired_lock_for_user(user)
+            sync_user_lock_status(user)
+            active_lock = get_active_lock(user)
+            if active_lock or user.status == "locked":
+                return Response(
+                    {"detail": "Tài khoản của bạn đang bị khóa."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            if user.status != "active":
+                return Response(
+                    {"detail": "Tài khoản hiện không hoạt động."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         if not user:
-            # username sinh tự động từ phần trước @
             base_username = email.split("@")[0]
             username = base_username
 
-            # Nếu username trùng thì nối thêm số
             counter = 1
             while User.objects.filter(username=username).exists():
                 username = f"{base_username}{counter}"
@@ -395,15 +497,40 @@ class GoogleLoginView(APIView):
             raw_password = generate_random_password()
 
             user = User.objects.create(
-            email=email,
-            username=username,
-            password_hash=make_password(raw_password),
-            role="user",
-            status="active",
-            auth_provider="google",
-            is_verified=True,
+                email=email,
+                username=username,
+                password_hash=make_password(raw_password),
+                role="user",
+                status="active",
+                auth_provider="google",
+                is_verified=True,
             )
             send_google_password_email(email, raw_password)
+
+        profile, created = UserProfile.objects.get_or_create(
+            user=user,
+            defaults={
+                "display_name": google_name or user.username,
+                "avatar_url": google_picture or None,
+            }
+        )
+
+        update_fields = []
+
+        if google_name and not profile.display_name:
+            profile.display_name = google_name
+            update_fields.append("display_name")
+
+        if google_picture and not profile.avatar_url:
+            profile.avatar_url = google_picture
+            update_fields.append("avatar_url")
+
+        if update_fields:
+            update_fields.append("updated_at")
+            profile.save(update_fields=update_fields)
+        
+        user.last_login_at = timezone.now()
+        user.save(update_fields=["last_login_at", "updated_at"])
 
         refresh = RefreshToken()
         refresh["user_id"] = str(user.id)
