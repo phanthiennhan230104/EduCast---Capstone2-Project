@@ -1,0 +1,323 @@
+from rest_framework import status
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from django.db.models import Q
+from django.utils import timezone
+from .models import Post, PostAudioVersion
+from apps.users.permissions import IsAdminRole
+from apps.social.models import Report
+
+
+class AdminPostsListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        # Get query parameters
+        status_filter = request.query_params.get('status')
+        visibility_filter = request.query_params.get('visibility')
+        source_type_filter = request.query_params.get('source_type')
+        search_query = request.query_params.get('search')
+        report_status_filter = request.query_params.get('report_status')
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+
+        # Start with all posts
+        posts_qs = Post.objects.select_related('user').all()
+
+        # Apply filters
+        if status_filter and status_filter in dict(Post.StatusChoices.choices):
+            posts_qs = posts_qs.filter(status=status_filter)
+
+        if visibility_filter and visibility_filter in dict(Post.VisibilityChoices.choices):
+            posts_qs = posts_qs.filter(visibility=visibility_filter)
+
+        if source_type_filter and source_type_filter in dict(Post.SourceTypeChoices.choices):
+            posts_qs = posts_qs.filter(source_type=source_type_filter)
+
+        if search_query:
+            posts_qs = posts_qs.filter(
+                Q(title__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(user__username__icontains=search_query)
+            )
+
+        # Order by created_at descending
+        posts_qs = posts_qs.order_by('-created_at')
+
+        # Calculate total count before pagination
+        total_count = posts_qs.count()
+
+        # Apply pagination
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        posts_page = posts_qs[start_idx:end_idx]
+
+        # Format data with reports
+        posts_data = []
+        for post in posts_page:
+            # Get reports for this post (only reports where target_type='post' and target_id=post.id)
+            reports_list = []
+            reports_qs = Report.objects.filter(target_type='post', target_id=post.id).select_related('user')
+            
+            for report in reports_qs:
+                reports_list.append({
+                    'id': report.id,
+                    'reason': report.reason,
+                    'description': report.description,
+                    'status': report.status,
+                    'created_at': report.created_at.isoformat() if report.created_at else None,
+                    'reporter_username': report.user.username if report.user else 'Unknown',
+                })
+
+            # Apply report status filter if specified
+            if report_status_filter and not any(r['status'] == report_status_filter for r in reports_list):
+                continue
+
+            # Get audio versions for this post
+            audio_versions = []
+            audio_versions_qs = PostAudioVersion.objects.filter(post_id=post.id).order_by('-is_default', 'created_at')
+            for audio in audio_versions_qs:
+                audio_versions.append({
+                    'id': audio.id,
+                    'voice_name': audio.voice_name,
+                    'format': audio.format,
+                    'bitrate_kbps': audio.bitrate_kbps,
+                    'duration_seconds': audio.duration_seconds,
+                    'audio_url': audio.audio_url,
+                    'is_default': audio.is_default,
+                    'created_at': audio.created_at.isoformat() if audio.created_at else None,
+                })
+
+            posts_data.append({
+                'id': post.id,
+                'title': post.title,
+                'slug': post.slug,
+                'status': post.status,
+                'visibility': post.visibility,
+                'source_type': post.source_type,
+                'is_ai_generated': post.is_ai_generated,
+                'user_id': post.user_id,
+                'username': post.user.username if post.user else 'Unknown',
+                'user_avatar': post.user.profile.avatar_url if post.user and hasattr(post.user, 'profile') else None,
+                'description': post.description[:100] + '...' if post.description and len(post.description) > 100 else post.description,
+                'duration_seconds': post.duration_seconds,
+                'view_count': post.view_count,
+                'listen_count': post.listen_count,
+                'like_count': post.like_count,
+                'comment_count': post.comment_count,
+                'download_count': post.download_count,
+                'age_group': post.age_group,
+                'learning_field': post.learning_field,
+                'published_at': post.published_at.isoformat() if post.published_at else None,
+                'created_at': post.created_at.isoformat() if post.created_at else None,
+                'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+                'thumbnail_url': post.thumbnail_url,
+                'audio_url': post.audio_url,
+                'audio_versions': audio_versions,
+                'reports': reports_list,
+                'report_count': len(reports_list),
+                'pending_reports': sum(1 for r in reports_list if r['status'] == 'pending'),
+                'resolved_reports': sum(1 for r in reports_list if r['status'] == 'resolved'),
+            })
+
+        return Response({
+            'posts': posts_data,
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total': total_count,
+                'total_pages': (total_count + page_size - 1) // page_size,
+            }
+        }, status=status.HTTP_200_OK)
+
+
+class AdminPostDetailView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request, post_id):
+        try:
+            post = Post.objects.select_related('user').get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        post_data = {
+            'id': post.id,
+            'title': post.title,
+            'slug': post.slug,
+            'description': post.description,
+            'original_text': post.original_text,
+            'summary_text': post.summary_text,
+            'dialogue_script': post.dialogue_script,
+            'transcript_text': post.transcript_text,
+            'status': post.status,
+            'visibility': post.visibility,
+            'source_type': post.source_type,
+            'is_ai_generated': post.is_ai_generated,
+            'language_code': post.language_code,
+            'user_id': post.user_id,
+            'username': post.user.username if post.user else 'Unknown',
+            'category_id': post.category_id,
+            'duration_seconds': post.duration_seconds,
+            'view_count': post.view_count,
+            'listen_count': post.listen_count,
+            'like_count': post.like_count,
+            'comment_count': post.comment_count,
+            'save_count': post.save_count,
+            'share_count': post.share_count,
+            'download_count': post.download_count,
+            'age_group': post.age_group,
+            'learning_field': post.learning_field,
+            'published_at': post.published_at.isoformat() if post.published_at else None,
+            'created_at': post.created_at.isoformat() if post.created_at else None,
+            'updated_at': post.updated_at.isoformat() if post.updated_at else None,
+            'thumbnail_url': post.thumbnail_url,
+            'audio_url': post.audio_url,
+        }
+
+        return Response(post_data, status=status.HTTP_200_OK)
+
+
+class AdminPostHideView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        post.status = 'hidden'
+        post.save()
+
+        return Response(
+            {'message': 'Đã ẩn bài viết.', 'status': post.status},
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminPostRestoreView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Restore to published and set visibility to public
+        post.status = 'published'
+        post.visibility = 'public'
+        post.save()
+
+        return Response(
+            {'message': 'Đã mở bài viết.', 'status': post.status, 'visibility': post.visibility},
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminUpdateReportStatusView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, report_id):
+        try:
+            report = Report.objects.get(id=report_id)
+        except Report.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy báo cáo.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        new_status = request.data.get('status')
+        if new_status not in dict(Report._meta.get_field('status').choices):
+            return Response(
+                {'error': f'Trạng thái không hợp lệ: {new_status}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        report.status = new_status
+        report.updated_at = timezone.now()
+        report.save()
+
+        return Response(
+            {'message': f'Đã cập nhật báo cáo thành {new_status}', 'status': report.status},
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminLockPostWithReportView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        report_id = request.data.get('report_id')
+        
+        # Update post status to hidden
+        post.status = 'hidden'
+        post.save()
+
+        # Update report status to resolved if provided
+        if report_id:
+            try:
+                report = Report.objects.get(id=report_id)
+                report.status = 'resolved'
+                report.updated_at = timezone.now()
+                report.save()
+            except Report.DoesNotExist:
+                pass
+
+        return Response(
+            {'message': 'Đã khóa bài viết và cập nhật báo cáo.', 'post_status': post.status},
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminRejectReportView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        report_id = request.data.get('report_id')
+        
+        # Update post: set visibility to public and status to published
+        post.visibility = 'public'
+        post.status = 'published'
+        post.save()
+
+        # Update report status to rejected if provided
+        if report_id:
+            try:
+                report = Report.objects.get(id=report_id)
+                report.status = 'rejected'
+                report.updated_at = timezone.now()
+                report.save()
+            except Report.DoesNotExist:
+                pass
+
+        return Response(
+            {'message': 'Đã từ chối báo cáo và công khai bài viết.', 'post_status': post.status, 'visibility': post.visibility},
+            status=status.HTTP_200_OK,
+        )

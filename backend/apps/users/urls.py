@@ -11,10 +11,14 @@ from .views import (
     VerifyResetOTPView,
     ResetPasswordView,
     GoogleLoginView,
-    AdminUsersListView,
     UpdateUserProfileView,
 )
-from .admin_views import AdminUserUnlockView, AdminUsersListView
+from .admin_views import (
+    AdminOverviewView,
+    AdminUsersListView,
+    AdminUserLockView,
+    AdminUserUnlockView,
+)
 
 urlpatterns = [
     path("register/", RegisterView.as_view(), name="register"),
@@ -27,7 +31,9 @@ urlpatterns = [
     path("verify-reset-otp/", VerifyResetOTPView.as_view(), name="verify-reset-otp"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
     path("login/google/", GoogleLoginView.as_view(), name="google-login"),
+
     path("admin/users/", AdminUsersListView.as_view(), name="admin-users-list"),
+    path("admin/overview/", AdminOverviewView.as_view(), name="admin-overview"),
     path("admin/users/<str:user_id>/lock/", AdminUserLockView.as_view(), name="admin-user-lock"),
     path("admin/users/<str:user_id>/unlock/", AdminUserUnlockView.as_view(), name="admin-user-unlock"),
     

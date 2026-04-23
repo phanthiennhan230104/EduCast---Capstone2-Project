@@ -167,3 +167,46 @@ class PlaybackHistory(models.Model):
 
     def __str__(self):
         return f"{self.user_id} - {self.post_id}"
+
+
+class Report(models.Model):
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("reviewed", "Reviewed"),
+        ("resolved", "Resolved"),
+        ("rejected", "Rejected"),
+    ]
+    REASON_CHOICES = [
+        ("spam", "Spam"),
+        ("inappropriate_content", "Inappropriate Content"),
+        ("harassment", "Harassment"),
+        ("misinformation", "Misinformation"),
+        ("copyright", "Copyright Violation"),
+        ("other", "Other"),
+    ]
+    TARGET_TYPE_CHOICES = [
+        ("post", "Post"),
+        ("comment", "Comment"),
+        ("user", "User"),
+        ("message", "Message"),
+    ]
+    
+    id = models.CharField(max_length=26, primary_key=True)
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='reports', db_column='reporter_id')
+    target_type = models.CharField(max_length=20, choices=TARGET_TYPE_CHOICES)
+    target_id = models.CharField(max_length=26)
+    reason = models.CharField(max_length=50, choices=REASON_CHOICES)
+    description = models.TextField(null=True, blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="pending")
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'reports'
+        managed = False
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Report by {self.user_id} - {self.reason} ({self.status})"
+    
+    
