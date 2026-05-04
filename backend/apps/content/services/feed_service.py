@@ -24,7 +24,17 @@ class FeedService:
                 )
             )
 
-            posts_qs = posts_qs.exclude(status__in=["archived", "hidden"])
+            # Filter for published and public posts, OR posts by the current user
+            from django.db.models import Q
+            
+            # Exclude archived posts first
+            posts_qs = posts_qs.exclude(status="archived")
+            
+            # Then filter: (published AND public) OR (belongs to current user AND not hidden)
+            posts_qs = posts_qs.filter(
+                Q(status="published", visibility="public") | 
+                Q(user_id=user.id, status__in=["published", "draft"])
+            )
 
             hidden_post_ids = HiddenPost.objects.filter(
                 user_id=user.id

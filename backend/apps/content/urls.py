@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView, UserPostsAPIView
+from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView, UserPostsAPIView, UserSharedPostsAPIView
 from .views import (
     DraftCreateView,
     AudioPreviewView,
@@ -8,6 +8,7 @@ from .views import (
     DraftDetailView,
     DraftUpdateView,
     DraftDeleteView,
+    PublishPostView,
     UploadDocumentView,
 )
 from .admin_views import (
@@ -25,6 +26,7 @@ urlpatterns = [
     path("feed/", FeedAPIView.as_view(), name="feed"),
     path("search/", SearchAPIView.as_view(), name="search"),
     path("users/<str:user_id>/posts/", UserPostsAPIView.as_view(), name="user-posts"),
+    path("users/<str:user_id>/shared-posts/", UserSharedPostsAPIView.as_view(), name="user-shared-posts"),
 
     path("drafts/", DraftCreateView.as_view(), name="draft-create"),
     path("drafts/preview-audio/", AudioPreviewView.as_view(), name="draft-preview-audio"),
@@ -34,6 +36,7 @@ urlpatterns = [
     path("drafts/my/", MyDraftListView.as_view(), name="my-drafts"),
     path("drafts/<str:post_id>/", DraftDetailView.as_view(), name="draft-detail"),
     path("drafts/<str:post_id>/update/", DraftUpdateView.as_view(), name="draft-update"),
+    path("drafts/<str:post_id>/publish/", PublishPostView.as_view(), name="draft-publish"),
     path("drafts/<str:post_id>/delete/", DraftDeleteView.as_view(), name="draft-delete"),
 
     # Admin endpoints

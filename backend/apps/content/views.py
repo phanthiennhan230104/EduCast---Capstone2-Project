@@ -249,8 +249,8 @@ class DraftSaveWithAudioView(APIView):
                 source_type=data.get("source_type", Post.SourceTypeChoices.MANUAL),
                 is_ai_generated=(mode != "original"),
                 language_code="vi",
-                visibility=Post.VisibilityChoices.PRIVATE,
-                status=Post.StatusChoices.DRAFT,
+                visibility=Post.VisibilityChoices.PUBLIC,
+                status=Post.StatusChoices.PUBLISHED,
                 age_group=None,
                 learning_field=None,
                 audio_url=data["audio_url"],
@@ -263,7 +263,7 @@ class DraftSaveWithAudioView(APIView):
                 comment_count=0,
                 save_count=0,
                 share_count=0,
-                published_at=None,
+                published_at=now,
                 created_at=now,
                 updated_at=now,
             )
@@ -542,6 +542,45 @@ class DraftDeleteView(APIView):
             )
 
 
+class PublishPostView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, post_id):
+        """Publish a draft post (change status to published and visibility to public)"""
+        try:
+            post = Post.objects.get(
+                id=post_id,
+                user=request.user,
+            )
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Không tìm thấy bài viết"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            # Update status and visibility
+            post.status = "published"
+            post.visibility = "public"
+            post.published_at = timezone.now()
+            post.updated_at = timezone.now()
+            post.save(update_fields=["status", "visibility", "published_at", "updated_at"])
+
+            return Response(
+                {
+                    "message": "Xuất bản bài viết thành công",
+                    "data": DraftDetailSerializer(post).data,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+
 class UploadDocumentView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -797,9 +836,79 @@ class SearchAPIView(APIView):
 
 class UserPostsAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    
+    def _build_post_data(self, post, request_user_id, share_info=None):
+        """Helper to build complete post data"""
+        from apps.social.models import PostShare
+        
+        author_name = post.user.username
+        if hasattr(post.user, 'profile') and post.user.profile:
+            author_name = post.user.profile.display_name or post.user.username
+        
+        author_avatar = None
+        if hasattr(post.user, 'profile') and post.user.profile:
+            author_avatar = post.user.profile.avatar_url
+        
+        is_liked = PostLike.objects.filter(
+            user_id=request_user_id,
+            post_id=post.id
+        ).exists() if request_user_id else False
+        
+        print(f"🔍 _build_post_data: post_id={post.id}, user_id={request_user_id}, is_liked={is_liked}, share_info={share_info}")
+        
+        is_saved = SavedPost.objects.filter(
+            user_id=request_user_id,
+            post_id=post.id
+        ).exists() if request_user_id else False
+        
+        # Lấy counts thực tế từ bài gốc (cả bài share và bài gốc đều dùng counts của bài gốc)
+        like_count = PostLike.objects.filter(post_id=post.id).count()
+        comment_count = Comment.objects.filter(post_id=post.id).count()
+        save_count = SavedPost.objects.filter(post_id=post.id).count()
+        share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
+        
+        post_data = {
+            "id": post.id,
+            "title": post.title,
+            "description": post.description,
+            "original_text": post.original_text,
+            "summary_text": post.summary_text,
+            "dialogue_script": post.dialogue_script,
+            "transcript_text": post.transcript_text,
+            "author": author_name,
+            "author_id": post.user.id,
+            "author_avatar": author_avatar,
+            "thumbnail_url": post.thumbnail_url,
+            "audio_url": post.audio_url,
+            "listen_count": post.listen_count,
+            "view_count": post.view_count,
+            "download_count": post.download_count,
+            "duration_seconds": post.duration_seconds,
+            "category_id": post.category_id,
+            "age_group": post.age_group,
+            "learning_field": post.learning_field,
+            "language_code": post.language_code,
+            "source_type": post.source_type,
+            "is_ai_generated": post.is_ai_generated,
+            "created_at": post.created_at.isoformat(),
+            "published_at": post.published_at.isoformat() if post.published_at else None,
+            "updated_at": post.updated_at.isoformat() if post.updated_at else None,
+            "like_count": like_count,
+            "comment_count": comment_count,
+            "save_count": save_count,
+            "share_count": share_count,
+            "is_liked": is_liked,
+            "is_saved": is_saved,
+        }
+        
+        # Add share info if provided
+        if share_info:
+            post_data.update(share_info)
+        
+        return post_data
 
     def get(self, request, user_id=None):
-        """Get all posts (published) of a user"""
+        """Get all posts (published) + shared posts of a user"""
         try:
             target_user_id = user_id or str(request.user.id)
             
@@ -812,9 +921,22 @@ class UserPostsAPIView(APIView):
                     "posts": []
                 }, status=status.HTTP_404_NOT_FOUND)
             
+            # Get current user ID for checking likes/saves
+            current_user_id = request.user.id if request.user and request.user.is_authenticated else None
+            
+            # Get hidden post IDs for the viewing user (not the target user)
+            hidden_post_ids = set()
+            if current_user_id:
+                hidden_post_ids = set(
+                    HiddenPost.objects.filter(user_id=current_user_id)
+                    .values_list("post_id", flat=True)
+                )
+            
+            # Get user's published posts (exclude hidden posts)
             posts_qs = (
                 Post.objects
                 .filter(user_id=target_user_id, status="published", visibility="public")
+                .exclude(id__in=hidden_post_ids)
                 .select_related("user", "user__profile")
                 .order_by("-created_at")
             )
@@ -824,6 +946,87 @@ class UserPostsAPIView(APIView):
             
             posts_data = []
             for post in posts:
+                post_data = self._build_post_data(post, current_user_id)
+                post_data["type"] = "original"
+                posts_data.append(post_data)
+            
+            # Get user's shared posts (exclude hidden posts)
+            from apps.social.models import PostShare
+            shared_posts_qs = (
+                PostShare.objects
+                .filter(user_id=target_user_id, share_type="personal")
+                .exclude(post_id__in=hidden_post_ids)
+                .select_related("post", "post__user", "post__user__profile")
+                .order_by("-created_at")
+            )
+            
+            shared_posts_list = list(shared_posts_qs[:limit])
+            
+            for share in shared_posts_list:
+                post = share.post
+                if not post:
+                    continue
+                
+                share_info = {
+                    "id": f"share_{share.id}_{post.id}",
+                    "share_id": share.id,
+                    "post_id": post.id,
+                    "shared_at": share.created_at.isoformat(),
+                    "share_caption": share.caption,
+                    "type": "shared"
+                }
+                
+                post_data = self._build_post_data(post, current_user_id, share_info)
+                posts_data.append(post_data)
+            
+            # Sort by created_at (newest first), but for shared posts use shared_at
+            posts_data.sort(key=lambda x: x.get("shared_at") or x.get("created_at"), reverse=True)
+            
+            return Response({
+                "data": {
+                    "posts": posts_data
+                },
+                "success": True
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "error": f"Failed to load user posts: {str(e)}",
+                "posts": []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class UserSharedPostsAPIView(APIView):
+    """API để lấy danh sách bài viết mà user đã chia sẻ"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id=None):
+        """Get all shared posts of a user"""
+        try:
+            target_user_id = user_id or str(request.user.id)
+            
+            from apps.users.models import User
+            try:
+                target_user = User.objects.get(id=target_user_id)
+            except User.DoesNotExist:
+                return Response({
+                    "error": "User not found",
+                    "shared_posts": []
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            # Lấy danh sách shared posts (thông qua PostShare model)
+            shared_posts_qs = (
+                PostShare.objects
+                .filter(user_id=target_user_id, share_type="personal")
+                .select_related("post", "post__user", "post__user__profile")
+                .order_by("-created_at")
+            )
+            
+            limit = int(request.query_params.get("limit", 100))
+            shared_posts = list(shared_posts_qs[:limit])
+            
+            posts_data = []
+            for share in shared_posts:
+                post = share.post
                 author_name = post.user.username
                 if hasattr(post.user, 'profile') and post.user.profile:
                     author_name = post.user.profile.display_name or post.user.username
@@ -848,6 +1051,8 @@ class UserPostsAPIView(APIView):
                     "listen_count": post.listen_count,
                     "duration_seconds": post.duration_seconds,
                     "created_at": post.created_at.isoformat(),
+                    "shared_at": share.created_at.isoformat(),
+                    "share_caption": share.caption,
                     "like_count": PostLike.objects.filter(post_id=post.id).count(),
                     "comment_count": Comment.objects.filter(post_id=post.id).count(),
                     "save_count": SavedPost.objects.filter(post_id=post.id).count(),
@@ -858,12 +1063,12 @@ class UserPostsAPIView(APIView):
             
             return Response({
                 "data": {
-                    "posts": posts_data
+                    "shared_posts": posts_data
                 },
                 "success": True
             }, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({
-                "error": f"Failed to load user posts: {str(e)}",
-                "posts": []
+                "error": f"Failed to load user shared posts: {str(e)}",
+                "shared_posts": []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

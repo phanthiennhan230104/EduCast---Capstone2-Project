@@ -72,10 +72,27 @@ export function AudioPlayerProvider({ children }) {
     audioRef.current.volume = volume / 100
   }, [volume])
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      const audio = audioRef.current
+      if (audio) {
+        audio.pause()
+        audio.src = ''
+      }
+    }
+  }, [])
+
   const trackedListenRef = useRef({})
 
   const playTrack = useCallback((track, trackQueue = []) => {
     if (!track?.audioUrl) return
+
+    const audio = audioRef.current
+    if (!audio) {
+      console.warn('Audio element not found in DOM')
+      return
+    }
 
     trackedListenRef.current[track.id] = false
 
@@ -90,14 +107,23 @@ export function AudioPlayerProvider({ children }) {
     setDuration(nextDuration)
     setPlaying(true)
 
-    const audio = audioRef.current
     if (audio) {
       if (Math.abs(audio.currentTime - resumeTime) > 0.3) {
         audio.currentTime = resumeTime
       }
-      audio.play().catch((err) => {
-        console.error('Play failed:', err)
-      })
+      
+      // Add a small delay to ensure audio element is ready
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play().catch((err) => {
+            if (err.name === 'AbortError') {
+              console.warn('Play interrupted - audio element may have been removed from DOM')
+            } else {
+              console.error('Play failed:', err)
+            }
+          })
+        }
+      }, 50)
     }
   }, [getSavedProgress])
 
@@ -107,7 +133,11 @@ export function AudioPlayerProvider({ children }) {
 
     if (audio.paused) {
       audio.play().catch((err) => {
-        console.error('Play failed:', err)
+        if (err.name === 'AbortError') {
+          console.warn('Play interrupted - audio element may have been removed from DOM')
+        } else {
+          console.error('Play failed:', err)
+        }
       })
     } else {
       audio.pause()
@@ -336,7 +366,11 @@ export function AudioPlayerProvider({ children }) {
 
       if (playing) {
         audio.play().catch((err) => {
-          console.error('Autoplay failed:', err)
+          if (err.name === 'AbortError') {
+            console.warn('Autoplay interrupted - audio element may have been removed from DOM')
+          } else {
+            console.error('Autoplay failed:', err)
+          }
           setPlaying(false)
         })
       }
