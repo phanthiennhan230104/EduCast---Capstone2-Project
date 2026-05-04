@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView
+from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView, UserPostsAPIView
 from .views import (
     DraftCreateView,
     AudioPreviewView,
@@ -24,6 +24,7 @@ urlpatterns = [
     path("upload-test/", TestCloudinaryUploadView.as_view(), name="upload-test"),
     path("feed/", FeedAPIView.as_view(), name="feed"),
     path("search/", SearchAPIView.as_view(), name="search"),
+    path("users/<str:user_id>/posts/", UserPostsAPIView.as_view(), name="user-posts"),
 
     path("drafts/", DraftCreateView.as_view(), name="draft-create"),
     path("drafts/preview-audio/", AudioPreviewView.as_view(), name="draft-preview-audio"),

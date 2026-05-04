@@ -68,6 +68,7 @@ class Message(models.Model):
         ("image", "Image"),
         ("audio", "Audio"),
         ("file", "File"),
+        ("podcast", "Podcast"),
     )
 
     id = models.CharField(primary_key=True, max_length=26, default=generate_id, editable=False)

@@ -122,16 +122,14 @@ class Notification(models.Model):
     
 class PostShare(models.Model):
     TYPE_CHOICES = [
-        ("copy_link", "Copy Link"),
-        ("facebook", "Facebook"),
-        ("messenger", "Messenger"),
-        ("zalo", "Zalo"),
-        ("other", "Other"),
+        ("personal", "Share to Personal"),
+        ("message", "Share via Message"),
     ]
     id = models.CharField(max_length=26, primary_key=True)
     post = models.ForeignKey('content.Post', on_delete=models.CASCADE, related_name='shares')
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='shared_posts')
-    share_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="copy_link")
+    share_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="personal")
+    caption = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField()
 
     class Meta:
@@ -164,6 +162,23 @@ class PlaybackHistory(models.Model):
         db_table = "playback_history"
         managed = False
         ordering = ["-last_played_at"]
+
+class PostNote(models.Model):
+    id = models.CharField(max_length=26, primary_key=True)
+    post = models.ForeignKey('content.Post', on_delete=models.CASCADE, related_name='notes')
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='post_notes')
+    content = models.TextField(blank=True, null=True)
+    created_at = models.DateTimeField()
+    updated_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'post_notes'
+        unique_together = ('post', 'user')
+        managed = False
+        ordering = ['-updated_at']
+
+    def __str__(self):
+        return f"Note by {self.user} on post {self.post_id}"
 
     def __str__(self):
         return f"{self.user_id} - {self.post_id}"
@@ -210,3 +225,63 @@ class Report(models.Model):
         return f"Report by {self.user_id} - {self.reason} ({self.status})"
     
     
+    
+class HiddenPost(models.Model):
+    id = models.CharField(max_length=26, primary_key=True)
+
+    post = models.ForeignKey(
+        'content.Post',
+        on_delete=models.CASCADE,
+        db_column='post_id',
+        related_name='hidden_by_users'
+    )
+
+    user = models.ForeignKey(
+        'users.User',
+        on_delete=models.CASCADE,
+        db_column='user_id',
+        related_name='hidden_posts'
+    )
+
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'hidden_posts'
+        unique_together = ('post', 'user')
+        managed = False
+
+
+class Collection(models.Model):
+    """User's custom collection/folder for organizing saved posts"""
+    id = models.CharField(max_length=26, primary_key=True)
+    user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='collections')
+    name = models.CharField(max_length=150)
+    description = models.TextField(blank=True, null=True)
+    is_default = models.BooleanField(default=False)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'collections'
+        unique_together = ('user', 'name')
+        managed = False
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.user} - {self.name}"
+
+
+class CollectionPost(models.Model):
+    """M2M relationship between Collection and Post"""
+    id = models.CharField(max_length=26, primary_key=True)
+    collection = models.ForeignKey(Collection, on_delete=models.CASCADE, related_name='posts')
+    post = models.ForeignKey('content.Post', on_delete=models.CASCADE, related_name='in_collections')
+    added_at = models.DateTimeField()
+
+    class Meta:
+        db_table = 'collection_items'
+        unique_together = ('collection', 'post')
+        managed = False
+        ordering = ['-added_at']
+
+    def __str__(self):
+        return f"{self.collection.name} - {self.post_id}"

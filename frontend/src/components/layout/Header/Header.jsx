@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getInitials } from '../../../utils/getInitials'
 import NotificationPanel from '../NotificationPanel/NotificationPanel'
 
-export default function Header() {
+export default function Header({ hideGlobalProgress = false }) {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [query, setQuery] = useState('')

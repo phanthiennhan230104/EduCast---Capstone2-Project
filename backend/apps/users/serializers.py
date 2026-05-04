@@ -7,7 +7,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import User, UserProfile, UserSettings
+from .models import User, UserProfile, UserSettings, UserTagPreference
 from .utils import get_active_lock, sync_user_lock_status, unlock_expired_lock_for_user
 
 logger = logging.getLogger(__name__)
@@ -333,3 +333,13 @@ class AdminLockUserSerializer(serializers.Serializer):
 
 class AdminUnlockUserSerializer(serializers.Serializer):
     unlock_reason = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+
+class UserTagPreferenceSerializer(serializers.ModelSerializer):
+    tag_name = serializers.CharField(source='tag.name', read_only=True)
+    tag_id = serializers.CharField(source='tag.id', read_only=True)
+
+    class Meta:
+        model = UserTagPreference
+        fields = ['id', 'tag_id', 'tag_name', 'score', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'tag_id', 'tag_name', 'created_at', 'updated_at']

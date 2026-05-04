@@ -28,6 +28,19 @@ export function AudioPlayerProvider({ children }) {
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(80)
   const [trackProgressMap, setTrackProgressMap] = useState({})
+  const [isSeeking, setIsSeeking] = useState(false)
+
+  useEffect(() => {
+    const savedProgress = localStorage.getItem('audioPlayerProgress')
+    if (savedProgress) {
+      try {
+        progressRef.current = JSON.parse(savedProgress)
+        setTrackProgressMap(progressRef.current)
+      } catch (err) {
+        console.error('Failed to load progress from localStorage:', err)
+      }
+    }
+  }, [])
 
   const getSavedProgress = useCallback((track) => {
     if (!track?.id) return null
@@ -46,6 +59,12 @@ export function AudioPlayerProvider({ children }) {
       ...prev,
       [trackId]: progressRef.current[trackId],
     }))
+
+    try {
+      localStorage.setItem('audioPlayerProgress', JSON.stringify(progressRef.current))
+    } catch (err) {
+      console.error('Failed to save progress to localStorage:', err)
+    }
   }, [])
 
   useEffect(() => {
@@ -72,7 +91,7 @@ export function AudioPlayerProvider({ children }) {
     setPlaying(true)
 
     const audio = audioRef.current
-    if (audio && currentTrack?.id === track.id) {
+    if (audio) {
       if (Math.abs(audio.currentTime - resumeTime) > 0.3) {
         audio.currentTime = resumeTime
       }
@@ -80,7 +99,7 @@ export function AudioPlayerProvider({ children }) {
         console.error('Play failed:', err)
       })
     }
-  }, [currentTrack, getSavedProgress])
+  }, [getSavedProgress])
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current
@@ -103,6 +122,7 @@ export function AudioPlayerProvider({ children }) {
     const audio = audioRef.current
     if (!audio || !duration || !currentTrack?.id) return
 
+    setIsSeeking(true)
     const nextTime = (Number(percent) / 100) * duration
     audio.currentTime = nextTime
     setCurrentTime(nextTime)
@@ -278,6 +298,10 @@ export function AudioPlayerProvider({ children }) {
       setPlaying(false)
     }
 
+    const handleSeeked = () => {
+      setIsSeeking(false)
+    }
+
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('play', handlePlay)
@@ -366,6 +390,7 @@ export function AudioPlayerProvider({ children }) {
     seekToTime,
     playNext,
     playPrev,
+    isSeeking,
   ])
 
   return (

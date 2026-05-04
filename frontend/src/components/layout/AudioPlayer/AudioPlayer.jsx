@@ -1,17 +1,51 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   Play, Pause, SkipBack, SkipForward,
-  Volume2, Shuffle, Repeat, ListMusic, Heart,
+  Volume2, ListMusic, Heart,
   ChevronDown, ChevronUp
 } from 'lucide-react'
 import styles from '../../../style/layout/AudioPlayer.module.css'
 import { useAudioPlayer } from "../../contexts/AudioPlayerContext";
+import { getToken, getCurrentUser } from '../../../utils/auth'
+import { useNavigate, useLocation } from 'react-router-dom'
 
 export default function AudioPlayer() {
   const [liked, setLiked] = useState(false)
-  const [shuffle, setShuffle] = useState(false)
-  const [repeat, setRepeat] = useState(false)
+  const [loadingLike, setLoadingLike] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
+  const navigate = useNavigate()
+  const location = useLocation()
+  const POST_SYNC_EVENT = 'post-sync-updated'
+
+  const dispatchPostSync = (payload) => {
+    if (payload?.postId) {
+      const oldSync = JSON.parse(
+        localStorage.getItem(`post-sync-${payload.postId}`) || '{}'
+      )
+
+      const nextSync = { ...oldSync }
+
+      if (typeof payload.liked === 'boolean') {
+        nextSync.liked = payload.liked
+      }
+
+      if (typeof payload.likeCount === 'number') {
+        nextSync.likeCount = payload.likeCount
+      }
+
+      if (typeof payload.saved === 'boolean') {
+        nextSync.saved = payload.saved
+      }
+
+      if (typeof payload.saveCount === 'number') {
+        nextSync.saveCount = payload.saveCount
+      }
+
+      localStorage.setItem(`post-sync-${payload.postId}`, JSON.stringify(nextSync))
+    }
+
+    window.dispatchEvent(new CustomEvent(POST_SYNC_EVENT, { detail: payload }))
+  }
 
   const {
     currentTrack,
@@ -27,6 +61,118 @@ export default function AudioPlayer() {
     playPrev,
   } = useAudioPlayer()
 
+  useEffect(() => {
+    const postId = currentTrack?.postId || currentTrack?.id
+
+    if (!postId) {
+      setLiked(false)
+      return
+    }
+
+    const cached = JSON.parse(localStorage.getItem(`post-sync-${postId}`) || '{}')
+
+    if (typeof cached.liked === 'boolean') {
+      setLiked(cached.liked)
+      return
+    }
+
+    setLiked(Boolean(currentTrack?.liked))
+  }, [currentTrack?.id, currentTrack?.postId])
+
+  const handleOpenPost = () => {
+    const postId = currentTrack?.postId || currentTrack?.id
+    if (!postId) return
+
+    sessionStorage.setItem('openPostDetailNoScroll', 'true')
+
+    if (location.pathname === '/feed') {
+      window.dispatchEvent(
+        new CustomEvent('open-post-detail', {
+          detail: {
+            postId,
+            disableAutoScroll: true,
+          },
+        })
+      )
+      return
+    }
+
+    sessionStorage.setItem('openPostDetailId', postId)
+    navigate('/feed')
+  }
+
+  useEffect(() => {
+    const handleTrackLikeUpdated = (event) => {
+      const { postId, liked } = event.detail || {}
+      const currentPostId = currentTrack?.postId || currentTrack?.id
+
+      if (String(postId) !== String(currentPostId)) return
+      if (typeof liked !== 'boolean') return
+
+      setLiked(liked)
+    }
+
+    window.addEventListener('post-sync-updated', handleTrackLikeUpdated)
+
+    return () => {
+      window.removeEventListener('post-sync-updated', handleTrackLikeUpdated)
+    }
+  }, [currentTrack?.id, currentTrack?.postId])
+
+  const handleToggleLike = async (e) => {
+    e.preventDefault()
+    e.stopPropagation()
+
+    if (loadingLike || !currentTrack?.id) return
+
+    try {
+      setLoadingLike(true)
+
+      const token = getToken()
+      const currentUser = getCurrentUser()
+
+      const res = await fetch(
+        `http://localhost:8000/api/social/posts/${currentTrack.id}/like/`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            user_id: currentUser?.id,
+          }),
+        }
+      )
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || `HTTP ${res.status}`)
+      }
+
+      setLiked(Boolean(data.data?.liked))
+      dispatchPostSync({
+        postId: currentTrack.postId || currentTrack.id,
+        liked: Boolean(data.data?.liked),
+        likeCount: Number(data.data?.like_count || 0),
+      })
+      
+      // Gọi callback nếu track có onLikeChange handler, truyền cả liked state và likeCount
+      if (currentTrack?.onLikeChange) {
+        currentTrack.onLikeChange({
+          liked: Boolean(data.data?.liked),
+          likeCount: Number(data.data?.like_count || 0)
+        })
+      }
+    } catch (err) {
+      console.error('Like failed:', err)
+      alert(err.message || 'Like thất bại')
+    } finally {
+      setLoadingLike(false)
+    }
+  }
+
   if (!currentTrack) {
     return (
       <footer className={`${styles.player} ${styles.idle}`}>
@@ -41,7 +187,10 @@ export default function AudioPlayer() {
   }
 
   return (
-    <footer className={`${styles.player} ${collapsed ? styles.collapsed : ''}`}>
+    <footer
+      className={`${styles.player} ${collapsed ? styles.collapsed : ''}`}
+      onClick={handleOpenPost}
+    >
       <div className={styles.trackInfo}>
         <img
           src={currentTrack.cover || 'https://picsum.photos/seed/default/56/56'}
@@ -57,7 +206,8 @@ export default function AudioPlayer() {
         <button
           type="button"
           className={`${styles.iconBtn} ${liked ? styles.liked : ''}`}
-          onClick={() => setLiked(l => !l)}
+          onClick={handleToggleLike}
+          disabled={loadingLike}
           aria-label="Yêu thích"
         >
           <Heart size={16} fill={liked ? 'currentColor' : 'none'} />
@@ -68,41 +218,42 @@ export default function AudioPlayer() {
         <div className={styles.buttons}>
           <button
             type="button"
-            className={`${styles.iconBtn} ${shuffle ? styles.active : ''}`}
-            onClick={() => setShuffle(s => !s)}
-            aria-label="Xáo trộn"
+            className={styles.iconBtn}
+            aria-label="Trước"
+            onClick={(e) => {
+              e.stopPropagation()
+              playPrev()
+            }}
           >
-            <Shuffle size={15} />
-          </button>
-
-          <button type="button" className={styles.iconBtn} aria-label="Trước" onClick={playPrev}>
             <SkipBack size={18} />
           </button>
 
           <button
             type="button"
             className={styles.playBtn}
-            onClick={togglePlay}
+            onClick={(e) => {
+              e.stopPropagation()
+              togglePlay()
+            }}
             aria-label={playing ? 'Tạm dừng' : 'Phát'}
           >
             {playing ? <Pause size={18} /> : <Play size={18} />}
           </button>
 
-          <button type="button" className={styles.iconBtn} aria-label="Tiếp theo" onClick={playNext}>
-            <SkipForward size={18} />
-          </button>
-
           <button
             type="button"
-            className={`${styles.iconBtn} ${repeat ? styles.active : ''}`}
-            onClick={() => setRepeat(r => !r)}
-            aria-label="Lặp lại"
+            className={styles.iconBtn}
+            aria-label="Tiếp theo"
+            onClick={(e) => {
+              e.stopPropagation()
+              playNext()
+            }}
           >
-            <Repeat size={15} />
+            <SkipForward size={18} />
           </button>
         </div>
 
-        <div className={styles.progressRow}>
+        <div className={styles.progressRow} onClick={(e) => e.stopPropagation()}>
           <span className={styles.time}>{formattedCurrentTime}</span>
 
           <div className={styles.progressBar}>
@@ -111,7 +262,10 @@ export default function AudioPlayer() {
               min={0}
               max={100}
               value={progressPercent}
-              onChange={e => seekToPercent(Number(e.target.value))}
+              onChange={(e) => {
+                e.stopPropagation()
+                seekToPercent(Number(e.target.value))
+              }}
               className={styles.range}
             />
             <div className={styles.fill} style={{ width: `${progressPercent}%` }} />
@@ -122,11 +276,16 @@ export default function AudioPlayer() {
       </div>
 
       <div className={styles.extras}>
-        <button type="button" className={styles.iconBtn} aria-label="Danh sách phát">
+        <button
+          type="button"
+          className={styles.iconBtn}
+          aria-label="Danh sách phát"
+          onClick={(e) => e.stopPropagation()}
+        >
           <ListMusic size={17} />
         </button>
 
-        <div className={styles.volumeRow}>
+        <div className={styles.volumeRow} onClick={(e) => e.stopPropagation()}>
           <Volume2 size={15} className={styles.volIcon} />
           <div className={`${styles.progressBar} ${styles.volumeBar}`}>
             <input
@@ -134,7 +293,10 @@ export default function AudioPlayer() {
               min={0}
               max={100}
               value={volume}
-              onChange={e => setVolume(Number(e.target.value))}
+              onChange={(e) => {
+                e.stopPropagation()
+                setVolume(Number(e.target.value))
+              }}
               className={styles.range}
             />
             <div className={styles.fill} style={{ width: `${volume}%` }} />
@@ -144,7 +306,10 @@ export default function AudioPlayer() {
         <button
           type="button"
           className={styles.collapseBtn}
-          onClick={() => setCollapsed(prev => !prev)}
+          onClick={(e) => {
+            e.stopPropagation()
+            setCollapsed(prev => !prev)
+          }}
           aria-label={collapsed ? 'Mở rộng trình phát' : 'Thu gọn trình phát'}
           title={collapsed ? 'Mở rộng' : 'Thu gọn'}
         >
