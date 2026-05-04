@@ -112,7 +112,7 @@ class Notification(models.Model):
     reference_type = models.CharField(max_length=50, null=True, blank=True)
     reference_id = models.CharField(max_length=26, null=True, blank=True)
     is_read = models.BooleanField(default=False)
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         db_table = 'notifications'
         managed = False
@@ -130,7 +130,7 @@ class PostShare(models.Model):
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='shared_posts')
     share_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="personal")
     caption = models.TextField(blank=True, null=True)
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = 'post_shares'

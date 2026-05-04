@@ -1,126 +1,34 @@
-import React, { useState } from 'react'
+import React, { useState, useContext, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
+import { PodcastContext } from '../contexts/PodcastContext'
 import { apiRequest } from '../../utils/api'
+import { getInitials } from '../../utils/getInitials'
 import { toast } from 'react-toastify'
+import { getToken, getCurrentUser } from '../../utils/auth'
+import PodcastCard from '../feed/PodcastCard'
+import CommentModal from '../feed/CommentModal'
+import ShareModal from '../feed/ShareModal'
+import SaveCollectionModal from '../common/SaveCollectionModal'
 import {
   CheckCircle2,
   Edit3,
   Share2,
   MoreHorizontal,
   Image as ImageIcon,
-  Smile,
-  MapPin,
-  Briefcase,
-  GraduationCap,
-  Calendar,
-  Heart,
-  MessageCircle,
   PlayCircle,
   Clock,
+  EyeOff,
+  Flag,
+  Trash2,
+  Heart,
+  MessageCircle,
+  Bookmark,
 } from 'lucide-react'
 import styles from '../../style/personal/PersonalPage.module.css'
 
 const TABS = ['Bài đăng', 'Podcast', 'Bạn bè']
-
-const SAMPLE_POSTS = [
-  {
-    id: 1,
-    author: 'Nguyễn Văn Anh',
-    avatar: 'https://i.pravatar.cc/150?img=11',
-    time: '2 giờ trước',
-    content:
-      'Vừa hoàn thành xong series Podcast về "Ứng dụng AI trong giáo dục". Mọi người cùng đón nghe nhé! 🎧🚀',
-    likes: 245,
-    comments: 42,
-    shares: 12,
-    podcastEmbed: {
-      title: 'Tập 1: AI đang thay đổi cách chúng ta học như thế nào?',
-      duration: '45:20',
-      thumbnail: 'https://picsum.photos/seed/podcast1/400/225',
-    },
-  },
-  {
-    id: 2,
-    author: 'Nguyễn Văn Anh',
-    avatar: 'https://i.pravatar.cc/150?img=11',
-    time: 'Hôm qua lúc 14:30',
-    content:
-      'Góc chia sẻ: Để duy trì thói quen làm podcast mỗi tuần, mình thường dành riêng sáng Chủ Nhật để lên kịch bản và thu âm. Các bạn creator khác quản lý thời gian thế nào? 👇',
-    likes: 189,
-    comments: 56,
-    shares: 4,
-  },
-]
-
-const SAMPLE_PODCASTS = [
-  {
-    id: 1,
-    title: 'Bắt đầu với Machine Learning',
-    duration: '32:15',
-    plays: '12.5k',
-    date: '2 ngày trước',
-    img: 'https://picsum.photos/seed/p1/300/300',
-  },
-  {
-    id: 2,
-    title: 'Tương lai của ReactJS 2026',
-    duration: '45:00',
-    plays: '8.2k',
-    date: '1 tuần trước',
-    img: 'https://picsum.photos/seed/p2/300/300',
-  },
-  {
-    id: 3,
-    title: 'Phỏng vấn: Hành trình làm Dev',
-    duration: '55:30',
-    plays: '15.1k',
-    date: '2 tuần trước',
-    img: 'https://picsum.photos/seed/p3/300/300',
-  },
-  {
-    id: 4,
-    title: 'Giải mã thuật toán AI',
-    duration: '28:40',
-    plays: '9.3k',
-    date: '3 tuần trước',
-    img: 'https://picsum.photos/seed/p4/300/300',
-  },
-]
-
-const SAMPLE_FRIENDS = [
-  {
-    name: 'Trần Minh',
-    mutual: 12,
-    avatar: 'https://i.pravatar.cc/150?img=33',
-  },
-  {
-    name: 'Lê Hoa',
-    mutual: 8,
-    avatar: 'https://i.pravatar.cc/150?img=44',
-  },
-  {
-    name: 'Phạm Hùng',
-    mutual: 24,
-    avatar: 'https://i.pravatar.cc/150?img=55',
-  },
-  {
-    name: 'Đặng Linh',
-    mutual: 5,
-    avatar: 'https://i.pravatar.cc/150?img=5',
-  },
-  {
-    name: 'Vũ Trâm',
-    mutual: 18,
-    avatar: 'https://i.pravatar.cc/150?img=9',
-  },
-  {
-    name: 'Hoàng Nam',
-    mutual: 2,
-    avatar: 'https://i.pravatar.cc/150?img=12',
-  },
-]
 
 export default function PersonalPage() {
   const [activeTab, setActiveTab] = useState('Bài đăng')
@@ -128,11 +36,17 @@ export default function PersonalPage() {
   const [podcasts, setPodcasts] = useState([])
   const [friends, setFriends] = useState([])
   const [userProfile, setUserProfile] = useState(null)
-  const [loadingPosts, setLoadingPosts] = useState(true)
-  const [likedPosts, setLikedPosts] = useState(new Set())
-  const [playingPostId, setPlayingPostId] = useState(null)
+  const [openMenuPostId, setOpenMenuPostId] = useState(null)
+  const [failedAvatarUrls, setFailedAvatarUrls] = useState(new Set())
+  const [postStates, setPostStates] = useState({}) // Track like, save, comment, share states
+  const [showCommentModal, setShowCommentModal] = useState(false)
+  const [showShareModal, setShowShareModal] = useState(false)
+  const [selectedPost, setSelectedPost] = useState(null)
+  const [showCollectionModal, setShowCollectionModal] = useState(false)
+  const saveBookmarkRef = useRef(null)
   const { user } = useAuth()
   const navigate = useNavigate()
+  const { deletedPostIds, deletedPostsVersion, hiddenPostIds, hiddenPostsVersion, deletePost, hidePost, addSavedPost, removeSavedPost } = useContext(PodcastContext)
 
   React.useEffect(() => {
     if (!user?.id) return
@@ -142,9 +56,17 @@ export default function PersonalPage() {
     fetchUserFriends()
   }, [user?.id])
 
+  React.useEffect(() => {
+    // Filter out deleted and hidden posts
+    setPosts(prev => 
+      prev.filter(p => !deletedPostIds.has(p.id) && !hiddenPostIds.has(p.id))
+    )
+  }, [deletedPostsVersion, hiddenPostsVersion])
+
   const fetchUserProfile = async () => {
     try {
       const data = await apiRequest(`/users/${user.id}/profile/`)
+      console.log('User profile data:', data.data)
       setUserProfile(data.data || {})
     } catch (err) {
       console.error('Failed to fetch user profile:', err)
@@ -153,14 +75,112 @@ export default function PersonalPage() {
 
   const fetchUserPosts = async () => {
     try {
-      setLoadingPosts(true)
       const data = await apiRequest(`/content/users/${user?.id}/posts/?limit=100`)
-      setPosts(data.data?.posts || [])
+      const posts = data.data?.posts || []
+      
+      console.log('📌 Fetched posts:', posts.map(p => ({ id: p.id, type: p.type, is_liked: p.is_liked, like_count: p.like_count, title: p.title })))
+      
+      // Load local overrides from localStorage
+      const localLikeOverrides = JSON.parse(localStorage.getItem('personalPageLikeOverrides') || '{}')
+      const localCommentCountOverrides = JSON.parse(localStorage.getItem('personalPageCommentCountOverrides') || '{}')
+      const profileHiddenPosts = JSON.parse(localStorage.getItem('profileHiddenPosts') || '[]')
+      
+      console.log('📌 Local like overrides:', localLikeOverrides)
+      console.log('📌 Local comment count overrides:', localCommentCountOverrides)
+      console.log('📌 Profile hidden posts:', profileHiddenPosts)
+      
+      // Map posts data to match PodcastCard expected format
+      const mappedPosts = posts.map((post) => {
+        // Use backend field names directly (cả bài gốc và bài share đều dùng counts từ backend)
+        const likeCount = post.like_count || 0
+        const shareCount = post.share_count || 0
+        const saveCount = post.save_count || 0
+        
+        // Check if there's a local override for like
+        const hasLocalLikeOverride = post.id in localLikeOverrides
+        const isLiked = hasLocalLikeOverride ? localLikeOverrides[post.id] : (post.is_liked || false)
+        const isSaved = post.is_saved || false
+        
+        // Check if there's a local override for comment count
+        const hasLocalCommentOverride = post.id in localCommentCountOverrides
+        const commentCount = hasLocalCommentOverride ? localCommentCountOverrides[post.id] : (post.comment_count || 0)
+        
+        console.log('📌 Post state:', { 
+          id: post.id,
+          type: post.type,
+          backendLiked: post.is_liked, 
+          localLikeOverride: hasLocalLikeOverride ? localLikeOverrides[post.id] : 'none',
+          finalLiked: isLiked,
+          backendLikeCount: post.like_count,
+          finalLikeCount: likeCount,
+          backendCommentCount: post.comment_count,
+          localCommentOverride: hasLocalCommentOverride ? localCommentCountOverrides[post.id] : 'none',
+          finalCommentCount: commentCount
+        })
+        
+        return {
+          id: post.id,
+          title: post.title,
+          description: post.description,
+          author: post.author || '',
+          authorUsername: post.author_username || '',
+          authorId: post.author_id || '',
+          authorInitials: getInitials(userProfile?.display_name || user?.username || 'User'),
+          audioUrl: post.audio_url || '',
+          durationSeconds: post.duration_seconds || 0,
+          cover: post.thumbnail_url,
+          thumbnail_url: post.thumbnail_url,
+          tags: post.tags || [],
+          aiGenerated: post.is_ai_generated || false,
+          timeAgo: post.timeAgo || new Date(post.created_at).toLocaleDateString('vi-VN'),
+          listens: post.listen_count || 0,
+          likes: likeCount,
+          comments: commentCount,
+          shares: shareCount,
+          saveCount: saveCount,
+          liked: isLiked,
+          saved: isSaved,
+          ...post, // Keep original data for fallback
+        }
+      })
+      
+      // Initialize postStates with the correct values from backend
+      const newPostStates = {}
+      mappedPosts.forEach(post => {
+        console.log('📌 Initializing post state:', { 
+          id: post.id, 
+          type: post.type,
+          post_id: post.post_id,
+          share_id: post.share_id,
+          is_liked: post.is_liked,
+          liked: post.liked,
+          likes: post.likes,
+          comments: post.comments,
+          title: post.title 
+        })
+        newPostStates[post.id] = {
+          liked: post.liked,  // Use the mapped 'liked' field (with local override)
+          likeCount: post.likes,
+          saved: post.saved,
+          saveCount: post.saveCount,
+          commentCount: post.comments,  // Use the mapped 'comments' field (with local override)
+          shareCount: post.shares,
+        }
+      })
+      console.log('📌 postStates initialized:', newPostStates)
+      setPostStates(newPostStates)
+      
+      // Filter out deleted, hidden posts, and profile hidden posts
+      const filteredPosts = mappedPosts.filter(p => 
+        !deletedPostIds.has(p.id) && 
+        !hiddenPostIds.has(p.id) &&
+        !profileHiddenPosts.includes(p.id)
+      )
+      
+      setPosts(filteredPosts)
     } catch (err) {
       console.error('Failed to fetch posts:', err)
       setPosts([])
-    } finally {
-      setLoadingPosts(false)
     }
   }
 
@@ -207,36 +227,304 @@ export default function PersonalPage() {
     toast.info('Các tùy chọn khác')
   }
 
-  const handleLikePost = async (postId) => {
+  const handleToggleLike = async (postId) => {
     try {
-      setLikedPosts((prev) => {
-        const next = new Set(prev)
-        if (next.has(postId)) {
-          next.delete(postId)
-        } else {
-          next.add(postId)
-        }
-        return next
+      const token = getToken()
+      const currentUser = getCurrentUser()
+
+      // Get the post to find the actual post ID
+      const post = posts.find(p => p.id === postId)
+      if (!post) {
+        console.error('❤️ Post not found:', postId)
+        return
+      }
+
+      console.log('❤️ Like clicked on post:', { 
+        postId, 
+        type: post.type,
+        post_id: post.post_id,
+        share_id: post.share_id,
+        currentLiked: postStates[postId]?.liked
       })
-      // TODO: Call API to persist like
+
+      // Use the composite ID (share_xxx_yyy) if it's a shared post, otherwise use post ID
+      const likeEndpointId = postId
+
+      const res = await fetch(
+        `http://localhost:8000/api/social/posts/${likeEndpointId}/like/`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            user_id: currentUser?.id,
+          }),
+        }
+      )
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || `HTTP ${res.status}`)
+      }
+
+      const nextLiked = Boolean(data.data?.liked)
+      const nextLikeCount = Number(data.data?.like_count || 0)
+
+      console.log('❤️ Like response:', { 
+        postId,
+        nextLiked, 
+        nextLikeCount,
+        currentPostState: postStates[postId]
+      })
+
+      // Save local override to localStorage
+      const localLikeOverrides = JSON.parse(localStorage.getItem('personalPageLikeOverrides') || '{}')
+      localLikeOverrides[postId] = nextLiked
+      localStorage.setItem('personalPageLikeOverrides', JSON.stringify(localLikeOverrides))
+      console.log('❤️ Saved local override:', { postId, liked: nextLiked })
+
+      // IMPORTANT: Only update the specific post that was clicked
+      // Do NOT update other posts even if they share the same original post
+      setPostStates(prev => {
+        const updated = {
+          ...prev,
+          [postId]: {
+            ...prev[postId],
+            liked: nextLiked,
+            likeCount: nextLikeCount,
+          }
+        }
+        console.log('❤️ Updated postStates for', postId, ':', updated[postId])
+        return updated
+      })
+
+      // Update posts array - only update the specific post
+      setPosts(prev => prev.map(p => {
+        if (p.id === postId) {
+          console.log('❤️ Updating post in array:', { id: p.id, oldLiked: p.liked, newLiked: nextLiked })
+          return { ...p, liked: nextLiked, likes: nextLikeCount }
+        }
+        return p
+      }))
     } catch (err) {
-      console.error('Failed to like post:', err)
+      console.error('Like failed:', err)
+      toast.error('Lỗi khi thích bài viết')
     }
   }
 
-  const handleCommentPost = (postId) => {
-    toast.info('Mở modal bình luận')
-    // TODO: Open comment modal
+  const handleToggleSave = async (postId) => {
+    try {
+      const currentState = postStates[postId]
+      const isSaved = currentState?.saved || false
+
+      // Use the composite ID (share_xxx_yyy) if it's a shared post, otherwise use post ID
+      const saveEndpointId = postId
+
+      if (isSaved) {
+        // Unsave
+        const token = getToken()
+        const currentUser = getCurrentUser()
+
+        const res = await fetch(
+          `http://localhost:8000/api/social/posts/${saveEndpointId}/save/`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({
+              user_id: currentUser?.id,
+            }),
+          }
+        )
+
+        const data = await res.json()
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || `HTTP ${res.status}`)
+        }
+
+        const nextSaveCount = Number(data.data?.save_count || 0)
+
+        setPostStates(prev => ({
+          ...prev,
+          [postId]: {
+            ...prev[postId],
+            saved: false,
+            saveCount: nextSaveCount,
+          }
+        }))
+
+        removeSavedPost(postId)
+
+        setPosts(prev => prev.map(p => 
+          p.id === postId 
+            ? { ...p, saved: false, saveCount: nextSaveCount }
+            : p
+        ))
+      } else {
+        // Show collection modal
+        setSelectedPost(posts.find(p => p.id === postId))
+        setShowCollectionModal(true)
+      }
+    } catch (err) {
+      console.error('Save failed:', err)
+      toast.error('Lỗi khi lưu bài viết')
+    }
   }
 
-  const handleSharePost = (post) => {
-    toast.info('Chia sẻ bài đăng')
-    // TODO: Open share modal or share to friends
+  const handleCollectionModalSave = (postId) => {
+    setPostStates(prev => ({
+      ...prev,
+      [postId]: {
+        ...prev[postId],
+        saved: true,
+        saveCount: (prev[postId]?.saveCount || 0) + 1,
+      }
+    }))
+
+    addSavedPost(postId)
+    setPosts(prev => prev.map(p => 
+      p.id === postId 
+        ? { ...p, saved: true, saveCount: (p.saveCount || 0) + 1 }
+        : p
+    ))
+    setShowCollectionModal(false)
   }
 
-  const displayPosts = posts.length > 0 ? posts : SAMPLE_POSTS
-  const displayPodcasts = podcasts.length > 0 ? podcasts : SAMPLE_PODCASTS
-  const displayFriends = friends.length > 0 ? friends : SAMPLE_FRIENDS
+  const handleOpenCommentModal = (post) => {
+    setSelectedPost(post)
+    setShowCommentModal(true)
+  }
+
+  const handleOpenShareModal = (post) => {
+    setSelectedPost(post)
+    setShowShareModal(true)
+  }
+
+  const handleCommentCountChange = (postId, newCount) => {
+    console.log('💬 Comment count changed:', { postId, newCount })
+    
+    // Save local override to localStorage
+    const localCommentCountOverrides = JSON.parse(localStorage.getItem('personalPageCommentCountOverrides') || '{}')
+    localCommentCountOverrides[postId] = newCount
+    localStorage.setItem('personalPageCommentCountOverrides', JSON.stringify(localCommentCountOverrides))
+    console.log('💬 Saved local comment count override:', { postId, count: newCount })
+    
+    setPostStates(prev => ({
+      ...prev,
+      [postId]: {
+        ...prev[postId],
+        commentCount: newCount,
+      }
+    }))
+
+    setPosts(prev => prev.map(p => 
+      p.id === postId 
+        ? { ...p, comments: newCount }
+        : p
+    ))
+  }
+
+  const handleShareSuccess = (postId, data) => {
+    console.log('📤 Share success - postId:', postId)
+    console.log('📤 Share success - data:', data)
+    
+    // Backend trả về like_count, comment_count, save_count, share_count
+    const newShareCount = Number(data?.share_count || 0)
+    const newLikeCount = Number(data?.like_count)
+    const newCommentCount = Number(data?.comment_count)
+    const newSaveCount = Number(data?.save_count)
+    
+    console.log('📤 Parsed counts:', { newShareCount, newLikeCount, newCommentCount, newSaveCount })
+    
+    setPostStates(prev => {
+      const updated = {
+        ...prev,
+        [postId]: {
+          ...prev[postId],
+          shareCount: newShareCount,
+          // Giữ nguyên các giá trị khác nếu backend không trả về
+          ...(typeof newLikeCount === 'number' && !isNaN(newLikeCount) ? { likeCount: newLikeCount } : {}),
+          ...(typeof newCommentCount === 'number' && !isNaN(newCommentCount) ? { commentCount: newCommentCount } : {}),
+          ...(typeof newSaveCount === 'number' && !isNaN(newSaveCount) ? { saveCount: newSaveCount } : {}),
+        }
+      }
+      console.log('📤 Updated postStates:', updated[postId])
+      return updated
+    })
+
+    setPosts(prev => prev.map(p => {
+      if (p.id === postId) {
+        const updated = { 
+          ...p, 
+          shares: newShareCount,
+          // Giữ nguyên các giá trị khác nếu backend không trả về
+          ...(typeof newLikeCount === 'number' && !isNaN(newLikeCount) ? { likes: newLikeCount } : {}),
+          ...(typeof newCommentCount === 'number' && !isNaN(newCommentCount) ? { comments: newCommentCount } : {}),
+          ...(typeof newSaveCount === 'number' && !isNaN(newSaveCount) ? { saveCount: newSaveCount } : {}),
+        }
+        console.log('📤 Updated post:', updated)
+        return updated
+      }
+      return p
+    }))
+  }
+
+  const handleDeletePost = async (postId) => {
+    try {
+      const post = posts.find(p => p.id === postId)
+      if (!post) return
+
+      const token = getToken()
+      const currentUser = getCurrentUser()
+
+      // If it's a shared post, use unshare endpoint
+      if (post.type === 'shared') {
+        const res = await fetch(`http://localhost:8000/api/social/posts/${post.post_id}/unshare/`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            user_id: currentUser?.id,
+          }),
+        })
+
+        if (!res.ok) {
+          const errorData = await res.json()
+          throw new Error(errorData.message || `HTTP ${res.status}`)
+        }
+      } else {
+        // If it's an original post, just hide it locally (don't call backend)
+        // Save to localStorage to persist across page reloads
+        const hiddenPosts = JSON.parse(localStorage.getItem('profileHiddenPosts') || '[]')
+        if (!hiddenPosts.includes(postId)) {
+          hiddenPosts.push(postId)
+          localStorage.setItem('profileHiddenPosts', JSON.stringify(hiddenPosts))
+        }
+      }
+
+      // Remove from UI
+      setPosts(prev => prev.filter(p => p.id !== postId))
+      deletePost(postId)
+      toast.success('Đã xóa bài đăng khỏi trang cá nhân')
+    } catch (err) {
+      console.error('Delete failed:', err)
+      toast.error('Lỗi khi xóa bài viết: ' + err.message)
+    }
+  }
+
+  const handleHidePost = (postId) => {
+    setPosts(prev => prev.filter(p => p.id !== postId))
+    hidePost(postId)
+    toast.success('Đã ẩn bài đăng')
+  }
 
   return (
     <div className={styles.container}>
@@ -261,11 +549,20 @@ export default function PersonalPage() {
             {/* Avatar */}
             <div className={styles.avatarWrapper}>
               <div className={styles.avatar}>
-                <img
-                  src={userProfile?.avatar_url || user?.avatar_url || "https://i.pravatar.cc/300?img=11"}
-                  alt="Avatar"
-                  className={styles.avatarImage}
-                />
+                {(userProfile?.avatar_url || user?.avatar_url) && !failedAvatarUrls.has('profile') ? (
+                  <img
+                    src={userProfile?.avatar_url || user?.avatar_url}
+                    alt="Avatar"
+                    className={styles.avatarImage}
+                    onError={() => {
+                      setFailedAvatarUrls(prev => new Set([...prev, 'profile']))
+                    }}
+                  />
+                ) : (
+                  <div className={styles.avatarInitialsLarge}>
+                    {getInitials(userProfile?.display_name || user?.username || 'User')}
+                  </div>
+                )}
               </div>
               <button className={styles.editAvatarBtn}>
                 <ImageIcon size={16} />
@@ -279,7 +576,7 @@ export default function PersonalPage() {
                 <CheckCircle2 size={20} className={styles.verifyBadge} />
               </h1>
               <p className={styles.profileStats}>
-                {displayPodcasts.length || 0} Podcast · {userProfile?.followers_count || 0} Người theo dõi · {userProfile?.following_count || 0} Đang theo dõi
+                {podcasts.length || 0} Podcast · {userProfile?.followers_count || 0} Người theo dõi · {userProfile?.following_count || 0} Đang theo dõi
               </p>
             </div>
 
@@ -333,101 +630,134 @@ export default function PersonalPage() {
             {activeTab === 'Bài đăng' && (
               <div className={styles.tabContent}>
                 <div className={styles.postsLayout}>
-                  {displayPosts.map((post) => (
-                    <div key={post.id} className={styles.postCard}>
-                      <div className={styles.postHeader}>
-                        <div className={styles.postAuthor}>
-                          <img src={post.avatar || userProfile?.avatar_url || "https://i.pravatar.cc/150?img=1"} alt={post.author} className={styles.smallAvatar} />
-                          <div>
-                            <h4 className={styles.authorName}>{post.author || user?.username}</h4>
-                            <p className={styles.postTime}>{post.timeAgo || post.time || post.created_at}</p>
-                          </div>
-                        </div>
-                        <button className={styles.postMenuBtn}>
-                          <MoreHorizontal size={20} />
-                        </button>
-                      </div>
-
-                      <p className={styles.postContent}>{post.description || post.content}</p>
-
-                      {/* Audio Player */}
-                      {post.audio_url && (
-                        <div className={styles.audioPlayer}>
-                          <div className={styles.audioControls}>
+                  {posts.length > 0 ? (
+                    posts.map((post) => (
+                      <div key={post.id} className={styles.postShareContainer}>
+                        {/* Wrapper div bao quanh tất cả */}
+                        <div className={styles.postShareWrapper}>
+                          {/* Share Info Header - Hiển thị tên người chia sẻ và thời gian */}
+                          <div className={styles.postShareInfo}>
+                            <div className={styles.postShareAuthor}>
+                              {(userProfile?.avatar_url || user?.avatar_url) && !failedAvatarUrls.has('postShare') ? (
+                                <div className={styles.postShareAvatarWrapper}>
+                                  <img 
+                                    src={userProfile?.avatar_url || user?.avatar_url} 
+                                    alt={user?.username} 
+                                    className={styles.postShareAvatar}
+                                    onError={() => {
+                                      setFailedAvatarUrls(prev => new Set([...prev, 'postShare']))
+                                    }}
+                                  />
+                                </div>
+                              ) : (
+                                <div className={styles.postShareAvatarWrapper}>
+                                  <div className={styles.postShareAvatarInitials}>
+                                    {getInitials(userProfile?.display_name || user?.username || 'User')}
+                                  </div>
+                                </div>
+                              )}
+                              <div>
+                                <h5 className={styles.postShareAuthorName}>
+                                  {userProfile?.display_name || userProfile?.full_name || userProfile?.name || user?.username}
+                                </h5>
+                                <p className={styles.postShareTime}>{post.timeAgo || new Date(post.created_at).toLocaleDateString('vi-VN')}</p>
+                              </div>
+                            </div>
                             <button 
-                              className={styles.playBtn}
-                              onClick={() => setPlayingPostId(playingPostId === post.id ? null : post.id)}
+                              className={styles.postShareMenuBtn}
+                              onClick={() => setOpenMenuPostId(openMenuPostId === post.id ? null : post.id)}
                             >
-                              {playingPostId === post.id ? '⏸' : '▶'}
+                              <MoreHorizontal size={20} />
                             </button>
-                            <div className={styles.audioProgressBar}>
-                              <div className={styles.progress}></div>
-                              <span className={styles.duration}>{post.duration_seconds ? `${Math.floor(post.duration_seconds / 60)}:${String(post.duration_seconds % 60).padStart(2, '0')}` : '00:00'}</span>
-                            </div>
+                            {openMenuPostId === post.id && (
+                              <div className={styles.postMenu}>
+                                <button 
+                                  className={styles.postMenuOption}
+                                  onClick={() => handleHidePost(post.id)}
+                                >
+                                  <EyeOff size={16} />
+                                  <span>Ẩn bài đăng</span>
+                                </button>
+                                <button 
+                                  className={styles.postMenuOption}
+                                  onClick={() => {
+                                    setOpenMenuPostId(null)
+                                    toast.info('Báo cáo bài đăng')
+                                  }}
+                                >
+                                  <Flag size={16} />
+                                  <span>Báo cáo</span>
+                                </button>
+                                <button 
+                                  className={styles.postMenuOption}
+                                  onClick={() => handleDeletePost(post.id)}
+                                >
+                                  <Trash2 size={16} />
+                                  <span>Xóa bài đăng</span>
+                                </button>
+                              </div>
+                            )}
                           </div>
-                          {post.thumbnail_url && (
-                            <img src={post.thumbnail_url} alt="Thumbnail" className={styles.audioCover} />
+
+                          {/* Share Caption - Hiển thị nội dung chia sẻ */}
+                          {post.share_caption && (
+                            <div className={styles.shareCaption}>
+                              <p>{post.share_caption}</p>
+                            </div>
                           )}
-                        </div>
-                      )}
 
-                      {post.podcastEmbed && (
-                        <div className={styles.podcastEmbed}>
-                          <div className={styles.podcastThumbnail}>
-                            <img src={post.podcastEmbed.thumbnail} alt="Podcast" className={styles.thumbnailImage} />
-                            <div className={styles.podcastOverlay}>
-                              <PlayCircle size={48} className={styles.playIcon} />
-                            </div>
-                            <div className={styles.durationBadge}>
-                              <Clock size={12} />
-                              {post.podcastEmbed.duration}
-                            </div>
+                          {/* Shared Post Content - Hiển thị bài đăng gốc */}
+                          <div className={styles.postCard}>
+                            <PodcastCard
+                              podcast={post}
+                              queue={posts}
+                              onDelete={handleDeletePost}
+                              onHide={handleHidePost}
+                              hideMenu={true}
+                              hideActions={true}
+                            />
                           </div>
-                          <div className={styles.podcastInfo}>
-                            <h5 className={styles.podcastTitle}>{post.podcastEmbed.title}</h5>
-                            <p className={styles.podcastLabel}>Podcast • EduCast</p>
-                          </div>
-                        </div>
-                      )}
 
-                      <div className={styles.postStats}>
-                        <div className={styles.likeCount}>
-                          <div className={styles.likeBadge}>
-                            <Heart size={10} className={styles.likeIcon} />
+                          {/* Share Actions - Hiển thị like, comment, share, lưu */}
+                          <div className={styles.postShareActions}>
+                            <button 
+                              className={`${styles.shareActionBtn} ${postStates[post.id]?.liked ? styles.liked : ''}`}
+                              onClick={() => handleToggleLike(post.id)}
+                            >
+                              <Heart size={16} fill={postStates[post.id]?.liked ? 'currentColor' : 'none'} />
+                              <span>{postStates[post.id]?.likeCount ?? post.likes ?? 0}</span>
+                            </button>
+                            <button 
+                              className={styles.shareActionBtn}
+                              onClick={() => handleOpenCommentModal(post)}
+                            >
+                              <MessageCircle size={16} />
+                              <span>{postStates[post.id]?.commentCount ?? post.comments ?? 0} Bình luận</span>
+                            </button>
+                            <button 
+                              className={styles.shareActionBtn}
+                              onClick={() => handleOpenShareModal(post)}
+                            >
+                              <Share2 size={16} />
+                              <span>{postStates[post.id]?.shareCount ?? post.shares ?? 0} Chia sẻ</span>
+                            </button>
+                            <button 
+                              ref={saveBookmarkRef}
+                              className={`${styles.shareActionBtn} ${postStates[post.id]?.saved ? styles.saved : ''}`}
+                              onClick={() => handleToggleSave(post.id)}
+                            >
+                              <Bookmark size={16} fill={postStates[post.id]?.saved ? 'currentColor' : 'none'} />
+                              <span>{postStates[post.id]?.saveCount ?? post.saveCount ?? 0} Lưu</span>
+                            </button>
                           </div>
-                          <span>{post.like_count || post.likes || 0}</span>
-                        </div>
-                        <div className={styles.otherStats}>
-                          <span>{post.comment_count || post.comments || 0} bình luận</span>
-                          <span>{post.share_count || post.shares || 0} chia sẻ</span>
                         </div>
                       </div>
-
-                      <div className={styles.postActions}>
-                        <button 
-                          className={`${styles.postActionBtn} ${likedPosts.has(post.id) ? styles.liked : ''}`}
-                          onClick={() => handleLikePost(post.id)}
-                        >
-                          <Heart size={18} fill={likedPosts.has(post.id) ? 'currentColor' : 'none'} />
-                          <span>Thích</span>
-                        </button>
-                        <button 
-                          className={styles.postActionBtn}
-                          onClick={() => handleCommentPost(post.id)}
-                        >
-                          <MessageCircle size={18} />
-                          <span>Bình luận</span>
-                        </button>
-                        <button 
-                          className={styles.postActionBtn}
-                          onClick={() => handleSharePost(post)}
-                        >
-                          <Share2 size={18} />
-                          <span>Chia sẻ</span>
-                        </button>
-                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.emptyState}>
+                      <p>Chưa có bài đăng nào</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}
@@ -436,28 +766,34 @@ export default function PersonalPage() {
               <div className={styles.tabContent}>
                 <h3 className={styles.cardTitle}>Podcast của tôi</h3>
                 <div className={styles.podcastsGrid}>
-                  {displayPodcasts.map((pod) => (
-                    <div key={pod.id} className={styles.podcastItem}>
-                      <div className={styles.podcastItemThumbnail}>
-                        <img src={pod.img || pod.thumbnail_url} alt={pod.title} className={styles.thumbnailImage} />
-                        <div className={styles.podcastItemOverlay}>
-                          <PlayCircle size={24} className={styles.playIcon} />
+                  {podcasts.length > 0 ? (
+                    podcasts.map((pod) => (
+                      <div key={pod.id} className={styles.podcastItem}>
+                        <div className={styles.podcastItemThumbnail}>
+                          <img src={pod.img || pod.thumbnail_url} alt={pod.title} className={styles.thumbnailImage} />
+                          <div className={styles.podcastItemOverlay}>
+                            <PlayCircle size={24} className={styles.playIcon} />
+                          </div>
+                        </div>
+                        <div className={styles.podcastItemInfo}>
+                          <h4 className={styles.podcastItemTitle}>{pod.title}</h4>
+                          <div className={styles.podcastItemMeta}>
+                            <span className={styles.metaItem}>
+                              <Clock size={12} /> {pod.duration}
+                            </span>
+                            <span className={styles.metaItem}>
+                              <PlayCircle size={12} /> {pod.plays}
+                            </span>
+                          </div>
+                          <p className={styles.podcastItemDate}>{pod.date}</p>
                         </div>
                       </div>
-                      <div className={styles.podcastItemInfo}>
-                        <h4 className={styles.podcastItemTitle}>{pod.title}</h4>
-                        <div className={styles.podcastItemMeta}>
-                          <span className={styles.metaItem}>
-                            <Clock size={12} /> {pod.duration}
-                          </span>
-                          <span className={styles.metaItem}>
-                            <PlayCircle size={12} /> {pod.plays}
-                          </span>
-                        </div>
-                        <p className={styles.podcastItemDate}>{pod.date}</p>
-                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.emptyState}>
+                      <p>Chưa có podcast nào</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}
@@ -466,18 +802,24 @@ export default function PersonalPage() {
               <div className={styles.tabContent}>
                 <div className={styles.tabContentHeader}>
                   <h3 className={styles.cardTitle}>Bạn bè</h3>
-                  <div className={styles.friendsCount}>{displayFriends.length} người</div>
+                  <div className={styles.friendsCount}>{friends.length} người</div>
                 </div>
                 <div className={styles.friendsGrid}>
-                  {displayFriends.map((friend) => (
-                    <div key={friend.name || friend.username} className={styles.friendCard}>
-                      <img src={friend.avatar_url || friend.avatar} alt={friend.name || friend.username} className={styles.friendAvatar} />
-                      <div>
-                        <h4 className={styles.friendName}>{friend.name || friend.display_name || friend.username}</h4>
-                        <p className={styles.friendMutual}>{friend.mutual || 0} bạn chung</p>
+                  {friends.length > 0 ? (
+                    friends.map((friend) => (
+                      <div key={friend.name || friend.username} className={styles.friendCard}>
+                        <img src={friend.avatar_url || friend.avatar} alt={friend.name || friend.username} className={styles.friendAvatar} />
+                        <div>
+                          <h4 className={styles.friendName}>{friend.name || friend.display_name || friend.username}</h4>
+                          <p className={styles.friendMutual}>{friend.mutual || 0} bạn chung</p>
+                        </div>
                       </div>
+                    ))
+                  ) : (
+                    <div className={styles.emptyState}>
+                      <p>Chưa có bạn bè nào</p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
             )}
@@ -485,6 +827,44 @@ export default function PersonalPage() {
           </motion.div>
         </AnimatePresence>
       </div>
+
+      {showCommentModal && selectedPost && (
+        <CommentModal
+          podcast={selectedPost}
+          liked={postStates[selectedPost.id]?.liked ?? selectedPost.liked ?? false}
+          saved={postStates[selectedPost.id]?.saved ?? selectedPost.saved ?? false}
+          likeCount={postStates[selectedPost.id]?.likeCount ?? selectedPost.likes ?? 0}
+          shareCount={postStates[selectedPost.id]?.shareCount ?? selectedPost.shares ?? 0}
+          saveCount={postStates[selectedPost.id]?.saveCount ?? selectedPost.saveCount ?? 0}
+          commentCount={postStates[selectedPost.id]?.commentCount ?? selectedPost.comments ?? 0}
+          onClose={() => setShowCommentModal(false)}
+          onCommentCountChange={(newCount) => handleCommentCountChange(selectedPost.id, newCount)}
+          onToggleLike={() => handleToggleLike(selectedPost.id)}
+          onToggleSave={() => handleToggleSave(selectedPost.id)}
+          onShare={() => handleOpenShareModal(selectedPost)}
+          onPostDeleted={() => {
+            setShowCommentModal(false)
+            handleDeletePost(selectedPost.id)
+          }}
+        />
+      )}
+
+      {showShareModal && selectedPost && (
+        <ShareModal
+          podcast={selectedPost}
+          onClose={() => setShowShareModal(false)}
+          onShareSuccess={(data) => handleShareSuccess(selectedPost.id, data)}
+        />
+      )}
+
+      <SaveCollectionModal
+        isOpen={showCollectionModal}
+        onClose={() => setShowCollectionModal(false)}
+        postId={selectedPost?.id}
+        onSave={() => handleCollectionModalSave(selectedPost?.id)}
+        triggerRef={saveBookmarkRef}
+        isPopup={true}
+      />
     </div>
   )
 }

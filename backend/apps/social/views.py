@@ -96,7 +96,6 @@ def _create_notification(
         reference_type=reference_type,
         reference_id=reference_id,
         is_read=False,
-        created_at=timezone.now(),
     )
 
 # Helper để đếm like/comment/save/share cho post
@@ -180,13 +179,26 @@ def _notification_to_dict(notification):
 @csrf_exempt
 @require_http_methods(["POST"])
 def toggle_like_post(request, post_id):
+    # Lấy body JSON từ request
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+    
     # Lấy user hiện tại từ request hoặc body
-    user = _get_current_user(request)
+    user = _get_current_user(request, body)
     if not user:
         return _json_error("Authentication required", 401)
 
+    # Kiểm tra xem post_id có phải là composite share ID không (format: share_xxx_yyy)
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
     # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, id=actual_post_id)
 
     # Kiểm tra xem user đã like post này chưa
     existing_like = PostLike.objects.filter(post_id=post.id, user_id=user.id).first()
@@ -244,8 +256,15 @@ def toggle_save_post(request, post_id):
         if not user:
             return _json_error("Authentication required", 401)
 
+        # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+        actual_post_id = post_id
+        if post_id.startswith('share_'):
+            parts = post_id.split('_')
+            if len(parts) >= 3:
+                actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+        
         # Kiểm tra post tồn tại
-        post = get_object_or_404(Post, id=post_id)
+        post = get_object_or_404(Post, id=actual_post_id)
 
         # Lấy collection_id nếu có
         collection_id = body.get("collection_id")
@@ -327,7 +346,14 @@ def toggle_save_post(request, post_id):
 # Comment: list
 @require_http_methods(["GET"])
 def list_post_comments(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
+    post = get_object_or_404(Post, id=actual_post_id)
 
     user = _get_current_user(request)
 
@@ -363,7 +389,14 @@ def list_post_comments(request, post_id):
 # List commmentors
 @require_http_methods(["GET"])
 def list_post_commenters(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
+    post = get_object_or_404(Post, id=actual_post_id)
 
     comments = (
         Comment.objects.filter(post_id=post.id)
@@ -420,8 +453,15 @@ def create_comment(request, post_id):
     if not content:
         return _json_error("content is required", 400)
 
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+
     # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, id=actual_post_id)
 
     # Tạo comment mới với parent_comment_id = null
     comment = Comment.objects.create(
@@ -674,8 +714,15 @@ def delete_comment(request, comment_id):
 # Lấy danh sách user đã like post
 @require_http_methods(["GET"])
 def list_post_likers(request, post_id):
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
     # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, id=actual_post_id)
 
     # Lấy tất cả like
     likes = PostLike.objects.filter(post_id=post.id).select_related("user").order_by("-created_at")
@@ -841,8 +888,25 @@ def share_post(request, post_id):
         if not user:
             return _json_error("Authentication required", 401)
 
+        # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+        actual_post_id = post_id
+        if post_id.startswith('share_'):
+            parts = post_id.split('_')
+            if len(parts) >= 3:
+                actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+
         # Kiểm tra post tồn tại
-        post = get_object_or_404(Post, id=post_id)
+        post = get_object_or_404(Post, id=actual_post_id)
+
+        # Kiểm tra xem user đã share bài viết này chưa
+        existing_share = PostShare.objects.filter(
+            post_id=post.id,
+            user_id=user.id,
+            share_type="personal"
+        ).first()
+
+        if existing_share:
+            return _json_error("Bạn đã chia sẻ bài viết này rồi", 400)
 
         share_type = (body.get("share_type") or "personal").strip()
 
@@ -938,11 +1002,58 @@ def delete_shared_post(request, post_id):
         }
     )
 
+# Hide post from profile (không ảnh hưởng đến Feed)
+@csrf_exempt
+@require_http_methods(["POST"])
+def hide_post_from_profile(request, post_id):
+    """Hide a post from user's profile view (doesn't affect Feed)"""
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]
+
+    post = get_object_or_404(Post, id=actual_post_id)
+
+    # Tạo hoặc lấy HiddenPost record
+    hidden_post, created = HiddenPost.objects.get_or_create(
+        post_id=post.id,
+        user_id=user.id,
+        defaults={
+            'id': _generate_id("hide"),
+            'created_at': timezone.now()
+        }
+    )
+
+    return _json_success(
+        "Post hidden from profile successfully",
+        {
+            "post_id": post.id,
+            "hidden": True
+        }
+    )
+
 # List share post 
 @require_http_methods(["GET"])
 def list_post_sharers(request, post_id):
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
     # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, id=actual_post_id)
 
     # Lấy tất cả share
     shares = PostShare.objects.filter(
@@ -1700,7 +1811,6 @@ def share_post_to_user(request, post_id):
                     sender=user,
                     content=message_content,
                     message_type="podcast",
-                    created_at=timezone.now()
                 )
 
                 serialized_message = MessageSerializer(
@@ -1728,7 +1838,6 @@ def share_post_to_user(request, post_id):
                         user=user,
                         share_type="message",
                         caption=caption,
-                        created_at=timezone.now()
                     )
                 except Exception as share_error:
                     warnings.append(f"PostShare skipped: {share_error}")

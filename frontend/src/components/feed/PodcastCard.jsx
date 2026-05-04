@@ -22,7 +22,7 @@
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
   }
 
-export default function PodcastCard({ podcast, queue = [], onDelete, onHide }) {
+export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hideMenu = false, hideActions = false }) {
     const currentUser = getCurrentUser()
     const navigate = useNavigate()
     const menuRef = useRef(null)
@@ -761,52 +761,54 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide }) {
               </div>
             </div>
 
-            <div className={styles.menuWrap} ref={menuRef}>
-              <button
-                className={styles.menuBtn}
-                type="button"
-                onClick={() => setMenuOpen(!menuOpen)}
-                aria-label="Tùy chọn"
-              >
-                <MoreHorizontal size={18} />
-              </button>
+            {!hideMenu && (
+              <div className={styles.menuWrap} ref={menuRef}>
+                <button
+                  className={styles.menuBtn}
+                  type="button"
+                  onClick={() => setMenuOpen(!menuOpen)}
+                  aria-label="Tùy chọn"
+                >
+                  <MoreHorizontal size={18} />
+                </button>
 
-              {menuOpen &&
-                createPortal(
-                  <div 
-                    className={styles.dropdown}
-                    style={{
-                      top: `${dropdownPos.top}px`,
-                      left: `${dropdownPos.left}px`,
-                    }}
-                  >
-                    {isOwner ? (
-                      <>
-                        <button className={styles.dropdownItem} onClick={handleEdit}>
-                          <Edit size={16} />
-                          <span>Chỉnh sửa</span>
-                        </button>
-                        <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleDelete}>
-                          <Trash2 size={16} />
-                          <span>Xóa</span>
-                        </button>
-                      </>
-                    ) : (
-                      <>
-                        <button className={styles.dropdownItem} onClick={handleHide}>
-                          <EyeOff size={16} />
-                          <span>Ẩn bài viết</span>
-                        </button>
-                        <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleReport}>
-                          <Flag size={16} />
-                          <span>Báo cáo</span>
-                        </button>
-                      </>
-                    )}
-                  </div>,
-                  document.body
-                )}
-            </div>
+                {menuOpen &&
+                  createPortal(
+                    <div 
+                      className={styles.dropdown}
+                      style={{
+                        top: `${dropdownPos.top}px`,
+                        left: `${dropdownPos.left}px`,
+                      }}
+                    >
+                      {isOwner ? (
+                        <>
+                          <button className={styles.dropdownItem} onClick={handleEdit}>
+                            <Edit size={16} />
+                            <span>Chỉnh sửa</span>
+                          </button>
+                          <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleDelete}>
+                            <Trash2 size={16} />
+                            <span>Xóa</span>
+                          </button>
+                        </>
+                      ) : (
+                        <>
+                          <button className={styles.dropdownItem} onClick={handleHide}>
+                            <EyeOff size={16} />
+                            <span>Ẩn bài viết</span>
+                          </button>
+                          <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleReport}>
+                            <Flag size={16} />
+                            <span>Báo cáo</span>
+                          </button>
+                        </>
+                      )}
+                    </div>,
+                    document.body
+                  )}
+              </div>
+            )}
           </div>
 
           <div className={styles.body}>
@@ -859,7 +861,8 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide }) {
             </div>
           </div>
 
-          <div className={styles.actions}>
+          {!hideActions && (
+            <div className={styles.actions}>
             <div
               ref={(el) => { statRefs.current.likes = el }}
               className={styles.statHoverWrap}
@@ -1005,6 +1008,7 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide }) {
               <span>{saved ? `${saveCount} Lưu` : `${saveCount} Lưu`}</span>
             </button>
           </div>
+          )}
         </article>
 
         <ConfirmModal

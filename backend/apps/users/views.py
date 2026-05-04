@@ -285,6 +285,48 @@ def get_current_user(request):
     )
 
 
+@api_view(["GET"])
+@permission_classes([AllowAny])
+def get_user_profile(request, user_id):
+    """Get user profile by user_id"""
+    try:
+        user = User.objects.get(id=user_id)
+        profile = getattr(user, "profile", None)
+        
+        # Get follower/following counts
+        from apps.social.models import Follow
+        followers_count = Follow.objects.filter(following_id=user_id).count()
+        following_count = Follow.objects.filter(follower_id=user_id).count()
+        
+        return Response(
+            {
+                "data": {
+                    "id": str(user.id),
+                    "email": user.email,
+                    "username": user.username,
+                    "display_name": profile.display_name if profile else user.username,
+                    "avatar_url": profile.avatar_url if profile else None,
+                    "cover_url": profile.cover_url if profile else None,
+                    "bio": profile.bio if profile else "",
+                    "followers_count": followers_count,
+                    "following_count": following_count,
+                    "preferred_language": profile.preferred_language if profile else "vi",
+                }
+            },
+            status=status.HTTP_200_OK,
+        )
+    except User.DoesNotExist:
+        return Response(
+            {"error": "User not found"},
+            status=status.HTTP_404_NOT_FOUND,
+        )
+    except Exception as e:
+        return Response(
+            {"error": str(e)},
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+        )
+
+
 # ==========================================================
 # API QUÊN MẬT KHẨU
 # - nhận email
