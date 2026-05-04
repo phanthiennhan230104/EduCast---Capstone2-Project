@@ -1,10 +1,10 @@
 .hero {
   min-height: 88vh;
-  padding: 40px 0 40px;
+  padding: 48px 0 56px;
   display: grid;
   grid-template-columns: 1.05fr 0.95fr;
   align-items: center;
-  gap: 48px;
+  gap: 56px;
   position: relative;
 }
 
@@ -16,31 +16,34 @@
 .heroBadge {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
+  gap: 9px;
   background: rgba(244, 162, 39, 0.12);
-  border: 1px solid rgba(244, 162, 39, 0.3);
+  border: 1px solid rgba(244, 162, 39, 0.28);
   border-radius: 999px;
-  padding: 6px 16px;
-  font-size: 0.8rem;
+  padding: 8px 16px;
+  font-size: 0.78rem;
   color: #f4a227;
-  font-weight: 600;
+  font-weight: 700;
   margin-bottom: 28px;
   text-transform: uppercase;
+  letter-spacing: 0.08em;
 }
 
 .badgePing {
-  width: 6px;
-  height: 6px;
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
   background: #f4a227;
+  box-shadow: 0 0 0 6px rgba(244, 162, 39, 0.16);
 }
 
 .heroTitle {
-  font-size: clamp(2.8rem, 5vw, 4.4rem);
-  line-height: 1.05;
-  letter-spacing: -0.04em;
-  margin: 0 0 20px;
-  font-weight: 800;
+  font-size: clamp(2.8rem, 5.4vw, 5rem);
+  line-height: 1.02;
+  letter-spacing: -0.055em;
+  margin: 0 0 22px;
+  font-weight: 900;
+  color: #fffaf1;
 }
 
 .lineAccent {
@@ -48,52 +51,81 @@
   position: relative;
 }
 
+.lineAccent::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  right: 6px;
+  bottom: 5px;
+  height: 12px;
+  background: rgba(244, 162, 39, 0.18);
+  z-index: -1;
+  border-radius: 999px;
+}
+
 .lineTeal {
   color: #00c4a7;
 }
 
 .heroDesc {
-  max-width: 520px;
-  color: rgba(245, 240, 232, 0.68);
+  max-width: 560px;
+  color: rgba(245, 240, 232, 0.72);
   font-size: 1.08rem;
   line-height: 1.75;
-  margin-bottom: 40px;
+  margin: 0 0 36px;
 }
 
 .heroCta {
   display: flex;
-  gap: 16px;
+  gap: 14px;
   flex-wrap: wrap;
+  align-items: center;
 }
 
 .btnCta,
 .btnOutlineCta {
   border-radius: 999px;
-  padding: 16px 28px;
+  padding: 15px 24px;
   cursor: pointer;
-  font-weight: 600;
+  font-weight: 800;
   display: inline-flex;
   align-items: center;
   gap: 10px;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease,
+    border-color 0.2s ease,
+    background 0.2s ease;
 }
 
 .btnCta {
   background: #f4a227;
   color: #111827;
   border: none;
-  box-shadow: 0 8px 32px rgba(244, 162, 39, 0.3);
+  box-shadow: 0 16px 34px rgba(244, 162, 39, 0.26);
+}
+
+.btnCta:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 20px 44px rgba(244, 162, 39, 0.35);
 }
 
 .btnOutlineCta {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.04);
   color: #f5f0e8;
-  border: 1px solid rgba(245, 240, 232, 0.2);
+  border: 1px solid rgba(245, 240, 232, 0.18);
+}
+
+.btnOutlineCta:hover {
+  transform: translateY(-2px);
+  border-color: rgba(245, 240, 232, 0.36);
+  background: rgba(255, 255, 255, 0.07);
 }
 
 .heroStats {
   display: flex;
-  gap: 28px;
-  margin-top: 52px;
+  gap: 26px;
+  margin-top: 50px;
   align-items: stretch;
   flex-wrap: wrap;
 }
@@ -101,18 +133,20 @@
 .stat {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .statNum {
-  font-size: 1.5rem;
-  font-weight: 800;
+  font-size: 1.45rem;
+  font-weight: 900;
+  color: #fffaf1;
 }
 
 .statLabel {
-  font-size: 0.78rem;
+  font-size: 0.76rem;
   text-transform: uppercase;
-  color: rgba(245, 240, 232, 0.48);
+  letter-spacing: 0.06em;
+  color: rgba(245, 240, 232, 0.46);
 }
 
 .statDivider {
@@ -122,71 +156,102 @@
 
 .heroVisual {
   position: relative;
+  min-height: 520px;
   display: flex;
   justify-content: center;
   align-items: center;
 }
 
+.glowCircle {
+  position: absolute;
+  width: 430px;
+  height: 430px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, rgba(244, 162, 39, 0.22), transparent 58%),
+    radial-gradient(circle at 70% 30%, rgba(0, 196, 167, 0.18), transparent 42%),
+    radial-gradient(circle at 25% 70%, rgba(91, 76, 245, 0.22), transparent 46%);
+  filter: blur(8px);
+  opacity: 0.95;
+}
+
 .podcastCardMain {
-  width: 340px;
-  padding: 28px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.06);
-  backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  width: min(390px, 100%);
+  padding: 30px;
+  border-radius: 30px;
+  background:
+    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.045)),
+    rgba(8, 14, 28, 0.74);
+  backdrop-filter: blur(22px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    0 34px 80px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 2;
 }
 
 .cardHeader {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 20px;
+  gap: 13px;
+  margin-bottom: 24px;
 }
 
 .cardThumb {
-  width: 52px;
-  height: 52px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, #5b4cf5, #ff5f3d);
+  width: 56px;
+  height: 56px;
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, #5b4cf5, #ff5f3d 55%, #f4a227);
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.55rem;
+  box-shadow: 0 16px 34px rgba(91, 76, 245, 0.24);
 }
 
 .cardMeta {
   flex: 1;
+  min-width: 0;
 }
 
 .cardTitleSm {
-  font-weight: 700;
-  margin-bottom: 4px;
+  font-weight: 800;
+  margin-bottom: 5px;
+  color: #fffaf1;
 }
 
 .cardAuthor {
   font-size: 0.78rem;
   color: rgba(245, 240, 232, 0.55);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .cardTag {
-  padding: 6px 10px;
+  padding: 7px 10px;
   border-radius: 999px;
   background: rgba(0, 196, 167, 0.14);
   color: #00c4a7;
   font-size: 0.72rem;
+  font-weight: 800;
+  white-space: nowrap;
 }
 
 .waveform {
   display: flex;
   align-items: end;
   gap: 6px;
-  height: 78px;
-  margin: 26px 0 22px;
+  height: 86px;
+  margin: 28px 0 24px;
 }
 
 .waveBar {
   width: 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.15);
   transform-origin: bottom;
   animation: wave 1.4s ease-in-out infinite;
 }
@@ -196,24 +261,25 @@
 }
 
 @keyframes wave {
-  0%, 100% {
+  0%,
+  100% {
     transform: scaleY(1);
   }
+
   50% {
     transform: scaleY(var(--h));
   }
 }
 
-.waveBar:nth-child(1)  { height: 30px; --h: 1.4; animation-delay: 0s; }
-.waveBar:nth-child(2)  { height: 44px; --h: 1.15; animation-delay: 0.07s; }
-.waveBar:nth-child(3)  { height: 58px; --h: 0.82; animation-delay: 0.14s; }
-.waveBar:nth-child(4)  { height: 38px; --h: 1.2; animation-delay: 0.21s; }
-.waveBar:nth-child(5)  { height: 62px; --h: 0.78; animation-delay: 0.28s; }
-.waveBar:nth-child(6)  { height: 46px; --h: 1.1; animation-delay: 0.35s; }
-.waveBar:nth-child(7)  { height: 52px; --h: 0.9; animation-delay: 0.42s; }
-
-.waveBar:nth-child(8)  { height: 28px; --h: 1.25; animation-delay: 0.49s; }
-.waveBar:nth-child(9)  { height: 20px; --h: 1.45; animation-delay: 0.56s; }
+.waveBar:nth-child(1) { height: 30px; --h: 1.4; animation-delay: 0s; }
+.waveBar:nth-child(2) { height: 44px; --h: 1.15; animation-delay: 0.07s; }
+.waveBar:nth-child(3) { height: 58px; --h: 0.82; animation-delay: 0.14s; }
+.waveBar:nth-child(4) { height: 38px; --h: 1.2; animation-delay: 0.21s; }
+.waveBar:nth-child(5) { height: 62px; --h: 0.78; animation-delay: 0.28s; }
+.waveBar:nth-child(6) { height: 46px; --h: 1.1; animation-delay: 0.35s; }
+.waveBar:nth-child(7) { height: 52px; --h: 0.9; animation-delay: 0.42s; }
+.waveBar:nth-child(8) { height: 28px; --h: 1.25; animation-delay: 0.49s; }
+.waveBar:nth-child(9) { height: 20px; --h: 1.45; animation-delay: 0.56s; }
 .waveBar:nth-child(10) { height: 40px; --h: 1.05; animation-delay: 0.63s; }
 .waveBar:nth-child(11) { height: 32px; --h: 1.2; animation-delay: 0.70s; }
 .waveBar:nth-child(12) { height: 54px; --h: 0.85; animation-delay: 0.77s; }
@@ -229,6 +295,7 @@
 .cardControls {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 16px;
 }
 
@@ -237,6 +304,11 @@
   border: none;
   cursor: pointer;
   border-radius: 50%;
+  display: grid;
+  place-items: center;
+  transition:
+    transform 0.2s ease,
+    background 0.2s ease;
 }
 
 .ctrlBtn {
@@ -246,50 +318,60 @@
   color: #f5f0e8;
 }
 
+.ctrlBtn:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.13);
+}
+
 .ctrlPlay {
-  width: 56px;
-  height: 56px;
+  width: 58px;
+  height: 58px;
   background: #f4a227;
   color: #111827;
+  box-shadow: 0 14px 30px rgba(244, 162, 39, 0.28);
+}
+
+.ctrlPlay:hover {
+  transform: scale(1.05);
 }
 
 .floatCard {
   position: absolute;
-  padding: 14px 18px;
+  z-index: 3;
+  padding: 14px 17px;
   border-radius: 22px;
-  background: rgba(8, 14, 28, 0.9);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(8, 14, 28, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   gap: 12px;
   align-items: center;
   box-shadow:
     0 20px 45px rgba(0, 0, 0, 0.32),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(18px);
 }
 
-.floatCardTwo {
-  bottom: 18px;
-  left: -42px;
-  animation:
-    cardEnter 0.7s ease-out,
-    cardFloat 4s ease-in-out infinite 0.7s;
+.floatCardOne {
+  top: 80px;
+  right: 8px;
+  animation: cardFloat 4s ease-in-out infinite;
 }
 
-@keyframes cardEnter {
-  0% {
-    opacity: 0;
-    transform: translate(-24px, 18px) scale(0.94);
-  }
-  100% {
-    opacity: 1;
-    transform: translate(0, 0) scale(1);
-  }
+.floatCardTwo {
+  bottom: 74px;
+  left: 4px;
+  animation: cardFloat 4.4s ease-in-out infinite 0.4s;
+}
+
+.floatCardThree {
+  top: 48px;
+  left: 20px;
+  animation: cardFloat 4.8s ease-in-out infinite 0.8s;
 }
 
 .floatIconWrap {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -305,15 +387,15 @@
 }
 
 .floatMain {
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: 0.88rem;
+  font-weight: 800;
   color: #f5f0e8;
   line-height: 1.2;
   white-space: nowrap;
 }
 
 .floatSub {
-  font-size: 0.76rem;
+  font-size: 0.74rem;
   color: rgba(245, 240, 232, 0.55);
   margin-top: 4px;
   white-space: nowrap;
@@ -323,44 +405,108 @@
   0% {
     transform: translateY(0px) rotate(0deg);
   }
-  25% {
-    transform: translateY(-6px) rotate(-0.4deg);
-  }
+
   50% {
-    transform: translateY(-12px) rotate(0deg);
+    transform: translateY(-12px) rotate(-0.5deg);
   }
-  75% {
-    transform: translateY(-6px) rotate(0.4deg);
-  }
+
   100% {
     transform: translateY(0px) rotate(0deg);
   }
 }
 
-.floatMain {
-  font-size: 0.86rem;
-  font-weight: 700;
-}
+@media (max-width: 1100px) {
+  .hero {
+    gap: 36px;
+  }
 
-.floatSub {
-  font-size: 0.75rem;
-  color: rgba(245, 240, 232, 0.55);
+  .floatCardThree {
+    display: none;
+  }
 }
 
 @media (max-width: 960px) {
   .hero {
     grid-template-columns: 1fr;
     min-height: auto;
-    padding: 36px 0 24px;
+    padding: 42px 0 28px;
   }
 
   .heroVisual {
-    margin-top: 20px;
+    min-height: 470px;
+    margin-top: 8px;
   }
 
-  .floatCardOne,
+  .floatCardOne {
+    right: 0;
+  }
+
   .floatCardTwo {
+    left: 0;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero {
+    padding-top: 26px;
+  }
+
+  .heroBadge {
+    font-size: 0.68rem;
+    padding: 7px 12px;
+  }
+
+  .heroDesc {
+    font-size: 1rem;
+  }
+
+  .heroCta {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btnCta,
+  .btnOutlineCta {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .heroStats {
+    gap: 18px;
+    margin-top: 34px;
+  }
+
+  .statDivider {
+    display: none;
+  }
+
+  .heroVisual {
+    min-height: auto;
+    padding: 44px 0 12px;
+  }
+
+  .glowCircle {
+    width: 300px;
+    height: 300px;
+  }
+
+  .podcastCardMain {
+    width: 100%;
+    padding: 22px;
+    border-radius: 24px;
+  }
+
+  .cardHeader {
+    align-items: flex-start;
+  }
+
+  .cardTag {
+    display: none;
+  }
+
+  .floatCard {
     position: static;
+    width: 100%;
     margin-top: 12px;
   }
 

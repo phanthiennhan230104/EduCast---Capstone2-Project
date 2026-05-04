@@ -28,7 +28,7 @@ export default function HomePage() {
       <PageHeader onOpenLogin={openLogin} onOpenSignup={openSignup} />
 
       <main className={styles.main}>
-        <HeroSection />
+        <HeroSection onOpenSignup={openSignup} onOpenLogin={openLogin} />
         <MarqueeSection />
         <FeaturesSection />
         <TestimonialsSection />
