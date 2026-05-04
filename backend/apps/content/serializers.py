@@ -232,6 +232,7 @@ class FeedStatsSerializer(serializers.Serializer):
     likes = serializers.IntegerField()
     comments = serializers.IntegerField()
     shares = serializers.IntegerField()
+    saves = serializers.IntegerField()
 
 
 class FeedViewerStateSerializer(serializers.Serializer):

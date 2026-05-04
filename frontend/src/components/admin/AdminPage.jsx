@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import {
   Mic,
   Sparkles,
@@ -6,6 +7,7 @@ import {
 } from "lucide-react";
 import AdminLayout from "./AdminLayout";
 import "../../style/admin/admin-page.css";
+import { getAdminOverview } from "../../utils/adminApi";
 
 function formatSubtitle() {
   const today = new Date();
@@ -16,82 +18,6 @@ function formatSubtitle() {
   const year = today.getFullYear();
   return `EduCast · ${dayName}, ${date} tháng ${month}, ${year}`;
 }
-
-const statCards = [
-  {
-    title: "TỔNG NGƯỜI DÙNG",
-    value: "1,500",
-    change: "22.4%",
-    note: "so với tuần trước",
-    tone: "green",
-    icon: Users,
-    
-  },
-  {
-    title: "PODCASTS ĐÃ TẠO",
-    value: "500",
-    change: "22.4%",
-    note: "so với tuần trước",
-    tone: "green",
-    icon: Mic,
-  },
-  {
-    title: "TẠO BẰNG AI",
-    value: "200",
-    change: "22.4%",
-    note: "so với tuần trước",
-    tone: "green",
-    icon: Sparkles,
-  },
-  {
-    title: "BÁO CÁO CHỜ DUYỆT",
-    value: "3",
-    change: "22.4%",
-    note: "so với tuần trước",
-    tone: "red",
-    icon: Flag,
-  },
-];
-
-const weeklyBars = [
-  { label: "T2", height: 30, active: false },
-  { label: "T3", height: 46, active: false },
-  { label: "T4", height: 28, active: false },
-  { label: "T5", height: 44, active: false },
-  { label: "T6", height: 62, active: false },
-  { label: "T7", height: 72, active: false },
-  { label: "CN", height: 44, active: true },
-];
-
-const recentReports = [
-  {
-    title: "Học lập trình Python cơ bản",
-    author: "bởi Minh Hoàng • 2 phút trước",
-    tags: [
-      { label: "Spam", type: "danger" },
-      { label: "Chờ duyệt", type: "warning" },
-      { label: "# 12", type: "dangerOutline" },
-    ],
-  },
-  {
-    title: "Tài chính cá nhân cho sinh viên",
-    author: "bởi Thanh Tâm • 30 phút trước",
-    tags: [
-      { label: "Misleading", type: "danger" },
-      { label: "Chờ duyệt", type: "warning" },
-      { label: "# 7", type: "dangerOutline" },
-    ],
-  },
-  {
-    title: "English Speaking Practice #5",
-    author: "bởi Tiến Tin • 2 giờ trước",
-    tags: [
-      { label: "Off-topic", type: "danger" },
-      { label: "Đã duyệt", type: "success" },
-      { label: "# 3", type: "dangerOutline" },
-    ],
-  },
-];
 
 function MiniTrend({ tone = "green" }) {
   return (
@@ -108,7 +34,14 @@ function MiniTrend({ tone = "green" }) {
   );
 }
 
-function DonutChart() {
+function DonutChart({ data }) {
+  const total = Object.values(data || {}).reduce((sum, val) => sum + val, 0);
+  const entries = Object.entries(data || {}).map(([label, value]) => ({
+    label,
+    value,
+    percentage: total > 0 ? ((value / total) * 100).toFixed(1) : 0,
+  }));
+
   return (
     <div className="admin-donut-wrap">
       <div className="admin-donut-chart">
@@ -116,37 +49,137 @@ function DonutChart() {
       </div>
 
       <div className="admin-donut-legend">
-        <div className="admin-legend-item">
-          <span className="admin-legend-dot admin-c1" />
-          <span className="admin-legend-label">Công Nghệ</span>
-          <span className="admin-legend-value">22%</span>
-        </div>
-        <div className="admin-legend-item">
-          <span className="admin-legend-dot admin-c2" />
-          <span className="admin-legend-label">Ngôn Ngữ</span>
-          <span className="admin-legend-value">18%</span>
-        </div>
-        <div className="admin-legend-item">
-          <span className="admin-legend-dot admin-c3" />
-          <span className="admin-legend-label">Kinh Doanh</span>
-          <span className="admin-legend-value">14%</span>
-        </div>
-        <div className="admin-legend-item">
-          <span className="admin-legend-dot admin-c4" />
-          <span className="admin-legend-label">Khoa Học</span>
-          <span className="admin-legend-value">12%</span>
-        </div>
-        <div className="admin-legend-item">
-          <span className="admin-legend-dot admin-c5" />
-          <span className="admin-legend-label">Nghệ Thuật</span>
-          <span className="admin-legend-value">34%</span>
-        </div>
+        {entries.slice(0, 5).map((item, idx) => (
+          <div key={item.label} className="admin-legend-item">
+            <span className={`admin-legend-dot admin-c${(idx % 5) + 1}`} />
+            <span className="admin-legend-label">{item.label}</span>
+            <span className="admin-legend-value">{item.percentage}%</span>
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
 export default function AdminPage() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const response = await getAdminOverview();
+        setData(response.overview);
+        setError(null);
+      } catch (err) {
+        setError(err.message || 'Lỗi khi tải dữ liệu');
+        console.error('Error fetching admin data:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
+
+  if (loading) {
+    return (
+      <AdminLayout title="TỔNG QUAN" subtitle={formatSubtitle()}>
+        <div style={{ padding: '40px', textAlign: 'center', color: '#999' }}>
+          Đang tải dữ liệu...
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (error) {
+    return (
+      <AdminLayout title="TỔNG QUAN" subtitle={formatSubtitle()}>
+        <div style={{ padding: '40px', textAlign: 'center', color: '#e74c3c' }}>
+          {error}
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  if (!data) {
+    return (
+      <AdminLayout title="TỔNG QUAN" subtitle={formatSubtitle()}>
+        <div style={{ padding: '40px', textAlign: 'center' }}>
+          Không có dữ liệu
+        </div>
+      </AdminLayout>
+    );
+  }
+
+  const statCards = [
+    {
+      title: "TỔNG NGƯỜI DÙNG",
+      value: (data.users?.total_users || 0).toLocaleString('vi-VN'),
+      change: "0%",
+      note: "tổng người dùng",
+      tone: "green",
+      icon: Users,
+    },
+    {
+      title: "PODCASTS ĐÃ TẠO",
+      value: (data.posts?.total_posts || 0).toLocaleString('vi-VN'),
+      change: "0%",
+      note: "tổng nội dung",
+      tone: "green",
+      icon: Mic,
+    },
+    {
+      title: "TẠO BẰNG AI",
+      value: (data.posts?.ai_generated_posts || 0).toLocaleString('vi-VN'),
+      change: "0%",
+      note: "AI-generated",
+      tone: "green",
+      icon: Sparkles,
+    },
+    {
+      title: "BÁO CÁO CHỜ DUYỆT",
+      value: (data.moderation?.pending_reports || 0).toLocaleString('vi-VN'),
+      change: "0%",
+      note: "cần xử lý",
+      tone: data.moderation?.pending_reports > 0 ? "red" : "green",
+      icon: Flag,
+    },
+  ];
+
+  const getWeeklyBars = () => {
+    const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+    const maxValue = Math.max(
+      ...(data.charts?.new_posts_7d || []).map(d => d.count),
+      1
+    );
+    
+    return (data.charts?.new_posts_7d || []).map((item, idx) => {
+      const height = maxValue > 0 ? (item.count / maxValue) * 100 : 0;
+      return {
+        label: days[idx],
+        height: Math.max(height, 10),
+        active: idx === (data.charts?.new_posts_7d || []).length - 1,
+        count: item.count,
+      };
+    });
+  };
+
+  const weeklyBars = getWeeklyBars();
+
+  const topPosts = (data.top_posts || []).map((post, idx) => ({
+    title: post.title,
+    slug: post.slug,
+    author: `Podcast #${idx + 1} • ${post.listen_count} lượt nghe`,
+    tags: [
+      { label: `👁️ ${post.view_count}`, type: "info" },
+      { label: `❤️ ${post.like_count}`, type: "warning" },
+      { label: `💬 ${post.comment_count}`, type: "dangerOutline" },
+    ],
+  }));
+
   return (
     <AdminLayout
       title="TỔNG QUAN"
@@ -196,15 +229,15 @@ export default function AdminPage() {
             <div>
               <div className="admin-panel-title">PODCAST MỚI TRONG TUẦN</div>
               <div className="admin-panel-big-number">
-                1,500 <span>↑ 22,4%</span>
+                {(data.posts?.new_posts_30d || 0).toLocaleString('vi-VN')} <span>↑ {((data.posts?.new_posts_30d / (data.posts?.total_posts || 1)) * 100).toFixed(1)}%</span>
               </div>
             </div>
-            <div className="admin-panel-date">2-8 Tháng 3, 2026</div>
+            <div className="admin-panel-date">7 ngày gần đây</div>
           </div>
 
           <div className="admin-weekly-chart">
             {weeklyBars.map((bar) => (
-              <div key={bar.label} className="admin-week-bar-item">
+              <div key={bar.label} className="admin-week-bar-item" title={`${bar.label}: ${bar.count}`}>
                 <div
                   className={`admin-week-bar ${bar.active ? "admin-week-bar-active" : ""}`}
                   style={{ height: `${bar.height}px` }}
@@ -216,17 +249,17 @@ export default function AdminPage() {
         </article>
 
         <article className="admin-panel">
-          <div className="admin-panel-title">PHÂN LOẠI NỘI DUNG</div>
-          <DonutChart />
+          <div className="admin-panel-title">TRẠNG THÁI BÀI VIẾT</div>
+          <DonutChart data={data.posts} />
         </article>
       </section>
 
       <section className="admin-panel">
-        <div className="admin-panel-title">NỘI DUNG ĐƯỢC BÁO CÁO GẦN ĐÂY</div>
+        <div className="admin-panel-title">TOP PODCASTS</div>
 
         <div className="admin-report-list">
-          {recentReports.map((item) => (
-            <div key={item.title} className="admin-report-row">
+          {topPosts.map((item) => (
+            <div key={item.slug} className="admin-report-row">
               <div className="admin-report-left">
                 <div className="admin-report-icon">
                   <Mic size={14} />

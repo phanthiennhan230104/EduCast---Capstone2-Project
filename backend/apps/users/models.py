@@ -213,3 +213,32 @@ class UserLockLog(models.Model):
 
     def __str__(self):
         return f"LockLog - {self.user_id} - {self.lock_type}"
+
+
+class UserTagPreference(models.Model):
+    """Tags yêu thích của user để lọc feed theo tags"""
+    id = models.CharField(max_length=26, primary_key=True, default=generate_id, editable=False)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        db_column='user_id',
+        related_name='tag_preferences'
+    )
+    tag = models.ForeignKey(
+        'content.Tag',
+        on_delete=models.CASCADE,
+        db_column='tag_id',
+        related_name='user_preferences'
+    )
+    score = models.FloatField(default=1.0)  # Mức độ yêu thích
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_tag_preferences'
+        app_label = 'users'
+        unique_together = ('user', 'tag')
+        ordering = ['-score', '-created_at']
+
+    def __str__(self):
+        return f"{self.user_id} - Tag {self.tag.name} (score: {self.score})"

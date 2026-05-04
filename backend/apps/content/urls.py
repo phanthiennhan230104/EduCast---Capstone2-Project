@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView
+from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView, UserPostsAPIView
 from .views import (
     DraftCreateView,
     AudioPreviewView,
@@ -10,11 +10,21 @@ from .views import (
     DraftDeleteView,
     UploadDocumentView,
 )
+from .admin_views import (
+    AdminPostsListView,
+    AdminPostDetailView,
+    AdminPostHideView,
+    AdminPostRestoreView,
+    AdminUpdateReportStatusView,
+    AdminLockPostWithReportView,
+    AdminRejectReportView,
+)
 
 urlpatterns = [
     path("upload-test/", TestCloudinaryUploadView.as_view(), name="upload-test"),
     path("feed/", FeedAPIView.as_view(), name="feed"),
     path("search/", SearchAPIView.as_view(), name="search"),
+    path("users/<str:user_id>/posts/", UserPostsAPIView.as_view(), name="user-posts"),
 
     path("drafts/", DraftCreateView.as_view(), name="draft-create"),
     path("drafts/preview-audio/", AudioPreviewView.as_view(), name="draft-preview-audio"),
@@ -26,4 +36,12 @@ urlpatterns = [
     path("drafts/<str:post_id>/update/", DraftUpdateView.as_view(), name="draft-update"),
     path("drafts/<str:post_id>/delete/", DraftDeleteView.as_view(), name="draft-delete"),
 
+    # Admin endpoints
+    path("admin/posts/", AdminPostsListView.as_view(), name="admin-posts-list"),
+    path("admin/posts/<str:post_id>/", AdminPostDetailView.as_view(), name="admin-post-detail"),
+    path("admin/posts/<str:post_id>/hide/", AdminPostHideView.as_view(), name="admin-post-hide"),
+    path("admin/posts/<str:post_id>/restore/", AdminPostRestoreView.as_view(), name="admin-post-restore"),
+    path("admin/posts/<str:post_id>/lock-with-report/", AdminLockPostWithReportView.as_view(), name="admin-post-lock"),
+    path("admin/posts/<str:post_id>/reject-report/", AdminRejectReportView.as_view(), name="admin-post-reject-report"),
+    path("admin/reports/<str:report_id>/status/", AdminUpdateReportStatusView.as_view(), name="admin-report-status"),
 ]

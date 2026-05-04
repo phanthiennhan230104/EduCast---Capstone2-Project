@@ -149,27 +149,3 @@ class PostDocument(models.Model):
 
     def __str__(self):
         return self.file_name
-    
-class PostAudioVersion(models.Model):
-    id = models.CharField(max_length=26, primary_key=True)
-    post = models.ForeignKey(
-        'content.Post',
-        on_delete=models.CASCADE,
-        db_column='post_id',
-        related_name='audio_versions'
-    )
-    voice_name = models.CharField(max_length=100)
-    format = models.CharField(max_length=20, default='mp3')
-    bitrate_kbps = models.IntegerField(null=True, blank=True)
-    duration_seconds = models.IntegerField(null=True, blank=True)
-    audio_url = models.CharField(max_length=500)
-    storage_path = models.CharField(max_length=500, null=True, blank=True)
-    is_default = models.BooleanField(default=False)
-    created_at = models.DateTimeField()
-
-    class Meta:
-        db_table = 'post_audio_versions'
-        managed = False
-
-    def __str__(self):
-        return f"{self.post.id} - {self.voice_name}"

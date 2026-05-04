@@ -1,12 +1,19 @@
-  import { useEffect, useRef, useState } from 'react'
+  import { useEffect, useRef, useState, useContext } from 'react'
+  import { useNavigate } from 'react-router-dom'
+  import { createPortal } from 'react-dom'
+  import { toast } from 'react-toastify'
   import {
     Play, Pause, Heart, MessageCircle,
-    Share2, Bookmark, Sparkles, MoreHorizontal
+    Share2, Bookmark, Sparkles, MoreHorizontal, Edit, Trash2, EyeOff, Flag
   } from 'lucide-react'
   import styles from '../../style/feed/PodcastCard.module.css'
   import { useAudioPlayer } from '../contexts/AudioPlayerContext'
+  import { PodcastContext } from '../contexts/PodcastContext'
   import { getToken, getCurrentUser } from '../../utils/auth'
   import CommentModal from './CommentModal'
+  import ShareModal from './ShareModal'
+  import ConfirmModal from './ConfirmModal'
+  import SaveCollectionModal from '../common/SaveCollectionModal'
 
   function formatTime(seconds) {
     const total = Math.floor(Number(seconds || 0))
@@ -15,7 +22,11 @@
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
   }
 
-  export default function PodcastCard({ podcast, queue = [] }) {
+export default function PodcastCard({ podcast, queue = [], onDelete, onHide }) {
+    const currentUser = getCurrentUser()
+    const navigate = useNavigate()
+    const menuRef = useRef(null)
+    
     const [liked, setLiked] = useState(podcast.liked ?? false)
     const [likeCount, setLikeCount] = useState(podcast.likes ?? 0)
     const [loadingLike, setLoadingLike] = useState(false)
@@ -29,7 +40,33 @@
     const [shareCount, setShareCount] = useState(podcast.shares ?? 0)
     const [loadingShare, setLoadingShare] = useState(false)
     const [showCommentModal, setShowCommentModal] = useState(false)
+    const [showShareModal, setShowShareModal] = useState(false)
     const [commentCount, setCommentCount] = useState(podcast.comments ?? 0)
+    const [menuOpen, setMenuOpen] = useState(false)
+    const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
+    const POST_SYNC_EVENT = 'post-sync-updated'
+
+    const dispatchPostSync = (payload) => {
+      window.dispatchEvent(new CustomEvent(POST_SYNC_EVENT, { detail: payload }))
+    }
+    
+    const [modal, setModal] = useState({
+      isOpen: false,
+      type: 'confirm', // 'confirm' | 'alert' | 'prompt'
+      title: '',
+      message: '',
+      confirmText: 'Xác nhận',
+      cancelText: 'Hủy',
+      isDangerous: false,
+      inputValue: '',
+      onConfirm: null,
+    })
+
+    const isOwner = String(currentUser?.username) === String(podcast.authorUsername) || 
+                    String(currentUser?.username) === String(podcast.author) ||
+                    String(currentUser?.id) === String(podcast.authorId)
+
+    const { savedPostIds, addSavedPost, removeSavedPost, deletePost, hidePost } = useContext(PodcastContext)
 
     const {
       playing,
@@ -42,6 +79,23 @@
       trackProgressMap,
       togglePlay,
     } = useAudioPlayer()
+
+    const prevSavedPostIdsRef = useRef(savedPostIds)
+
+    const saveBookmarkRef = useRef(null)
+    const [showCollectionModal, setShowCollectionModal] = useState(false)
+
+    useEffect(() => {
+      const wasPreviouslySaved = prevSavedPostIdsRef.current.has(podcast.id)
+      const isCurrentlySaved = savedPostIds.has(podcast.id)
+      
+      if (wasPreviouslySaved && !isCurrentlySaved && saved) {
+        setSaveCount(prev => Math.max(prev - 1, 0))
+        setSaved(false)
+      }
+      
+      prevSavedPostIdsRef.current = savedPostIds
+    }, [savedPostIds, podcast.id, saved])
 
     const isActive = isCurrentTrack(podcast.id)
     const isPlaying = isActive && playing
@@ -79,6 +133,226 @@
       description,
     } = podcast
 
+    useEffect(() => {
+      const handleClickOutside = (event) => {
+        if (menuRef.current && !menuRef.current.contains(event.target)) {
+          const dropdown = document.querySelector(`.${styles.dropdown}`)
+          if (dropdown && dropdown.contains(event.target)) {
+            return
+          }
+          setMenuOpen(false)
+        }
+      }
+
+      const handleScroll = () => {
+        if (menuOpen) {
+          setMenuOpen(false)
+        }
+      }
+
+      if (menuOpen && menuRef.current) {
+        const button = menuRef.current.querySelector('button')
+        if (button) {
+          const rect = button.getBoundingClientRect()
+          const dropdownWidth = 130
+          const gap = 2
+
+          setDropdownPos({
+            top: rect.bottom + gap,
+            left: rect.right,
+          })
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        document.querySelector('main')?.addEventListener('scroll', handleScroll)
+        return () => {
+          document.removeEventListener('mousedown', handleClickOutside)
+          document.querySelector('main')?.removeEventListener('scroll', handleScroll)
+        }
+      }
+    }, [menuOpen])
+
+    const showModal = (config) => {
+      setModal({
+        isOpen: true,
+        type: 'confirm',
+        title: '',
+        message: '',
+        confirmText: 'Xác nhận',
+        cancelText: 'Hủy',
+        isDangerous: false,
+        inputValue: '',
+        onConfirm: null,
+        ...config,
+      })
+    }
+
+    const closeModal = () => {
+      setModal((prev) => ({ ...prev, isOpen: false, onConfirm: null }))
+    }
+
+    const saveEditReturnState = () => {
+      const mainElement = document.querySelector('main')
+
+      sessionStorage.setItem(
+        'returnToAfterEdit',
+        window.location.pathname + window.location.search
+      )
+
+      sessionStorage.setItem(
+        'feedScrollPosition',
+        String(mainElement?.scrollTop || 0)
+      )
+
+      sessionStorage.setItem('editFocusPostId', String(podcast.id))
+      sessionStorage.setItem('returnFromEdit', 'true')
+    }
+
+    const handleEdit = () => {
+      setMenuOpen(false)
+      saveEditReturnState()
+      navigate(`/edit/${podcast.id}`)
+    }
+
+    const handleDelete = async () => {
+      setMenuOpen(false)
+      
+      showModal({
+        type: 'confirm',
+        title: 'Xóa bài viết',
+        message: 'Bạn chắc chắn muốn xóa bài viết này?\nHành động này không thể hoàn tác.',
+        confirmText: 'Xóa',
+        isDangerous: true,
+        onConfirm: async () => {
+          try {
+            closeModal()
+            await new Promise(resolve => setTimeout(resolve, 300))
+
+            const token = getToken()
+            const deleteUrl = `http://localhost:8000/api/content/drafts/${podcast.id}/delete/`
+
+            const res = await fetch(deleteUrl, {
+              method: 'DELETE',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            })
+
+            const responseText = await res.text()
+
+            if (!res.ok) {
+              throw new Error(`Delete failed: ${res.status} ${responseText}`)
+            }
+
+            setTimeout(() => {
+              if (onDelete) {
+                onDelete(podcast.id)
+              }
+            }, 450)
+          } catch (err) {
+            console.error('❌ Delete error:', err)
+            toast.error(err.message || 'Xóa bài viết thất bại')
+            sessionStorage.removeItem('feedScrollPosition')
+          }
+        }
+      })
+    }
+
+    const handleHide = () => {
+      setMenuOpen(false)
+
+      showModal({
+        type: 'confirm',
+        title: 'Ẩn bài viết',
+        message: 'Bạn có muốn ẩn bài viết này khỏi feed không?',
+        confirmText: 'Ẩn',
+        onConfirm: async () => {
+          try {
+            closeModal()
+
+            const token = getToken()
+            const currentUser = getCurrentUser()
+
+            const res = await fetch(`http://localhost:8000/api/social/posts/${podcast.id}/hide/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({
+                user_id: currentUser?.id,
+              }),
+            })
+
+            if (!res.ok) {
+              throw new Error('Ẩn bài viết thất bại')
+            }
+
+            onHide?.(podcast.id)
+          } catch (err) {
+            console.error('Hide post error:', err)
+            toast.error(err.message || 'Ẩn bài viết thất bại')
+          }
+        },
+      })
+    }
+
+    const handleReport = async () => {
+      setMenuOpen(false)
+      showModal({
+        type: 'prompt',
+        title: 'Báo cáo bài viết',
+        message: 'Vui lòng cho biết lý do báo cáo bài viết này:',
+        confirmText: 'Gửi báo cáo',
+        isDangerous: true,
+        inputValue: '',
+        onConfirm: async () => {
+          const reason = modal.inputValue.trim()
+          if (!reason) {
+            showModal({
+              type: 'alert',
+              title: 'Thông báo',
+              message: 'Vui lòng nhập lý do báo cáo',
+              confirmText: 'Đóng',
+            })
+            return
+          }
+
+          try {
+            closeModal()
+            const token = getToken()
+            const res = await fetch(`http://localhost:8000/api/social/posts/${podcast.id}/report/`, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({ reason }),
+            })
+
+            if (!res.ok) {
+              throw new Error('Báo cáo bài viết thất bại')
+            }
+
+            showModal({
+              type: 'alert',
+              title: 'Cảm ơn',
+              message: 'Bài viết đã được báo cáo',
+              confirmText: 'Đóng',
+            })
+          } catch (err) {
+            console.error('Report failed:', err)
+            showModal({
+              type: 'alert',
+              title: 'Lỗi',
+              message: err.message || 'Báo cáo thất bại',
+              confirmText: 'Đóng',
+            })
+          }
+        },
+      })
+    }
+
     const handlePlayClick = () => {
       if (!audioSrc) return
 
@@ -90,7 +364,16 @@
       playTrack(
         {
           ...podcast,
+          id: podcast.id,
+          postId: podcast.id,
+          liked,
+          saved,
           audioUrl: audioSrc,
+          // Callback để AudioPlayer có thể update trạng thái like lên PodcastCard
+          onLikeChange: (result) => {
+            setLiked(result.liked)
+            setLikeCount(result.likeCount)
+          },
         },
         queueWithAudio.map((item) => ({
           ...item,
@@ -109,6 +392,11 @@
           {
             ...podcast,
             audioUrl: audioSrc,
+            // Callback để AudioPlayer có thể update trạng thái like lên PodcastCard
+            onLikeChange: (result) => {
+              setLiked(result.liked)
+              setLikeCount(result.likeCount)
+            },
           },
           queueWithAudio.map((item) => ({
             ...item,
@@ -155,11 +443,34 @@
           throw new Error(data.message || `HTTP ${res.status}`)
         }
 
-        setLiked(Boolean(data.data?.liked))
-        setLikeCount(Number(data.data?.like_count || 0))
+        const nextLiked = Boolean(data.data?.liked)
+        const nextLikeCount = Number(data.data?.like_count || 0)
+
+        setLiked(nextLiked)
+        setLikeCount(nextLikeCount)
+        dispatchPostSync({
+          postId: podcast.id,
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        })
+
+        window.dispatchEvent(
+          new CustomEvent('audio-track-like-updated', {
+            detail: {
+              postId: podcast.id,
+              liked: nextLiked,
+              likeCount: nextLikeCount,
+            },
+          })
+        )
+        
+        setStatsPopupData({
+          likes: [],
+          comments: [],
+          shares: [],
+        })
       } catch (err) {
         console.error('Like failed:', err)
-        alert(err.message || 'Like thất bại')
       } finally {
         setLoadingLike(false)
       }
@@ -171,82 +482,95 @@
 
       if (loadingSave) return
 
-      try {
-        setLoadingSave(true)
+      console.log('🔖 handleToggleSave called, saved:', saved)
 
-        const token = getToken()
-        const currentUser = getCurrentUser()
+      // Nếu đã save -> unsave trực tiếp
+      if (saved) {
+        try {
+          setLoadingSave(true)
 
-        const res = await fetch(
-          `http://localhost:8000/api/social/posts/${podcast.id}/save/`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({
-              user_id: currentUser?.id,
-            }),
+          const token = getToken()
+          const currentUser = getCurrentUser()
+
+          console.log('🔖 Unsaving post:', podcast.id)
+
+          const res = await fetch(
+            `http://localhost:8000/api/social/posts/${podcast.id}/save/`,
+            {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+              body: JSON.stringify({
+                user_id: currentUser?.id,
+              }),
+            }
+          )
+
+          const contentType = res.headers.get('content-type')
+          if (!contentType?.includes('application/json')) {
+            throw new Error('API error: Invalid response')
           }
-        )
 
-        const data = await res.json()
+          const data = await res.json()
 
-        if (!res.ok || !data.success) {
-          throw new Error(data.message || `HTTP ${res.status}`)
+          console.log('🔖 Unsave response:', data)
+
+          if (!res.ok || !data.success) {
+            throw new Error(data.message || `HTTP ${res.status}`)
+          }
+
+          const nextSaveCount = Number(data.data?.save_count || 0)
+
+          setSaved(false)
+          setSaveCount(nextSaveCount)
+          removeSavedPost(podcast.id)
+
+          dispatchPostSync({
+            postId: podcast.id,
+            saved: false,
+            saveCount: nextSaveCount,
+          })
+          console.log('🔖 Unsave successful')
+        } catch (err) {
+          console.error('❌ Unsave failed:', err)
+          toast.error('Lỗi khi bỏ lưu: ' + err.message)
+        } finally {
+          setLoadingSave(false)
         }
-
-        setSaved(Boolean(data.data?.saved))
-        setSaveCount(Number(data.data?.save_count || 0))
-      } catch (err) {
-        console.error('Save failed:', err)
-        alert(err.message || 'Lưu bài thất bại')
-      } finally {
-        setLoadingSave(false)
+        return
       }
+
+      // Nếu chưa save -> show collection picker modal
+      console.log('🔖 Showing collection modal')
+      setShowCollectionModal(true)
+    }
+
+    const handleCollectionModalSave = async (collectionId) => {
+      setSaved(true)
+
+      setSaveCount(prev => {
+        const next = prev + 1
+
+        dispatchPostSync({
+          postId: podcast.id,
+          saved: true,
+          saveCount: next,
+        })
+
+        return next
+      })
+
+      addSavedPost(podcast.id)
+      setShowCollectionModal(false)
     }
 
     const handleShare = async (e) => {
       e.preventDefault()
       e.stopPropagation()
 
-      if (loadingShare) return
-
-      try {
-        setLoadingShare(true)
-
-        const token = getToken()
-        const currentUser = getCurrentUser()
-
-        const res = await fetch(
-          `http://localhost:8000/api/social/posts/${podcast.id}/share/`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({
-              user_id: currentUser?.id,
-              share_type: 'copy_link',
-            }),
-          }
-        )
-
-        const data = await res.json()
-
-        if (!res.ok || !data.success) {
-          throw new Error(data.message || `HTTP ${res.status}`)
-        }
-
-        setShareCount(Number(data.data?.share_count || 0))
-      } catch (err) {
-        console.error('Share failed:', err)
-        alert(err.message || 'Chia sẻ thất bại')
-      } finally {
-        setLoadingShare(false)
-      }
+      setShowShareModal(true)
     }
 
     const [statsPopupDirection, setStatsPopupDirection] = useState('down')
@@ -365,25 +689,40 @@
     })
 
     const updatePopupDirection = (type) => {
-    const triggerEl = statRefs.current[type]
-    if (!triggerEl) {
-      setStatsPopupDirection('down')
-      return
+      const triggerEl = statRefs.current[type]
+      if (!triggerEl) {
+        setStatsPopupDirection('down')
+        return
+      }
+
+      const rect = triggerEl.getBoundingClientRect()
+      const popupHeight = 260
+      const gap = 12
+
+      const spaceBelow = window.innerHeight - rect.bottom
+      const spaceAbove = rect.top
+
+      if (spaceBelow < popupHeight + gap && spaceAbove > popupHeight + gap) {
+        setStatsPopupDirection('up')
+      } else {
+        setStatsPopupDirection('down')
+      }
     }
 
-    const rect = triggerEl.getBoundingClientRect()
-    const popupHeight = 260
-    const gap = 12
+    useEffect(() => {
+      const handlePostSync = (event) => {
+        const d = event.detail || {}
+        if (String(d.postId) !== String(podcast.id)) return
 
-    const spaceBelow = window.innerHeight - rect.bottom
-    const spaceAbove = rect.top
+        if (typeof d.liked === 'boolean') setLiked(d.liked)
+        if (typeof d.likeCount === 'number') setLikeCount(d.likeCount)
+        if (typeof d.saved === 'boolean') setSaved(d.saved)
+        if (typeof d.saveCount === 'number') setSaveCount(d.saveCount)
+      }
 
-    if (spaceBelow < popupHeight + gap && spaceAbove > popupHeight + gap) {
-      setStatsPopupDirection('up')
-    } else {
-      setStatsPopupDirection('down')
-    }
-  }
+      window.addEventListener(POST_SYNC_EVENT, handlePostSync)
+      return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
+    }, [podcast.id])
 
     return (
       <>
@@ -422,9 +761,52 @@
               </div>
             </div>
 
-            <button className={styles.menuBtn} type="button">
-              <MoreHorizontal size={18} />
-            </button>
+            <div className={styles.menuWrap} ref={menuRef}>
+              <button
+                className={styles.menuBtn}
+                type="button"
+                onClick={() => setMenuOpen(!menuOpen)}
+                aria-label="Tùy chọn"
+              >
+                <MoreHorizontal size={18} />
+              </button>
+
+              {menuOpen &&
+                createPortal(
+                  <div 
+                    className={styles.dropdown}
+                    style={{
+                      top: `${dropdownPos.top}px`,
+                      left: `${dropdownPos.left}px`,
+                    }}
+                  >
+                    {isOwner ? (
+                      <>
+                        <button className={styles.dropdownItem} onClick={handleEdit}>
+                          <Edit size={16} />
+                          <span>Chỉnh sửa</span>
+                        </button>
+                        <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleDelete}>
+                          <Trash2 size={16} />
+                          <span>Xóa</span>
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <button className={styles.dropdownItem} onClick={handleHide}>
+                          <EyeOff size={16} />
+                          <span>Ẩn bài viết</span>
+                        </button>
+                        <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleReport}>
+                          <Flag size={16} />
+                          <span>Báo cáo</span>
+                        </button>
+                      </>
+                    )}
+                  </div>,
+                  document.body
+                )}
+            </div>
           </div>
 
           <div className={styles.body}>
@@ -481,8 +863,6 @@
             <div
               ref={(el) => { statRefs.current.likes = el }}
               className={styles.statHoverWrap}
-              onMouseEnter={() => handleStatsMouseEnter('likes')}
-              onMouseLeave={handleStatsMouseLeave}
             >
               <button
                 className={`${styles.actionBtn} ${liked ? styles.liked : ''}`}
@@ -491,7 +871,13 @@
                 type="button"
               >
                 <Heart size={16} fill={liked ? 'currentColor' : 'none'} />
-                <span>{likeCount}</span>
+                <span
+                  onMouseEnter={() => handleStatsMouseEnter('likes')}
+                  onMouseLeave={handleStatsMouseLeave}
+                  className={styles.statsText}
+                >
+                  {likeCount}
+                </span>
               </button>
 
               {statsHoverType === 'likes' && (
@@ -522,8 +908,6 @@
             <div
               ref={(el) => { statRefs.current.comments = el }}
               className={styles.statHoverWrap}
-              onMouseEnter={() => handleStatsMouseEnter('comments')}
-              onMouseLeave={handleStatsMouseLeave}
             >
               <button
                 className={styles.actionBtn}
@@ -531,7 +915,13 @@
                 onClick={() => setShowCommentModal(true)}
               >
                 <MessageCircle size={16} />
-                <span>{commentCount} Bình luận</span>
+                <span
+                  onMouseEnter={() => handleStatsMouseEnter('comments')}
+                  onMouseLeave={handleStatsMouseLeave}
+                  className={styles.statsText}
+                >
+                  {commentCount} Bình luận
+                </span>
               </button>
 
               {statsHoverType === 'comments' && (
@@ -562,8 +952,6 @@
             <div
               ref={(el) => { statRefs.current.shares = el }}
               className={styles.statHoverWrap}
-              onMouseEnter={() => handleStatsMouseEnter('shares')}
-              onMouseLeave={handleStatsMouseLeave}
             >
               <button
                 className={styles.actionBtn}
@@ -572,7 +960,13 @@
                 disabled={loadingShare}
               >
                 <Share2 size={16} />
-                <span>{shareCount} Chia sẻ</span>
+                <span
+                  onMouseEnter={() => handleStatsMouseEnter('shares')}
+                  onMouseLeave={handleStatsMouseLeave}
+                  className={styles.statsText}
+                >
+                  {shareCount} Chia sẻ
+                </span>
               </button>
 
               {statsHoverType === 'shares' && (
@@ -601,6 +995,7 @@
             </div>
 
             <button
+              ref={saveBookmarkRef}
               type="button"
               className={`${styles.actionBtn} ${saved ? styles.saved : ''}`}
               onClick={handleToggleSave}
@@ -611,6 +1006,24 @@
             </button>
           </div>
         </article>
+
+        <ConfirmModal
+          isOpen={modal.isOpen}
+          type={modal.type}
+          title={modal.title}
+          message={modal.message}
+          confirmText={modal.confirmText}
+          cancelText={modal.cancelText}
+          isDangerous={modal.isDangerous}
+          inputValue={modal.inputValue}
+          onInputChange={(value) => setModal((prev) => ({ ...prev, inputValue: value }))}
+          onConfirm={() => {
+            if (modal.type !== 'alert') {
+              modal.onConfirm?.()
+            }
+          }}
+          onCancel={closeModal}
+        />
 
         {showCommentModal && (
           <CommentModal
@@ -626,8 +1039,31 @@
             onToggleLike={handleToggleLike}
             onToggleSave={handleToggleSave}
             onShare={handleShare}
+            onPostDeleted={() => {
+              setShowCommentModal(false)
+              onDelete?.(podcast.id)
+            }}
           />
         )}
+
+        {showShareModal && (
+          <ShareModal
+            podcast={podcast}
+            onClose={() => setShowShareModal(false)}
+            onShareSuccess={(data) => {
+              setShareCount(Number(data?.share_count || shareCount + 1))
+            }}
+          />
+        )}
+
+        <SaveCollectionModal
+          isOpen={showCollectionModal}
+          onClose={() => setShowCollectionModal(false)}
+          postId={podcast.id}
+          onSave={handleCollectionModalSave}
+          triggerRef={saveBookmarkRef}
+          isPopup={true}
+        />
       </>
     )
   }

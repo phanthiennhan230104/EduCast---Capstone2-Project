@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Target, TrendingUp, UserPlus,
   Bot, Send, CheckCircle2
 } from 'lucide-react'
+import { toast } from 'react-toastify'
 import styles from '../../../style/layout/RightPanel.module.css'
+import { getToken } from '../../../utils/auth'
 
 const ROADMAP = [
   { label: 'Python Cơ Bản – Tập 1', done: true },
@@ -21,9 +23,9 @@ const TRENDING = [
 ]
 
 const SUGGESTIONS = [
-  { name: 'Linh Đặng Tech', followers: '24.5k', avatar: 'https://i.pravatar.cc/36?img=5' },
-  { name: 'AI Minh Trâm',   followers: '18.3k', avatar: 'https://i.pravatar.cc/36?img=9' },
-  { name: 'Code with Hoa',  followers: '11.8k', avatar: 'https://i.pravatar.cc/36?img=16' },
+  { id: 1, name: 'Linh Đặng Tech', followers: '24.5k', avatar: 'https://i.pravatar.cc/36?img=5' },
+  { id: 2, name: 'AI Minh Trâm',   followers: '18.3k', avatar: 'https://i.pravatar.cc/36?img=9' },
+  { id: 3, name: 'Code with Hoa',  followers: '11.8k', avatar: 'https://i.pravatar.cc/36?img=16' },
 ]
 
 export default function RightPanel() {
@@ -32,6 +34,18 @@ export default function RightPanel() {
   const [messages, setMessages] = useState([
     { role: 'ai', text: 'Xin chào! Tôi có thể giúp bạn tìm kiếm podcast, giải thích khái niệm, hoặc lập lộ trình học tập. Bạn muốn học gì hôm nay?' }
   ])
+
+  // Load followed status from localStorage on mount
+  useEffect(() => {
+    const savedFollowed = localStorage.getItem('rightPanelFollowed')
+    if (savedFollowed) {
+      try {
+        setFollowed(JSON.parse(savedFollowed))
+      } catch (e) {
+        console.error('Failed to parse saved followed:', e)
+      }
+    }
+  }, [])
 
   const sendMessage = () => {
     if (!chatInput.trim()) return
@@ -43,8 +57,41 @@ export default function RightPanel() {
     setChatInput('')
   }
 
-  const toggleFollow = name =>
-    setFollowed(f => ({ ...f, [name]: !f[name] }))
+  const toggleFollow = async (userId, name) => {
+    try {
+      const token = getToken()
+      const isCurrentlyFollowing = followed[name] || false
+
+      const endpoint = isCurrentlyFollowing
+        ? `http://localhost:8000/api/social/users/${userId}/unfollow/`
+        : `http://localhost:8000/api/social/users/${userId}/follow/`
+
+      const res = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`)
+      }
+
+      // Update local state
+      const updated = { ...followed, [name]: !isCurrentlyFollowing }
+      setFollowed(updated)
+      
+      // Save to localStorage
+      localStorage.setItem('rightPanelFollowed', JSON.stringify(updated))
+      
+      const action = isCurrentlyFollowing ? 'Bỏ theo dõi' : 'Theo dõi'
+      toast.success(`${action} ${name} thành công`)
+    } catch (err) {
+      console.error('Toggle follow failed:', err)
+      toast.error('Thao tác thất bại, vui lòng thử lại')
+    }
+  }
 
   return (
     <aside className={styles.panel}>

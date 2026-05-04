@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { Bell, X } from 'lucide-react'
+import { Bell } from 'lucide-react'
 import styles from '../../../style/layout/NotificationPanel.module.css'
 import { getNotifications, markAllNotificationsAsRead } from '../../../utils/notificationApi'
 
@@ -98,20 +98,22 @@ export default function NotificationPanel() {
     fetchNotifications()
   }, [open])
 
-  const handleOpenPanel = async () => {
-    setOpen(true)
+  const handleTogglePanel = async (e) => {
+    e.stopPropagation()
+    setOpen(!open)
     
-    // Fetch notifications immediately for this panel
-    const response = await getNotifications()
-    setNotifications(response.data?.notifications || [])
-    
-    // Mark all as read when opening panel
-    if (response.data?.unread_count > 0) {
-      await markAllNotificationsAsRead()
-      setUnreadCount(0)
-      setNotifications(prev =>
-        prev.map(notif => ({ ...notif, is_read: true }))
-      )
+    if (!open) {
+      // Khi mở panel, fetch notifications và mark as read
+      const response = await getNotifications()
+      setNotifications(response.data?.notifications || [])
+      
+      if (response.data?.unread_count > 0) {
+        await markAllNotificationsAsRead()
+        setUnreadCount(0)
+        setNotifications(prev =>
+          prev.map(notif => ({ ...notif, is_read: true }))
+        )
+      }
     }
   }
 
@@ -121,7 +123,7 @@ export default function NotificationPanel() {
         className={styles.bellBtn}
         aria-label="Thông báo"
         type="button"
-        onClick={handleOpenPanel}
+        onClick={handleTogglePanel}
       >
         <Bell size={18} />
         {unreadCount > 0 && (
@@ -133,12 +135,6 @@ export default function NotificationPanel() {
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
             <h3>Thông báo</h3>
-            <button
-              className={styles.closeBtn}
-              onClick={() => setOpen(false)}
-            >
-              <X size={18} />
-            </button>
           </div>
 
           <div className={styles.panelBody}>

@@ -17,21 +17,6 @@
   backdrop-filter: blur(12px);
 }
 
-.player::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    rgba(132, 146, 255, 0.18),
-    rgba(255, 255, 255, 0.08),
-    transparent
-  );
-  pointer-events: none;
-}
-
 .idle {
   grid-template-columns: 1fr;
 }

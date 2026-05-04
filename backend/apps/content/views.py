@@ -1,7 +1,7 @@
 import os
 import tempfile
 import ulid
-
+from apps.social.models import HiddenPost, PostLike, SavedPost, Comment, PostShare
 
 from django.db import transaction, models
 from django.utils import timezone
@@ -11,6 +11,7 @@ from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from apps.content.services.feed_service import FeedService
 from .models import Post, PostAudioVersion, PostDocument
+from apps.social.models import HiddenPost
 from .serializers import (
     DraftCreateSerializer,
     AudioPreviewSerializer,
@@ -525,7 +526,9 @@ class DraftDeleteView(APIView):
                         resource_type="raw",
                     )
 
-            post.delete()
+            post.status = "archived"
+            post.updated_at = timezone.now()
+            post.save(update_fields=["status", "updated_at"])
 
             return Response(
                 {"message": "Xóa bản nháp thành công"},
@@ -591,19 +594,50 @@ class FeedAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        limit = int(request.query_params.get("limit", 20))
-        feed_type = request.query_params.get("tab", "for_you")
+        try:
+            limit = int(request.query_params.get("limit", 20))
+            feed_type = request.query_params.get("tab", "for_you")
+            
+            tag_ids_param = request.query_params.get("tags", "")
+            tag_ids = None
+            if tag_ids_param:
+                try:
+                    tag_ids = [tid.strip() for tid in tag_ids_param.split(",") if tid.strip()]
+                except:
+                    tag_ids = None
 
-        items = FeedService.get_feed(
-            user=request.user,
-            limit=limit,
-            feed_type=feed_type,
-        )
+            items = FeedService.get_feed(
+                user=request.user,
+                limit=limit,
+                feed_type=feed_type,
+                tag_ids=tag_ids,
+            )
+            
+            hidden_ids = set(
+                str(post_id).strip()
+                for post_id in HiddenPost.objects.filter(
+                    user_id=str(request.user.id)
+                ).values_list("post_id", flat=True)
+            )
 
-        serializer = FeedItemSerializer(items, many=True)
-        return Response({
-            "items": serializer.data
-        }, status=status.HTTP_200_OK)
+            items = [
+                item for item in items
+                if str(getattr(item, "id", "")).strip() not in hidden_ids
+            ]
+
+            print("LOGIN USER:", request.user.id)
+            print("HIDDEN IDS:", hidden_ids)
+            print("BEFORE:", [str(getattr(item, "id", "")) for item in items])
+
+            serializer = FeedItemSerializer(items, many=True)
+
+            return Response({
+                "items": serializer.data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "error": f"Failed to load feed: {str(e)}"
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class SearchAPIView(APIView):
@@ -635,10 +669,18 @@ class SearchAPIView(APIView):
             posts_qs = Post.objects.filter(
                 status="published",
                 visibility="public"
+            ).exclude(
+                status="archived"
             ).filter(
                 models.Q(title__icontains=query) |
                 models.Q(description__icontains=query)
             ).select_related("user", "user__profile").order_by("-created_at")
+
+            hidden_post_ids = HiddenPost.objects.filter(
+                user_id=request.user.id
+            ).values_list("post_id", flat=True)
+
+            posts_qs = posts_qs.exclude(id__in=hidden_post_ids)
             
             # Thêm posts của authors có display_name chứa query
             authors_matching = User.objects.filter(
@@ -650,7 +692,7 @@ class SearchAPIView(APIView):
                     user__in=authors_matching,
                     status="published",
                     visibility="public"
-                ).values_list("id", flat=True)
+                ).exclude(id__in=hidden_post_ids).values_list("id", flat=True)
                 
                 posts_by_author = Post.objects.filter(
                     id__in=author_post_ids
@@ -669,7 +711,7 @@ class SearchAPIView(APIView):
                     id__in=tag_post_ids,
                     status="published",
                     visibility="public"
-                ).select_related("user", "user__profile").order_by("-created_at")
+                ).exclude(id__in=hidden_post_ids).select_related("user", "user__profile").order_by("-created_at")
                 
                 posts_qs = posts_qs | posts_with_tag
             
@@ -680,7 +722,17 @@ class SearchAPIView(APIView):
                 author_name = post.user.username
                 if hasattr(post.user, 'profile') and post.user.profile:
                     author_name = post.user.profile.display_name or post.user.username
-                    
+
+                is_liked = PostLike.objects.filter(
+                    user_id=request.user.id,
+                    post_id=post.id
+                ).exists()
+
+                is_saved = SavedPost.objects.filter(
+                    user_id=request.user.id,
+                    post_id=post.id
+                ).exists()
+
                 posts_data.append({
                     "id": post.id,
                     "title": post.title,
@@ -691,6 +743,17 @@ class SearchAPIView(APIView):
                     "listen_count": post.listen_count,
                     "duration_seconds": post.duration_seconds,
                     "created_at": post.created_at.isoformat(),
+
+                    "like_count": PostLike.objects.filter(post_id=post.id).count(),
+                    "comment_count": Comment.objects.filter(post_id=post.id).count(),
+                    "save_count": SavedPost.objects.filter(post_id=post.id).count(),
+                    "share_count": PostShare.objects.filter(
+                        post_id=post.id,
+                        share_type="personal"
+                    ).count(),
+
+                    "is_liked": is_liked,
+                    "is_saved": is_saved,
                 })
             results["posts"] = posts_data
 
@@ -712,12 +775,9 @@ class SearchAPIView(APIView):
                 
                 display_name = getattr(author.profile, 'display_name', None) if hasattr(author, 'profile') and author.profile else author.username
                 
-                # Fix local path avatar - check if it's a file system path
                 if avatar_url and (':\\' in avatar_url or avatar_url.startswith('/')):
-                    # It's a local file path, generate fallback
                     avatar_url = None
                 
-                # Generate fallback avatar if not available
                 if not avatar_url:
                     avatar_url = f'https://ui-avatars.com/api/?name={display_name.replace(" ", "%20")}&background=667eea&color=fff&size=96'
                 
@@ -733,3 +793,77 @@ class SearchAPIView(APIView):
             results["authors"] = authors_data
 
         return Response(results, status=status.HTTP_200_OK)
+
+
+class UserPostsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id=None):
+        """Get all posts (published) of a user"""
+        try:
+            target_user_id = user_id or str(request.user.id)
+            
+            from apps.users.models import User
+            try:
+                target_user = User.objects.get(id=target_user_id)
+            except User.DoesNotExist:
+                return Response({
+                    "error": "User not found",
+                    "posts": []
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            posts_qs = (
+                Post.objects
+                .filter(user_id=target_user_id, status="published", visibility="public")
+                .select_related("user", "user__profile")
+                .order_by("-created_at")
+            )
+            
+            limit = int(request.query_params.get("limit", 100))
+            posts = list(posts_qs[:limit])
+            
+            posts_data = []
+            for post in posts:
+                author_name = post.user.username
+                if hasattr(post.user, 'profile') and post.user.profile:
+                    author_name = post.user.profile.display_name or post.user.username
+                
+                is_liked = PostLike.objects.filter(
+                    user_id=request.user.id,
+                    post_id=post.id
+                ).exists()
+                
+                is_saved = SavedPost.objects.filter(
+                    user_id=request.user.id,
+                    post_id=post.id
+                ).exists()
+                
+                posts_data.append({
+                    "id": post.id,
+                    "title": post.title,
+                    "description": post.description,
+                    "author": author_name,
+                    "author_id": post.user.id,
+                    "thumbnail_url": post.thumbnail_url,
+                    "listen_count": post.listen_count,
+                    "duration_seconds": post.duration_seconds,
+                    "created_at": post.created_at.isoformat(),
+                    "like_count": PostLike.objects.filter(post_id=post.id).count(),
+                    "comment_count": Comment.objects.filter(post_id=post.id).count(),
+                    "save_count": SavedPost.objects.filter(post_id=post.id).count(),
+                    "share_count": PostShare.objects.filter(post_id=post.id, share_type="personal").count(),
+                    "is_liked": is_liked,
+                    "is_saved": is_saved,
+                })
+            
+            return Response({
+                "data": {
+                    "posts": posts_data
+                },
+                "success": True
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "error": f"Failed to load user posts: {str(e)}",
+                "posts": []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -146,6 +146,43 @@
   flex-shrink: 0;
 }
 
+.admin-moderation-pagination {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 6px;
+  margin-top: 16px;
+  padding: 12px 0;
+}
+
+.pagination-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid rgba(154, 171, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(55, 43, 52, 0.5);
+  color: #d8ddff;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-btn:hover {
+  border-color: rgba(154, 171, 255, 0.4);
+  background: rgba(55, 43, 52, 0.8);
+}
+
+.pagination-btn.is-active {
+  border-color: rgba(49, 213, 200, 0.6);
+  background: rgba(26, 168, 154, 0.15);
+  color: #31d5c8;
+  font-weight: 600;
+}
+
 .admin-report-badge,
 .admin-status-badge {
   font-size: 10px;
@@ -209,6 +246,121 @@
   text-align: right;
 }
 
+.admin-moderation-audio-player {
+  margin-top: 16px;
+  padding: 12px;
+  background: rgba(33, 40, 88, 0.4);
+  border: 1px solid rgba(154, 171, 255, 0.15);
+  border-radius: 8px;
+}
+
+.admin-moderation-audio-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  font-size: 12px;
+  color: #c2ccf7;
+  font-weight: 600;
+}
+
+.admin-moderation-audio-versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.admin-moderation-audio-version-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border: 1px solid rgba(154, 171, 255, 0.2);
+  border-radius: 6px;
+  background: rgba(33, 40, 88, 0.3);
+  color: #d8ddff;
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.admin-moderation-audio-version-btn:hover {
+  border-color: rgba(154, 171, 255, 0.4);
+  background: rgba(33, 40, 88, 0.6);
+}
+
+.admin-moderation-audio-version-btn.is-active {
+  border-color: rgba(49, 213, 200, 0.6);
+  background: rgba(26, 168, 154, 0.15);
+  color: #31d5c8;
+}
+
+.version-name {
+  font-weight: 500;
+}
+
+.version-format {
+  color: #9ea9da;
+  font-size: 10px;
+}
+
+.version-default {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 4px;
+  background: rgba(247, 180, 66, 0.15);
+  color: #f7b442;
+  border-radius: 2px;
+  font-size: 9px;
+  font-weight: 600;
+}
+
+.admin-moderation-audio-control {
+  width: 100%;
+  height: 36px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  accent-color: #31d5c8;
+  background: rgba(26, 168, 154, 0.1);
+  cursor: pointer;
+}
+
+/* Custom audio player styling */
+.admin-moderation-audio-control::-webkit-media-controls-panel {
+  background-color: rgba(26, 168, 154, 0.1);
+}
+
+.admin-moderation-audio-control::-webkit-media-controls-play-button {
+  color: #31d5c8;
+}
+
+.admin-moderation-audio-control::-webkit-media-controls-current-time-display {
+  color: #d8ddff;
+}
+
+.admin-moderation-audio-control::-webkit-media-controls-time-remaining-display {
+  color: #9ea9da;
+}
+
+.admin-moderation-audio-control::-moz-media-controls {
+  background-color: rgba(26, 168, 154, 0.1);
+}
+
+.admin-moderation-audio-time {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  font-size: 11px;
+  color: #9ea9da;
+}
+
+.audio-separator {
+  color: #6b7aa8;
+}
+
 .admin-moderation-actions {
   margin-top: 20px;
   display: flex;
@@ -236,6 +388,217 @@
 
 .admin-action-btn.reject {
   background: linear-gradient(180deg, #a52748 0%, #8e1d3c 100%);
+}
+
+/* Report styles */
+.admin-report-count {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  color: #ff9da6;
+  background: rgba(255, 90, 112, 0.1);
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 90, 112, 0.2);
+}
+
+.admin-pending-badge {
+  font-size: 10px;
+  color: #f7b442;
+  background: rgba(243, 162, 33, 0.14);
+  padding: 4px 8px;
+  border-radius: 999px;
+  border: 1px solid rgba(243, 162, 33, 0.3);
+}
+
+.admin-pending-badge.pending {
+  color: #f7b442;
+  background: rgba(243, 162, 33, 0.14);
+  border: 1px solid rgba(243, 162, 33, 0.3);
+}
+
+.admin-pending-badge.resolved {
+  color: #70d2c9;
+  background: rgba(21, 111, 108, 0.18);
+  border: 1px solid rgba(21, 111, 108, 0.3);
+}
+
+.admin-moderation-reports-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(154, 171, 255, 0.15);
+}
+
+.admin-moderation-reports-section h4 {
+  margin: 0 0 12px;
+  font-size: 12px;
+  color: #c2ccf7;
+  font-weight: 600;
+}
+
+.admin-moderation-reports-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.admin-moderation-report-item {
+  border: 1px solid rgba(154, 171, 255, 0.1);
+  background: rgba(55, 43, 52, 0.3);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.admin-moderation-report-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.admin-moderation-report-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-moderation-report-reason {
+  font-size: 12px;
+  font-weight: 600;
+  color: #ff9da6;
+}
+
+.admin-moderation-report-reporter {
+  font-size: 10px;
+  color: #9ea9da;
+  margin-top: 4px;
+}
+
+.admin-moderation-report-status {
+  font-size: 9px;
+  padding: 3px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.admin-moderation-report-status.pending {
+  color: #f7b442;
+  background: rgba(243, 162, 33, 0.14);
+  border: 1px solid rgba(243, 162, 33, 0.3);
+}
+
+.admin-moderation-report-status.reviewed {
+  color: #31d5c8;
+  background: rgba(26, 168, 154, 0.15);
+  border: 1px solid rgba(26, 168, 154, 0.3);
+}
+
+.admin-moderation-report-status.resolved {
+  color: #70d2c9;
+  background: rgba(21, 111, 108, 0.18);
+  border: 1px solid rgba(21, 111, 108, 0.3);
+}
+
+.admin-moderation-report-status.rejected {
+  color: #ff6b6b;
+  background: rgba(255, 90, 90, 0.12);
+  border: 1px solid rgba(255, 90, 90, 0.2);
+}
+
+.admin-moderation-report-description {
+  font-size: 11px;
+  color: #d8ddff;
+  background: rgba(33, 40, 88, 0.5);
+  padding: 8px;
+  border-radius: 4px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.admin-moderation-report-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.admin-moderation-action-btn {
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid rgba(154, 171, 255, 0.2);
+  border-radius: 4px;
+  font-size: 10px;
+  font-weight: 500;
+  color: #d8ddff;
+  background: rgba(55, 43, 52, 0.5);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.admin-moderation-action-btn:hover {
+  border-color: rgba(154, 171, 255, 0.4);
+  background: rgba(55, 43, 52, 0.8);
+}
+
+.admin-moderation-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-moderation-action-approve {
+  color: #70d2c9;
+  border-color: rgba(21, 111, 108, 0.5);
+}
+
+.admin-moderation-action-approve:hover:not(:disabled) {
+  background: rgba(21, 111, 108, 0.2);
+}
+
+.admin-moderation-action-reject {
+  color: #ff9da6;
+  border-color: rgba(255, 90, 112, 0.5);
+}
+
+.admin-moderation-action-reject:hover:not(:disabled) {
+  background: rgba(255, 90, 112, 0.1);
+}
+
+.admin-moderation-action-open {
+  color: #31d5c8;
+  border-color: rgba(49, 213, 200, 0.5);
+}
+
+.admin-moderation-action-open:hover:not(:disabled) {
+  background: rgba(49, 213, 200, 0.1);
+}
+
+.admin-moderation-status-note {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: rgba(21, 111, 108, 0.2);
+  border: 1px solid rgba(49, 213, 200, 0.3);
+  border-radius: 6px;
+  color: #70d2c9;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.admin-moderation-action-review {
+  color: #f7b442;
+  border-color: rgba(243, 162, 33, 0.5);
+}
+
+.admin-moderation-action-review:hover:not(:disabled) {
+  background: rgba(243, 162, 33, 0.1);
 }
 
 @media (max-width: 1100px) {

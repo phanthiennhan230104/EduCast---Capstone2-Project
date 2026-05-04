@@ -627,7 +627,7 @@ class UpdateUserProfileView(APIView):
         )
 
 
-class AdminUsersListView(APIView):
+
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):
