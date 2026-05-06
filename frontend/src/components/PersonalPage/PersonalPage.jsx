@@ -1,8 +1,10 @@
 import React, { useState, useContext, useRef } from 'react'
+import { useParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { PodcastContext } from '../contexts/PodcastContext'
+import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { apiRequest } from '../../utils/api'
 import { getInitials } from '../../utils/getInitials'
 import { toast } from 'react-toastify'
@@ -45,31 +47,57 @@ export default function PersonalPage() {
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const saveBookmarkRef = useRef(null)
   const { user } = useAuth()
+  const { username: routeUsername } = useParams()
   const navigate = useNavigate()
   const { deletedPostIds, deletedPostsVersion, hiddenPostIds, hiddenPostsVersion, deletePost, hidePost, addSavedPost, removeSavedPost } = useContext(PodcastContext)
+  const { pauseTrackIfDeleted } = useAudioPlayer()
 
   React.useEffect(() => {
-    if (!user?.id) return
+    // If routeUsername is present, show that user's profile; otherwise use logged-in user
+    if (!user?.id && !routeUsername) return
     fetchUserProfile()
     fetchUserPosts()
     fetchUserPodcasts()
     fetchUserFriends()
-  }, [user?.id])
+  }, [user?.id, routeUsername])
 
   React.useEffect(() => {
-    // Filter out deleted and hidden posts
     setPosts(prev => 
-      prev.filter(p => !deletedPostIds.has(p.id) && !hiddenPostIds.has(p.id))
+      prev.filter(p => !deletedPostIds.has(String(p.id)) && !hiddenPostIds.has(String(p.id)))
     )
   }, [deletedPostsVersion, hiddenPostsVersion])
 
   const fetchUserProfile = async () => {
     try {
+      // If routeUsername provided, try to load that user's profile
+      if (routeUsername) {
+        try {
+          const byName = await apiRequest(`/users/username/${routeUsername}/profile/`)
+          setUserProfile(byName.data || {})
+          return
+        } catch (err) {
+          // fallback: try search endpoint to resolve id
+          try {
+            const search = await apiRequest(`/users/?username=${routeUsername}`)
+            const found = (search.data?.results || search.data || []).find(u => u.username === routeUsername)
+            if (found?.id) {
+              const data = await apiRequest(`/users/${found.id}/profile/`)
+              setUserProfile(data.data || {})
+              return
+            }
+          } catch (err2) {
+            console.warn('Fallback username lookup failed', err2)
+          }
+        }
+      }
+
+      // Default: current user
       const data = await apiRequest(`/users/${user.id}/profile/`)
       console.log('User profile data:', data.data)
       setUserProfile(data.data || {})
     } catch (err) {
       console.error('Failed to fetch user profile:', err)
+      setUserProfile(null)
     }
   }
 
@@ -80,7 +108,6 @@ export default function PersonalPage() {
       
       console.log('📌 Fetched posts:', posts.map(p => ({ id: p.id, type: p.type, is_liked: p.is_liked, like_count: p.like_count, title: p.title })))
       
-      // Load local overrides from localStorage
       const localLikeOverrides = JSON.parse(localStorage.getItem('personalPageLikeOverrides') || '{}')
       const localCommentCountOverrides = JSON.parse(localStorage.getItem('personalPageCommentCountOverrides') || '{}')
       const profileHiddenPosts = JSON.parse(localStorage.getItem('profileHiddenPosts') || '[]')
@@ -89,19 +116,15 @@ export default function PersonalPage() {
       console.log('📌 Local comment count overrides:', localCommentCountOverrides)
       console.log('📌 Profile hidden posts:', profileHiddenPosts)
       
-      // Map posts data to match PodcastCard expected format
       const mappedPosts = posts.map((post) => {
-        // Use backend field names directly (cả bài gốc và bài share đều dùng counts từ backend)
         const likeCount = post.like_count || 0
         const shareCount = post.share_count || 0
         const saveCount = post.save_count || 0
         
-        // Check if there's a local override for like
         const hasLocalLikeOverride = post.id in localLikeOverrides
         const isLiked = hasLocalLikeOverride ? localLikeOverrides[post.id] : (post.is_liked || false)
         const isSaved = post.is_saved || false
         
-        // Check if there's a local override for comment count
         const hasLocalCommentOverride = post.id in localCommentCountOverrides
         const commentCount = hasLocalCommentOverride ? localCommentCountOverrides[post.id] : (post.comment_count || 0)
         
@@ -140,11 +163,10 @@ export default function PersonalPage() {
           saveCount: saveCount,
           liked: isLiked,
           saved: isSaved,
-          ...post, // Keep original data for fallback
+          ...post, 
         }
       })
       
-      // Initialize postStates with the correct values from backend
       const newPostStates = {}
       mappedPosts.forEach(post => {
         console.log('📌 Initializing post state:', { 
@@ -159,21 +181,20 @@ export default function PersonalPage() {
           title: post.title 
         })
         newPostStates[post.id] = {
-          liked: post.liked,  // Use the mapped 'liked' field (with local override)
+          liked: post.liked,  
           likeCount: post.likes,
           saved: post.saved,
           saveCount: post.saveCount,
-          commentCount: post.comments,  // Use the mapped 'comments' field (with local override)
+          commentCount: post.comments,  
           shareCount: post.shares,
         }
       })
       console.log('📌 postStates initialized:', newPostStates)
       setPostStates(newPostStates)
       
-      // Filter out deleted, hidden posts, and profile hidden posts
       const filteredPosts = mappedPosts.filter(p => 
-        !deletedPostIds.has(p.id) && 
-        !hiddenPostIds.has(p.id) &&
+        !deletedPostIds.has(String(p.id)) && 
+        !hiddenPostIds.has(String(p.id)) &&
         !profileHiddenPosts.includes(p.id)
       )
       
@@ -480,10 +501,13 @@ export default function PersonalPage() {
       const post = posts.find(p => p.id === postId)
       if (!post) return
 
+      console.log('👤 [PersonalPage] handleDeletePost called:', { postId, type: typeof postId })
+      console.log('👤 [PersonalPage] Calling pauseTrackIfDeleted')
+      pauseTrackIfDeleted(postId)
+
       const token = getToken()
       const currentUser = getCurrentUser()
 
-      // If it's a shared post, use unshare endpoint
       if (post.type === 'shared') {
         const res = await fetch(`http://localhost:8000/api/social/posts/${post.post_id}/unshare/`, {
           method: 'DELETE',
@@ -501,8 +525,6 @@ export default function PersonalPage() {
           throw new Error(errorData.message || `HTTP ${res.status}`)
         }
       } else {
-        // If it's an original post, just hide it locally (don't call backend)
-        // Save to localStorage to persist across page reloads
         const hiddenPosts = JSON.parse(localStorage.getItem('profileHiddenPosts') || '[]')
         if (!hiddenPosts.includes(postId)) {
           hiddenPosts.push(postId)
@@ -510,8 +532,12 @@ export default function PersonalPage() {
         }
       }
 
-      // Remove from UI
-      setPosts(prev => prev.filter(p => p.id !== postId))
+      console.log('👤 [PersonalPage] Calling deletePost')
+      setPosts(prev => {
+        const filtered = prev.filter(p => p.id !== postId)
+        console.log('👤 [PersonalPage] UI updated:', prev.length, '->', filtered.length)
+        return filtered
+      })
       deletePost(postId)
       toast.success('Đã xóa bài đăng khỏi trang cá nhân')
     } catch (err) {
@@ -521,6 +547,9 @@ export default function PersonalPage() {
   }
 
   const handleHidePost = (postId) => {
+    console.log('👤 [PersonalPage] handleHidePost called:', { postId, type: typeof postId })
+    console.log('👤 [PersonalPage] Calling pauseTrackIfDeleted')
+    pauseTrackIfDeleted(postId)
     setPosts(prev => prev.filter(p => p.id !== postId))
     hidePost(postId)
     toast.success('Đã ẩn bài đăng')

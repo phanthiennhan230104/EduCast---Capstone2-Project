@@ -4,6 +4,7 @@
   import { getInitials } from '../../utils/getInitials'
   import { useTagFilter } from '../contexts/TagFilterContext'
   import { PodcastContext } from '../contexts/PodcastContext'
+  import { useAudioPlayer } from '../contexts/AudioPlayerContext'
   import { useSearchParams } from 'react-router-dom'
   import CommentModal from './CommentModal'
 
@@ -26,8 +27,10 @@
     const [error, setError] = useState('')
     const isRestoringRef = useRef(false)
     const { selectedTagIds } = useTagFilter()
-    const { setSavedPostIds_batch } = useContext(PodcastContext)
+    const { setSavedPostIds_batch, deletePost, hidePost } = useContext(PodcastContext)
     const [searchParams, setSearchParams] = useSearchParams()
+    const { pauseTrackIfDeleted, currentTrack } = useAudioPlayer()
+    const feedScrollKey = 'mainScroll:/feed'
     const focusPostId = sessionStorage.getItem('feedFocusPostId')
     const POST_SYNC_EVENT = 'post-sync-updated'
 
@@ -159,6 +162,9 @@
               liked: cachedSync.liked ?? item.viewer_state?.is_liked ?? false,
               saved: cachedSync.saved ?? item.viewer_state?.is_saved ?? false,
               saveCount: cachedSync.saveCount ?? item.stats?.saves ?? 0,
+              // Ensure comment counts are present on feed items so cards show correct counts
+              comments: cachedSync.commentCount ?? item.stats?.comments ?? item.comment_count ?? item.comments ?? 0,
+              comment_count: cachedSync.commentCount ?? item.stats?.comments ?? item.comment_count ?? item.comments ?? 0,
               timeAgo: formatTimeAgo(item.created_at),
               listens: `${item.listen_count || 0} lượt nghe`,
               shares: item.stats?.shares || 0,
@@ -222,6 +228,28 @@
         setTimeout(restore, 250)
       })
     }, [loading, podcasts])
+
+    useLayoutEffect(() => {
+      if (loading || podcasts.length === 0) return
+      if (sessionStorage.getItem('returnFromEdit') === 'true') return
+
+      const savedScroll = Number(sessionStorage.getItem(feedScrollKey) || 0)
+      if (!savedScroll) return
+
+      const restore = () => {
+        const main = document.querySelector('main')
+        if (!main) return
+
+        main.scrollTop = savedScroll
+        main.scrollTo({ top: savedScroll, behavior: 'auto' })
+      }
+
+      requestAnimationFrame(() => {
+        restore()
+        setTimeout(restore, 50)
+        setTimeout(restore, 150)
+      })
+    }, [loading, podcasts.length, feedScrollKey])
 
     useEffect(() => {
       const navType = performance.getEntriesByType('navigation')[0]?.type
@@ -423,10 +451,22 @@
                 podcast={podcast}
                 queue={podcasts}
                 onDelete={(postId) => {
+                  console.log('🗑️ [Feed] onDelete callback triggered with:', postId, 'type:', typeof postId, 'currentTrack:', currentTrack?.id)
+                  pauseTrackIfDeleted(postId)
+                  console.log('🗑️ [Feed] pauseTrackIfDeleted called')
+                  deletePost(postId)
+                  console.log('🗑️ [Feed] deletePost called')
                   setPodcasts(prev => prev.filter(p => p.id !== postId))
+                  console.log('🗑️ [Feed] UI updated - post removed')
                 }}
                 onHide={(postId) => {
+                  console.log('👁️ [Feed] onHide callback triggered with:', postId, 'type:', typeof postId, 'currentTrack:', currentTrack?.id)
+                  pauseTrackIfDeleted(postId)
+                  console.log('👁️ [Feed] pauseTrackIfDeleted called')
+                  hidePost(postId)
+                  console.log('👁️ [Feed] hidePost called')
                   setPodcasts(prev => prev.filter(p => p.id !== postId))
+                  console.log('👁️ [Feed] UI updated - post removed')
                 }}
               />
             </div>

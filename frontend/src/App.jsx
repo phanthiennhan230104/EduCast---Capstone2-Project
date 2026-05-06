@@ -169,6 +169,16 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="/profile/:username"
+                element={
+                  <ProtectedRoute>
+                    <MainLayout rightPanel={false}>
+                      <PersonalPageComponent />
+                    </MainLayout>
+                  </ProtectedRoute>
+                }
+              />
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

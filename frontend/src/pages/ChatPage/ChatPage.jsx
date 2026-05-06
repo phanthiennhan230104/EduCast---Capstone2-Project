@@ -113,24 +113,6 @@ export default function ChatPage() {
   }, [activeRoomId, loadMessages]);
 
   useEffect(() => {
-    const handleChatMessageSent = () => {
-      console.log('REFETCH CHAT FROM SHARE')
-
-      if (activeRoomId) {
-        loadMessages(activeRoomId)
-      }
-
-      loadConversations()
-    }
-
-    window.addEventListener('chat-message-sent', handleChatMessageSent)
-
-    return () => {
-      window.removeEventListener('chat-message-sent', handleChatMessageSent)
-    }
-  }, [activeRoomId, loadMessages, loadConversations])
-
-  useEffect(() => {
     scrollToBottom("auto");
   }, [activeRoomId, scrollToBottom]);
 
@@ -326,6 +308,30 @@ export default function ChatPage() {
     }
   };
 
+  useEffect(() => {
+    const handleChatMessageSent = async (event) => {
+      const roomId = event.detail?.roomId;
+
+      await loadConversations();
+
+      if (roomId) {
+        setActiveRoomId(roomId);
+        await loadMessages(roomId);
+        return;
+      }
+
+      if (activeRoomId) {
+        await loadMessages(activeRoomId);
+      }
+    };
+
+    window.addEventListener("chat-message-sent", handleChatMessageSent);
+
+    return () => {
+      window.removeEventListener("chat-message-sent", handleChatMessageSent);
+    };
+  }, [activeRoomId, loadMessages, loadConversations]);
+
   if (loading) {
     return (
       <div className="chat-page chat-page-in-layout">
@@ -335,30 +341,6 @@ export default function ChatPage() {
       </div>
     );
   }
-
-  useEffect(() => {
-    const handleChatMessageSent = async (event) => {
-      const roomId = event.detail?.roomId
-
-      await loadConversations()
-
-      if (roomId) {
-        setActiveRoomId(roomId)
-        await loadMessages(roomId)
-        return
-      }
-
-      if (activeRoomId) {
-        await loadMessages(activeRoomId)
-      }
-    }
-
-    window.addEventListener('chat-message-sent', handleChatMessageSent)
-
-    return () => {
-      window.removeEventListener('chat-message-sent', handleChatMessageSent)
-    }
-  }, [activeRoomId, loadMessages, loadConversations])
 
   return (
     <div className="chat-page chat-page-in-layout">

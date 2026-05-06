@@ -245,8 +245,12 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
             }
 
             setTimeout(() => {
+              console.log('🗑️ [PodcastCard] Timeout callback - about to call onDelete:', podcast.id)
               if (onDelete) {
+                console.log('🗑️ [PodcastCard] Calling onDelete with id:', podcast.id)
                 onDelete(podcast.id)
+              } else {
+                console.log('🗑️ [PodcastCard] onDelete is undefined!')
               }
             }, 450)
           } catch (err) {
@@ -734,13 +738,25 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
           ].join(' ')}
         >
           <div className={styles.cardHeader}>
-            <div className={styles.authorAvatar}>
+            <div
+              className={styles.authorAvatar}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/profile/${authorUsername || podcast.authorId || podcast.author}`)}
+              onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/profile/${authorUsername || podcast.authorId || podcast.author}`) }}
+            >
               {authorInitials}
             </div>
 
             <div className={styles.authorInfo}>
               <div className={styles.authorMetaRow}>
-                <span className={styles.authorName}>{author}</span>
+                <span
+                  className={styles.authorName}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => navigate(`/profile/${authorUsername || podcast.authorId || podcast.author}`)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/profile/${authorUsername || podcast.authorId || podcast.author}`) }}
+                >{author}</span>
                 <span className={styles.metaDot}>•</span>
                 <span className={styles.authorMetaText}>{podcast.timeAgo}</span>
                 <span className={styles.metaDot}>•</span>
