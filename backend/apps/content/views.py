@@ -661,19 +661,20 @@ class FeedAPIView(APIView):
 
             items = [
                 item for item in items
-                if str(getattr(item, "id", "")).strip() not in hidden_ids
+                if str(item.get("id", "")).strip() not in hidden_ids
             ]
 
-            print("LOGIN USER:", request.user.id)
-            print("HIDDEN IDS:", hidden_ids)
-            print("BEFORE:", [str(getattr(item, "id", "")) for item in items])
+            
 
             serializer = FeedItemSerializer(items, many=True)
-
+            
             return Response({
                 "items": serializer.data
             }, status=status.HTTP_200_OK)
         except Exception as e:
+            import traceback
+            print(f" Feed error: {str(e)}")
+            traceback.print_exc()
             return Response({
                 "error": f"Failed to load feed: {str(e)}"
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

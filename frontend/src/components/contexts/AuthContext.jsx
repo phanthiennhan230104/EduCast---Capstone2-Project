@@ -6,6 +6,7 @@ import {
   getRefreshToken,
   getToken,
   EDUCAST_USER,
+  AUTH_FORCE_LOGOUT_EVENT,
 } from '../../utils/auth'
 
 const AuthContext = createContext(null)
@@ -19,7 +20,50 @@ export function AuthProvider({ children }) {
     checkAuth()
   }, [])
 
-  const checkAuth = async () => {
+  /**
+   * Nhận event logout bắt buộc từ api.js.
+   * Ví dụ: backend báo tài khoản bị khóa.
+   */
+  useEffect(() => {
+    const handleForceLogout = () => {
+      clearAuth()
+      setUser(null)
+      setIsAuthenticated(false)
+      setLoading(false)
+    }
+
+    window.addEventListener(AUTH_FORCE_LOGOUT_EVENT, handleForceLogout)
+
+    return () => {
+      window.removeEventListener(AUTH_FORCE_LOGOUT_EVENT, handleForceLogout)
+    }
+  }, [])
+
+  /**
+   * Polling trạng thái tài khoản.
+   * Khi admin khóa user ở màn admin, user đang mở web sẽ tự gọi /auth/me/.
+   * Backend thấy user bị khóa => trả lỗi => apiRequest tự clearAuth và redirect.
+   */
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const intervalId = setInterval(() => {
+      const token = getToken()
+
+      if (!token) {
+        clearAuth()
+        setUser(null)
+        setIsAuthenticated(false)
+        return
+      }
+
+      checkAuth({ silent: true })
+    }, 3000)
+
+    return () => clearInterval(intervalId)
+  }, [isAuthenticated])
+
+  const checkAuth = async ({ silent = false } = {}) => {
     const token = getToken()
 
     if (!token) {
@@ -31,6 +75,7 @@ export function AuthProvider({ children }) {
 
     try {
       const data = await apiRequest('/auth/me/')
+
       setUser(data.user)
       setIsAuthenticated(true)
       localStorage.setItem(EDUCAST_USER, JSON.stringify(data.user))
@@ -38,6 +83,10 @@ export function AuthProvider({ children }) {
       clearAuth()
       setUser(null)
       setIsAuthenticated(false)
+
+      if (!silent) {
+        console.warn('Check auth failed:', error.message)
+      }
     } finally {
       setLoading(false)
     }
@@ -48,8 +97,6 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(true)
   }
 
-  // logout lấy flow từ DaNangFoodFinder:
-  // có gọi backend trước, fail vẫn clear local để thoát được
   const logout = async () => {
     try {
       const refresh = getRefreshToken()
@@ -93,5 +140,4 @@ export function useAuth() {
   }
 
   return context
-  
 }

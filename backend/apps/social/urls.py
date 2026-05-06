@@ -50,4 +50,7 @@ urlpatterns = [
     path("collections/<str:collection_id>/delete/", views.delete_collection, name="delete_collection"),
     path("posts/<str:post_id>/collections/<str:collection_id>/add/", views.add_post_to_collection, name="add_post_to_collection"),
     path("posts/<str:post_id>/collections/<str:collection_id>/remove/", views.remove_post_from_collection, name="remove_post_from_collection"),
+
+    # Reports
+    path("reports/create/", views.create_report, name="create_report"),
 ]

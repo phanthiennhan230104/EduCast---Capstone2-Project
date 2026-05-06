@@ -562,3 +562,99 @@
 .page::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.24);
 }
+
+/* Input and Textarea Styles */
+.input,
+.textarea {
+  width: 100%;
+  padding: 8px 12px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 6px;
+  color: #f5f0e7;
+  font-size: 12px;
+  font-family: inherit;
+  box-sizing: border-box;
+  margin-bottom: 8px;
+  transition: 0.2s ease;
+}
+
+.input:focus,
+.textarea:focus {
+  outline: none;
+  border-color: rgba(240, 168, 76, 0.4);
+  background: rgba(240, 168, 76, 0.05);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 60px;
+}
+
+/* Modal Styles */
+.modal {
+  background: #2a3358;
+  border: 1px solid rgba(240, 168, 76, 0.24);
+}
+
+/* Quality Buttons */
+.qualityButtons,
+.aiContentOptions,
+.languageOptions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.qualityButtons button,
+.aiContentOptions button,
+.languageOptions button {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: #aeb2cf;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.qualityButtons button:hover,
+.aiContentOptions button:hover,
+.languageOptions button:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.qualityButtons button.active,
+.qualityButtons button.activeQuality,
+.aiContentOptions button.active,
+.languageOptions button.active {
+  background: rgba(240, 168, 76, 0.18);
+  color: #ffcb6e;
+  border-color: rgba(240, 168, 76, 0.4);
+}
+
+/* Spinner for loading */
+.spin {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #9ca0c0;
+  font-size: 14px;
+}

@@ -37,13 +37,32 @@ def get_user_tag_preferences(request):
     """Get all user's tag preferences"""
     try:
         user = request.user
-        preferences = UserTagPreference.objects.filter(user=user).order_by('-score', '-created_at')
-        serializer = UserTagPreferenceSerializer(preferences, many=True)
-        return _json_success(
-            "Tag preferences fetched successfully",
-            {"preferences": serializer.data}
-        )
+        print(f"📍 Fetching tag preferences for user: {user.id}")
+        
+        # Try to fetch preferences, but handle if table doesn't exist
+        try:
+            preferences = UserTagPreference.objects.filter(user=user).order_by('-score', '-created_at')
+            print(f" Found {preferences.count()} preferences")
+            serializer = UserTagPreferenceSerializer(preferences, many=True)
+            print(f" Serialized successfully")
+            print(f" Data: {serializer.data[:2] if serializer.data else 'empty'}")
+            return _json_success(
+                "Tag preferences fetched successfully",
+                {"preferences": serializer.data}
+            )
+        except Exception as db_error:
+            # If table doesn't exist, return empty preferences
+            if "doesn't exist" in str(db_error):
+                print(f" Tag preferences table doesn't exist yet: {str(db_error)}")
+                return _json_success(
+                    "Tag preferences table not set up yet",
+                    {"preferences": []}
+                )
+            raise
     except Exception as e:
+        import traceback
+        print(f" Tag preferences error: {str(e)}")
+        traceback.print_exc()
         return _json_error(f"Error fetching preferences: {str(e)}", status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 

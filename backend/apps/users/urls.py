@@ -14,11 +14,21 @@ from .views import (
     GoogleLoginView,
     UpdateUserProfileView,
 )
+from .settings_views import (
+    UserSettingsView,
+    UpdateUserSettingsView,
+    ChangePasswordView,
+    ExportUserDataView,
+    DeleteAccountView,
+    UnlinkSocialAccountView,
+    LinkSocialAccountView,
+)
 from .admin_views import (
     AdminOverviewView,
     AdminUsersListView,
     AdminUserLockView,
     AdminUserUnlockView,
+    AdminSystemNotificationSettingsView,
 )
 from .views_tag import (
     get_user_tag_preferences,
@@ -38,6 +48,13 @@ urlpatterns = [
     path("me/", get_current_user, name="current_user"),
     path("<str:user_id>/profile/", get_user_profile, name="get-user-profile"),
     path("profile/update/", UpdateUserProfileView.as_view(), name="update-profile"),
+    path("settings/", UserSettingsView.as_view(), name="user-settings"),
+    path("settings/update/", UpdateUserSettingsView.as_view(), name="update-settings"),
+    path("change-password/", ChangePasswordView.as_view(), name="change-password"),
+    path("export-data/", ExportUserDataView.as_view(), name="export-data"),
+    path("delete-account/", DeleteAccountView.as_view(), name="delete-account"),
+    path("social-accounts/<str:provider>/unlink/", UnlinkSocialAccountView.as_view(), name="unlink-social"),
+    path("social-accounts/<str:provider>/link/", LinkSocialAccountView.as_view(), name="link-social"),
     path("token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("forgot-password/", ForgotPasswordView.as_view(), name="forgot-password"),
     path("verify-reset-otp/", VerifyResetOTPView.as_view(), name="verify-reset-otp"),
@@ -48,6 +65,7 @@ urlpatterns = [
     path("admin/overview/", AdminOverviewView.as_view(), name="admin-overview"),
     path("admin/users/<str:user_id>/lock/", AdminUserLockView.as_view(), name="admin-user-lock"),
     path("admin/users/<str:user_id>/unlock/", AdminUserUnlockView.as_view(), name="admin-user-unlock"),
+    path("admin/system/notifications/", AdminSystemNotificationSettingsView.as_view(), name="admin-system-notifications",),
     
     # Tag preferences endpoints
     path("tags/available/", get_available_tags, name="available-tags"),

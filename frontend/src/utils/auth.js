@@ -2,6 +2,9 @@ export const EDUCAST_ACCESS = 'educast_access'
 export const EDUCAST_REFRESH = 'educast_refresh'
 export const EDUCAST_USER = 'educast_user'
 
+export const AUTH_FORCE_LOGOUT_EVENT = 'educast_force_logout'
+export const LOGIN_PATH = '/'
+
 export function saveAuth(data) {
   // Backend DRF + SimpleJWT trả access/refresh
   if (data?.access) {
@@ -45,4 +48,22 @@ export function clearAuth() {
 
 export function isLoggedIn() {
   return Boolean(getToken())
+}
+
+/**
+ * Dùng khi backend báo token hết hạn / tài khoản bị khóa.
+ * Hàm này xóa token local và bắn event để AuthContext cập nhật UI.
+ */
+export function forceLogoutToLogin(reason = 'Phiên đăng nhập đã kết thúc.') {
+  clearAuth()
+
+  window.dispatchEvent(
+    new CustomEvent(AUTH_FORCE_LOGOUT_EVENT, {
+      detail: { reason },
+    })
+  )
+
+  if (window.location.pathname !== LOGIN_PATH) {
+    window.location.replace(LOGIN_PATH)
+  }
 }
