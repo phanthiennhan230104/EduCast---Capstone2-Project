@@ -14,6 +14,7 @@ import {
   UploadOutlined,
 } from '@ant-design/icons'
 import styles from '../../style/create-audio/SourceCard.module.css'
+import { showCancelConfirm } from './CancelAudioConfirmModal'
 
 const { TextArea } = Input
 const { Text } = Typography
@@ -23,6 +24,20 @@ export default function SourceCard({ vm }) {
     key: tab.key,
     label: tab.label,
   }))
+
+  const handleSourceTabChange = (nextTab) => {
+    if (nextTab === vm.sourceTab) return
+
+    if (vm.genState === 'processing') {
+      showCancelConfirm(() => {
+        vm.cancelGenerate?.()
+        vm.setSourceTab(nextTab)
+      })
+      return
+    }
+
+    vm.setSourceTab(nextTab)
+  }
 
   return (
     <Card
@@ -34,7 +49,7 @@ export default function SourceCard({ vm }) {
         body: { paddingTop: 8 },
       }}
     >
-      <Tabs activeKey={vm.sourceTab} onChange={vm.setSourceTab} items={tabItems} />
+      <Tabs activeKey={vm.sourceTab} onChange={handleSourceTabChange} items={tabItems} />
 
       {vm.sourceTab === 'text' && (
         <Space orientation="vertical" size={16} className={styles.block}>

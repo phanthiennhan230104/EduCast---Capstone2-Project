@@ -42,6 +42,7 @@ export async function apiRequest(path, options = {}) {
     },
     body: options.body,
     credentials: 'include',
+    signal: options.signal,
   })
 
   const data = await response.json().catch(() => ({}))

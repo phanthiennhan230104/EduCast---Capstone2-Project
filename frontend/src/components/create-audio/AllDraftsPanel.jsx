@@ -156,7 +156,7 @@ export default function AllDraftsPanel({ vm }) {
       width: 120,
       render: (_, record) => {
         const isArchiving = archivingId === record.id
-        const isDisabled = vm?.isLoadingDraft || !!archivingId
+        const isDisabled = vm?.isLoadingDraft || !!archivingId || vm.genState === 'processing'
 
         return (
           <Space size="small">
@@ -164,10 +164,26 @@ export default function AllDraftsPanel({ vm }) {
               type="link"
               size="small"
               disabled={isDisabled}
-              onClick={() => vm?.loadDraftToForm?.(record.id)}
+              onClick={async () => {
+                if (vm.genState === 'processing') {
+                  toast.info('Vui lòng hoàn tất tạo audio trước khi load draft khác')
+                  return
+                }
+
+                await vm?.loadDraftToForm?.(record.id)
+
+                setTimeout(() => {
+                  if (!vm?.audioUrl) {
+                    toast.info('Draft chưa có audio để đăng bài')
+                    return
+                  }
+
+                  vm?.goToPublish?.()
+                }, 300)
+              }}
               style={{ padding: 0 }}
             >
-              Chọn
+              Đăng bài
             </Button>
             <Popconfirm
               title="Lưu trữ bản nháp"

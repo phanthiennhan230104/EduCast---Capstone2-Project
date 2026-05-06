@@ -23,16 +23,9 @@ class FeedService:
                 )
             )
 
-            # Filter for published and public posts, OR posts by the current user
-            from django.db.models import Q
-            
-            # Exclude archived posts first
-            posts_qs = posts_qs.exclude(status="archived")
-            
-            # Then filter: (published AND public) OR (belongs to current user AND not hidden)
             posts_qs = posts_qs.filter(
-                Q(status="published", visibility="public") | 
-                Q(user_id=user.id, status__in=["published", "draft"])
+                status="published",
+                visibility="public"
             )
 
             # Get hidden posts, but handle if table doesn't exist
@@ -44,6 +37,12 @@ class FeedService:
             except Exception as e:
                 print(f"⚠️ Hidden posts table issue: {str(e)}")
                 # Continue without filtering if table doesn't exist
+
+            hidden_post_ids = HiddenPost.objects.filter(
+                user_id=user.id
+            ).values_list("post_id", flat=True)
+
+            posts_qs = posts_qs.exclude(id__in=hidden_post_ids)
 
             # Filter by tags if provided
             if tag_ids:
