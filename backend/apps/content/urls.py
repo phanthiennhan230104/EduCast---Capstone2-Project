@@ -10,6 +10,9 @@ from .views import (
     DraftDeleteView,
     PublishPostView,
     UploadDocumentView,
+    PublishPostView,
+    CategoryListView,
+    TopicListView,
 )
 from .admin_views import (
     AdminPostsListView,
@@ -21,8 +24,10 @@ from .admin_views import (
     AdminRejectReportView,
 )
 
+
 urlpatterns = [
     path("upload-test/", TestCloudinaryUploadView.as_view(), name="upload-test"),
+    path("upload-audio/", TestCloudinaryUploadView.as_view(), name="upload-audio"),
     path("feed/", FeedAPIView.as_view(), name="feed"),
     path("search/", SearchAPIView.as_view(), name="search"),
     path("users/<str:user_id>/posts/", UserPostsAPIView.as_view(), name="user-posts"),
@@ -47,4 +52,8 @@ urlpatterns = [
     path("admin/posts/<str:post_id>/lock-with-report/", AdminLockPostWithReportView.as_view(), name="admin-post-lock"),
     path("admin/posts/<str:post_id>/reject-report/", AdminRejectReportView.as_view(), name="admin-post-reject-report"),
     path("admin/reports/<str:report_id>/status/", AdminUpdateReportStatusView.as_view(), name="admin-report-status"),
+    path("posts/publish/", PublishPostView.as_view(), name="publish-post"),
+    path("categories/", CategoryListView.as_view(), name="category-list"),
+    path("topics/", TopicListView.as_view(), name="topic-list"),
+
 ]

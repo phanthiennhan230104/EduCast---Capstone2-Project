@@ -6,6 +6,7 @@ import AdminPage from "./components/admin/AdminPage";
 import FavoritesPage from "./pages/FavoritesPage/FavoritesPage";
 import CreateAudioPage from './pages/CreateAudioPage/CreateAudioPage'
 import EditAudioPage from './pages/EditAudioPage/EditAudioPage'
+import PublishPostPage from './pages/PublishPostPage/PublishPostPage'
 import SearchResultsPage from './pages/SearchResultsPage/SearchResultsPage'
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminUsersPage from "./components/admin/AdminUsersPage";
@@ -169,6 +170,22 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="/publish-post"
+              element={
+                <ProtectedRoute>
+                  <PublishPostPage />
+                </ProtectedRoute>
+              }
+            />
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

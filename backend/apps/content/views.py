@@ -5,12 +5,13 @@ from apps.social.models import HiddenPost, PostLike, SavedPost, Comment, PostSha
 
 from django.db import transaction, models
 from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from apps.content.services.feed_service import FeedService
-from .models import Post, PostAudioVersion, PostDocument
+from .models import Post, PostAudioVersion, PostDocument, Tag, PostTag, Category, Topic
 from apps.social.models import HiddenPost
 from .serializers import (
     DraftCreateSerializer,
@@ -20,6 +21,9 @@ from .serializers import (
     DraftUpdateSerializer,
     UploadDocumentSerializer,
     FeedItemSerializer,
+    PublishPostSerializer,
+    CategorySerializer,
+    TopicSerializer,
 )
 from .services.cloudinary_service import (
     upload_file_to_cloudinary,
@@ -31,7 +35,51 @@ class TestCloudinaryUploadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        pass
+        try:
+            audio_file = request.FILES.get('audio')
+            if not audio_file:
+                return Response(
+                    {'error': 'Không tìm thấy file audio'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Validate file type
+            if not audio_file.content_type.startswith('audio/'):
+                return Response(
+                    {'error': 'File phải là audio'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Validate file size (50MB max)
+            max_size = 50 * 1024 * 1024
+            if audio_file.size > max_size:
+                return Response(
+                    {'error': 'File quá lớn. Tối đa 50MB'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Upload to Cloudinary
+            result = upload_file_to_cloudinary(
+                audio_file,
+                resource_type='auto',
+                folder='educast/audios',
+            )
+
+            return Response(
+                {
+                    'message': 'Upload thành công',
+                    'audio_url': result.get('secure_url'),
+                    'public_id': result.get('public_id'),
+                    'duration': result.get('duration'),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 from .services.text_processor import process_text_by_mode, generate_ai_description
 from .services.tts_service import generate_audio_file
@@ -60,7 +108,65 @@ def build_fallback_description(text: str, max_length: int = 180) -> str:
     shortened = compact[:max_length].rsplit(" ", 1)[0].strip()
     return shortened + "..."
 
+def handle_tags(post, tag_names):
+    for raw_tag in tag_names:
+        tag_name = (raw_tag or "").strip().lower()
+        tag_name = tag_name.lstrip("#")
+        tag_name = " ".join(tag_name.split())
 
+        if not tag_name:
+            continue
+
+        slug = slugify(tag_name)
+
+        tag = Tag.objects.filter(slug=slug).first()
+
+        if not tag:
+            tag = Tag.objects.create(
+                id=str(ulid.new()),
+                slug=slug,
+                name=tag_name,
+                created_at=timezone.now(),
+            )
+
+        PostTag.objects.get_or_create(
+            post=post,
+            tag=tag,
+            defaults={"created_at": timezone.now()},
+        )
+
+def handle_topics(post, topic_ids, new_topic_names):
+    final_topic_ids = list(topic_ids or [])
+
+    for raw_name in new_topic_names or []:
+        topic_name = " ".join((raw_name or "").strip().split())
+        if not topic_name:
+            continue
+
+        slug = slugify(topic_name)
+
+        topic = Topic.objects.filter(slug=slug).first()
+        if not topic:
+            topic = Topic.objects.create(
+                id=str(ulid.new()),
+                name=topic_name,
+                slug=slug,
+                description=None,
+                created_at=timezone.now(),
+            )
+
+        if topic.id not in final_topic_ids:
+            final_topic_ids.append(topic.id)
+
+    post.post_topics.all().delete()
+
+    valid_topics = Topic.objects.filter(id__in=final_topic_ids)
+    for topic in valid_topics:
+        post.post_topics.create(
+            topic=topic,
+            created_at=timezone.now(),
+        )
+        
 class DraftCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -138,12 +244,16 @@ class AudioPreviewView(APIView):
             data["mode"],
         )
 
-        if not processed_text.strip():
+        processed_text = (processed_text or "").strip()
+
+        if not processed_text:
+            processed_text = original_text.strip()
+
+        if not processed_text:
             return Response(
                 {"error": "Không thể tạo nội dung audio từ văn bản đầu vào."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         try:
             generated_description = generate_ai_description(processed_text)
             generated_description = (generated_description or "").strip()
@@ -834,7 +944,6 @@ class SearchAPIView(APIView):
 
         return Response(results, status=status.HTTP_200_OK)
 
-
 class UserPostsAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -1073,3 +1182,105 @@ class UserSharedPostsAPIView(APIView):
                 "error": f"Failed to load user shared posts: {str(e)}",
                 "shared_posts": []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class PublishPostView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = PublishPostSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            if data.get("draft_id"):
+                post = Post.objects.get(
+                    id=data["draft_id"],
+                    user=request.user,
+                )
+            else:
+                post = Post.objects.create(
+                    id=str(ulid.new()),
+                    user=request.user,
+                    slug=generate_unique_slug(data["title"]),
+                    created_at=timezone.now(),
+                    updated_at=timezone.now(),
+                )
+
+            post.title = data["title"]
+            post.description = data.get("description")
+            post.original_text = data.get("original_text")
+            post.transcript_text = data.get("transcript_text")
+            post.source_type = data.get("source_type", "ai_generated")
+            post.is_ai_generated = data.get("is_ai_generated", True)
+            post.audio_url = data["audio_url"]
+            post.duration_seconds = data.get("duration_seconds")
+            post.category_id = data.get("category_id")
+            post.age_group = data.get("age_group")
+            post.learning_field = data.get("learning_field")
+            post.visibility = data.get("visibility", "public")
+            post.status = Post.StatusChoices.PUBLISHED
+            post.published_at = timezone.now()
+            post.updated_at = timezone.now()
+            post.slug = generate_unique_slug(post.title)
+
+            post.save()
+
+            # TOPICS
+            handle_topics(
+                post=post,
+                topic_ids=data.get("topic_ids", []),
+                new_topic_names=data.get("new_topics", []),
+            )
+
+            # TAGS
+            post.post_tags.all().delete()
+            handle_tags(post, data.get("tags", []))
+
+            return Response(
+                {
+                    "message": "Đăng bài thành công",
+                    "post_id": post.id,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Không tìm thấy draft để publish"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+class CategoryListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        categories = Category.objects.all().order_by("name")
+        serializer = CategorySerializer(categories, many=True)
+        return Response(
+            {
+                "message": "Lấy danh sách categories thành công",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class TopicListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        topics = Topic.objects.all().order_by("name")
+        serializer = TopicSerializer(topics, many=True)
+        return Response(
+            {
+                "message": "Lấy danh sách topics thành công",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )

@@ -9,10 +9,11 @@ export const createDraft = async (payload) => {
 }
 
 // Tạo audio preview
-export const previewAudio = async (payload) => {
+export const previewAudio = async (payload, signal) => {
   return await apiRequest('/content/drafts/preview-audio/', {
     method: 'POST',
     body: JSON.stringify(payload),
+    signal,
   })
 }
 
@@ -63,4 +64,54 @@ export const uploadDocument = async (formData) => {
     method: 'POST',
     body: formData,
   })
+}
+
+// Lấy categories
+export const getCategories = async () => {
+  return await apiRequest('/content/categories/')
+}
+
+// Lấy topics
+export const getTopics = async () => {
+  return await apiRequest('/content/topics/')
+}
+
+// Publish post
+export const publishPost = async (payload) => {
+  return await apiRequest('/content/posts/publish/', {
+    method: 'POST',
+    body: JSON.stringify(payload),
+  })
+}
+
+// Upload audio file to cloud
+export const uploadAudioFile = async (file) => {
+  if (!file) throw new Error('File is required')
+  
+  const formData = new FormData()
+  formData.append('audio', file)
+  
+  const token = localStorage.getItem('educast_access')
+  
+  const res = await fetch('http://localhost:8000/api/content/upload-audio/', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.error || 'Upload failed')
+  }
+
+  const data = await res.json()
+  
+  // Ensure we return the correct URL key
+  return {
+    audio_url: data.audio_url || data.secure_url || data.url,
+    public_id: data.public_id,
+    duration: data.duration,
+  }
 }

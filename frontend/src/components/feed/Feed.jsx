@@ -1,490 +1,451 @@
-  import { useEffect, useLayoutEffect, useRef, useState, useContext } from 'react'
-  import PodcastCard from './PodcastCard'
-  import styles from '../../style/feed/Feed.module.css'
-  import { getInitials } from '../../utils/getInitials'
-  import { useTagFilter } from '../contexts/TagFilterContext'
-  import { PodcastContext } from '../contexts/PodcastContext'
-  import { useSearchParams } from 'react-router-dom'
-  import CommentModal from './CommentModal'
+import { useContext, useEffect, useLayoutEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
+import { toast } from 'react-toastify'
+import PodcastCard from './PodcastCard'
+import CreatePostBar from './CreatePostBar'
+import CommentModal from './CommentModal'
+import styles from '../../style/feed/Feed.module.css'
+import { getInitials } from '../../utils/getInitials'
+import { useTagFilter } from '../contexts/TagFilterContext'
+import { PodcastContext } from '../contexts/PodcastContext'
 
-  const TABS = [
-    { label: 'Dành cho bạn', key: 'for_you' },
-    { label: 'Đang theo dõi', key: 'following' },
-    { label: 'Xu hướng', key: 'trending' },
-    { label: 'Mới nhất', key: 'latest' },
-  ]
+const TABS = [
+  { label: 'Dành cho bạn', key: 'for_you' },
+  { label: 'Đang theo dõi', key: 'following' },
+  { label: 'Xu hướng', key: 'trending' },
+  { label: 'Mới nhất', key: 'latest' },
+]
 
-  export default function Feed() {
-    const [activeTab, setActiveTab] = useState(() => {
-      const saved = sessionStorage.getItem('feedActiveTab')
-      return saved ? parseInt(saved, 10) : 0
-    })
-    const [disableModalAutoScroll, setDisableModalAutoScroll] = useState(false)
-    const [selectedPodcast, setSelectedPodcast] = useState(null)
-    const [podcasts, setPodcasts] = useState([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState('')
-    const isRestoringRef = useRef(false)
-    const { selectedTagIds } = useTagFilter()
-    const { setSavedPostIds_batch } = useContext(PodcastContext)
-    const [searchParams, setSearchParams] = useSearchParams()
-    const focusPostId = sessionStorage.getItem('feedFocusPostId')
-    const POST_SYNC_EVENT = 'post-sync-updated'
+const POST_SYNC_EVENT = 'post-sync-updated'
 
-    const dispatchPostSync = (payload) => {
-      window.dispatchEvent(new CustomEvent(POST_SYNC_EVENT, { detail: payload }))
+export default function Feed() {
+  const location = useLocation()
+  const { selectedTagIds } = useTagFilter()
+  const { setSavedPostIds_batch } = useContext(PodcastContext)
+
+  const [activeTab, setActiveTab] = useState(() => {
+    const saved = sessionStorage.getItem('feedActiveTab')
+    return saved ? parseInt(saved, 10) : 0
+  })
+  const [disableModalAutoScroll, setDisableModalAutoScroll] = useState(false)
+  const [selectedPodcast, setSelectedPodcast] = useState(null)
+  const [podcasts, setPodcasts] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  const focusPostId = sessionStorage.getItem('feedFocusPostId')
+
+  const dispatchPostSync = (payload) => {
+    window.dispatchEvent(new CustomEvent(POST_SYNC_EVENT, { detail: payload }))
+  }
+
+  useEffect(() => {
+    sessionStorage.setItem('feedActiveTab', String(activeTab))
+  }, [activeTab])
+
+  useEffect(() => {
+    if (!location.state?.toast) return
+
+    const { type, message } = location.state.toast
+
+    if (type === 'success') toast.success(message)
+    else if (type === 'error') toast.error(message)
+    else if (type === 'info') toast.info(message)
+    else if (type === 'warning') toast.warning(message)
+  }, [location.state?.toast])
+
+  useEffect(() => {
+    const handlePostSync = (event) => {
+      const d = event.detail || {}
+      if (!d.postId) return
+
+      const oldSync = JSON.parse(
+        localStorage.getItem(`post-sync-${d.postId}`) || '{}'
+      )
+
+      const nextSync = { ...oldSync }
+
+      if (typeof d.liked === 'boolean') nextSync.liked = d.liked
+      if (typeof d.likeCount === 'number') nextSync.likeCount = d.likeCount
+      if (typeof d.saved === 'boolean') nextSync.saved = d.saved
+      if (typeof d.saveCount === 'number') nextSync.saveCount = d.saveCount
+
+      localStorage.setItem(`post-sync-${d.postId}`, JSON.stringify(nextSync))
+
+      setPodcasts(prev =>
+        prev.map(p =>
+          String(p.id) === String(d.postId)
+            ? {
+                ...p,
+                liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
+                likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
+                saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+                saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+              }
+            : p
+        )
+      )
+
+      setSelectedPodcast(prev =>
+        prev && String(prev.id) === String(d.postId)
+          ? {
+              ...prev,
+              liked: typeof d.liked === 'boolean' ? d.liked : prev.liked,
+              likes: typeof d.likeCount === 'number' ? d.likeCount : prev.likes,
+              saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
+              saveCount: typeof d.saveCount === 'number' ? d.saveCount : prev.saveCount,
+            }
+          : prev
+      )
     }
 
-    useEffect(() => {
-      const handlePostSync = (event) => {
-        const d = event.detail || {}
+    window.addEventListener(POST_SYNC_EVENT, handlePostSync)
+    return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
+  }, [])
 
-        if (!d.postId) return
-        const oldSync = JSON.parse(
-          localStorage.getItem(`post-sync-${d.postId}`) || '{}'
-        )
+  useEffect(() => {
+    const fetchFeed = async () => {
+      try {
+        setLoading(true)
+        setError('')
 
-        const nextSync = {
-          ...oldSync,
+        const token = localStorage.getItem('educast_access')
+        const currentTab = TABS[activeTab]?.key || 'for_you'
+        const limit = focusPostId ? 50 : 10
+
+        let url = `http://localhost:8000/api/content/feed/?limit=${limit}&tab=${currentTab}`
+
+        if (selectedTagIds && selectedTagIds.length > 0) {
+          url += `&tags=${selectedTagIds.join(',')}`
         }
 
-        if (typeof d.liked === 'boolean') {
-          nextSync.liked = d.liked
-        }
+        const res = await fetch(url, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        })
 
-        if (typeof d.likeCount === 'number') {
-          nextSync.likeCount = d.likeCount
-        }
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-        if (typeof d.saved === 'boolean') {
-          nextSync.saved = d.saved
-        }
+        const data = await res.json()
 
-        if (typeof d.saveCount === 'number') {
-          nextSync.saveCount = d.saveCount
-        }
-
-        localStorage.setItem(`post-sync-${d.postId}`, JSON.stringify(nextSync))
-
-        setPodcasts(prev =>
-          prev.map(p =>
-            String(p.id) === String(d.postId)
-              ? {
-                  ...p,
-                  liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
-                  likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
-                  saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
-                  saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
-                }
-              : p
+        const mapped = (data.items || []).map((item) => {
+          const durationSeconds = Number(
+            item.audio?.duration_seconds || item.viewer_state?.duration_seconds || 0
           )
-        )
-
-        setSelectedPodcast(prev =>
-          prev && String(prev.id) === String(d.postId)
-            ? {
-                ...prev,
-                liked: typeof d.liked === 'boolean' ? d.liked : prev.liked,
-                likes: typeof d.likeCount === 'number' ? d.likeCount : prev.likes,
-                saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
-                saveCount: typeof d.saveCount === 'number' ? d.saveCount : prev.saveCount,
-              }
-            : prev
-        )
-      }
-
-      window.addEventListener(POST_SYNC_EVENT, handlePostSync)
-      return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
-    }, [])
-
-    useEffect(() => {
-      const fetchFeed = async () => {
-        try {
-          setLoading(true)
-          setError('')
-
-          const token = localStorage.getItem('educast_access')
-
-          const currentTab = TABS[activeTab]?.key || 'for_you'
-
-          const limit = focusPostId ? 50 : 10
-
-          let url = `http://localhost:8000/api/content/feed/?limit=${limit}&tab=${currentTab}`
-          if (selectedTagIds && selectedTagIds.length > 0) {
-            url += `&tags=${selectedTagIds.join(',')}`
-            console.log('🎯 Fetching feed with tags:', selectedTagIds)
-          }
-
-          const res = await fetch(url, {
-              headers: {
-                'Content-Type': 'application/json',
-                Authorization: `Bearer ${token}`,
-              },
-            }
+          const progressSeconds = Number(item.viewer_state?.progress_seconds || 0)
+          const cachedSync = JSON.parse(
+            localStorage.getItem(`post-sync-${item.id}`) || '{}'
           )
 
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status}`)
+          return {
+            id: item.id,
+            title: item.title,
+            author: item.author?.name || 'Ẩn danh',
+            authorUsername: item.author?.username || '',
+            authorInitials: getInitials(item.author || 'A'),
+            cover: item.thumbnail_url,
+            description: item.description || '',
+            tags: (item.tags || []).map((tag) => `#${tag.name}`),
+            aiGenerated: false,
+            duration: formatSeconds(durationSeconds),
+            durationSeconds,
+            current: formatSeconds(progressSeconds),
+            currentSeconds: progressSeconds,
+            progress: calcProgress(progressSeconds, durationSeconds),
+            likes: cachedSync.likeCount ?? item.stats?.likes ?? 0,
+            liked: cachedSync.liked ?? item.viewer_state?.is_liked ?? false,
+            saved: cachedSync.saved ?? item.viewer_state?.is_saved ?? false,
+            saveCount: cachedSync.saveCount ?? item.stats?.saves ?? 0,
+            timeAgo: formatTimeAgo(item.created_at),
+            listens: `${item.listen_count || 0} lượt nghe`,
+            shares: item.stats?.shares || 0,
+            comments: item.stats?.comments || item.comment_count || 0,
+            audioUrl: item.audio?.audio_url || '',
+            audioId: item.audio?.id || '',
+            voiceName: item.audio?.voice_name || '',
           }
+        })
 
-          const data = await res.json()
+        setPodcasts(mapped)
+        setSavedPostIds_batch(mapped.filter(p => p.saved).map(p => p.id))
+      } catch (err) {
+        console.error('Fetch feed failed:', err)
+        setError('Không tải được feed')
+      } finally {
+        setLoading(false)
+      }
+    }
 
-          const mapped = (data.items || []).map((item) => {
-            const durationSeconds =
-              Number(item.audio?.duration_seconds || item.viewer_state?.duration_seconds || 0)
+    fetchFeed()
+  }, [activeTab, selectedTagIds, focusPostId, setSavedPostIds_batch])
 
-            const progressSeconds =
-              Number(item.viewer_state?.progress_seconds || 0)
-            
-            const cachedSync = JSON.parse(
-              localStorage.getItem(`post-sync-${item.id}`) || '{}'
-            )
+  useLayoutEffect(() => {
+    if (loading || podcasts.length === 0) return
+    if (sessionStorage.getItem('returnFromEdit') !== 'true') return
 
-            return {
-              id: item.id,
-              title: item.title,
-              author: item.author?.name || 'Ẩn danh',
-              authorUsername: item.author?.username || '',
-              authorInitials: getInitials(item.author || 'A'),
-              cover: item.thumbnail_url,
-              description: item.description || '',
-              tags: (item.tags || []).map((tag) => `#${tag.name}`),
-              aiGenerated: false,
-              duration: formatSeconds(durationSeconds),
-              durationSeconds,
-              current: formatSeconds(progressSeconds),
-              currentSeconds: progressSeconds,
-              progress: calcProgress(progressSeconds, durationSeconds),
-              likes: cachedSync.likeCount ?? item.stats?.likes ?? 0,
-              liked: cachedSync.liked ?? item.viewer_state?.is_liked ?? false,
-              saved: cachedSync.saved ?? item.viewer_state?.is_saved ?? false,
-              saveCount: cachedSync.saveCount ?? item.stats?.saves ?? 0,
-              timeAgo: formatTimeAgo(item.created_at),
-              listens: `${item.listen_count || 0} lượt nghe`,
-              shares: item.stats?.shares || 0,
-              audioUrl: item.audio?.audio_url || '',
-              audioId: item.audio?.id || '',
-              voiceName: item.audio?.voice_name || '',
-            }
-          })
+    const scrollTop = Number(sessionStorage.getItem('feedScrollPosition') || 0)
+    const openPostId = sessionStorage.getItem('openPostDetailId')
 
-          setPodcasts(mapped)
-          
-          const savedPostIds = mapped
-            .filter(p => p.saved)
-            .map(p => p.id)
-          setSavedPostIds_batch(savedPostIds)
-        } catch (err) {
-          console.error('Fetch feed failed:', err)
-          setError('Không tải được feed')
-        } finally {
-          setLoading(false)
-        }
+    const restore = () => {
+      const main = document.querySelector('main')
+
+      if (main) {
+        main.scrollTop = scrollTop
+        main.scrollTo({ top: scrollTop, behavior: 'auto' })
       }
 
-      fetchFeed()
-    }, [activeTab, selectedTagIds])
-
-    useLayoutEffect(() => {
-      if (loading || podcasts.length === 0) return
-      if (sessionStorage.getItem('returnFromEdit') !== 'true') return
-
-      const scrollTop = Number(sessionStorage.getItem('feedScrollPosition') || 0)
-      const openPostId = sessionStorage.getItem('openPostDetailId')
-
-      const restore = () => {
-        const main = document.querySelector('main')
-
-        if (main) {
-          main.scrollTop = scrollTop
-          main.scrollTo({ top: scrollTop, behavior: 'auto' })
-        }
-
-        if (openPostId) {
-          const target = podcasts.find(p => String(p.id) === String(openPostId))
-          if (target) {
-            setDisableModalAutoScroll(true)
-            setSelectedPodcast(target)
-          }
-        }
-
-        sessionStorage.removeItem('returnFromEdit')
-        sessionStorage.removeItem('feedScrollPosition')
-        sessionStorage.removeItem('feedFocusPostId')
-        sessionStorage.removeItem('openPostDetailId')
-        sessionStorage.removeItem('openPostDetailNoScroll')
-        sessionStorage.removeItem('returnToAfterEdit')
-      }
-
-      requestAnimationFrame(() => {
-        restore()
-        setTimeout(restore, 80)
-        setTimeout(restore, 250)
-      })
-    }, [loading, podcasts])
-
-    useEffect(() => {
-      const navType = performance.getEntriesByType('navigation')[0]?.type
-      const returnFromEdit = sessionStorage.getItem('returnFromEdit') === 'true'
-
-      if (navType === 'reload' && !returnFromEdit) {
-        sessionStorage.removeItem('feedScrollPosition')
-        sessionStorage.removeItem('feedFocusPostId')
-        sessionStorage.removeItem('openPostDetailId')
-        sessionStorage.removeItem('openPostDetailNoScroll')
-
-        setTimeout(() => {
-          const main = document.querySelector('main')
-          if (main) main.scrollTop = 0
-        }, 100)
-      }
-    }, [])
-
-    useEffect(() => {
-      const handleOpenPostDetail = (event) => {
-        const postId = event.detail?.postId
-        if (!postId) return
-
-        const target = podcasts.find(p => String(p.id) === String(postId))
+      if (openPostId) {
+        const target = podcasts.find(p => String(p.id) === String(openPostId))
         if (target) {
-          setDisableModalAutoScroll(Boolean(event.detail?.disableAutoScroll))
+          setDisableModalAutoScroll(true)
           setSelectedPodcast(target)
         }
       }
 
-      window.addEventListener('open-post-detail', handleOpenPostDetail)
-
-      return () => {
-        window.removeEventListener('open-post-detail', handleOpenPostDetail)
-      }
-    }, [podcasts])
-
-    const handleModalToggleLike = async (e) => {
-      e?.preventDefault?.()
-      e?.stopPropagation?.()
-
-      if (!selectedPodcast?.id) return
-
-      const token = localStorage.getItem('educast_access')
-      const currentUser = JSON.parse(localStorage.getItem('educast_user') || 'null')
-
-      const res = await fetch(
-        `http://localhost:8000/api/social/posts/${selectedPodcast.id}/like/`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            user_id: currentUser?.id,
-          }),
-        }
-      )
-
-      const data = await res.json()
-      if (!res.ok || !data.success) return
-
-      const nextLiked = Boolean(data.data?.liked)
-      const nextLikeCount = Number(data.data?.like_count || 0)
-
-      setSelectedPodcast(prev => ({
-        ...prev,
-        liked: nextLiked,
-        likes: nextLikeCount,
-      }))
-
-      setPodcasts(prev =>
-        prev.map(p =>
-          p.id === selectedPodcast.id
-            ? { ...p, liked: nextLiked, likes: nextLikeCount }
-            : p
-        )
-      )
-
-      dispatchPostSync({
-        postId: selectedPodcast.id,
-        liked: nextLiked,
-        likeCount: nextLikeCount,
-      })
-
-      window.dispatchEvent(
-        new CustomEvent('audio-track-like-updated', {
-          detail: {
-            postId: selectedPodcast.id,
-            liked: nextLiked,
-            likeCount: nextLikeCount,
-          },
-        })
-      )
+      clearEditReturnSession()
     }
 
-    const handleModalToggleSave = async (e) => {
-      e?.preventDefault?.()
-      e?.stopPropagation?.()
+    requestAnimationFrame(() => {
+      restore()
+      setTimeout(restore, 80)
+      setTimeout(restore, 250)
+    })
+  }, [loading, podcasts])
 
-      if (!selectedPodcast?.id) return
+  useEffect(() => {
+    const navType = performance.getEntriesByType('navigation')[0]?.type
+    const returnFromEdit = sessionStorage.getItem('returnFromEdit') === 'true'
 
-      const token = localStorage.getItem('educast_access')
-      const currentUser = JSON.parse(localStorage.getItem('educast_user') || 'null')
+    if (navType === 'reload' && !returnFromEdit) {
+      sessionStorage.removeItem('feedScrollPosition')
+      sessionStorage.removeItem('feedFocusPostId')
+      sessionStorage.removeItem('openPostDetailId')
+      sessionStorage.removeItem('openPostDetailNoScroll')
 
-      const res = await fetch(
-        `http://localhost:8000/api/social/posts/${selectedPodcast.id}/save/`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          body: JSON.stringify({
-            user_id: currentUser?.id,
-          }),
-        }
-      )
-
-      const data = await res.json()
-      if (!res.ok || !data.success) return
-
-      const nextSaved = Boolean(data.data?.saved)
-      const nextSaveCount = Number(data.data?.save_count || 0)
-
-      setSelectedPodcast(prev => ({
-        ...prev,
-        saved: nextSaved,
-        saveCount: nextSaveCount,
-      }))
-
-      setPodcasts(prev =>
-        prev.map(p =>
-          p.id === selectedPodcast.id
-            ? { ...p, saved: nextSaved, saveCount: nextSaveCount }
-            : p
-        )
-      )
-
-      dispatchPostSync({
-        postId: selectedPodcast.id,
-        saved: nextSaved,
-        saveCount: nextSaveCount,
-      })
-    }
-
-    useLayoutEffect(() => {
-      if (loading || podcasts.length === 0) return
-      if (sessionStorage.getItem('returnFromEdit') !== 'true') return
-
-      const scrollTop = Number(sessionStorage.getItem('feedScrollPosition') || 0)
-      const openPostId = sessionStorage.getItem('openPostDetailId')
-
-      requestAnimationFrame(() => {
+      setTimeout(() => {
         const main = document.querySelector('main')
-        main?.scrollTo({
-          top: scrollTop,
-          behavior: 'auto',
-        })
+        if (main) main.scrollTop = 0
+      }, 100)
+    }
+  }, [])
 
-        if (openPostId) {
-          const target = podcasts.find(p => String(p.id) === String(openPostId))
-          if (target) {
-            setDisableModalAutoScroll(true)
-            setSelectedPodcast(target)
-          }
-        }
+  useEffect(() => {
+    const handleOpenPostDetail = (event) => {
+      const postId = event.detail?.postId
+      if (!postId) return
 
-        sessionStorage.removeItem('returnFromEdit')
-        sessionStorage.removeItem('feedScrollPosition')
-        sessionStorage.removeItem('feedFocusPostId')
-        sessionStorage.removeItem('openPostDetailId')
-        sessionStorage.removeItem('openPostDetailNoScroll')
-        sessionStorage.removeItem('returnToAfterEdit')
+      const target = podcasts.find(p => String(p.id) === String(postId))
+      if (target) {
+        setDisableModalAutoScroll(Boolean(event.detail?.disableAutoScroll))
+        setSelectedPodcast(target)
+      }
+    }
+
+    window.addEventListener('open-post-detail', handleOpenPostDetail)
+    return () => window.removeEventListener('open-post-detail', handleOpenPostDetail)
+  }, [podcasts])
+
+  const handleModalToggleLike = async (e) => {
+    e?.preventDefault?.()
+    e?.stopPropagation?.()
+
+    if (!selectedPodcast?.id) return
+
+    const token = localStorage.getItem('educast_access')
+    const currentUser = JSON.parse(localStorage.getItem('educast_user') || 'null')
+
+    const res = await fetch(
+      `http://localhost:8000/api/social/posts/${selectedPodcast.id}/like/`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ user_id: currentUser?.id }),
+      }
+    )
+
+    const data = await res.json()
+    if (!res.ok || !data.success) return
+
+    const nextLiked = Boolean(data.data?.liked)
+    const nextLikeCount = Number(data.data?.like_count || 0)
+
+    setSelectedPodcast(prev =>
+      prev ? { ...prev, liked: nextLiked, likes: nextLikeCount } : prev
+    )
+
+    setPodcasts(prev =>
+      prev.map(p =>
+        p.id === selectedPodcast.id
+          ? { ...p, liked: nextLiked, likes: nextLikeCount }
+          : p
+      )
+    )
+
+    dispatchPostSync({
+      postId: selectedPodcast.id,
+      liked: nextLiked,
+      likeCount: nextLikeCount,
+    })
+
+    window.dispatchEvent(
+      new CustomEvent('audio-track-like-updated', {
+        detail: {
+          postId: selectedPodcast.id,
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        },
       })
-    }, [loading, podcasts])
-
-    return (
-      <section className={styles.feed}>
-        <div className={styles.tabs}>
-          {TABS.map((tab, i) => (
-            <button
-              key={tab.key}
-              className={`${styles.tab} ${activeTab === i ? styles.active : ''}`}
-              onClick={() => setActiveTab(i)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        <div className={styles.cards}>
-          {loading && <div className={styles.feedState}>Đang tải dữ liệu...</div>}
-          {error && <div className={styles.feedError}>{error}</div>}
-          {!loading && !error && podcasts.map((podcast) => (
-            <div key={podcast.id} data-post-id={podcast.id}>
-              <PodcastCard
-                podcast={podcast}
-                queue={podcasts}
-                onDelete={(postId) => {
-                  setPodcasts(prev => prev.filter(p => p.id !== postId))
-                }}
-                onHide={(postId) => {
-                  setPodcasts(prev => prev.filter(p => p.id !== postId))
-                }}
-              />
-            </div>
-          ))}
-        </div>
-
-        {selectedPodcast && (
-          <CommentModal
-            podcast={selectedPodcast}
-            disableAutoScroll={disableModalAutoScroll}
-            liked={selectedPodcast.liked}
-            saved={selectedPodcast.saved}
-            likeCount={selectedPodcast.likes}
-            shareCount={selectedPodcast.shares}
-            saveCount={selectedPodcast.saveCount}
-            commentCount={selectedPodcast.comments}
-            onToggleLike={handleModalToggleLike}
-            onToggleSave={handleModalToggleSave}
-            onClose={() => {
-              setSelectedPodcast(null)
-              setDisableModalAutoScroll(false)
-            }}
-            onPostDeleted={(postId) => {
-              setPodcasts(prev => prev.filter(p => p.id !== postId))
-              setSelectedPodcast(null)
-            }}
-          />
-        )}
-      </section>
     )
   }
 
-  function formatSeconds(seconds) {
-    const total = Number(seconds || 0)
-    const mins = Math.floor(total / 60)
-    const secs = total % 60
-    return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+  const handleModalToggleSave = async (e) => {
+    e?.preventDefault?.()
+    e?.stopPropagation?.()
+
+    if (!selectedPodcast?.id) return
+
+    const token = localStorage.getItem('educast_access')
+    const currentUser = JSON.parse(localStorage.getItem('educast_user') || 'null')
+
+    const res = await fetch(
+      `http://localhost:8000/api/social/posts/${selectedPodcast.id}/save/`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ user_id: currentUser?.id }),
+      }
+    )
+
+    const data = await res.json()
+    if (!res.ok || !data.success) return
+
+    const nextSaved = Boolean(data.data?.saved)
+    const nextSaveCount = Number(data.data?.save_count || 0)
+
+    setSelectedPodcast(prev =>
+      prev ? { ...prev, saved: nextSaved, saveCount: nextSaveCount } : prev
+    )
+
+    setPodcasts(prev =>
+      prev.map(p =>
+        p.id === selectedPodcast.id
+          ? { ...p, saved: nextSaved, saveCount: nextSaveCount }
+          : p
+      )
+    )
+
+    dispatchPostSync({
+      postId: selectedPodcast.id,
+      saved: nextSaved,
+      saveCount: nextSaveCount,
+    })
   }
 
-  function calcProgress(current, duration) {
-    const c = Number(current || 0)
-    const d = Number(duration || 0)
-    if (!d) return 0
-    return Math.min(100, Math.round((c / d) * 100))
-  }
+  return (
+    <section className={styles.feed}>
+      <CreatePostBar />
 
-  function formatTimeAgo(dateString) {
-    if (!dateString) return 'Vừa xong'
+      <div className={styles.tabs}>
+        {TABS.map((tab, i) => (
+          <button
+            key={tab.key}
+            className={`${styles.tab} ${activeTab === i ? styles.active : ''}`}
+            onClick={() => setActiveTab(i)}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
 
-    const created = new Date(dateString)
-    const now = new Date()
-    const diffMs = now - created
-    const diffMinutes = Math.floor(diffMs / 60000)
-    const diffHours = Math.floor(diffMinutes / 60)
-    const diffDays = Math.floor(diffHours / 24)
+      <div className={styles.cards}>
+        {loading && <div className={styles.feedState}>Đang tải dữ liệu...</div>}
+        {error && <div className={styles.feedError}>{error}</div>}
 
-    if (diffMinutes < 1) return 'Vừa xong'
-    if (diffMinutes < 60) return `${diffMinutes} phút trước`
-    if (diffHours < 24) return `${diffHours} giờ trước`
-    return `${diffDays} ngày trước`
-  }
+        {!loading && !error && podcasts.map((podcast) => (
+          <div key={podcast.id} data-post-id={podcast.id}>
+            <PodcastCard
+              podcast={podcast}
+              queue={podcasts}
+              onDelete={(postId) => {
+                setPodcasts(prev => prev.filter(p => p.id !== postId))
+              }}
+              onHide={(postId) => {
+                setPodcasts(prev => prev.filter(p => p.id !== postId))
+              }}
+            />
+          </div>
+        ))}
+      </div>
+
+      {selectedPodcast && (
+        <CommentModal
+          podcast={selectedPodcast}
+          disableAutoScroll={disableModalAutoScroll}
+          liked={selectedPodcast.liked}
+          saved={selectedPodcast.saved}
+          likeCount={selectedPodcast.likes}
+          shareCount={selectedPodcast.shares}
+          saveCount={selectedPodcast.saveCount}
+          commentCount={selectedPodcast.comments}
+          onToggleLike={handleModalToggleLike}
+          onToggleSave={handleModalToggleSave}
+          onClose={() => {
+            setSelectedPodcast(null)
+            setDisableModalAutoScroll(false)
+          }}
+          onPostDeleted={(postId) => {
+            setPodcasts(prev => prev.filter(p => p.id !== postId))
+            setSelectedPodcast(null)
+          }}
+        />
+      )}
+    </section>
+  )
+}
+
+function clearEditReturnSession() {
+  sessionStorage.removeItem('returnFromEdit')
+  sessionStorage.removeItem('feedScrollPosition')
+  sessionStorage.removeItem('feedFocusPostId')
+  sessionStorage.removeItem('openPostDetailId')
+  sessionStorage.removeItem('openPostDetailNoScroll')
+  sessionStorage.removeItem('returnToAfterEdit')
+}
+
+function formatSeconds(seconds) {
+  const total = Number(seconds || 0)
+  const mins = Math.floor(total / 60)
+  const secs = total % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+function calcProgress(current, duration) {
+  const c = Number(current || 0)
+  const d = Number(duration || 0)
+  if (!d) return 0
+  return Math.min(100, Math.round((c / d) * 100))
+}
+
+function formatTimeAgo(dateString) {
+  if (!dateString) return 'Vừa xong'
+
+  const created = new Date(dateString)
+  const now = new Date()
+  const diffMs = now - created
+  const diffMinutes = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMinutes < 1) return 'Vừa xong'
+  if (diffMinutes < 60) return `${diffMinutes} phút trước`
+  if (diffHours < 24) return `${diffHours} giờ trước`
+  return `${diffDays} ngày trước`
+}
