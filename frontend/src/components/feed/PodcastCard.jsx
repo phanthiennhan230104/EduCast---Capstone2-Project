@@ -4,7 +4,7 @@
   import { toast } from 'react-toastify'
   import {
     Play, Pause, Heart, MessageCircle,
-    Share2, Bookmark, Sparkles, MoreHorizontal, Edit, Trash2, EyeOff, Flag
+    Share2, Bookmark, Sparkles, MoreHorizontal, Edit, Trash2, EyeOff, Flag, X
   } from 'lucide-react'
   import styles from '../../style/feed/PodcastCard.module.css'
   import { useAudioPlayer } from '../contexts/AudioPlayerContext'
@@ -44,6 +44,7 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
     const [commentCount, setCommentCount] = useState(podcast.comments ?? 0)
     const [menuOpen, setMenuOpen] = useState(false)
     const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
+    const [showReportModal, setShowReportModal] = useState(false)
     const POST_SYNC_EVENT = 'post-sync-updated'
 
     const dispatchPostSync = (payload) => {
@@ -301,60 +302,9 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
       })
     }
 
-    const handleReport = async () => {
+    const handleReport = () => {
       setMenuOpen(false)
-      showModal({
-        type: 'prompt',
-        title: 'Báo cáo bài viết',
-        message: 'Vui lòng cho biết lý do báo cáo bài viết này:',
-        confirmText: 'Gửi báo cáo',
-        isDangerous: true,
-        inputValue: '',
-        onConfirm: async () => {
-          const reason = modal.inputValue.trim()
-          if (!reason) {
-            showModal({
-              type: 'alert',
-              title: 'Thông báo',
-              message: 'Vui lòng nhập lý do báo cáo',
-              confirmText: 'Đóng',
-            })
-            return
-          }
-
-          try {
-            closeModal()
-            const token = getToken()
-            const res = await fetch(`http://localhost:8000/api/social/posts/${podcast.id}/report/`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              },
-              body: JSON.stringify({ reason }),
-            })
-
-            if (!res.ok) {
-              throw new Error('Báo cáo bài viết thất bại')
-            }
-
-            showModal({
-              type: 'alert',
-              title: 'Cảm ơn',
-              message: 'Bài viết đã được báo cáo',
-              confirmText: 'Đóng',
-            })
-          } catch (err) {
-            console.error('Report failed:', err)
-            showModal({
-              type: 'alert',
-              title: 'Lỗi',
-              message: err.message || 'Báo cáo thất bại',
-              confirmText: 'Đóng',
-            })
-          }
-        },
-      })
+      setShowReportModal(true)
     }
 
     const handlePlayClick = () => {
@@ -1084,6 +1034,189 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
           triggerRef={saveBookmarkRef}
           isPopup={true}
         />
+
+        {showReportModal && (
+          <ReportModal
+            postId={podcast.id}
+            postTitle={podcast.title}
+            authorId={podcast.authorId || podcast.author?.id}
+            authorName={podcast.author}
+            onClose={() => setShowReportModal(false)}
+            onReportSuccess={() => {
+              console.log('Report submitted successfully')
+            }}
+          />
+        )}
       </>
+    )
+  }
+
+  // ReportModal Component
+  function ReportModal({ postId, postTitle, authorId, authorName, onClose, onReportSuccess }) {
+    const [selectedReason, setSelectedReason] = useState('')
+    const [description, setDescription] = useState('')
+    const [loading, setLoading] = useState(false)
+
+    const currentUser = getCurrentUser()
+
+    // Prevent reporting own posts
+    useEffect(() => {
+      if (currentUser?.id === authorId) {
+        toast.error('Bạn không thể báo cáo bài viết của chính mình.')
+        onClose()
+      }
+    }, [currentUser?.id, authorId, onClose])
+
+    const REPORT_REASONS = [
+      { value: 'spam', label: 'Spam' },
+      { value: 'inappropriate_content', label: 'Nội dung không phù hợp' },
+      { value: 'harassment', label: 'Quấy rối' },
+      { value: 'misinformation', label: 'Thông tin sai lệch' },
+      { value: 'copyright', label: 'Vi phạm bản quyền' },
+      { value: 'other', label: 'Khác' },
+    ]
+
+    const handleSubmit = async (e) => {
+      e.preventDefault()
+
+      if (!selectedReason) {
+        toast.error('Vui lòng chọn lý do báo cáo')
+        return
+      }
+
+      if (!description.trim()) {
+        toast.error('Vui lòng nhập mô tả chi tiết')
+        return
+      }
+
+      if (description.trim().length < 10) {
+        toast.error('Mô tả phải có ít nhất 10 ký tự')
+        return
+      }
+
+      try {
+        setLoading(true)
+
+        const token = getToken()
+
+        const res = await fetch('http://localhost:8000/api/social/reports/create/', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            user_id: currentUser?.id,
+            target_type: 'post',
+            target_id: postId,
+            reason: selectedReason,
+            description: description.trim(),
+          }),
+        })
+
+        const data = await res.json()
+
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || `HTTP ${res.status}`)
+        }
+
+        toast.success('Báo cáo đã gửi thành công!')
+        setSelectedReason('')
+        setDescription('')
+        onClose()
+        if (onReportSuccess) {
+          onReportSuccess()
+        }
+      } catch (err) {
+        console.error('Report failed:', err)
+        toast.error(err.message || 'Báo cáo thất bại. Vui lòng thử lại.')
+      } finally {
+        setLoading(false)
+      }
+    }
+
+    return (
+      <div className={styles.reportOverlay} onClick={onClose}>
+        <div className={styles.reportModal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.reportHeader}>
+            <h2>Báo cáo bài viết</h2>
+            <button
+              className={styles.reportCloseBtn}
+              onClick={onClose}
+              type="button"
+              aria-label="Đóng"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <form onSubmit={handleSubmit} className={styles.reportForm}>
+            <div className={styles.reportPostInfo}>
+              <p className={styles.reportPostTitle}>
+                <strong>Bài viết:</strong> {postTitle}
+              </p>
+              <p className={styles.reportPostAuthor}>
+                <strong>Tác giả:</strong> {authorName}
+              </p>
+            </div>
+
+            <div className={styles.reportFormGroup}>
+              <label htmlFor="reason" className={styles.reportLabel}>
+                Lý do báo cáo <span className={styles.reportRequired}>*</span>
+              </label>
+              <select
+                id="reason"
+                value={selectedReason}
+                onChange={(e) => setSelectedReason(e.target.value)}
+                className={styles.reportSelect}
+                disabled={loading}
+              >
+                <option value="">-- Chọn lý do --</option>
+                {REPORT_REASONS.map((reason) => (
+                  <option key={reason.value} value={reason.value}>
+                    {reason.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <div className={styles.reportFormGroup}>
+              <label htmlFor="description" className={styles.reportLabel}>
+                Mô tả chi tiết <span className={styles.reportRequired}>*</span>
+              </label>
+              <textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                className={styles.reportTextarea}
+                placeholder="Hãy cho chúng tôi biết tại sao bạn báo cáo bài viết này..."
+                rows="4"
+                disabled={loading}
+              />
+              <p className={styles.reportCharCount}>
+                {description.length}/500
+              </p>
+            </div>
+
+            <div className={styles.reportActions}>
+              <button
+                type="button"
+                onClick={onClose}
+                className={styles.reportCancelBtn}
+                disabled={loading}
+              >
+                Hủy
+              </button>
+              <button
+                type="submit"
+                className={styles.reportSubmitBtn}
+                disabled={loading || !selectedReason || !description.trim()}
+              >
+                {loading ? 'Đang gửi...' : 'Gửi báo cáo'}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
     )
   }

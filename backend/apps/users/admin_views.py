@@ -8,6 +8,8 @@ from django.db.models import Count, Sum
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 from datetime import timedelta
+from .permissions import IsAdminRole
+from .models import UserSettings
 
 from .models import User, UserLockLog
 from apps.content.models import Post
@@ -358,4 +360,69 @@ class AdminUsersListView(APIView):
                 "users": serializer.data,
             },
             status=status.HTTP_200_OK,
+        )
+    
+class AdminSystemNotificationSettingsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get_or_create_settings(self, user):
+        settings_obj, _ = UserSettings.objects.get_or_create(
+            user=user,
+            defaults={
+                "email_notifications": True,
+                "push_notifications": True,
+                "notify_likes": True,
+                "notify_comments": True,
+                "notify_follows": True,
+                "notify_messages": True,
+                "profile_visibility": "public",
+                "allow_messages_from": "everyone",
+                "autoplay_audio": True,
+                "theme_mode": "dark",
+                "language_code": "vi",
+            }
+        )
+        return settings_obj
+
+    def get(self, request):
+        settings_obj = self.get_or_create_settings(request.user)
+
+        return Response(
+            {
+                "email_admin_on_new_report": settings_obj.email_notifications,
+                "daily_statistics_report": settings_obj.notify_messages,
+                "notify_on_new_user": settings_obj.push_notifications,
+            },
+            status=status.HTTP_200_OK
+        )
+
+    def patch(self, request):
+        settings_obj = self.get_or_create_settings(request.user)
+
+        if "email_admin_on_new_report" in request.data:
+            settings_obj.email_notifications = bool(request.data.get("email_admin_on_new_report"))
+
+        if "daily_statistics_report" in request.data:
+            settings_obj.notify_messages = bool(request.data.get("daily_statistics_report"))
+
+        if "notify_on_new_user" in request.data:
+            settings_obj.push_notifications = bool(request.data.get("notify_on_new_user"))
+
+        settings_obj.save(
+            update_fields=[
+                "email_notifications",
+                "notify_messages",
+                "push_notifications",
+                "updated_at",
+            ]
+        )
+
+        return Response(
+            {
+                "message": "Cập nhật thông báo hệ thống thành công",
+                "email_admin_on_new_report": settings_obj.email_notifications,
+                "daily_statistics_report": settings_obj.notify_messages,
+                "notify_on_new_user": settings_obj.push_notifications,
+            },
+            status=status.HTTP_200_OK
         )

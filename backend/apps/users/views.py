@@ -2,12 +2,14 @@ import uuid
 import requests 
 import logging
 from django.conf import settings
+
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 from .permissions import IsAdminRole
@@ -277,6 +279,7 @@ def get_current_user(request):
                 "status": user.status,
                 "is_verified": user.is_verified,
                 "display_name": profile.display_name if profile else user.username,
+                "bio": profile.bio if profile else "",
                 "avatar_url": profile.avatar_url if profile else None,
                 "preferred_language": profile.preferred_language if profile else "vi",
             }
@@ -610,27 +613,33 @@ class GoogleLoginView(APIView):
 
 class UpdateUserProfileView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser, FormParser, JSONParser]
 
     def post(self, request):
-        user = request.user
-        profile = user.profile if hasattr(user, 'profile') else None
-        
-        if not profile:
-            return Response(
-                {"error": "Profile not found"},
-                status=status.HTTP_404_NOT_FOUND
-            )
-        
-        # Import cloudinary service
-        from apps.content.services.cloudinary_service import upload_file_to_cloudinary
-        
-        # Update display_name if provided
-        if 'display_name' in request.data:
-            profile.display_name = request.data['display_name']
-        
-        # Handle avatar upload
-        if 'avatar' in request.FILES:
-            try:
+        try:
+            user = request.user
+            profile, _ = UserProfile.objects.get_or_create(
+    user=user,
+    defaults={
+        "display_name": user.username,
+        "preferred_language": "vi",
+        "interests": [],
+    }
+)
+            
+            # Import cloudinary service
+            from apps.content.services.cloudinary_service import upload_file_to_cloudinary
+            
+            # Update display_name if provided
+            if 'display_name' in request.data:
+                profile.display_name = request.data['display_name']
+            
+            # Update bio if provided
+            if 'bio' in request.data:
+                profile.bio = request.data['bio']
+            
+            # Handle avatar upload
+            if 'avatar' in request.FILES:
                 avatar_file = request.FILES['avatar']
                 
                 # Upload to Cloudinary
@@ -642,34 +651,36 @@ class UpdateUserProfileView(APIView):
                 
                 if result and 'secure_url' in result:
                     profile.avatar_url = result['secure_url']
-                    print(f"Avatar uploaded: {profile.avatar_url}")
+                    logger.info(f"Avatar uploaded: {profile.avatar_url}")
                 else:
                     return Response(
                         {"error": "Failed to upload avatar"},
                         status=status.HTTP_400_BAD_REQUEST
                     )
-            except Exception as e:
-                return Response(
-                    {"error": f"Upload failed: {str(e)}"},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-        
-        # Save profile
-        profile.save()
-        
-        return Response(
-            {
-                "message": "Profile updated successfully",
-                "data": {
-                    "display_name": profile.display_name,
-                    "avatar_url": profile.avatar_url,
-                }
-            },
-            status=status.HTTP_200_OK
-        )
+            
+            # Save profile
+            profile.save()
+            
+            return Response(
+                {
+                    "message": "Profile updated successfully",
+                    "data": {
+                        "display_name": profile.display_name,
+                        "bio": profile.bio,
+                        "avatar_url": profile.avatar_url,
+                    }
+                },
+                status=status.HTTP_200_OK
+            )
+        except Exception as e:
+            logger.error(f"Error updating profile: {str(e)}", exc_info=True)
+            return Response(
+                {"error": f"Failed to update profile: {str(e)}"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
-
+class AdminUsersListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):

@@ -8,7 +8,7 @@ from requests import post
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-from .models import HiddenPost, PostLike, SavedPost, Comment, CommentLike, Follow, Notification, PostShare, PlaybackHistory, PostNote, Collection, CollectionPost
+from .models import HiddenPost, PostLike, SavedPost, Comment, CommentLike, Follow, Notification, PostShare, PlaybackHistory, PostNote, Collection, CollectionPost, Report
 from apps.content.models import Post
 from apps.users.models import User
 from apps.users.authentication import CustomJWTAuthentication
@@ -1929,3 +1929,101 @@ def share_post_to_user(request, post_id):
         traceback.print_exc()
         print(f"Share post to user error: {str(e)}")
         return _json_error(f"Server error: {str(e)}", 500)
+
+
+# Create Report
+@csrf_exempt
+@require_http_methods(["POST"])
+def create_report(request):
+    """
+    Tạo một báo cáo cho bài viết, bình luận, hoặc người dùng.
+    Người dùng không thể báo cáo chính bài viết/bình luận của mình.
+    
+    Request body:
+    {
+        "user_id": "user_id_của_người_báo_cáo",
+        "target_type": "post|comment|user|message",
+        "target_id": "id_của_bài_viết/bình_luận/người_dùng",
+        "reason": "spam|inappropriate_content|harassment|misinformation|copyright|other",
+        "description": "Mô tả chi tiết về báo cáo (tùy chọn)"
+    }
+    """
+    body = _parse_body(request)
+    
+    if not body:
+        return _json_error("Invalid request body", 400)
+    
+    reporter = _get_current_user(request, body)
+    
+    if not reporter:
+        return _json_error("Authentication required", 401)
+    
+    target_type = body.get("target_type", "").lower()
+    target_id = body.get("target_id", "").strip()
+    reason = body.get("reason", "").lower()
+    description = body.get("description", "").strip()
+    
+    # Validate inputs
+    valid_target_types = ["post", "comment", "user", "message"]
+    valid_reasons = ["spam", "inappropriate_content", "harassment", "misinformation", "copyright", "other"]
+    
+    if not target_type or target_type not in valid_target_types:
+        return _json_error(f"Invalid target_type. Must be one of: {', '.join(valid_target_types)}", 400)
+    
+    if not target_id:
+        return _json_error("target_id is required", 400)
+    
+    if not reason or reason not in valid_reasons:
+        return _json_error(f"Invalid reason. Must be one of: {', '.join(valid_reasons)}", 400)
+    
+    # Prevent users from reporting their own content
+    if target_type == "post":
+        post = get_object_or_404(Post, id=target_id)
+        if post.user_id == reporter.id:
+            return _json_error("Bạn không thể báo cáo bài viết của chính mình", 400)
+        # Ensure the post exists and is accessible
+    elif target_type == "comment":
+        comment = get_object_or_404(Comment, id=target_id)
+        if comment.user_id == reporter.id:
+            return _json_error("Bạn không thể báo cáo bình luận của chính mình", 400)
+    elif target_type == "user":
+        target_user = get_object_or_404(User, id=target_id)
+        if target_user.id == reporter.id:
+            return _json_error("Bạn không thể báo cáo chính mình", 400)
+    
+    # Check if user already reported this content (prevent duplicate reports)
+    existing_report = Report.objects.filter(
+        user_id=reporter.id,
+        target_type=target_type,
+        target_id=target_id,
+        status="pending"
+    ).first()
+    
+    if existing_report:
+        return _json_error("Bạn đã báo cáo nội dung này rồi", 400)
+    
+    # Create the report
+    try:
+        report = Report.objects.create(
+            id=_generate_id("rep"),
+            user_id=reporter.id,
+            target_type=target_type,
+            target_id=target_id,
+            reason=reason,
+            description=description,
+            status="pending",
+            created_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+        
+        return _json_success(
+            "Báo cáo đã được gửi thành công",
+            {
+                "report_id": report.id,
+                "status": report.status,
+                "created_at": report.created_at.isoformat() if report.created_at else None,
+            },
+            201
+        )
+    except Exception as e:
+        return _json_error(f"Lỗi khi tạo báo cáo: {str(e)}", 500)
