@@ -78,6 +78,18 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
         return
     }
 
+    const normalizedRecipientIds = Array.from(selectedFriends)
+      .map((v) => (v == null ? '' : String(v).trim()))
+      .filter(Boolean)
+
+    if (normalizedRecipientIds.length === 0) {
+      console.warn('Share aborted: no valid recipient IDs', {
+        selectedFriends: Array.from(selectedFriends),
+      })
+      toast.error('Không tìm thấy người nhận hợp lệ')
+      return
+    }
+
     try {
         setSubmitting(true)
 
@@ -90,27 +102,43 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                 ...(token ? { Authorization: `Bearer ${token}` } : {}),
             },
             body: JSON.stringify({
-                target_user_ids: Array.from(selectedFriends),
+              target_user_ids: normalizedRecipientIds,
                 caption: caption || undefined,
             }),
         })
 
         const data = await res.json()
 
-        if (!res.ok) {
+        if (!res.ok || !data?.success) {
             console.error('Share failed:', data)
-            toast.error(data.message || 'Gửi podcast thất bại')
+            const errorFromResults = Array.isArray(data?.data?.results)
+              ? data.data.results.find((r) => !r?.success)?.error
+              : null
+            toast.error(errorFromResults || data.message || 'Gửi podcast thất bại')
             return
         }
 
-        const sentCount = Number(data.data?.shared_with ?? selectedFriends.size ?? 0)
-        const successCount = sentCount > 0 ? sentCount : selectedFriends.size
-        toast.success(`Đã gửi cho ${successCount} người`)
-        const successResult = data.data?.results?.find(r => r.success)
+        const results = Array.isArray(data.data?.results) ? data.data.results : []
+        const successResults = results.filter((r) => r?.success)
+        const failedResults = results.filter((r) => !r?.success)
+
+        if (successResults.length === 0) {
+          const firstError = failedResults[0]?.error
+          toast.error(firstError || 'Không gửi được cho người nhận nào')
+          return
+        }
+
+        toast.success(`Đã gửi cho ${successResults.length} người`)
+        if (failedResults.length > 0) {
+          toast.warning(`Không gửi được ${failedResults.length} người`)
+        }
+
+        const successResult = successResults[0]
 
         window.dispatchEvent(new CustomEvent('chat-message-sent', {
           detail: {
             roomId: successResult?.room_id,
+            roomIds: successResults.map((r) => r.room_id).filter(Boolean),
           },
         }))
         setCaption('')
@@ -196,13 +224,13 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
               {podcast.description && (
                 <p className={styles.description}>{podcast.description}</p>
               )}
-              {podcast.cover && (
+              {/* {podcast.cover && (
                 <img
                   src={podcast.cover}
                   alt={podcast.title}
                   className={styles.cover}
                 />
-              )}
+              )} */}
             </div>
           </div>
 
@@ -233,14 +261,23 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                 <div className={styles.emptyText}>Bạn chưa có bạn bè</div>
               ) : (
                 <div className={styles.friendsCarousel}>
-                  {friends.map((friend) => (
+                  {friends.map((friend) => {
+                    const recipientId = friend.id || friend.user_id || friend.username
+                    const isSelf =
+                      String(recipientId || '') === String(currentUser?.id || '') ||
+                      String(friend.username || '') === String(currentUser?.username || '')
+
+                    if (isSelf) return null
+                    if (!recipientId) return null
+
+                    return (
                     <button
-                      key={friend.id}
+                      key={recipientId}
                       type="button"
                       className={`${styles.friendCard} ${
-                        selectedFriends.has(friend.id) ? styles.friendCardSelected : ''
+                        selectedFriends.has(recipientId) ? styles.friendCardSelected : ''
                       }`}
-                      onClick={() => toggleFriendSelection(friend.id)}
+                      onClick={() => toggleFriendSelection(recipientId)}
                     >
                       <div className={styles.friendAvatar}>
                         {getInitials({
@@ -251,11 +288,12 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                       <span className={styles.friendName}>
                         {friend.display_name || friend.username}
                       </span>
-                      {selectedFriends.has(friend.id) && (
+                      {selectedFriends.has(recipientId) && (
                         <div className={styles.friendCheckmark}>✓</div>
                       )}
                     </button>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>

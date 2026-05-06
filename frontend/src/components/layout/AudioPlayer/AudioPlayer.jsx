@@ -83,22 +83,14 @@ export default function AudioPlayer() {
     const postId = currentTrack?.postId || currentTrack?.id
     if (!postId) return
 
-    sessionStorage.setItem('openPostDetailNoScroll', 'true')
-
-    if (location.pathname === '/feed') {
-      window.dispatchEvent(
-        new CustomEvent('open-post-detail', {
-          detail: {
-            postId,
-            disableAutoScroll: true,
-          },
-        })
-      )
-      return
-    }
-
-    sessionStorage.setItem('openPostDetailId', postId)
-    navigate('/feed')
+    window.dispatchEvent(
+      new CustomEvent('open-post-detail', {
+        detail: {
+          postId,
+          disableAutoScroll: true,
+        },
+      })
+    )
   }
 
   useEffect(() => {

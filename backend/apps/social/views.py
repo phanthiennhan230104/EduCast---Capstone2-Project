@@ -1258,13 +1258,21 @@ def get_friends_list(request):
     # mutual = giao nhau
     friend_ids = set(following_ids).intersection(set(follower_ids))
 
-    friends = User.objects.filter(id__in=friend_ids)
+    friends = (
+        User.objects
+        .filter(id__in=friend_ids)
+        .exclude(id=user.id)
+        .select_related("profile")
+    )
 
     data = [
         {
             "id": u.id,
             "username": getattr(u, "username", ""),
-            "display_name": getattr(u, "display_name", "")
+            "display_name": (
+                getattr(getattr(u, "profile", None), "display_name", None)
+                or getattr(u, "username", "")
+            )
         }
         for u in friends
     ]
@@ -1765,10 +1773,14 @@ def share_post_to_user(request, post_id):
 
         results = []
         channel_layer = get_channel_layer()
-        target_users = {
-            str(target.id): target
-            for target in User.objects.filter(id__in=target_user_ids)
-        }
+        candidate_users = User.objects.filter(
+            Q(id__in=target_user_ids) | Q(username__in=target_user_ids)
+        )
+
+        target_users = {}
+        for target in candidate_users:
+            target_users[str(target.id)] = target
+            target_users[str(getattr(target, "username", ""))] = target
         
         for target_id in target_user_ids:
             try:
@@ -1782,7 +1794,7 @@ def share_post_to_user(request, post_id):
                     })
                     continue
                 
-                if target_user.id == user.id:
+                if str(target_user.id) == str(user.id):
                     results.append({
                         "target_user_id": target_id,
                         "success": False,
@@ -1802,6 +1814,12 @@ def share_post_to_user(request, post_id):
                     "duration_seconds": post.duration_seconds,
                     "user_id": post.user_id,
                     "author": getattr(post.user, 'username', 'Unknown') if post.user else 'Unknown',
+                    "author_username": getattr(post.user, 'username', '') if post.user else '',
+                    "like_count": PostLike.objects.filter(post_id=post.id).count(),
+                    "comment_count": Comment.objects.filter(post_id=post.id).count(),
+                    "share_count": PostShare.objects.filter(post_id=post.id).count(),
+                    "save_count": SavedPost.objects.filter(post_id=post.id).count(),
+                    "created_at": post.created_at.isoformat() if post.created_at else None,
                     "caption": caption,
                 })
                 
@@ -1810,7 +1828,7 @@ def share_post_to_user(request, post_id):
                     room=room,
                     sender=user,
                     content=message_content,
-                    message_type="podcast",
+                    message_type="text",
                 )
 
                 serialized_message = MessageSerializer(
@@ -1870,12 +1888,36 @@ def share_post_to_user(request, post_id):
                     "error": str(e)
                 })
 
+        success_count = len([r for r in results if r.get("success")])
+
+        if success_count == 0:
+            first_error = next((r.get("error") for r in results if r.get("error")), None)
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": first_error or "Khong gui duoc cho nguoi nhan nao",
+                    "data": {
+                        "results": results,
+                        "post_id": post.id,
+                        "shared_with": 0,
+                        "total": len(target_user_ids),
+                    },
+                },
+                status=400,
+            )
+
+        response_message = (
+            "Post shared successfully"
+            if success_count == len(target_user_ids)
+            else "Post shared partially"
+        )
+
         return _json_success(
-            "Post shared successfully",
+            response_message,
             {
                 "results": results,
                 "post_id": post.id,
-                "shared_with": len([r for r in results if r["success"]]),
+                "shared_with": success_count,
                 "total": len(target_user_ids),
                 **_post_counts(post.id)
             },
