@@ -685,45 +685,6 @@ class DraftDeleteView(APIView):
             )
 
 
-class PublishPostView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request, post_id):
-        """Publish a draft post (change status to published and visibility to public)"""
-        try:
-            post = Post.objects.get(
-                id=post_id,
-                user=request.user,
-            )
-        except Post.DoesNotExist:
-            return Response(
-                {"error": "Không tìm thấy bài viết"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
-
-        try:
-            # Update status and visibility
-            post.status = "published"
-            post.visibility = "public"
-            post.published_at = timezone.now()
-            post.updated_at = timezone.now()
-            post.save(update_fields=["status", "visibility", "published_at", "updated_at"])
-
-            return Response(
-                {
-                    "message": "Xuất bản bài viết thành công",
-                    "data": DraftDetailSerializer(post).data,
-                },
-                status=status.HTTP_200_OK,
-            )
-
-        except Exception as e:
-            return Response(
-                {"error": str(e)},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
-
-
 class UploadDocumentView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -985,6 +946,7 @@ class UserPostsAPIView(APIView):
         from apps.social.models import PostShare
         
         author_name = post.user.username
+        author_username = post.user.username  # Always include username
         if hasattr(post.user, 'profile') and post.user.profile:
             author_name = post.user.profile.display_name or post.user.username
         
@@ -1004,11 +966,32 @@ class UserPostsAPIView(APIView):
             post_id=post.id
         ).exists() if request_user_id else False
         
-        # Lấy counts thực tế từ bài gốc (cả bài share và bài gốc đều dùng counts của bài gốc)
-        like_count = PostLike.objects.filter(post_id=post.id).count()
-        comment_count = Comment.objects.filter(post_id=post.id).count()
-        save_count = SavedPost.objects.filter(post_id=post.id).count()
-        share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
+        # For shared posts, get counts for the share itself; for original posts, use post counts
+        if share_info and share_info.get("share_id"):
+            # Shared post: get counts for this specific share
+            share_id = share_info.get("share_id")
+            # Check if user liked/saved this share specifically
+            is_liked = PostLike.objects.filter(
+                user_id=request_user_id,
+                share_id=share_id
+            ).exists() if request_user_id else False
+            
+            is_saved = SavedPost.objects.filter(
+                user_id=request_user_id,
+                share_id=share_id
+            ).exists() if request_user_id else False
+            
+            # Get counts for this share
+            like_count = PostLike.objects.filter(share_id=share_id).count()
+            comment_count = Comment.objects.filter(share_id=share_id).count()
+            save_count = SavedPost.objects.filter(share_id=share_id).count()
+            share_count = 0  # Shares of shares don't make sense
+        else:
+            # Original post: get counts from the post itself
+            like_count = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            comment_count = Comment.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            save_count = SavedPost.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
         
         post_data = {
             "id": post.id,
@@ -1019,6 +1002,7 @@ class UserPostsAPIView(APIView):
             "dialogue_script": post.dialogue_script,
             "transcript_text": post.transcript_text,
             "author": author_name,
+            "author_username": author_username,  # Add username field
             "author_id": post.user.id,
             "author_avatar": author_avatar,
             "thumbnail_url": post.thumbnail_url,
@@ -1042,6 +1026,7 @@ class UserPostsAPIView(APIView):
             "share_count": share_count,
             "is_liked": is_liked,
             "is_saved": is_saved,
+            "tags": [{"id": tag.id, "name": tag.name} for tag in Tag.objects.filter(tag_posts__post_id=post.id)],
         }
         
         # Add share info if provided
@@ -1215,9 +1200,114 @@ class UserSharedPostsAPIView(APIView):
                 "error": f"Failed to load user shared posts: {str(e)}",
                 "shared_posts": []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        
+
+class PostDetailView(APIView):
+    """API để lấy chi tiết một bài viết"""
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, post_id):
+        """Get single post by ID with full details"""
+        try:
+            post = Post.objects.get(id=post_id, status="published", visibility="public")
+            
+            current_user_id = request.user.id if request.user and request.user.is_authenticated else None
+            
+            author_name = post.user.username
+            if hasattr(post.user, 'profile') and post.user.profile:
+                author_name = post.user.profile.display_name or post.user.username
+            
+            author_avatar = None
+            if hasattr(post.user, 'profile') and post.user.profile:
+                author_avatar = post.user.profile.avatar_url
+            
+            is_liked = PostLike.objects.filter(
+                user_id=current_user_id,
+                post_id=post.id,
+                share_id__isnull=True
+            ).exists() if current_user_id else False
+            
+            is_saved = SavedPost.objects.filter(
+                user_id=current_user_id,
+                post_id=post.id,
+                share_id__isnull=True
+            ).exists() if current_user_id else False
+            
+            like_count = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            comment_count = Comment.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            save_count = SavedPost.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
+            
+            post_data = {
+                "id": post.id,
+                "title": post.title,
+                "description": post.description,
+                "original_text": post.original_text,
+                "summary_text": post.summary_text,
+                "dialogue_script": post.dialogue_script,
+                "transcript_text": post.transcript_text,
+                "author": author_name,
+                "author_id": post.user.id,
+                "author_avatar": author_avatar,
+                "thumbnail_url": post.thumbnail_url,
+                "audio_url": post.audio_url,
+                "listen_count": post.listen_count,
+                "view_count": post.view_count,
+                "download_count": post.download_count,
+                "duration_seconds": post.duration_seconds,
+                "category_id": post.category_id,
+                "age_group": post.age_group,
+                "learning_field": post.learning_field,
+                "language_code": post.language_code,
+                "source_type": post.source_type,
+                "is_ai_generated": post.is_ai_generated,
+                "created_at": post.created_at.isoformat(),
+                "published_at": post.published_at.isoformat() if post.published_at else None,
+                "updated_at": post.updated_at.isoformat() if post.updated_at else None,
+                "like_count": like_count,
+                "comment_count": comment_count,
+                "save_count": save_count,
+                "share_count": share_count,
+                "is_liked": is_liked,
+                "is_saved": is_saved,
+            }
+            
+            return Response({
+                "data": post_data,
+                "success": True
+            }, status=status.HTTP_200_OK)
+        except Post.DoesNotExist:
+            return Response({
+                "error": "Post not found",
+                "data": None
+            }, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            return Response({
+                "error": f"Failed to load post: {str(e)}",
+                "data": None
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+               
 class PublishPostView(APIView):
     permission_classes = [IsAuthenticated]
+
+    def _resolve_duration_seconds(self, data, fallback_text=""):
+        duration_seconds = data.get("duration_seconds")
+
+        if duration_seconds not in (None, ""):
+            try:
+                return int(float(duration_seconds))
+            except (TypeError, ValueError):
+                pass
+
+        public_id = data.get("public_id")
+        if public_id:
+            duration_seconds = get_audio_duration_from_api(public_id, resource_type="video")
+            if duration_seconds not in (None, ""):
+                try:
+                    return int(float(duration_seconds))
+                except (TypeError, ValueError):
+                    pass
+
+        return estimate_duration_seconds(fallback_text)
 
     @transaction.atomic
     def post(self, request):
@@ -1247,14 +1337,15 @@ class PublishPostView(APIView):
             post.source_type = data.get("source_type", "ai_generated")
             post.is_ai_generated = data.get("is_ai_generated", True)
             post.audio_url = data["audio_url"]
-            
-            # Get real duration from Cloudinary if not provided
-            post.duration_seconds = data.get("duration_seconds")
-            if not post.duration_seconds and data.get("public_id"):
-                post.duration_seconds = get_audio_duration_from_api(
-                    data.get("public_id"), 
-                    resource_type="video"
-                )
+
+            fallback_text = (
+                data.get("summary_text")
+                or data.get("dialogue_script")
+                or data.get("transcript_text")
+                or data.get("original_text")
+                or ""
+            )
+            post.duration_seconds = self._resolve_duration_seconds(data, fallback_text)
             
             post.category_id = data.get("category_id")
             post.age_group = data.get("age_group")

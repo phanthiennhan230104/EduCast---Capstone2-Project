@@ -281,6 +281,7 @@ class PublishPostSerializer(serializers.Serializer):
     is_ai_generated = serializers.BooleanField(default=True)
     audio_url = serializers.URLField()
     duration_seconds = serializers.IntegerField(required=False, allow_null=True)
+    public_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
     category_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
 
