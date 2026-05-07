@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState } from 'react'
+import { createContext, useContext, useEffect, useRef, useState } from 'react'
 import { apiRequest } from '../../utils/api'
 import {
   clearAuth,
@@ -15,6 +15,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(getCurrentUser())
   const [isAuthenticated, setIsAuthenticated] = useState(Boolean(getToken()))
   const [loading, setLoading] = useState(false)
+  const checkAuthInFlightRef = useRef(false)
 
   useEffect(() => {
     checkAuth()
@@ -58,10 +59,23 @@ export function AuthProvider({ children }) {
       }
 
       checkAuth({ silent: true })
-    }, 3000)
+    }, 30000)
 
     return () => clearInterval(intervalId)
   }, [isAuthenticated])
+
+  const isAuthError = (error) => {
+    const msg = String(error?.message || '').toLowerCase()
+    return (
+      msg.includes('token không hợp lệ') ||
+      msg.includes('hết hạn') ||
+      msg.includes('đang bị khóa') ||
+      msg.includes('bị khóa') ||
+      msg.includes('không hoạt động') ||
+      msg.includes('unauthorized') ||
+      msg.includes('forbidden')
+    )
+  }
 
   const checkAuth = async ({ silent = false } = {}) => {
     const token = getToken()
@@ -72,6 +86,9 @@ export function AuthProvider({ children }) {
       return
     }
 
+    if (checkAuthInFlightRef.current) return
+    checkAuthInFlightRef.current = true
+
     try {
       const data = await apiRequest('/auth/me/')
 
@@ -79,7 +96,24 @@ export function AuthProvider({ children }) {
       setIsAuthenticated(true)
       localStorage.setItem(EDUCAST_USER, JSON.stringify(data.user))
     } catch (error) {
-      console.warn('Auth check failed, keeping local session state:', error)
+      // Nếu token hết hạn/không hợp lệ thì đừng giữ "local session state" nữa.
+      // Tránh trường hợp UI nghĩ là còn login và cứ poll ra 403 liên tục.
+      if (isAuthError(error)) {
+        clearAuth()
+        setUser(null)
+        setIsAuthenticated(false)
+        setLoading(false)
+        if (!silent) {
+          console.warn('Auth expired/invalid. Cleared local session.', error)
+        }
+        return
+      }
+
+      if (!silent) {
+        console.warn('Auth check failed:', error)
+      }
+    } finally {
+      checkAuthInFlightRef.current = false
     }
   }
 

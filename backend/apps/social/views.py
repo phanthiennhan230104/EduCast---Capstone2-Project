@@ -222,67 +222,93 @@ def _notification_to_dict(notification):
 @csrf_exempt
 @require_http_methods(["POST"])
 def toggle_like_post(request, post_id):
-    # Lấy body JSON từ request
-    body = _parse_body(request)
-    if body is None:
-        body = {}
-    
-    # Lấy user hiện tại từ request hoặc body
-    user = _get_current_user(request, body)
-    if not user:
-        return _json_error("Authentication required", 401)
+    try:
+        # Lấy body JSON từ request
+        body = _parse_body(request)
+        if body is None:
+            body = {}
+        
+        # Lấy user hiện tại từ request hoặc body
+        user = _get_current_user(request, body)
+        if not user:
+            return _json_error("Authentication required", 401)
 
-    # Kiểm tra xem post_id có phải là composite share ID không (format: share_xxx_yyy)
-    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
-    actual_post_id = post_id
-    if post_id.startswith('share_'):
-        parts = post_id.split('_')
-        if len(parts) >= 3:
-            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
-    
-    # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=actual_post_id)
+        # Kiểm tra xem post_id có phải là composite share ID không (format: share_xxx_yyy)
+        # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID và share ID
+        actual_post_id = post_id
+        share_id = None
+        if post_id.startswith('share_'):
+            parts = post_id.split('_')
+            if len(parts) >= 3:
+                share_id = parts[1]  # Lấy share ID từ composite ID
+                actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+        
+        # Kiểm tra post tồn tại
+        post = get_object_or_404(Post, id=actual_post_id)
+        
+        # Kiểm tra share tồn tại nếu là shared post
+        share = None
+        if share_id:
+            from apps.social.models import PostShare
+            share = PostShare.objects.filter(id=share_id).first()
+            if not share:
+                return _json_error(f"Share not found: {share_id}", 404)
 
-    # Kiểm tra xem user đã like post này chưa
-    existing_like = PostLike.objects.filter(post_id=post.id, user_id=user.id).first()
+        # QUAN TRỌNG: DB constraint thực tế là UNIQUE(post_id, user_id) — không bao gồm share_id.
+        # Vì vậy phải check like theo post_id + user_id (bỏ qua share_id).
+        # Một user chỉ có thể like một post một lần, dù là bài gốc hay bài share.
+        existing_like = PostLike.objects.filter(
+            post_id=post.id,
+            user_id=user.id,
+        ).first()
 
-    # Nếu đã like rồi thì unlike (xóa record), nếu chưa like thì tạo mới record like
-    if existing_like:
-        existing_like.delete()
+        # Nếu đã like rồi thì unlike (xóa record), nếu chưa like thì tạo mới record like
+        if existing_like:
+            existing_like.delete()
+            like_count = PostLike.objects.filter(post_id=post.id).count()
+            return _json_success(
+                "Unliked post successfully",
+                {
+                    "liked": False,
+                    "like_count": like_count,
+                }
+            )
+        
+        # Tạo record like mới — không gán share_id vì DB constraint chỉ cho phép 1 like/user/post
+        PostLike.objects.create(
+            id=_generate_id("like"),
+            post=post,
+            user=user,
+            created_at=timezone.now()
+        )
+
+        like_count = PostLike.objects.filter(post_id=post.id).count()
+
+        # Thông báo cho chủ post/share nếu actor không phải chủ post
+        notification_recipient = share.user_id if share else post.user_id
+        _create_notification(
+            recipient_id=notification_recipient,
+            actor_user_id=user.id,
+            notification_type="like",
+            title="New like",
+            body=f"{getattr(user, 'username', user.id)} liked your post",
+            reference_type="post",
+            reference_id=post.id
+        )
+
         return _json_success(
-            "Unliked post successfully",
+            "Liked post successfully",
             {
-                "liked": False,
-                **_post_counts(post.id)
+                "liked": True,
+                "like_count": like_count,
             }
         )
-    
-    # Tạo record like mới
-    PostLike.objects.create(
-        id=_generate_id("like"),
-        post=post,
-        user=user,
-        created_at=timezone.now()
-    )
+    except Exception as e:
+        import traceback
+        print(f"❌ Error in toggle_like_post: {str(e)}")
+        print(traceback.format_exc())
+        return _json_error(f"Internal server error: {str(e)}", 500)
 
-    # Thông báo cho chủ post nếu actor không phải chủ post
-    _create_notification(
-        recipient_id=post.user_id,
-        actor_user_id=user.id,
-        notification_type="like",
-        title="New like",
-        body=f"{getattr(user, 'username', user.id)} liked your post",
-        reference_type="post",
-        reference_id=post.id
-    )
-
-    return _json_success(
-        "Liked post successfully",
-        {
-            "liked": True,
-            **_post_counts(post.id)
-        }
-    )
 
 # Post Save / Unsave (toggle)
 @csrf_exempt
@@ -299,15 +325,23 @@ def toggle_save_post(request, post_id):
         if not user:
             return _json_error("Authentication required", 401)
 
-        # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+        # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID và share ID
         actual_post_id = post_id
+        share_id = None
         if post_id.startswith('share_'):
             parts = post_id.split('_')
             if len(parts) >= 3:
+                share_id = parts[1]  # Lấy share ID từ composite ID
                 actual_post_id = parts[-1]  # Lấy post ID từ composite ID
         
         # Kiểm tra post tồn tại
         post = get_object_or_404(Post, id=actual_post_id)
+        
+        # Kiểm tra share tồn tại nếu là shared post
+        share = None
+        if share_id:
+            from apps.social.models import PostShare
+            share = get_object_or_404(PostShare, id=share_id)
 
         # Lấy collection_id nếu có
         collection_id = body.get("collection_id")
@@ -336,7 +370,7 @@ def toggle_save_post(request, post_id):
                 "Unsaved post successfully",
                 {
                     "saved": False,
-                    **_post_counts(post.id)
+                    **_post_counts(post.id, share.id if share else None)
                 }
             )
 
@@ -372,7 +406,7 @@ def toggle_save_post(request, post_id):
             {
                 "saved": True,
                 "collection_id": collection_id,
-                **_post_counts(post.id)
+                **_post_counts(post.id, share.id if share else None)
             }
         )
     except Exception as e:
@@ -385,11 +419,13 @@ def toggle_save_post(request, post_id):
 # Comment: list
 @require_http_methods(["GET"])
 def list_post_comments(request, post_id):
-    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID và share ID
     actual_post_id = post_id
+    share_id = None
     if post_id.startswith('share_'):
         parts = post_id.split('_')
         if len(parts) >= 3:
+            share_id = parts[1]  # Lấy share ID từ composite ID
             actual_post_id = parts[-1]  # Lấy post ID từ composite ID
     
     post = get_object_or_404(Post, id=actual_post_id)
@@ -402,9 +438,15 @@ def list_post_comments(request, post_id):
             CommentLike.objects.filter(user_id=user.id).values_list("comment_id", flat=True)
         )
 
+    # Filter comments by share_id if it's a shared post
+    comment_query = {'post_id': post.id, 'parent_comment_id__isnull': True}
+    if share_id:
+        comment_query['share_id'] = share_id
+    else:
+        comment_query['share_id__isnull'] = True
+    
     top_level_comments = Comment.objects.filter(
-        post_id=post.id,
-        parent_comment_id__isnull=True,
+        **comment_query
     ).select_related("user").order_by("-created_at")
 
     comments_data = [
@@ -421,7 +463,7 @@ def list_post_comments(request, post_id):
         {
             "post_id": post.id,
             "comments": comments_data,
-            **_post_counts(post.id)
+            **_post_counts(post.id, share_id)
         }
     )
 
@@ -492,30 +534,43 @@ def create_comment(request, post_id):
     if not content:
         return _json_error("content is required", 400)
 
-    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID và share ID
     actual_post_id = post_id
+    share_id = None
     if post_id.startswith('share_'):
         parts = post_id.split('_')
         if len(parts) >= 3:
+            share_id = parts[1]  # Lấy share ID từ composite ID
             actual_post_id = parts[-1]  # Lấy post ID từ composite ID
 
     # Kiểm tra post tồn tại
     post = get_object_or_404(Post, id=actual_post_id)
+    
+    # Kiểm tra share tồn tại nếu là shared post
+    share = None
+    if share_id:
+        from apps.social.models import PostShare
+        share = get_object_or_404(PostShare, id=share_id)
 
     # Tạo comment mới với parent_comment_id = null
-    comment = Comment.objects.create(
-        id=_generate_id("cmt"),
-        post=post,
-        user=user,
-        parent_comment=None,
-        content=content,
-        created_at=timezone.now(),
-        updated_at=timezone.now()
-    )
+    comment_data = {
+        'id': _generate_id("cmt"),
+        'post': post,
+        'user': user,
+        'parent_comment': None,
+        'content': content,
+        'created_at': timezone.now(),
+        'updated_at': timezone.now()
+    }
+    if share:
+        comment_data['share'] = share
+    
+    comment = Comment.objects.create(**comment_data)
 
-    # Notify chủ post nếu người comment không phải chủ post
+    # Notify chủ post/share nếu người comment không phải chủ post/share
+    notification_recipient = share.user_id if share else post.user_id
     _create_notification(
-        recipient_id=post.user_id,
+        recipient_id=notification_recipient,
         actor_user_id=user.id,
         notification_type="comment",
         title="New comment",
@@ -530,7 +585,7 @@ def create_comment(request, post_id):
         "Comment created successfully",
         {
             "comment": _comment_to_dict(comment),
-            **_post_counts(post.id)
+            **_post_counts(post.id, share.id if share else None)
         },
         status=201
     )
@@ -937,15 +992,7 @@ def share_post(request, post_id):
         # Kiểm tra post tồn tại
         post = get_object_or_404(Post, id=actual_post_id)
 
-        # Kiểm tra xem user đã share bài viết này chưa
-        existing_share = PostShare.objects.filter(
-            post_id=post.id,
-            user_id=user.id,
-            share_type="personal"
-        ).first()
-
-        if existing_share:
-            return _json_error("Bạn đã chia sẻ bài viết này rồi", 400)
+        # User can share a post multiple times, so we don't check for existing shares.
 
         share_type = (body.get("share_type") or "personal").strip()
 
@@ -1228,10 +1275,23 @@ def track_listen(request, post_id):
     if not user:
         return _json_error("Authentication required", 401)
 
-    post = get_object_or_404(Post, id=post_id)
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract actual post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
 
-    progress = int(body.get("progress_seconds", 0))
-    duration = int(body.get("duration_seconds", 0))
+    post = get_object_or_404(Post, id=actual_post_id)
+
+    progress = int(body.get("progress_seconds", 0) or 0)
+    duration = int(body.get("duration_seconds", 0) or 0)
+
+    if duration <= 0:
+        return _json_error("Invalid duration", 400)
+
+    progress = max(0, min(progress, duration))
+    completed_ratio = progress / duration
 
     history, created = PlaybackHistory.objects.get_or_create(
         user_id=user.id,
@@ -1240,45 +1300,49 @@ def track_listen(request, post_id):
             "id": _generate_id("ph"),
             "progress_seconds": progress,
             "duration_seconds": duration,
-            "completed_ratio": (progress / duration) if duration else 0,
-            "is_completed": (progress / duration) >= 0.9 if duration else False,
+            "completed_ratio": completed_ratio,
+            "is_completed": completed_ratio >= 0.9,
             "last_played_at": timezone.now(),
         }
     )
 
-    if not created:
-        old_completed_ratio = history.completed_ratio or 0
+    should_increase_listen = False
 
-        history.progress_seconds = progress
+    if created:
+        should_increase_listen = completed_ratio >= 0.5
+    else:
+        old_completed_ratio = float(history.completed_ratio or 0)
+
+        current_progress = progress
+        new_completed_ratio = current_progress / duration
+
+        history.progress_seconds = current_progress
         history.duration_seconds = duration
+        history.completed_ratio = new_completed_ratio
+        history.is_completed = new_completed_ratio >= 0.9
         history.last_played_at = timezone.now()
-        history.completed_ratio = (progress / duration) if duration else 0
-        history.is_completed = history.completed_ratio >= 0.9
         history.save()
 
-        # Tăng listen_count chỉ khi vừa vượt quá mốc 50% lần đầu tiên
-        new_completed_ratio = history.completed_ratio or 0
-        if old_completed_ratio < 0.5 and new_completed_ratio >= 0.5:
-            Post.objects.filter(id=post.id).update(
-                listen_count=F("listen_count") + 1
-            )
-            post.refresh_from_db(fields=["listen_count"])
-    else:
-        # Nếu record vừa tạo mà đã >=50% thì tăng luôn
-        if progress >= (duration * 0.5) if duration else 0:
-            Post.objects.filter(id=post.id).update(
-                listen_count=F("listen_count") + 1
-            )
-        post.refresh_from_db(fields=["listen_count"])
+        should_increase_listen = (
+            old_completed_ratio < 0.5 and new_completed_ratio >= 0.5
+        )
+
+    if should_increase_listen:
+        Post.objects.filter(id=post.id).update(
+            listen_count=F("listen_count") + 1
+        )
+
+    post.refresh_from_db(fields=["listen_count"])
 
     return _json_success(
         "Tracked listen",
         {
             "post_id": post.id,
             "listen_count": post.listen_count,
-            "progress_seconds": progress,
-            "duration_seconds": duration,
-            "completed_ratio": history.completed_ratio,
+            "progress_seconds": history.progress_seconds,
+            "duration_seconds": history.duration_seconds,
+            "completed_ratio": float(history.completed_ratio),
+            "is_completed": history.is_completed,
         }
     )
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Space, Typography, Skeleton } from 'antd'
 import { ClockCircleOutlined, HistoryOutlined } from '@ant-design/icons'
+import { toast } from 'react-toastify'
 import styles from '../../style/create-audio/RecentHistoryCard.module.css'
 import { formatDurationVi, getAudioDuration } from '../../utils/formatDuration'
 
@@ -38,14 +39,18 @@ function HistoryItemDuration({ audioUrl, fallbackDuration }) {
   return duration > 0 ? formatDurationVi(duration) : '—'
 }
 
-export default function RecentHistoryCard({ vm }) {
+export default function RecentHistoryCard({ vm, onViewAll }) {
   const history = vm?.recentDrafts || []
 
   return (
     <Card
       className={styles.card}
       title="Đã tạo gần đây"
-      extra={<Button type="link">Xem tất cả</Button>}
+      extra={
+        <Button type="link" onClick={onViewAll}>
+          Xem tất cả
+        </Button>
+      }
       variant="borderless"
       styles={{ header: { color: '#fff' } }}
     >
@@ -64,11 +69,15 @@ export default function RecentHistoryCard({ vm }) {
                 type="button"
                 className={`${styles.item} ${isActive ? styles.itemActive : ''}`}
                 onClick={() => {
+                  if (vm.genState === 'processing') {
+                    toast.info('Vui lòng hoàn tất tạo audio trước khi load draft khác')
+                    return
+                  }
                   if (!vm.isLoadingDraft) {
                     vm.loadDraftToForm(item.id)
                   }
                 }}
-                disabled={vm.isLoadingDraft}
+                disabled={vm.isLoadingDraft || vm.genState === 'processing'}
               >
                 <div className={styles.row}>
                   <div className={styles.left}>

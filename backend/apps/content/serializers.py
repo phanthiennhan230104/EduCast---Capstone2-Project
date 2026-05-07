@@ -1,5 +1,12 @@
 from rest_framework import serializers
-from .models import Post, PostAudioVersion, PostDocument
+from django.utils.text import slugify
+from .models import (
+    Post,
+    PostAudioVersion,
+    PostDocument,
+    Category,
+    Topic,
+)
 
 
 class DraftCreateSerializer(serializers.Serializer):
@@ -247,14 +254,149 @@ class FeedViewerStateSerializer(serializers.Serializer):
 
 class FeedItemSerializer(serializers.Serializer):
     id = serializers.CharField()
+    type = serializers.CharField(required=False)
+    post_id = serializers.CharField(required=False, allow_null=True)
+    share_id = serializers.CharField(required=False, allow_null=True)
     title = serializers.CharField()
     description = serializers.CharField(allow_null=True)
     created_at = serializers.DateTimeField()
+    shared_at = serializers.DateTimeField(required=False, allow_null=True)
+    post_created_at = serializers.DateTimeField(required=False, allow_null=True)
+    share_caption = serializers.CharField(required=False, allow_null=True)
     thumbnail_url = serializers.CharField(allow_null=True)
     listen_count = serializers.IntegerField()
 
     author = FeedAuthorSerializer()
+    shared_by = FeedAuthorSerializer(required=False, allow_null=True)
     tags = FeedTagSerializer(many=True)
     audio = FeedAudioSerializer(allow_null=True)
     stats = FeedStatsSerializer()
     viewer_state = FeedViewerStateSerializer()
+
+class PublishPostSerializer(serializers.Serializer):
+    draft_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    title = serializers.CharField(max_length=255)
+    description = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    original_text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    transcript_text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    dialogue_script = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    summary_text = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    source_type = serializers.ChoiceField(
+        choices=['manual', 'uploaded_document', 'ai_generated'],
+        default='ai_generated'
+    )
+    is_ai_generated = serializers.BooleanField(default=True)
+    audio_url = serializers.URLField()
+    duration_seconds = serializers.IntegerField(required=False, allow_null=True)
+
+    category_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+
+    topic_ids = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list
+    )
+
+    new_topics = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False,
+        default=list
+    )
+
+    tags = serializers.ListField(
+        child=serializers.CharField(max_length=100),
+        required=False,
+        default=list
+    )
+
+    age_group = serializers.ChoiceField(
+        choices=['16_22', '23_30', '31_40'],
+        required=False,
+        allow_null=True
+    )
+    learning_field = serializers.CharField(
+        max_length=100,
+        required=False,
+        allow_blank=True,
+        allow_null=True
+    )
+    visibility = serializers.ChoiceField(
+        choices=['public', 'private', 'unlisted'],
+        default='public'
+    )
+
+    def validate_title(self, value):
+        value = value.strip()
+        if not value:
+            raise serializers.ValidationError('Tiêu đề không được để trống')
+        return value
+
+    def validate_category_id(self, value):
+        if not value:
+            return None
+        if not Category.objects.filter(id=value).exists():
+            raise serializers.ValidationError("Category không tồn tại")
+        return value
+
+    def validate_topic_ids(self, value):
+        deduped = []
+        for item in value:
+            item = (item or "").strip()
+            if item and item not in deduped:
+                deduped.append(item)
+
+        existing_ids = set(
+            Topic.objects.filter(id__in=deduped).values_list("id", flat=True)
+        )
+        invalid_ids = [item for item in deduped if item not in existing_ids]
+        if invalid_ids:
+            raise serializers.ValidationError(
+                f"Topic không tồn tại: {', '.join(invalid_ids)}"
+            )
+
+        return deduped[:5]
+
+    def validate_new_topics(self, value):
+        cleaned = []
+        seen_slugs = set()
+
+        for item in value:
+            name = " ".join((item or "").strip().split())
+            if not name:
+                continue
+            if len(name) > 100:
+                continue
+
+            topic_slug = slugify(name)
+            if topic_slug and topic_slug not in seen_slugs:
+                seen_slugs.add(topic_slug)
+                cleaned.append(name)
+
+        return cleaned[:5]
+
+    def validate_tags(self, value):
+        cleaned = []
+        for tag in value:
+            t = (tag or "").strip().lower()
+            t = t.lstrip("#")
+            t = " ".join(t.split())
+
+            if not t:
+                continue
+            if len(t) > 30:
+                continue
+            if t not in cleaned:
+                cleaned.append(t)
+
+        return cleaned[:5]
+    
+class CategorySerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Category
+        fields = ["id", "name", "slug", "description"]
+
+
+class TopicSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Topic
+        fields = ["id", "name", "slug", "description"]

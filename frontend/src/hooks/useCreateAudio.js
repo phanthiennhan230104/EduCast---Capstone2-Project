@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import {
   getMyDrafts,
@@ -33,7 +33,7 @@ const DEFAULT_TOPICS = [
 ]
 
 export function useCreateAudio() {
-  const demoText = `Backpropagation là thuật toán cốt lõi để huấn luyện mạng nơ-ron...`
+  const demoText = `Kỹ năng mềm là tập hợp những khả năng giúp con người tương tác, làm việc và thích nghi hiệu quả trong môi trường sống và làm việc. Một trong những kỹ năng quan trọng nhất là kỹ năng giao tiếp, bởi nó giúp bạn truyền đạt ý tưởng rõ ràng, lắng nghe người khác và xây dựng mối quan hệ tích cực. Bên cạnh đó, kỹ năng quản lý thời gian giúp bạn sắp xếp công việc hợp lý, tránh căng thẳng và nâng cao hiệu suất. Ngoài ra, kỹ năng làm việc nhóm cũng rất cần thiết, vì trong hầu hết các môi trường, thành công thường đến từ sự hợp tác. Việc rèn luyện kỹ năng mềm không chỉ giúp bạn phát triển bản thân mà còn mở ra nhiều cơ hội trong học tập và sự nghiệp.`
 
   const voices = [
     { id: 'minh-tuan', name: 'Minh Tuấn', tag: 'Nam · Ấm · Miền Nam' },
@@ -86,11 +86,16 @@ export function useCreateAudio() {
   const [processedText, setProcessedText] = useState('')
   const [publicId, setPublicId] = useState('')
   const [recentDrafts, setRecentDrafts] = useState([])
+  const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
 
   const [activeDraftId, setActiveDraftId] = useState('')
   const [isLoadingDraft, setIsLoadingDraft] = useState(false)
   const [durationSeconds, setDurationSeconds] = useState(0)
+
+  // Refs to manage preview audio request
+  const previewAbortRef = useRef(null)
+  const isCancelledRef = useRef(false)
 
   // Auto-increment progress when generating
   useEffect(() => {
@@ -149,8 +154,32 @@ export function useCreateAudio() {
     setProgress(0)
     setProcStep('')
     setAiSuggestedTopics([])
+    setTitle('')
     setDescription('')
     setDurationSeconds(0)
+  }, [])
+
+  const cancelGenerate = useCallback(() => {
+    isCancelledRef.current = true
+
+    if (previewAbortRef.current) {
+      previewAbortRef.current.abort()
+      previewAbortRef.current = null
+    }
+
+    setGenState('idle')
+    setProgress(0)
+    setProcStep('')
+    setStep(2)
+    setProcessedText('')
+    setAudioUrl('')
+    setPublicId('')
+    setResultDur('')
+    setTitle('')
+    setDescription('')
+    setDurationSeconds(0)
+
+    toast.info('Đã dừng quá trình tạo audio')
   }, [])
 
   const loadRecentDrafts = useCallback(async () => {
@@ -269,6 +298,7 @@ export function useCreateAudio() {
       setText(hasDocument ? '' : originalText)
       setUploadedExtractedText(hasDocument ? originalText : '')
 
+      setTitle(draft.title || '')
       setDescription(draft.description || '')
       setAudioUrl(resolvedAudioUrl)
       setPublicId('')
@@ -320,7 +350,12 @@ export function useCreateAudio() {
       setProcStep('')
       setStep(resolvedAudioUrl ? 3 : 2)
 
-      toast.success('Đã tải lại bản nháp lên giao diện')
+      // Show different message based on whether audio is available
+      if (resolvedAudioUrl) {
+        toast.success('Đã tải draft + audio có sẵn')
+      } else {
+        toast.info('Đã tải draft (chưa có audio)')
+      }
     } catch (error) {
       console.error('Load draft detail error:', error)
       toast.error(error?.message || 'Không thể tải lại bản nháp')
@@ -353,6 +388,16 @@ export function useCreateAudio() {
       return
     }
 
+    // Abort any existing request
+    if (previewAbortRef.current) {
+      previewAbortRef.current.abort()
+      previewAbortRef.current = null
+    }
+
+    const controller = new AbortController()
+    previewAbortRef.current = controller
+    isCancelledRef.current = false
+
     try {
       setGenState('processing')
       setStep(3)
@@ -371,16 +416,27 @@ export function useCreateAudio() {
       setDescription('')
       setDurationSeconds(0)
 
-      const res = await previewAudio({
-        original_text: inputText,
-        mode: aiMode,
-        voice_name: selectedVoiceName,
-      })
+      const res = await previewAudio(
+        {
+          original_text: inputText,
+          mode: aiMode,
+          voice_name: voice,
+        },
+        controller.signal
+      )
+
+      // Ignore response if request was cancelled
+      if (isCancelledRef.current) return
 
       const preview = res?.data || {}
       const resolvedAudioUrl = preview.audio_url || ''
       const resolvedDurationSeconds = Number(preview.duration_seconds || 0)
+      const generatedTitle =
+        (preview.title || '').trim() ||
+        inputText.slice(0, 80).trim() ||
+        'Bài audio'
 
+      setTitle(generatedTitle)
       setProcessedText(preview.processed_text || '')
       setAudioUrl(resolvedAudioUrl)
       setPublicId(preview.public_id || '')
@@ -403,11 +459,19 @@ export function useCreateAudio() {
 
       toast.success('Tạo podcast thành công')
     } catch (error) {
+      if (error?.name === 'AbortError') {
+        return
+      }
+
       console.error('Preview audio error:', error)
       setGenState('idle')
       setProgress(0)
       setProcStep('')
       toast.error(error?.message || 'Tạo podcast thất bại')
+    } finally {
+      if (previewAbortRef.current === controller) {
+        previewAbortRef.current = null
+      }
     }
   }, [
     aiMode,
@@ -435,7 +499,9 @@ export function useCreateAudio() {
 
     try {
       const payload = {
-        title: sourceTab === 'upload' ? titleFromFile || titleFromText : titleFromText,
+        title:
+          title.trim() ||
+          (sourceTab === 'upload' ? titleFromFile || titleFromText : titleFromText),
         description: description.trim(),
         original_text: baseText,
         source_type: sourceTab === 'upload' ? 'uploaded_document' : 'manual',
@@ -443,7 +509,7 @@ export function useCreateAudio() {
         processed_text: processedText,
         audio_url: audioUrl,
         public_id: publicId,
-        voice_name: selectedVoiceName,
+        voice_name: voice,
         format: format.toLowerCase(),
         document_url: uploadedDocUrl,
         document_public_id: uploadedDocPublicId,
@@ -473,6 +539,7 @@ export function useCreateAudio() {
     selectedVoiceName,
     sourceTab,
     text,
+    title,
     uploadedExtractedText,
     uploadedDocUrl,
     uploadedDocPublicId,
@@ -516,6 +583,7 @@ export function useCreateAudio() {
     handleFile,
     removeFile,
     startGenerate,
+    cancelGenerate,
     saveCurrentDraft,
     voices,
     topicsMaster: DEFAULT_TOPICS,
@@ -523,6 +591,8 @@ export function useCreateAudio() {
     aiModes,
     sourceTabs,
     recentDrafts,
+    title,
+    setTitle,
     description,
     setDescription,
     activeDraftId,

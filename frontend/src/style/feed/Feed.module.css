@@ -56,6 +56,302 @@
   margin-top: 20px;
 }
 
+.postShareContainer {
+  width: 100%;
+}
+
+.postShareWrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  border-radius: 18px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02)),
+    var(--bg-card);
+  border: 1px solid rgba(255,255,255,0.08);
+  overflow: hidden;
+}
+
+.postShareInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 16px 12px;
+}
+
+/* ==================== SHARE MENU (3 CHẤM) ==================== */
+.shareMenuWrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.shareMenuBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.shareMenuBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.shareMenuDropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 160px;
+  background: var(--bg-card, #1e1e2e);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 6px 0;
+  z-index: 100;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.shareMenuOption {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+  text-align: left;
+}
+
+.shareMenuOption:hover {
+  background: rgba(255, 255, 255, 0.06);
+  color: var(--text-primary);
+}
+
+.shareMenuOptionDanger {
+  color: #ff7b94;
+}
+
+.shareMenuOptionDanger:hover {
+  background: rgba(255, 84, 112, 0.08);
+  color: #ff4d6d;
+}
+
+.postShareAuthor {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.postShareAvatarWrapper {
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.postShareAvatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.postShareAvatarInitials {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, rgba(132,146,255,0.9), rgba(83,115,255,0.8));
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.postShareAuthorName {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 700;
+  color: #eef2ff;
+}
+
+.postShareTime {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.shareCaption {
+  padding: 0 16px 12px;
+  color: var(--text-secondary);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.shareCaption p {
+  margin: 0;
+}
+
+/* ==================== SHARE MENU ==================== */
+.shareMenuWrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.shareMenuBtn {
+  padding: 4px;
+  border-radius: 6px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.shareMenuBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-primary);
+}
+
+.shareMenuDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 130px;
+  background: linear-gradient(180deg, rgba(20,28,55,0.98), rgba(15,20,45,0.95));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 20px 44px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06);
+  z-index: 1000;
+  white-space: nowrap;
+}
+
+.shareMenuOption {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.12s ease;
+  text-align: left;
+}
+
+.shareMenuOption:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.shareMenuOptionDanger {
+  color: #ff7b7b;
+}
+
+.shareMenuOptionDanger:hover {
+  background: rgba(255, 123, 123, 0.12);
+  color: #ff9999;
+}
+
+.postShareCard {
+  width: 100%;
+  position: relative;
+}
+
+.postShareCardLoading {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border-radius: 12px;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  backdrop-filter: blur(2px);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.spinnerIcon {
+  animation: spin 0.8s linear infinite;
+}
+
+/* ==================== POST SHARE ACTIONS ==================== */
+.postShareActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  flex-wrap: wrap;
+}
+
+.shareActionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 10px;
+  border-radius: 12px;
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease,
+    transform 0.15s ease;
+}
+
+.shareActionBtn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.shareActionBtn.liked {
+  color: #ff7b94;
+}
+
+.shareActionBtn.saved {
+  color: #ffc56f;
+}
+
+.shareActionBtnSave {
+  margin-left: auto;
+}
+
 .feedState,
 .feedError {
   margin-top: 6px;

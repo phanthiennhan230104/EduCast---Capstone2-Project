@@ -1,5 +1,5 @@
-import { Button, Card, Input, Space, Typography, Modal } from 'antd'
 import { createPortal } from 'react-dom'
+import { Button, Card, Input, Progress, Space, Typography } from 'antd'
 import {
   DownloadOutlined,
   PlayCircleOutlined,
@@ -18,6 +18,11 @@ const { TextArea } = Input
 
 export default function GenerateSection({ vm }) {
   const handlePreview = () => {
+    if (vm.genState === 'processing') {
+      toast.info('Vui lòng đợi tạo audio xong trước khi nghe thử')
+      return
+    }
+
     if (!vm.audioUrl) {
       toast.info('Chưa có audio để nghe thử')
       return
@@ -27,6 +32,11 @@ export default function GenerateSection({ vm }) {
   }
 
   const handleDownload = () => {
+    if (vm.genState === 'processing') {
+      toast.info('Vui lòng đợi tạo audio xong trước khi tải xuống')
+      return
+    }
+
     if (!vm.audioUrl) {
       toast.info('Chưa có audio để tải')
       return
@@ -38,7 +48,7 @@ export default function GenerateSection({ vm }) {
   const handleCancelProcess = () => {
     if (vm.genState === 'processing') {
       showCancelConfirm(() => {
-        vm.resetGenerateState?.()
+        vm.cancelGenerate?.()
       })
     }
   }
@@ -73,6 +83,7 @@ export default function GenerateSection({ vm }) {
               <Title level={5} className={styles.title} style={{ margin: 0 }}>
                 AI đang xử lý...
               </Title>
+
               <Button
                 type="text"
                 danger
@@ -82,6 +93,9 @@ export default function GenerateSection({ vm }) {
                 title="Dừng quá trình tạo audio"
               />
             </div>
+
+            <Progress percent={vm.progress} strokeColor="#7f8cff" format={() => `${vm.progress}%`} />
+            
             <Text className={styles.subText}>{vm.procStep}</Text>
           </Space>
         </Card>
@@ -111,10 +125,33 @@ export default function GenerateSection({ vm }) {
 
             <div>
               <Title level={5} className={styles.title} style={{ marginBottom: 8 }}>
+                Tiêu đề bài viết
+              </Title>
+              <Text className={styles.subText}>
+                Bạn có thể xem và chỉnh sửa tiêu đề trước khi lưu nháp hoặc đăng bài
+              </Text>
+
+              <Input
+                value={vm.title}
+                onChange={(e) => vm.setTitle(e.target.value)}
+                maxLength={120}
+                placeholder="Nhập tiêu đề cho bài audio..."
+                style={{ marginTop: 12 }}
+              />
+
+              <div style={{ marginTop: 6, textAlign: 'right' }}>
+                <Text className={styles.subText}>
+                  {(vm.title || '').length}/120 ký tự
+                </Text>
+              </div>
+            </div>
+
+            <div>
+              <Title level={5} className={styles.title} style={{ marginBottom: 8 }}>
                 Mô tả bài viết
               </Title>
               <Text className={styles.subText}>
-                Bạn có thể chỉnh lại mô tả trước khi lưu nháp
+                Bạn có thể xem và chỉnh sửa mô tả trước khi lưu nháp hoặc đăng bài
               </Text>
 
               <TextArea
@@ -134,15 +171,31 @@ export default function GenerateSection({ vm }) {
             </div>
 
             <Space wrap>
-              <Button icon={<PlayCircleOutlined />} onClick={handlePreview}>
+              <Button
+                icon={<PlayCircleOutlined />}
+                onClick={handlePreview}
+                disabled={vm.genState === 'processing'}
+              >
                 Nghe thử
               </Button>
-              <Button icon={<DownloadOutlined />} onClick={handleDownload}>
+
+              <Button
+                icon={<DownloadOutlined />}
+                onClick={handleDownload}
+                disabled={vm.genState === 'processing'}
+              >
                 Tải xuống
               </Button>
-              <Button icon={<RocketOutlined />} disabled>
-                Đăng lên Feed
+
+              <Button
+                type="primary"
+                icon={<RocketOutlined />}
+                onClick={vm.goToPublish}
+                disabled={vm.genState === 'processing' || !vm.audioUrl}
+              >
+                Tiếp tục đăng bài
               </Button>
+
               <Button icon={<SaveOutlined />} onClick={vm.saveCurrentDraft}>
                 Lưu nháp
               </Button>

@@ -47,7 +47,7 @@ function formatTime(seconds) {
 }
 
 function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail }) {
-  const { playTrack, currentTrack, playing, togglePlay, currentTime, formattedCurrentTime, trackProgressMap, seekToPercent, isSeeking } = useAudioPlayer()
+  const { playTrack, currentTrack, playing, togglePlay, currentTime, duration, formattedCurrentTime, trackProgressMap, seekToPercent, isSeeking } = useAudioPlayer()
   const progressBarRef = useRef(null)
 
   const handlePlayClick = () => {
@@ -105,10 +105,16 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
 
   // Lấy saved progress nếu track đã từng chạy
   const savedProgress = trackProgressMap?.[item.id]
+  
   const displayTime = currentTrack?.id === item.id ? currentTime : (savedProgress?.currentTime || 0)
   const displayProgress = currentTrack?.id === item.id 
     ? (item.durationSeconds ? (currentTime / item.durationSeconds) * 100 : 0)
     : (savedProgress?.progressPercent || 0)
+  
+  // Display duration - giống như Feed PodcastCard
+  const displayDuration = currentTrack?.id === item.id
+    ? formatTime(duration || item.durationSeconds || 0)
+    : formatTime(savedProgress?.duration || item.durationSeconds || 0)
 
   return (
     <article className={`${styles.savedCard} ${viewMode === 'list' ? styles.savedCardList : ''}`}>
@@ -168,7 +174,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
                   </div>
                 )}
               </div>
-              <span className={styles.time}>{item.duration}</span>
+              <span className={styles.time}>{displayDuration}</span>
             </div>
           </div>
 

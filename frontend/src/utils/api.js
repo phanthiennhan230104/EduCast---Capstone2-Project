@@ -1,4 +1,4 @@
-import { getToken, forceLogoutToLogin } from './auth'
+import { getRefreshToken, getToken, saveAuth, forceLogoutToLogin } from './auth'
 
 export const API_BASE_URL = 'http://127.0.0.1:8000/api'
 
@@ -69,31 +69,54 @@ export async function apiRequest(path, options = {}) {
   const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 10000)
 
   try {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      method: options.method || 'GET',
-      headers: {
-        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        ...(options.headers || {}),
-      },
-      body: options.body,
-      // Most endpoints use Bearer tokens (not cookies). Opt-in to cookies only when needed.
-      credentials: options.credentials ?? 'omit',
-      signal: controller.signal,
-    })
+    const doFetch = async (overrideToken) => {
+      const authToken = overrideToken ?? getToken()
+      return await fetch(`${API_BASE_URL}${path}`, {
+        method: options.method || 'GET',
+        headers: {
+          ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+          ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+          ...(options.headers || {}),
+        },
+        body: options.body,
+        // Most endpoints use Bearer tokens (not cookies). Opt-in to cookies only when needed.
+        credentials: options.credentials ?? 'omit',
+        signal: controller.signal,
+      })
+    }
 
-    const data = await response.json().catch(() => ({}))
+    let response = await doFetch(token)
+    let data = await response.json().catch(() => ({}))
 
+    // Nếu token hết hạn/không hợp lệ → thử refresh rồi gọi lại 1 lần.
     if (!response.ok) {
-      const firstError =
-        data.message ||
-        data.detail ||
-        data.error ||
-        Object.values(data)[0]?.[0] ||
-        Object.values(data)[0] ||
-        'Request failed.'
+      const firstError = getFirstError(data)
 
-      throw new Error(firstError)
+      if (isAuthOrLockedError(response, firstError)) {
+        // Thử refresh token trước (nếu có)
+        try {
+          const newAccess = await refreshAccessToken()
+          if (newAccess) {
+            response = await doFetch(newAccess)
+            data = await response.json().catch(() => ({}))
+          }
+        } catch (refreshError) {
+          // Refresh fail → coi như phiên đăng nhập hết hạn
+          forceLogoutToLogin(
+            refreshError?.message || 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+          )
+          throw refreshError
+        }
+
+        if (!response.ok) {
+          const retriedError = getFirstError(data)
+          // Tài khoản bị khóa / inactive / token vẫn lỗi → logout để UI về login
+          forceLogoutToLogin(retriedError || 'Phiên đăng nhập đã kết thúc.')
+          throw new Error(retriedError || 'Request failed.')
+        }
+      } else {
+        throw new Error(firstError)
+      }
     }
 
     return data

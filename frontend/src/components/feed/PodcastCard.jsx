@@ -22,7 +22,7 @@
     return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
   }
 
-export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hideMenu = false, hideActions = false }) {
+export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hideMenu = false, hideActions = false, onPlayClick = null, onSeek = null }) {
     const currentUser = getCurrentUser()
     const navigate = useNavigate()
     const menuRef = useRef(null)
@@ -307,7 +307,15 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
       setShowReportModal(true)
     }
 
-    const handlePlayClick = () => {
+    const handlePlayClick = (e) => {
+      // Nếu có custom onPlayClick handler (dùng cho shared posts), gọi nó thay vì logic mặc định
+      if (onPlayClick) {
+        e?.stopPropagation?.()
+        e?.preventDefault?.()
+        onPlayClick(e)
+        return
+      }
+
       if (!audioSrc) return
 
       if (isActive) {
@@ -337,6 +345,14 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
     }
 
     const handleSeek = (e) => {
+      // Nếu có custom onSeek handler (dùng cho shared posts), gọi nó thay vì logic mặc định
+      if (onSeek) {
+        e?.stopPropagation?.()
+        e?.preventDefault?.()
+        onSeek(e)
+        return
+      }
+
       const value = Number(e.target.value)
 
       if (!audioSrc) return
@@ -793,7 +809,10 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
             )}
           </div>
 
-          <div className={styles.player}>
+          <div 
+            className={styles.player}
+            onClick={(e) => e.stopPropagation()}
+          >
             <button
               className={`${styles.playBtn} ${isPlaying ? styles.playing : ''}`}
               onClick={handlePlayClick}
@@ -1033,7 +1052,7 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
           postId={podcast.id}
           onSave={handleCollectionModalSave}
           triggerRef={saveBookmarkRef}
-          isPopup={true}
+          isPopup={false}
         />
 
         {showReportModal && (

@@ -6,6 +6,7 @@ import AdminPage from "./components/admin/AdminPage";
 import FavoritesPage from "./pages/FavoritesPage/FavoritesPage";
 import CreateAudioPage from './pages/CreateAudioPage/CreateAudioPage'
 import EditAudioPage from './pages/EditAudioPage/EditAudioPage'
+import PublishPostPage from './pages/PublishPostPage/PublishPostPage'
 import SearchResultsPage from './pages/SearchResultsPage/SearchResultsPage'
 import ProtectedRoute from "./components/ProtectedRoute";
 import AdminUsersPage from "./components/admin/AdminUsersPage";
@@ -20,6 +21,7 @@ import PersonalPageComponent from "./components/PersonalPage/PersonalPage";
 import AdminStatsPage from "./components/admin/AdminStatsPage";
 import AdminContentModerationPage from "./components/admin/AdminModeration";
 import AdminSystemPage from "./components/admin/AdminSystemPage";
+import AssistantWidget from "./components/assistant/AssistantWidget";
 
 function RootRedirect() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -29,12 +31,12 @@ function RootRedirect() {
   }
 
   if (isAuthenticated) {
-    return user?.role === 'admin' ? <Navigate to="/admin" replace /> : <Navigate to="/feed" replace />;
+    return user?.role === 'admin'
+      ? <Navigate to="/admin" replace />
+      : <Navigate to="/feed" replace />;
   }
 
   return <HomePage />;
-
-
 }
 
 function App() {

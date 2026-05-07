@@ -5,12 +5,13 @@ from apps.social.models import HiddenPost, PostLike, SavedPost, Comment, PostSha
 
 from django.db import transaction, models
 from django.utils import timezone
+from django.utils.text import slugify
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from apps.content.services.feed_service import FeedService
-from .models import Post, PostAudioVersion, PostDocument
+from .models import Post, PostAudioVersion, PostDocument, Tag, PostTag, Category, Topic
 from apps.social.models import HiddenPost
 from .serializers import (
     DraftCreateSerializer,
@@ -20,10 +21,14 @@ from .serializers import (
     DraftUpdateSerializer,
     UploadDocumentSerializer,
     FeedItemSerializer,
+    PublishPostSerializer,
+    CategorySerializer,
+    TopicSerializer,
 )
 from .services.cloudinary_service import (
     upload_file_to_cloudinary,
     delete_file_from_cloudinary,
+    get_audio_duration_from_api,
 )
 
 
@@ -31,7 +36,51 @@ class TestCloudinaryUploadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        pass
+        try:
+            audio_file = request.FILES.get('audio')
+            if not audio_file:
+                return Response(
+                    {'error': 'Không tìm thấy file audio'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Validate file type
+            if not audio_file.content_type.startswith('audio/'):
+                return Response(
+                    {'error': 'File phải là audio'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Validate file size (50MB max)
+            max_size = 50 * 1024 * 1024
+            if audio_file.size > max_size:
+                return Response(
+                    {'error': 'File quá lớn. Tối đa 50MB'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Upload to Cloudinary
+            result = upload_file_to_cloudinary(
+                audio_file,
+                resource_type='auto',
+                folder='educast/audios',
+            )
+
+            return Response(
+                {
+                    'message': 'Upload thành công',
+                    'audio_url': result.get('secure_url'),
+                    'public_id': result.get('public_id'),
+                    'duration': result.get('duration'),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
 
 from .services.text_processor import process_text_by_mode, generate_ai_description
 from .services.tts_service import generate_audio_file
@@ -60,7 +109,65 @@ def build_fallback_description(text: str, max_length: int = 180) -> str:
     shortened = compact[:max_length].rsplit(" ", 1)[0].strip()
     return shortened + "..."
 
+def handle_tags(post, tag_names):
+    for raw_tag in tag_names:
+        tag_name = (raw_tag or "").strip().lower()
+        tag_name = tag_name.lstrip("#")
+        tag_name = " ".join(tag_name.split())
 
+        if not tag_name:
+            continue
+
+        slug = slugify(tag_name)
+
+        tag = Tag.objects.filter(slug=slug).first()
+
+        if not tag:
+            tag = Tag.objects.create(
+                id=str(ulid.new()),
+                slug=slug,
+                name=tag_name,
+                created_at=timezone.now(),
+            )
+
+        PostTag.objects.get_or_create(
+            post=post,
+            tag=tag,
+            defaults={"created_at": timezone.now()},
+        )
+
+def handle_topics(post, topic_ids, new_topic_names):
+    final_topic_ids = list(topic_ids or [])
+
+    for raw_name in new_topic_names or []:
+        topic_name = " ".join((raw_name or "").strip().split())
+        if not topic_name:
+            continue
+
+        slug = slugify(topic_name)
+
+        topic = Topic.objects.filter(slug=slug).first()
+        if not topic:
+            topic = Topic.objects.create(
+                id=str(ulid.new()),
+                name=topic_name,
+                slug=slug,
+                description=None,
+                created_at=timezone.now(),
+            )
+
+        if topic.id not in final_topic_ids:
+            final_topic_ids.append(topic.id)
+
+    post.post_topics.all().delete()
+
+    valid_topics = Topic.objects.filter(id__in=final_topic_ids)
+    for topic in valid_topics:
+        post.post_topics.create(
+            topic=topic,
+            created_at=timezone.now(),
+        )
+        
 class DraftCreateView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -138,12 +245,16 @@ class AudioPreviewView(APIView):
             data["mode"],
         )
 
-        if not processed_text.strip():
+        processed_text = (processed_text or "").strip()
+
+        if not processed_text:
+            processed_text = original_text.strip()
+
+        if not processed_text:
             return Response(
                 {"error": "Không thể tạo nội dung audio từ văn bản đầu vào."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
         try:
             generated_description = generate_ai_description(processed_text)
             generated_description = (generated_description or "").strip()
@@ -152,8 +263,6 @@ class AudioPreviewView(APIView):
 
         if not generated_description:
             generated_description = build_fallback_description(processed_text)
-
-        duration_seconds = estimate_duration_seconds(processed_text)
 
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
             temp_audio_path = tmp.name
@@ -177,6 +286,20 @@ class AudioPreviewView(APIView):
             audio_url = uploaded.get("secure_url")
             if not audio_url:
                 raise ValueError("Upload Cloudinary thành công nhưng không nhận được secure_url.")
+            
+            # Get real duration from Cloudinary
+            duration_seconds = uploaded.get("duration")
+            if not duration_seconds:
+                # Query API if upload response doesn't have duration
+                public_id = uploaded.get("public_id")
+                if public_id:
+                    duration_seconds = get_audio_duration_from_api(public_id, resource_type="video")
+            
+            # Final fallback to estimate
+            if not duration_seconds:
+                duration_seconds = estimate_duration_seconds(processed_text)
+            else:
+                duration_seconds = int(duration_seconds)
 
             return Response(
                 {
@@ -221,7 +344,17 @@ class DraftSaveWithAudioView(APIView):
         slug = generate_unique_slug(title)
         mode = data.get("mode", "summary")
         processed_text = data.get("processed_text", "")
-        duration_seconds = data.get("duration_seconds") or estimate_duration_seconds(processed_text)
+        
+        # Priority: client value > API query > estimate
+        duration_seconds = data.get("duration_seconds")
+        if not duration_seconds:
+            public_id = data.get("public_id")
+            if public_id:
+                duration_seconds = get_audio_duration_from_api(public_id, resource_type="video")
+        
+        if not duration_seconds:
+            duration_seconds = estimate_duration_seconds(processed_text)
+        
         now = timezone.now()
 
         summary_text = processed_text if mode == "summary" else None
@@ -249,8 +382,8 @@ class DraftSaveWithAudioView(APIView):
                 source_type=data.get("source_type", Post.SourceTypeChoices.MANUAL),
                 is_ai_generated=(mode != "original"),
                 language_code="vi",
-                visibility=Post.VisibilityChoices.PUBLIC,
-                status=Post.StatusChoices.PUBLISHED,
+                visibility=Post.VisibilityChoices.PRIVATE,
+                status=Post.StatusChoices.DRAFT,
                 age_group=None,
                 learning_field=None,
                 audio_url=data["audio_url"],
@@ -263,7 +396,7 @@ class DraftSaveWithAudioView(APIView):
                 comment_count=0,
                 save_count=0,
                 share_count=0,
-                published_at=now,
+                published_at=None,
                 created_at=now,
                 updated_at=now,
             )
@@ -451,12 +584,22 @@ class DraftUpdateView(APIView):
                     )
 
                 post.audio_url = data["audio_url"]
-                post.duration_seconds = data.get("duration_seconds") or estimate_duration_seconds(
-                    data.get("summary_text")
-                    or data.get("dialogue_script")
-                    or data.get("transcript_text")
-                    or post.original_text
-                )
+                
+                # Priority: client value > API query > estimate
+                post.duration_seconds = data.get("duration_seconds")
+                if not post.duration_seconds:
+                    public_id = data.get("public_id")
+                    if public_id:
+                        post.duration_seconds = get_audio_duration_from_api(public_id, resource_type="video")
+                
+                if not post.duration_seconds:
+                    post.duration_seconds = estimate_duration_seconds(
+                        data.get("summary_text")
+                        or data.get("dialogue_script")
+                        or data.get("transcript_text")
+                        or post.original_text
+                    )
+                
                 post.is_ai_generated = True
 
                 PostAudioVersion.objects.filter(post=post).update(is_default=False)
@@ -834,7 +977,6 @@ class SearchAPIView(APIView):
 
         return Response(results, status=status.HTTP_200_OK)
 
-
 class UserPostsAPIView(APIView):
     permission_classes = [IsAuthenticated]
     
@@ -843,6 +985,7 @@ class UserPostsAPIView(APIView):
         from apps.social.models import PostShare
         
         author_name = post.user.username
+        author_username = post.user.username  # Always include username
         if hasattr(post.user, 'profile') and post.user.profile:
             author_name = post.user.profile.display_name or post.user.username
         
@@ -862,11 +1005,32 @@ class UserPostsAPIView(APIView):
             post_id=post.id
         ).exists() if request_user_id else False
         
-        # Lấy counts thực tế từ bài gốc (cả bài share và bài gốc đều dùng counts của bài gốc)
-        like_count = PostLike.objects.filter(post_id=post.id).count()
-        comment_count = Comment.objects.filter(post_id=post.id).count()
-        save_count = SavedPost.objects.filter(post_id=post.id).count()
-        share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
+        # For shared posts, get counts for the share itself; for original posts, use post counts
+        if share_info and share_info.get("share_id"):
+            # Shared post: get counts for this specific share
+            share_id = share_info.get("share_id")
+            # Check if user liked/saved this share specifically
+            is_liked = PostLike.objects.filter(
+                user_id=request_user_id,
+                share_id=share_id
+            ).exists() if request_user_id else False
+            
+            is_saved = SavedPost.objects.filter(
+                user_id=request_user_id,
+                share_id=share_id
+            ).exists() if request_user_id else False
+            
+            # Get counts for this share
+            like_count = PostLike.objects.filter(share_id=share_id).count()
+            comment_count = Comment.objects.filter(share_id=share_id).count()
+            save_count = SavedPost.objects.filter(share_id=share_id).count()
+            share_count = 0  # Shares of shares don't make sense
+        else:
+            # Original post: get counts from the post itself
+            like_count = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            comment_count = Comment.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            save_count = SavedPost.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
         
         post_data = {
             "id": post.id,
@@ -877,6 +1041,7 @@ class UserPostsAPIView(APIView):
             "dialogue_script": post.dialogue_script,
             "transcript_text": post.transcript_text,
             "author": author_name,
+            "author_username": author_username,  # Add username field
             "author_id": post.user.id,
             "author_avatar": author_avatar,
             "thumbnail_url": post.thumbnail_url,
@@ -900,6 +1065,7 @@ class UserPostsAPIView(APIView):
             "share_count": share_count,
             "is_liked": is_liked,
             "is_saved": is_saved,
+            "tags": [{"id": tag.id, "name": tag.name} for tag in Tag.objects.filter(tag_posts__post_id=post.id)],
         }
         
         # Add share info if provided
@@ -1073,3 +1239,113 @@ class UserSharedPostsAPIView(APIView):
                 "error": f"Failed to load user shared posts: {str(e)}",
                 "shared_posts": []
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class PublishPostView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @transaction.atomic
+    def post(self, request):
+        serializer = PublishPostSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            if data.get("draft_id"):
+                post = Post.objects.get(
+                    id=data["draft_id"],
+                    user=request.user,
+                )
+            else:
+                post = Post.objects.create(
+                    id=str(ulid.new()),
+                    user=request.user,
+                    slug=generate_unique_slug(data["title"]),
+                    created_at=timezone.now(),
+                    updated_at=timezone.now(),
+                )
+
+            post.title = data["title"]
+            post.description = data.get("description")
+            post.original_text = data.get("original_text")
+            post.transcript_text = data.get("transcript_text")
+            post.source_type = data.get("source_type", "ai_generated")
+            post.is_ai_generated = data.get("is_ai_generated", True)
+            post.audio_url = data["audio_url"]
+            
+            # Get real duration from Cloudinary if not provided
+            post.duration_seconds = data.get("duration_seconds")
+            if not post.duration_seconds and data.get("public_id"):
+                post.duration_seconds = get_audio_duration_from_api(
+                    data.get("public_id"), 
+                    resource_type="video"
+                )
+            
+            post.category_id = data.get("category_id")
+            post.age_group = data.get("age_group")
+            post.learning_field = data.get("learning_field")
+            post.visibility = data.get("visibility", "public")
+            post.status = Post.StatusChoices.PUBLISHED
+            post.published_at = timezone.now()
+            post.updated_at = timezone.now()
+            post.slug = generate_unique_slug(post.title)
+
+            post.save()
+
+            # TOPICS
+            handle_topics(
+                post=post,
+                topic_ids=data.get("topic_ids", []),
+                new_topic_names=data.get("new_topics", []),
+            )
+
+            # TAGS
+            post.post_tags.all().delete()
+            handle_tags(post, data.get("tags", []))
+
+            return Response(
+                {
+                    "message": "Đăng bài thành công",
+                    "post_id": post.id,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Không tìm thấy draft để publish"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+class CategoryListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        categories = Category.objects.all().order_by("name")
+        serializer = CategorySerializer(categories, many=True)
+        return Response(
+            {
+                "message": "Lấy danh sách categories thành công",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class TopicListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        topics = Topic.objects.all().order_by("name")
+        serializer = TopicSerializer(topics, many=True)
+        return Response(
+            {
+                "message": "Lấy danh sách topics thành công",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
