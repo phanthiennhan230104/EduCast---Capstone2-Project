@@ -5,6 +5,7 @@ export function getMessagePreview(message) {
   if (message.message_type === "file") {
     return message.original_filename || "Đã gửi một file";
   }
+  
   // If content is a JSON string from a shared post/podcast, try to parse and show a friendly preview
   const content = message.content;
   if (typeof content === "string") {

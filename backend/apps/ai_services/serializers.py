@@ -1,6 +1,5 @@
 from rest_framework import serializers
 
-
 class AssistantHistoryItemSerializer(serializers.Serializer):
     role = serializers.ChoiceField(choices=["user", "assistant"])
     content = serializers.CharField(allow_blank=False, trim_whitespace=True)

@@ -10,7 +10,6 @@ cloudinary.config(
     secure=True,
 )
 
-
 def get_audio_duration_from_api(public_id, resource_type="video"):
     if not public_id:
         return None

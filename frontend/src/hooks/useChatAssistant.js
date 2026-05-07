@@ -1,5 +1,4 @@
 import { useCallback, useMemo, useState } from 'react'
-
 import { sendAssistantMessage } from '../utils/aiServicesApi'
 
 const INITIAL_ASSISTANT_MESSAGE = {

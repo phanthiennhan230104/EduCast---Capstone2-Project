@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { LoaderCircle, SendHorizonal } from 'lucide-react'
-
 import { useChatAssistant } from '../../hooks/useChatAssistant'
 import AssistantMessage from './AssistantMessage'
 import styles from '../../style/assistant/AssistantWidget.module.css'

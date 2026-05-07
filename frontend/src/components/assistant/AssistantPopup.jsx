@@ -1,5 +1,4 @@
 import { Bot } from 'lucide-react'
-
 import AssistantChatBox from './AssistantChatBox'
 import styles from '../../style/assistant/AssistantWidget.module.css'
 

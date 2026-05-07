@@ -5,7 +5,6 @@ from django.db.models import Q, QuerySet
 
 from apps.content.models import Post
 
-
 def _normalize_text(value: str | None) -> str:
     return (value or "").strip()
 

@@ -23,3 +23,4 @@ class AssistantChatView(APIView):
             {"message": payload},
             status=status.HTTP_200_OK,
         )
+    
