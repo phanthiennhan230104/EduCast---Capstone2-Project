@@ -1261,8 +1261,14 @@ def track_listen(request, post_id):
 
     post = get_object_or_404(Post, id=actual_post_id)
 
-    progress = int(body.get("progress_seconds", 0))
-    duration = int(body.get("duration_seconds", 0))
+    progress = int(body.get("progress_seconds", 0) or 0)
+    duration = int(body.get("duration_seconds", 0) or 0)
+
+    if duration <= 0:
+        return _json_error("Invalid duration", 400)
+
+    progress = max(0, min(progress, duration))
+    completed_ratio = progress / duration
 
     history, created = PlaybackHistory.objects.get_or_create(
         user_id=user.id,
@@ -1271,45 +1277,49 @@ def track_listen(request, post_id):
             "id": _generate_id("ph"),
             "progress_seconds": progress,
             "duration_seconds": duration,
-            "completed_ratio": (progress / duration) if duration else 0,
-            "is_completed": (progress / duration) >= 0.9 if duration else False,
+            "completed_ratio": completed_ratio,
+            "is_completed": completed_ratio >= 0.9,
             "last_played_at": timezone.now(),
         }
     )
 
-    if not created:
-        old_completed_ratio = history.completed_ratio or 0
+    should_increase_listen = False
 
-        history.progress_seconds = progress
+    if created:
+        should_increase_listen = completed_ratio >= 0.5
+    else:
+        old_completed_ratio = float(history.completed_ratio or 0)
+
+        current_progress = progress
+        new_completed_ratio = current_progress / duration
+
+        history.progress_seconds = current_progress
         history.duration_seconds = duration
+        history.completed_ratio = new_completed_ratio
+        history.is_completed = new_completed_ratio >= 0.9
         history.last_played_at = timezone.now()
-        history.completed_ratio = (progress / duration) if duration else 0
-        history.is_completed = history.completed_ratio >= 0.9
         history.save()
 
-        # Tăng listen_count chỉ khi vừa vượt quá mốc 50% lần đầu tiên
-        new_completed_ratio = history.completed_ratio or 0
-        if old_completed_ratio < 0.5 and new_completed_ratio >= 0.5:
-            Post.objects.filter(id=post.id).update(
-                listen_count=F("listen_count") + 1
-            )
-            post.refresh_from_db(fields=["listen_count"])
-    else:
-        # Nếu record vừa tạo mà đã >=50% thì tăng luôn
-        if progress >= (duration * 0.5) if duration else 0:
-            Post.objects.filter(id=post.id).update(
-                listen_count=F("listen_count") + 1
-            )
-        post.refresh_from_db(fields=["listen_count"])
+        should_increase_listen = (
+            old_completed_ratio < 0.5 and new_completed_ratio >= 0.5
+        )
+
+    if should_increase_listen:
+        Post.objects.filter(id=post.id).update(
+            listen_count=F("listen_count") + 1
+        )
+
+    post.refresh_from_db(fields=["listen_count"])
 
     return _json_success(
         "Tracked listen",
         {
             "post_id": post.id,
             "listen_count": post.listen_count,
-            "progress_seconds": progress,
-            "duration_seconds": duration,
-            "completed_ratio": history.completed_ratio,
+            "progress_seconds": history.progress_seconds,
+            "duration_seconds": history.duration_seconds,
+            "completed_ratio": float(history.completed_ratio),
+            "is_completed": history.is_completed,
         }
     )
 

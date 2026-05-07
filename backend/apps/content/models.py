@@ -1,5 +1,50 @@
 from django.db import models
 
+
+class Category(models.Model):
+    id = models.CharField(max_length=26, primary_key=True)
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.CharField(max_length=120, unique=True)
+    description = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "categories"
+        managed = False
+
+    def __str__(self):
+        return self.name
+
+
+class Topic(models.Model):
+    id = models.CharField(max_length=26, primary_key=True)
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.CharField(max_length=120, unique=True)
+    description = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "topics"
+        managed = False
+
+    def __str__(self):
+        return self.name
+
+
+class Tag(models.Model):
+    id = models.CharField(max_length=26, primary_key=True)
+    name = models.CharField(max_length=100, unique=True)
+    slug = models.CharField(max_length=120, unique=True)
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "tags"
+        managed = False
+
+    def __str__(self):
+        return self.name
+
+
 class Post(models.Model):
     class VisibilityChoices(models.TextChoices):
         PUBLIC = "public", "Public"
@@ -18,10 +63,22 @@ class Post(models.Model):
         FAILED = "failed", "Failed"
         ARCHIVED = "archived", "Archived"
         HIDDEN = "hidden", "Hidden"
-    
+
     id = models.CharField(max_length=26, primary_key=True)
-    user = models.ForeignKey('users.User', on_delete=models.CASCADE, db_column='user_id', related_name='posts')
-    category_id = models.CharField(max_length=26, null=True, blank=True)
+    user = models.ForeignKey(
+        "users.User",
+        on_delete=models.CASCADE,
+        db_column="user_id",
+        related_name="posts",
+    )
+    category = models.ForeignKey(
+        "content.Category",
+        on_delete=models.SET_NULL,
+        db_column="category_id",
+        null=True,
+        blank=True,
+        related_name="posts",
+    )
     title = models.CharField(max_length=255)
     slug = models.CharField(max_length=255, unique=True)
     description = models.TextField(null=True, blank=True)
@@ -39,9 +96,8 @@ class Post(models.Model):
     visibility = models.CharField(
         max_length=20,
         choices=VisibilityChoices.choices,
-        default=VisibilityChoices.PRIVATE,
+        default=VisibilityChoices.PUBLIC,
     )
-
     status = models.CharField(
         max_length=20,
         choices=StatusChoices.choices,
@@ -64,23 +120,37 @@ class Post(models.Model):
     updated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
-        db_table = 'posts'
-        managed = False  
-    def __str__(self):
-        return self.title
-    
-class Tag(models.Model):
-    id = models.CharField(max_length=26, primary_key=True)
-    name = models.CharField(max_length=100)
-    slug = models.CharField(max_length=120)
-    created_at = models.DateTimeField()
-
-    class Meta:
-        db_table = "tags"
+        db_table = "posts"
         managed = False
 
     def __str__(self):
-        return self.name
+        return self.title
+
+
+class PostTopic(models.Model):
+    post = models.ForeignKey(
+        "content.Post",
+        on_delete=models.CASCADE,
+        db_column="post_id",
+        related_name="post_topics",
+        primary_key=True,
+    )
+    topic = models.ForeignKey(
+        "content.Topic",
+        on_delete=models.CASCADE,
+        db_column="topic_id",
+        related_name="topic_posts",
+    )
+    created_at = models.DateTimeField()
+
+    class Meta:
+        db_table = "post_topics"
+        managed = False
+        unique_together = ("post", "topic")
+
+    def __str__(self):
+        return f"{self.post.id} - {self.topic.id}"
+
 
 class PostTag(models.Model):
     post = models.ForeignKey(
@@ -88,6 +158,7 @@ class PostTag(models.Model):
         on_delete=models.CASCADE,
         db_column="post_id",
         related_name="post_tags",
+        primary_key=True,
     )
     tag = models.ForeignKey(
         "content.Tag",
@@ -103,20 +174,22 @@ class PostTag(models.Model):
         unique_together = ("post", "tag")
 
     def __str__(self):
-        return f"{self.post_id} - {self.tag_id}"
+        return f"{self.post.id} - {self.tag.id}"
+
 
 class PostAudioVersion(models.Model):
     id = models.CharField(max_length=26, primary_key=True)
     post = models.ForeignKey(
         "content.Post",
         on_delete=models.CASCADE,
-        related_name="post_audio_versions",
+        db_column="post_id",
+        related_name="audio_versions",
     )
     voice_name = models.CharField(max_length=100)
     format = models.CharField(max_length=20, default="mp3")
     bitrate_kbps = models.IntegerField(null=True, blank=True)
     duration_seconds = models.IntegerField(null=True, blank=True)
-    audio_url = models.CharField(max_length=500, null=True, blank=True)
+    audio_url = models.CharField(max_length=500)
     storage_path = models.CharField(max_length=500, null=True, blank=True)
     is_default = models.BooleanField(default=False)
     created_at = models.DateTimeField()
@@ -126,15 +199,16 @@ class PostAudioVersion(models.Model):
         managed = False
 
     def __str__(self):
-        return f"{self.post_id} - {self.voice_name}"
-    
+        return f"{self.post.id} - {self.voice_name}"
+
+
 class PostDocument(models.Model):
     id = models.CharField(max_length=26, primary_key=True)
     post = models.ForeignKey(
-        'content.Post',
+        "content.Post",
         on_delete=models.CASCADE,
-        db_column='post_id',
-        related_name='documents'
+        db_column="post_id",
+        related_name="documents",
     )
     file_name = models.CharField(max_length=255)
     file_type = models.CharField(max_length=50)
@@ -144,7 +218,7 @@ class PostDocument(models.Model):
     uploaded_at = models.DateTimeField()
 
     class Meta:
-        db_table = 'post_documents'
+        db_table = "post_documents"
         managed = False
 
     def __str__(self):

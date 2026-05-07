@@ -1,8 +1,9 @@
 import { ToastContainer } from 'react-toastify'
 import 'antd/dist/reset.css'
 import 'react-toastify/dist/ReactToastify.css'
-import { useEffect } from 'react'
-import { Modal } from 'antd'
+import { useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { toast } from 'react-toastify'
 
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 
@@ -19,24 +20,61 @@ import { useBlockNavigation } from '../../hooks/useBlockNavigation'
 import styles from '../../style/pages/CreateAudioPage/CreateAudioPage.module.css'
 
 export default function CreateAudioPage() {
-  const vm = useCreateAudio()
+  const baseVm = useCreateAudio()
+  const navigate = useNavigate()
+  const allDraftsPanelRef = useRef(null)
 
-  // Ngăn chặn người dùng rời khỏi trang khi đang tạo audio với confirmation
-  useBlockNavigation(vm.genState === 'processing')
+  useBlockNavigation(baseVm.genState === 'processing', () => {
+    baseVm.cancelGenerate?.()
+  })
 
-  // Ngăn chặn người dùng rời khỏi tab/cửa sổ khi đang tạo audio
-  useEffect(() => {
-    const handleBeforeUnload = (e) => {
-      if (vm.genState === 'processing') {
-        e.preventDefault()
-        e.returnValue = ''
-        return ''
-      }
+  const handleViewAllDrafts = () => {
+    if (allDraftsPanelRef.current) {
+      allDraftsPanelRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
+
+  const goToPublish = () => {
+    if (baseVm.genState === 'processing') {
+      toast.info('Vui lòng đợi tạo audio xong')
+      return
     }
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
-    return () => window.removeEventListener('beforeunload', handleBeforeUnload)
-  }, [vm.genState])
+    if (!baseVm.audioUrl) {
+      toast.info('Chưa có audio để đăng bài')
+      return
+    }
+
+    const baseText =
+      baseVm.sourceTab === 'upload'
+        ? (baseVm.uploadedExtractedText || '').trim()
+        : (baseVm.text || '').trim()
+
+    navigate('/publish-post', {
+      state: {
+        draftData: {
+          id: baseVm.activeDraftId || null,
+          title: (baseVm.title || '').trim() || baseText.slice(0, 80) || 'Bài audio',
+          description: baseVm.description || '',
+          script:
+            baseVm.processedText ||
+            baseVm.uploadedExtractedText ||
+            baseVm.text ||
+            '',
+          audioUrl: baseVm.audioUrl,
+          durationSeconds: baseVm.durationSeconds,
+          voice: baseVm.voice,
+          format: baseVm.format,
+          topics: baseVm.topics || [],
+        },
+      },
+    })
+  }
+
+  const vm = {
+    ...baseVm,
+    goToPublish,
+  }
 
   return (
     <>
@@ -52,13 +90,15 @@ export default function CreateAudioPage() {
               <div className={styles.leftCol}>
                 <SourceCard vm={vm} />
                 <VoiceConfigCard vm={vm} />
-                <AllDraftsPanel vm={vm} />
+                <div ref={allDraftsPanelRef}>
+                  <AllDraftsPanel vm={vm} />
+                </div>
               </div>
 
               <div className={styles.rightCol}>
                 <SessionSummaryCard vm={vm} />
                 <GenerateSection vm={vm} />
-                <RecentHistoryCard vm={vm} />
+                <RecentHistoryCard vm={vm} onViewAll={handleViewAllDrafts} />
               </div>
             </div>
           </div>
