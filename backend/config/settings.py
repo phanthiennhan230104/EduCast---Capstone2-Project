@@ -49,6 +49,7 @@ INSTALLED_APPS = [
     "apps.content",
     'apps.chat.apps.ChatConfig',
     "apps.social",
+    'apps.ai_services.apps.AiServicesConfig'
 ]
 
 
@@ -104,11 +105,11 @@ AUTH_USER_MODEL = 'users.User'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.mysql',
-        'NAME': 'educast_db',
-        'USER': 'root',
-        'PASSWORD': 'root',
-        'HOST': '127.0.0.1',
-        'PORT': '3310',
+        'NAME': os.getenv("DB_NAME"),
+        'USER': os.getenv("DB_USER"),
+        'PASSWORD': os.getenv("DB_PASSWORD"),
+        'HOST': os.getenv("DB_HOST"),
+        'PORT': os.getenv("DB_PORT"),
         'OPTIONS': {
             'charset': 'utf8mb4',
         }
@@ -231,5 +232,8 @@ LOGGING = {
 }
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 CORS_ALLOW_CREDENTIALS = True
+
+GROQ_API_KEY = (os.getenv("GROQ_API_KEY")).strip()
+GROQ_MODEL = (os.getenv("GROQ_MODEL")).strip()
 
 BACKEND_BASE_URL = "http://127.0.0.1:8000"
