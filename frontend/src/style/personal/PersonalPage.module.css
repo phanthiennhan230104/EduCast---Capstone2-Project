@@ -392,46 +392,53 @@
 }
 
 /* ==================== POST MENU ==================== */
+.postMenuWrap {
+  position: relative;
+  display: inline-flex;
+}
 .postMenu {
   position: absolute;
-  top: 100%;
+  top: calc(100% + 4px);
   right: 0;
-  background: var(--bg-card);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 8px 0;
-  min-width: 180px;
+  min-width: 130px;
+  background: linear-gradient(180deg, rgba(20,28,55,0.98), rgba(15,20,45,0.95));
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 20px 44px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06);
   z-index: 1000;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
-  margin-top: 8px;
+  white-space: nowrap;
 }
 
 .postMenuOption {
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 10px 16px;
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
   border: none;
   background: transparent;
-  color: var(--text-secondary);
-  font-size: 14px;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.12s ease;
   text-align: left;
 }
 
 .postMenuOption:hover {
   background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
+  color: #fff;
 }
 
-.postMenuOption:first-child {
-  border-radius: 12px 12px 0 0;
+.danger {
+  color: #ff7b7b;
 }
 
-.postMenuOption:last-child {
-  border-radius: 0 0 12px 12px;
+.danger:hover {
+  background: rgba(255, 123, 123, 0.12);
+  color: #ff9999;
 }
 
 /* ==================== SHARE CAPTION ==================== */
@@ -556,6 +563,8 @@
 
 .postCard:hover {
   border-color: transparent;
+  opacity: 0.95;
+  transform: translateY(-2px);
 }
 
 .smallAvatar {
@@ -900,6 +909,24 @@
   font-size: 12px;
   color: var(--text-secondary);
   margin-bottom: 12px;
+}
+
+.followingBadge {
+  background: transparent;
+  border: 1.5px solid #00e676;
+  color: #00e676;
+  padding: 4px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-block;
+  margin-top: 8px;
+  transition: all 0.2s ease;
+}
+
+.followingBadge:hover {
+  background: rgba(0, 230, 118, 0.1);
 }
 
 .friendActions {
@@ -1286,6 +1313,94 @@
   height: 6px;
   background: rgba(255, 255, 255, 0.08);
   border-radius: 999px;
+}
+
+/* ==================== ORIGINAL POST MODAL ==================== */
+.modalOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modalContent {
+  background: #fff;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideUp 0.3s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.modalHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  border-bottom: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.modalHeader h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  font-size: 24px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.closeBtn:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #333;
+}
+
+.modalBody {
+  padding: 24px;
+}
+
+.loadingSpinner {
+  text-align: center;
+  padding: 40px 20px;
+  color: #666;
+  font-size: 14px;
+}
+
+.progress {
   position: relative;
   cursor: pointer;
   overflow: hidden;
@@ -1473,3 +1588,19 @@
   }
 }
 
+
+/* Friend Avatar Initials */
+.friendAvatarInitials {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: #fff;
+  font-size: 24px;
+  font-weight: 800;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
