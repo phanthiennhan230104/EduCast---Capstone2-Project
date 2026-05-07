@@ -5,26 +5,32 @@ class PostLike(models.Model):
     id = models.CharField(max_length=26, primary_key=True)
     post = models.ForeignKey('content.Post', on_delete=models.CASCADE, related_name='likes')
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='liked_posts')
+    share = models.ForeignKey('PostShare', on_delete=models.CASCADE, related_name='likes', null=True, blank=True)
     created_at = models.DateTimeField()
     class Meta:
         db_table = 'post_likes'
-        unique_together = ('post', 'user')
+        unique_together = ('post', 'user', 'share')
         managed = False
         ordering = ['-created_at']
     def __str__(self):
+        if self.share:
+            return f"{self.user} liked share {self.share_id} of post {self.post_id}"
         return f"{self.user} liked post {self.post_id}"
     
 class SavedPost(models.Model):
     id = models.CharField(max_length=26, primary_key=True)
     post = models.ForeignKey('content.Post', on_delete=models.CASCADE, related_name='saved_by_users')
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='saved_posts')
+    share = models.ForeignKey('PostShare', on_delete=models.CASCADE, related_name='saved_by_users', null=True, blank=True)
     created_at = models.DateTimeField()
     class Meta:
         db_table = 'saved_posts'
-        unique_together = ('post', 'user')
+        unique_together = ('post', 'user', 'share')
         managed = False
         ordering = ['-created_at']
     def __str__(self):
+        if self.share:
+            return f"{self.user} saved share {self.share_id} of post {self.post_id}"
         return f"{self.user} saved post {self.post_id}"
 
 class Comment(models.Model):
@@ -36,6 +42,7 @@ class Comment(models.Model):
     id = models.CharField(max_length=26, primary_key=True)
     post = models.ForeignKey('content.Post', on_delete=models.CASCADE, related_name='comments')
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='comments')
+    share = models.ForeignKey('PostShare', on_delete=models.CASCADE, related_name='comments', null=True, blank=True)
     parent_comment = models.ForeignKey('self', null=True, blank=True, on_delete=models.CASCADE, related_name='replies')
     content = models.TextField()
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
@@ -47,6 +54,8 @@ class Comment(models.Model):
         managed = False
         ordering = ['-created_at']
     def __str__(self):
+        if self.share:
+            return f"{self.user} commented on share {self.share_id} of post {self.post_id}"
         return f"{self.user} commented on post {self.post_id}"
 
 class CommentLike(models.Model):

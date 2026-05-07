@@ -247,13 +247,20 @@ class FeedViewerStateSerializer(serializers.Serializer):
 
 class FeedItemSerializer(serializers.Serializer):
     id = serializers.CharField()
+    type = serializers.CharField(required=False)
+    post_id = serializers.CharField(required=False, allow_null=True)
+    share_id = serializers.CharField(required=False, allow_null=True)
     title = serializers.CharField()
     description = serializers.CharField(allow_null=True)
     created_at = serializers.DateTimeField()
+    shared_at = serializers.DateTimeField(required=False, allow_null=True)
+    post_created_at = serializers.DateTimeField(required=False, allow_null=True)
+    share_caption = serializers.CharField(required=False, allow_null=True)
     thumbnail_url = serializers.CharField(allow_null=True)
     listen_count = serializers.IntegerField()
 
     author = FeedAuthorSerializer()
+    shared_by = FeedAuthorSerializer(required=False, allow_null=True)
     tags = FeedTagSerializer(many=True)
     audio = FeedAudioSerializer(allow_null=True)
     stats = FeedStatsSerializer()
