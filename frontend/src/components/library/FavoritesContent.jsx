@@ -47,7 +47,7 @@ function formatTime(seconds) {
 }
 
 function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail }) {
-  const { playTrack, currentTrack, playing, togglePlay, currentTime, formattedCurrentTime, trackProgressMap, seekToPercent, isSeeking } = useAudioPlayer()
+  const { playTrack, currentTrack, playing, togglePlay, currentTime, duration, formattedCurrentTime, trackProgressMap, seekToPercent, isSeeking } = useAudioPlayer()
   const progressBarRef = useRef(null)
 
   const handlePlayClick = () => {
@@ -105,10 +105,16 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
 
   // Lấy saved progress nếu track đã từng chạy
   const savedProgress = trackProgressMap?.[item.id]
+  
   const displayTime = currentTrack?.id === item.id ? currentTime : (savedProgress?.currentTime || 0)
   const displayProgress = currentTrack?.id === item.id 
     ? (item.durationSeconds ? (currentTime / item.durationSeconds) * 100 : 0)
     : (savedProgress?.progressPercent || 0)
+  
+  // Display duration - giống như Feed PodcastCard
+  const displayDuration = currentTrack?.id === item.id
+    ? formatTime(duration || item.durationSeconds || 0)
+    : formatTime(savedProgress?.duration || item.durationSeconds || 0)
 
   return (
     <article className={`${styles.savedCard} ${viewMode === 'list' ? styles.savedCardList : ''}`}>
@@ -168,7 +174,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
                   </div>
                 )}
               </div>
-              <span className={styles.time}>{item.duration}</span>
+              <span className={styles.time}>{displayDuration}</span>
             </div>
           </div>
 
@@ -210,6 +216,8 @@ export default function FavoritesContent() {
   const [liked, setLiked] = useState(false)
   const [saved, setSaved] = useState(true)
   const POST_SYNC_EVENT = 'post-sync-updated'
+
+  const { pauseTrackIfDeleted } = useAudioPlayer()
 
   const dispatchPostSync = (payload) => {
     if (payload?.postId) {
@@ -481,8 +489,16 @@ export default function FavoritesContent() {
   }, [])
 
   const toggleSaved = useCallback(async id => {
+    console.log('🎁 [Favorites] toggleSaved called:', { id, type: typeof id })
     const removedItem = podcasts.find(item => item.id === id)
-    setPodcasts(prev => prev.filter(item => item.id !== id))
+    console.log('🎁 [Favorites] Calling pauseTrackIfDeleted')
+    pauseTrackIfDeleted(id)
+    console.log('🎁 [Favorites] Calling removeSavedPost')
+    setPodcasts(prev => {
+      const filtered = prev.filter(item => item.id !== id)
+      console.log('🎁 [Favorites] UI updated (toggleSaved):', prev.length, '->', filtered.length)
+      return filtered
+    })
     
     removeSavedPost(id)
     decreaseCollectionCountByPostId(id)
@@ -530,10 +546,17 @@ export default function FavoritesContent() {
 
   const handleOpenPostDetail = (post) => {
     setSelectedPostDetail(post)
-    setLikeCount(post.like_count || 0)
-    setCommentCount(post.comment_count || 0)
-    setLiked(post.is_liked || false)
-    setSaved(true)
+    setLikeCount(post.like_count || post.likes || 0)
+    setCommentCount(post.comment_count || post.comments || 0)
+    setLiked(post.is_liked || post.liked || false)
+
+    setSaved(Boolean(
+      post.saved ??
+      post.is_saved ??
+      post.viewer_state?.is_saved ??
+      false
+    ))
+
     setShowPostDetail(true)
   }
 
@@ -637,14 +660,21 @@ export default function FavoritesContent() {
 
   const handlePostDeleted = (postId) => {
     const id = postId || selectedPostDetail?.id
+    console.log('🎁 [Favorites] handlePostDeleted called:', { id, type: typeof id })
 
     if (id) {
+      console.log('🎁 [Favorites] Calling pauseTrackIfDeleted')
+      pauseTrackIfDeleted(id)
+      console.log('🎁 [Favorites] Calling deletePost')
       deletePost(id)
+      console.log('🎁 [Favorites] Calling removeSavedPost')
       removeSavedPost(id)
 
-      setPodcasts(prev =>
-        prev.filter(item => String(item.id) !== String(id))
-      )
+      setPodcasts(prev => {
+        const filtered = prev.filter(item => String(item.id) !== String(id))
+        console.log('🎁 [Favorites] Filtered podcasts:', prev.length, '->', filtered.length)
+        return filtered
+      })
 
       setCollectionPosts(prev =>
         prev.filter(item => String(item.id) !== String(id))
@@ -704,8 +734,8 @@ export default function FavoritesContent() {
   const stats = useMemo(() => {
     console.log('📊 Recalc stats - podcasts:', podcasts.length, 'deleted:', deletedPostIds.size, 'hidden:', hiddenPostIds.size, 'deletedVer:', deletedPostsVersion)
     const activePostcasts = podcasts.filter(item => {
-      const isDeleted = deletedPostIds.has(item.id)
-      const isHidden = hiddenPostIds.has(item.id)
+      const isDeleted = deletedPostIds.has(String(item.id))
+      const isHidden = hiddenPostIds.has(String(item.id))
       if (isDeleted || isHidden) {
         console.log(`  ❌ Filtering out ${item.title} (deleted:${isDeleted}, hidden:${isHidden})`)
       }
@@ -727,7 +757,7 @@ export default function FavoritesContent() {
 
   const visiblePodcasts = useMemo(() => {
     console.log('🔄 Recalc visiblePodcasts - podcasts:', podcasts.length, 'deleted:', deletedPostIds.size, 'hidden:', hiddenPostIds.size, 'deletedVer:', deletedPostsVersion, 'hiddenVer:', hiddenPostsVersion)
-    const filtered = podcasts.filter(item => !deletedPostIds.has(item.id) && !hiddenPostIds.has(item.id))
+    const filtered = podcasts.filter(item => !deletedPostIds.has(String(item.id)) && !hiddenPostIds.has(String(item.id)))
     console.log('  📋 After filter:', filtered.length)
     
     switch (activeFilter) {
@@ -752,6 +782,67 @@ export default function FavoritesContent() {
       return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
     })
   }, [collections])
+
+  useEffect(() => {
+    const handleOpenPostDetailFromPlayer = async (event) => {
+      const postId = event.detail?.postId
+      if (!postId) return
+
+      let post = podcasts.find(p => String(p.id) === String(postId))
+
+      if (!post) {
+        try {
+          const token = getToken()
+
+          const res = await fetch(`http://localhost:8000/api/content/drafts/${postId}/`, {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          })
+
+          const data = await res.json()
+          const raw = data.data || data
+
+          post = {
+            id: raw.id,
+            title: raw.title,
+            description: raw.description,
+            author: raw.author?.name || raw.author || 'Người dùng',
+            authorUsername: raw.author?.username || raw.author_username || '',
+            authorId: raw.user_id || raw.author_id,
+            user_id: raw.user_id || raw.author_id,
+            userId: raw.user_id || raw.author_id,
+            isOwner: raw.is_owner || false,
+            cover: raw.thumbnail_url || '',
+            thumbnail_url: raw.thumbnail_url || '',
+            audioUrl: raw.audio?.audio_url || raw.audio_url || '',
+            audio_url: raw.audio?.audio_url || raw.audio_url || '',
+            durationSeconds: raw.audio?.duration_seconds || raw.duration_seconds || 0,
+            duration_seconds: raw.audio?.duration_seconds || raw.duration_seconds || 0,
+            like_count: raw.stats?.likes || raw.like_count || 0,
+            comment_count: raw.stats?.comments || raw.comment_count || 0,
+            share_count: raw.stats?.shares || raw.share_count || 0,
+            is_liked: raw.viewer_state?.is_liked || raw.is_liked || false,
+            saved: raw.viewer_state?.is_saved || raw.saved || false,
+            created_at: raw.created_at,
+            timeAgo: raw.timeAgo,
+          }
+        } catch (err) {
+          console.error('Fetch post detail failed:', err)
+          return
+        }
+      }
+
+      handleOpenPostDetail(post)
+    }
+
+    window.addEventListener('open-post-detail', handleOpenPostDetailFromPlayer)
+
+    return () => {
+      window.removeEventListener('open-post-detail', handleOpenPostDetailFromPlayer)
+    }
+  }, [podcasts])
 
   if (loading) {
     return (

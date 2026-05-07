@@ -1,13 +1,23 @@
-import { useContext, useEffect, useLayoutEffect, useState } from 'react'
-import { useLocation } from 'react-router-dom'
+import {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from 'react'
+import { useLocation, useSearchParams } from 'react-router-dom'
 import { toast } from 'react-toastify'
+
 import PodcastCard from './PodcastCard'
 import CreatePostBar from './CreatePostBar'
 import CommentModal from './CommentModal'
+
 import styles from '../../style/feed/Feed.module.css'
 import { getInitials } from '../../utils/getInitials'
+
 import { useTagFilter } from '../contexts/TagFilterContext'
 import { PodcastContext } from '../contexts/PodcastContext'
+import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 
 const TABS = [
   { label: 'Dành cho bạn', key: 'for_you' },
@@ -20,19 +30,30 @@ const POST_SYNC_EVENT = 'post-sync-updated'
 
 export default function Feed() {
   const location = useLocation()
+  const [searchParams, setSearchParams] = useSearchParams()
+
   const { selectedTagIds } = useTagFilter()
-  const { setSavedPostIds_batch } = useContext(PodcastContext)
+  const {
+    setSavedPostIds_batch,
+    deletePost,
+    hidePost,
+  } = useContext(PodcastContext)
+
+  const { pauseTrackIfDeleted, currentTrack } = useAudioPlayer()
 
   const [activeTab, setActiveTab] = useState(() => {
     const saved = sessionStorage.getItem('feedActiveTab')
     return saved ? parseInt(saved, 10) : 0
   })
+
   const [disableModalAutoScroll, setDisableModalAutoScroll] = useState(false)
   const [selectedPodcast, setSelectedPodcast] = useState(null)
   const [podcasts, setPodcasts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
+  const isRestoringRef = useRef(false)
+  const feedScrollKey = 'mainScroll:/feed'
   const focusPostId = sessionStorage.getItem('feedFocusPostId')
 
   const dispatchPostSync = (payload) => {
@@ -69,31 +90,52 @@ export default function Feed() {
       if (typeof d.likeCount === 'number') nextSync.likeCount = d.likeCount
       if (typeof d.saved === 'boolean') nextSync.saved = d.saved
       if (typeof d.saveCount === 'number') nextSync.saveCount = d.saveCount
+      if (typeof d.commentCount === 'number') nextSync.commentCount = d.commentCount
 
       localStorage.setItem(`post-sync-${d.postId}`, JSON.stringify(nextSync))
 
-      setPodcasts(prev =>
-        prev.map(p =>
+      setPodcasts((prev) =>
+        prev.map((p) =>
           String(p.id) === String(d.postId)
             ? {
                 ...p,
                 liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
                 likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
                 saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
-                saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+                saveCount:
+                  typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+                comments:
+                  typeof d.commentCount === 'number'
+                    ? d.commentCount
+                    : p.comments,
+                comment_count:
+                  typeof d.commentCount === 'number'
+                    ? d.commentCount
+                    : p.comment_count,
               }
             : p
         )
       )
 
-      setSelectedPodcast(prev =>
+      setSelectedPodcast((prev) =>
         prev && String(prev.id) === String(d.postId)
           ? {
               ...prev,
               liked: typeof d.liked === 'boolean' ? d.liked : prev.liked,
               likes: typeof d.likeCount === 'number' ? d.likeCount : prev.likes,
               saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
-              saveCount: typeof d.saveCount === 'number' ? d.saveCount : prev.saveCount,
+              saveCount:
+                typeof d.saveCount === 'number'
+                  ? d.saveCount
+                  : prev.saveCount,
+              comments:
+                typeof d.commentCount === 'number'
+                  ? d.commentCount
+                  : prev.comments,
+              comment_count:
+                typeof d.commentCount === 'number'
+                  ? d.commentCount
+                  : prev.comment_count,
             }
           : prev
       )
@@ -132,12 +174,25 @@ export default function Feed() {
 
         const mapped = (data.items || []).map((item) => {
           const durationSeconds = Number(
-            item.audio?.duration_seconds || item.viewer_state?.duration_seconds || 0
+            item.audio?.duration_seconds ||
+              item.viewer_state?.duration_seconds ||
+              0
           )
-          const progressSeconds = Number(item.viewer_state?.progress_seconds || 0)
+
+          const progressSeconds = Number(
+            item.viewer_state?.progress_seconds || 0
+          )
+
           const cachedSync = JSON.parse(
             localStorage.getItem(`post-sync-${item.id}`) || '{}'
           )
+
+          const commentCount =
+            cachedSync.commentCount ??
+            item.stats?.comments ??
+            item.comment_count ??
+            item.comments ??
+            0
 
           return {
             id: item.id,
@@ -149,19 +204,26 @@ export default function Feed() {
             description: item.description || '',
             tags: (item.tags || []).map((tag) => `#${tag.name}`),
             aiGenerated: false,
+
             duration: formatSeconds(durationSeconds),
             durationSeconds,
             current: formatSeconds(progressSeconds),
             currentSeconds: progressSeconds,
             progress: calcProgress(progressSeconds, durationSeconds),
+
             likes: cachedSync.likeCount ?? item.stats?.likes ?? 0,
             liked: cachedSync.liked ?? item.viewer_state?.is_liked ?? false,
+
             saved: cachedSync.saved ?? item.viewer_state?.is_saved ?? false,
             saveCount: cachedSync.saveCount ?? item.stats?.saves ?? 0,
+
+            comments: commentCount,
+            comment_count: commentCount,
+
             timeAgo: formatTimeAgo(item.created_at),
             listens: `${item.listen_count || 0} lượt nghe`,
             shares: item.stats?.shares || 0,
-            comments: item.stats?.comments || item.comment_count || 0,
+
             audioUrl: item.audio?.audio_url || '',
             audioId: item.audio?.id || '',
             voiceName: item.audio?.voice_name || '',
@@ -169,7 +231,7 @@ export default function Feed() {
         })
 
         setPodcasts(mapped)
-        setSavedPostIds_batch(mapped.filter(p => p.saved).map(p => p.id))
+        setSavedPostIds_batch(mapped.filter((p) => p.saved).map((p) => p.id))
       } catch (err) {
         console.error('Fetch feed failed:', err)
         setError('Không tải được feed')
@@ -197,7 +259,10 @@ export default function Feed() {
       }
 
       if (openPostId) {
-        const target = podcasts.find(p => String(p.id) === String(openPostId))
+        const target = podcasts.find(
+          (p) => String(p.id) === String(openPostId)
+        )
+
         if (target) {
           setDisableModalAutoScroll(true)
           setSelectedPodcast(target)
@@ -213,6 +278,28 @@ export default function Feed() {
       setTimeout(restore, 250)
     })
   }, [loading, podcasts])
+
+  useLayoutEffect(() => {
+    if (loading || podcasts.length === 0) return
+    if (sessionStorage.getItem('returnFromEdit') === 'true') return
+
+    const savedScroll = Number(sessionStorage.getItem(feedScrollKey) || 0)
+    if (!savedScroll) return
+
+    const restore = () => {
+      const main = document.querySelector('main')
+      if (!main) return
+
+      main.scrollTop = savedScroll
+      main.scrollTo({ top: savedScroll, behavior: 'auto' })
+    }
+
+    requestAnimationFrame(() => {
+      restore()
+      setTimeout(restore, 50)
+      setTimeout(restore, 150)
+    })
+  }, [loading, podcasts.length])
 
   useEffect(() => {
     const navType = performance.getEntriesByType('navigation')[0]?.type
@@ -236,7 +323,8 @@ export default function Feed() {
       const postId = event.detail?.postId
       if (!postId) return
 
-      const target = podcasts.find(p => String(p.id) === String(postId))
+      const target = podcasts.find((p) => String(p.id) === String(postId))
+
       if (target) {
         setDisableModalAutoScroll(Boolean(event.detail?.disableAutoScroll))
         setSelectedPodcast(target)
@@ -244,7 +332,8 @@ export default function Feed() {
     }
 
     window.addEventListener('open-post-detail', handleOpenPostDetail)
-    return () => window.removeEventListener('open-post-detail', handleOpenPostDetail)
+    return () =>
+      window.removeEventListener('open-post-detail', handleOpenPostDetail)
   }, [podcasts])
 
   const handleModalToggleLike = async (e) => {
@@ -254,7 +343,9 @@ export default function Feed() {
     if (!selectedPodcast?.id) return
 
     const token = localStorage.getItem('educast_access')
-    const currentUser = JSON.parse(localStorage.getItem('educast_user') || 'null')
+    const currentUser = JSON.parse(
+      localStorage.getItem('educast_user') || 'null'
+    )
 
     const res = await fetch(
       `http://localhost:8000/api/social/posts/${selectedPodcast.id}/like/`,
@@ -274,12 +365,12 @@ export default function Feed() {
     const nextLiked = Boolean(data.data?.liked)
     const nextLikeCount = Number(data.data?.like_count || 0)
 
-    setSelectedPodcast(prev =>
+    setSelectedPodcast((prev) =>
       prev ? { ...prev, liked: nextLiked, likes: nextLikeCount } : prev
     )
 
-    setPodcasts(prev =>
-      prev.map(p =>
+    setPodcasts((prev) =>
+      prev.map((p) =>
         p.id === selectedPodcast.id
           ? { ...p, liked: nextLiked, likes: nextLikeCount }
           : p
@@ -310,7 +401,9 @@ export default function Feed() {
     if (!selectedPodcast?.id) return
 
     const token = localStorage.getItem('educast_access')
-    const currentUser = JSON.parse(localStorage.getItem('educast_user') || 'null')
+    const currentUser = JSON.parse(
+      localStorage.getItem('educast_user') || 'null'
+    )
 
     const res = await fetch(
       `http://localhost:8000/api/social/posts/${selectedPodcast.id}/save/`,
@@ -330,12 +423,12 @@ export default function Feed() {
     const nextSaved = Boolean(data.data?.saved)
     const nextSaveCount = Number(data.data?.save_count || 0)
 
-    setSelectedPodcast(prev =>
+    setSelectedPodcast((prev) =>
       prev ? { ...prev, saved: nextSaved, saveCount: nextSaveCount } : prev
     )
 
-    setPodcasts(prev =>
-      prev.map(p =>
+    setPodcasts((prev) =>
+      prev.map((p) =>
         p.id === selectedPodcast.id
           ? { ...p, saved: nextSaved, saveCount: nextSaveCount }
           : p
@@ -366,23 +459,46 @@ export default function Feed() {
       </div>
 
       <div className={styles.cards}>
-        {loading && <div className={styles.feedState}>Đang tải dữ liệu...</div>}
+        {loading && (
+          <div className={styles.feedState}>Đang tải dữ liệu...</div>
+        )}
+
         {error && <div className={styles.feedError}>{error}</div>}
 
-        {!loading && !error && podcasts.map((podcast) => (
-          <div key={podcast.id} data-post-id={podcast.id}>
-            <PodcastCard
-              podcast={podcast}
-              queue={podcasts}
-              onDelete={(postId) => {
-                setPodcasts(prev => prev.filter(p => p.id !== postId))
-              }}
-              onHide={(postId) => {
-                setPodcasts(prev => prev.filter(p => p.id !== postId))
-              }}
-            />
-          </div>
-        ))}
+        {!loading &&
+          !error &&
+          podcasts.map((podcast) => (
+            <div key={podcast.id} data-post-id={podcast.id}>
+              <PodcastCard
+                podcast={podcast}
+                queue={podcasts}
+                onDelete={(postId) => {
+                  console.log(
+                    '[Feed] onDelete:',
+                    postId,
+                    'currentTrack:',
+                    currentTrack?.id
+                  )
+
+                  pauseTrackIfDeleted(postId)
+                  deletePost(postId)
+                  setPodcasts((prev) => prev.filter((p) => p.id !== postId))
+                }}
+                onHide={(postId) => {
+                  console.log(
+                    '[Feed] onHide:',
+                    postId,
+                    'currentTrack:',
+                    currentTrack?.id
+                  )
+
+                  pauseTrackIfDeleted(postId)
+                  hidePost(postId)
+                  setPodcasts((prev) => prev.filter((p) => p.id !== postId))
+                }}
+              />
+            </div>
+          ))}
       </div>
 
       {selectedPodcast && (
@@ -402,7 +518,7 @@ export default function Feed() {
             setDisableModalAutoScroll(false)
           }}
           onPostDeleted={(postId) => {
-            setPodcasts(prev => prev.filter(p => p.id !== postId))
+            setPodcasts((prev) => prev.filter((p) => p.id !== postId))
             setSelectedPodcast(null)
           }}
         />
@@ -424,13 +540,16 @@ function formatSeconds(seconds) {
   const total = Number(seconds || 0)
   const mins = Math.floor(total / 60)
   const secs = total % 60
+
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
 function calcProgress(current, duration) {
   const c = Number(current || 0)
   const d = Number(duration || 0)
+
   if (!d) return 0
+
   return Math.min(100, Math.round((c / d) * 100))
 }
 
@@ -447,5 +566,6 @@ function formatTimeAgo(dateString) {
   if (diffMinutes < 1) return 'Vừa xong'
   if (diffMinutes < 60) return `${diffMinutes} phút trước`
   if (diffHours < 24) return `${diffHours} giờ trước`
+
   return `${diffDays} ngày trước`
 }

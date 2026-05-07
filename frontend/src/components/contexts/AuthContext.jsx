@@ -14,7 +14,7 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(getCurrentUser())
   const [isAuthenticated, setIsAuthenticated] = useState(Boolean(getToken()))
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     checkAuth()
@@ -69,7 +69,6 @@ export function AuthProvider({ children }) {
     if (!token) {
       setUser(null)
       setIsAuthenticated(false)
-      setLoading(false)
       return
     }
 
@@ -80,15 +79,7 @@ export function AuthProvider({ children }) {
       setIsAuthenticated(true)
       localStorage.setItem(EDUCAST_USER, JSON.stringify(data.user))
     } catch (error) {
-      clearAuth()
-      setUser(null)
-      setIsAuthenticated(false)
-
-      if (!silent) {
-        console.warn('Check auth failed:', error.message)
-      }
-    } finally {
-      setLoading(false)
+      console.warn('Auth check failed, keeping local session state:', error)
     }
   }
 

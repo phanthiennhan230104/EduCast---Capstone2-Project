@@ -93,6 +93,8 @@ export default function GenerateSection({ vm }) {
               />
             </div>
 
+            <Progress percent={vm.progress} strokeColor="#7f8cff" format={() => `${vm.progress}%`} />
+            
             <Text className={styles.subText}>{vm.procStep}</Text>
           </Space>
         </Card>

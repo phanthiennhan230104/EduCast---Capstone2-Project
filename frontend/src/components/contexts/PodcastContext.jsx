@@ -31,7 +31,13 @@ export const PodcastProvider = ({ children }) => {
 
   // Ẩn post
   const hidePost = useCallback((postId) => {
-    setHiddenPostIds(prev => new Set(prev).add(postId))
+    console.log('👁️ hidePost called with id:', postId, 'type:', typeof postId)
+    setHiddenPostIds(prev => {
+      const newSet = new Set(prev)
+      newSet.add(String(postId))
+      console.log('✅ hiddenPostIds now has:', newSet.size, 'items, ids:', Array.from(newSet))
+      return newSet
+    })
     setHiddenPostsVersion(v => v + 1)
   }, [])
 
@@ -40,7 +46,7 @@ export const PodcastProvider = ({ children }) => {
     console.log('📌 deletePost called with id:', postId, 'type:', typeof postId)
     setDeletedPostIds(prev => {
       const newSet = new Set(prev)
-      newSet.add(postId)
+      newSet.add(String(postId))
       console.log('✅ deletedPostIds now has:', newSet.size, 'items, ids:', Array.from(newSet))
       return newSet
     })
@@ -54,12 +60,12 @@ export const PodcastProvider = ({ children }) => {
 
   // Kiểm tra post có bị ẩn không
   const isPostHidden = useCallback((postId) => {
-    return hiddenPostIds.has(postId)
+    return hiddenPostIds.has(String(postId))
   }, [hiddenPostIds])
 
   // Kiểm tra post có bị xóa không
   const isPostDeleted = useCallback((postId) => {
-    return deletedPostIds.has(postId)
+    return deletedPostIds.has(String(postId))
   }, [deletedPostIds])
 
   // Cập nhật danh sách saved posts (dùng khi fetch từ API)

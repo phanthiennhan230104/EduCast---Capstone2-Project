@@ -32,30 +32,45 @@ function isAuthOrLockedError(response, message) {
 export async function apiRequest(path, options = {}) {
   const token = getToken()
   const isFormData = options.body instanceof FormData
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 10000)
 
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: options.method || 'GET',
-    headers: {
-      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-    body: options.body,
-    credentials: 'include',
-    signal: options.signal,
-  })
+  try {
+    const response = await fetch(`${API_BASE_URL}${path}`, {
+      method: options.method || 'GET',
+      headers: {
+        ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...(options.headers || {}),
+      },
+      body: options.body,
+      // Most endpoints use Bearer tokens (not cookies). Opt-in to cookies only when needed.
+      credentials: options.credentials ?? 'omit',
+      signal: controller.signal,
+    })
 
-  const data = await response.json().catch(() => ({}))
+    const data = await response.json().catch(() => ({}))
 
-  if (!response.ok) {
-    const firstError = getFirstError(data)
+    if (!response.ok) {
+      const firstError =
+        data.message ||
+        data.detail ||
+        data.error ||
+        Object.values(data)[0]?.[0] ||
+        Object.values(data)[0] ||
+        'Request failed.'
 
-    if (isAuthOrLockedError(response, firstError)) {
-      forceLogoutToLogin(firstError)
+      throw new Error(firstError)
     }
 
-    throw new Error(firstError)
-  }
+    return data
+  } catch (error) {
+    if (error.name === 'AbortError') {
+      throw new Error('Request timed out. Please check your backend connection.')
+    }
 
-  return data
+    throw error
+  } finally {
+    clearTimeout(timeoutId)
+  }
 }

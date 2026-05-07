@@ -28,6 +28,7 @@ from .serializers import (
 from .services.cloudinary_service import (
     upload_file_to_cloudinary,
     delete_file_from_cloudinary,
+    get_audio_duration_from_api,
 )
 
 
@@ -263,8 +264,6 @@ class AudioPreviewView(APIView):
         if not generated_description:
             generated_description = build_fallback_description(processed_text)
 
-        duration_seconds = estimate_duration_seconds(processed_text)
-
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
             temp_audio_path = tmp.name
 
@@ -287,6 +286,20 @@ class AudioPreviewView(APIView):
             audio_url = uploaded.get("secure_url")
             if not audio_url:
                 raise ValueError("Upload Cloudinary thành công nhưng không nhận được secure_url.")
+            
+            # Get real duration from Cloudinary
+            duration_seconds = uploaded.get("duration")
+            if not duration_seconds:
+                # Query API if upload response doesn't have duration
+                public_id = uploaded.get("public_id")
+                if public_id:
+                    duration_seconds = get_audio_duration_from_api(public_id, resource_type="video")
+            
+            # Final fallback to estimate
+            if not duration_seconds:
+                duration_seconds = estimate_duration_seconds(processed_text)
+            else:
+                duration_seconds = int(duration_seconds)
 
             return Response(
                 {
@@ -331,7 +344,17 @@ class DraftSaveWithAudioView(APIView):
         slug = generate_unique_slug(title)
         mode = data.get("mode", "summary")
         processed_text = data.get("processed_text", "")
-        duration_seconds = data.get("duration_seconds") or estimate_duration_seconds(processed_text)
+        
+        # Priority: client value > API query > estimate
+        duration_seconds = data.get("duration_seconds")
+        if not duration_seconds:
+            public_id = data.get("public_id")
+            if public_id:
+                duration_seconds = get_audio_duration_from_api(public_id, resource_type="video")
+        
+        if not duration_seconds:
+            duration_seconds = estimate_duration_seconds(processed_text)
+        
         now = timezone.now()
 
         summary_text = processed_text if mode == "summary" else None
@@ -359,8 +382,8 @@ class DraftSaveWithAudioView(APIView):
                 source_type=data.get("source_type", Post.SourceTypeChoices.MANUAL),
                 is_ai_generated=(mode != "original"),
                 language_code="vi",
-                visibility=Post.VisibilityChoices.PUBLIC,
-                status=Post.StatusChoices.PUBLISHED,
+                visibility=Post.VisibilityChoices.PRIVATE,
+                status=Post.StatusChoices.DRAFT,
                 age_group=None,
                 learning_field=None,
                 audio_url=data["audio_url"],
@@ -373,7 +396,7 @@ class DraftSaveWithAudioView(APIView):
                 comment_count=0,
                 save_count=0,
                 share_count=0,
-                published_at=now,
+                published_at=None,
                 created_at=now,
                 updated_at=now,
             )
@@ -561,12 +584,22 @@ class DraftUpdateView(APIView):
                     )
 
                 post.audio_url = data["audio_url"]
-                post.duration_seconds = data.get("duration_seconds") or estimate_duration_seconds(
-                    data.get("summary_text")
-                    or data.get("dialogue_script")
-                    or data.get("transcript_text")
-                    or post.original_text
-                )
+                
+                # Priority: client value > API query > estimate
+                post.duration_seconds = data.get("duration_seconds")
+                if not post.duration_seconds:
+                    public_id = data.get("public_id")
+                    if public_id:
+                        post.duration_seconds = get_audio_duration_from_api(public_id, resource_type="video")
+                
+                if not post.duration_seconds:
+                    post.duration_seconds = estimate_duration_seconds(
+                        data.get("summary_text")
+                        or data.get("dialogue_script")
+                        or data.get("transcript_text")
+                        or post.original_text
+                    )
+                
                 post.is_ai_generated = True
 
                 PostAudioVersion.objects.filter(post=post).update(is_default=False)
@@ -1214,7 +1247,15 @@ class PublishPostView(APIView):
             post.source_type = data.get("source_type", "ai_generated")
             post.is_ai_generated = data.get("is_ai_generated", True)
             post.audio_url = data["audio_url"]
+            
+            # Get real duration from Cloudinary if not provided
             post.duration_seconds = data.get("duration_seconds")
+            if not post.duration_seconds and data.get("public_id"):
+                post.duration_seconds = get_audio_duration_from_api(
+                    data.get("public_id"), 
+                    resource_type="video"
+                )
+            
             post.category_id = data.get("category_id")
             post.age_group = data.get("age_group")
             post.learning_field = data.get("learning_field")

@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router-dom'
+import { NavLink, useLocation } from 'react-router-dom'
 import {
   Rss, Heart, Users, MessageCircle,
   User, Settings, Plus
@@ -20,6 +20,16 @@ const NAV_OTHER = [
 ]
 
 export default function Sidebar() {
+  const location = useLocation()
+
+  const handleFeedClick = (event, to) => {
+    if (location.pathname === to) {
+      event.preventDefault()
+      sessionStorage.removeItem(`mainScroll:${to}`)
+      window.location.reload()
+    }
+  }
+
   return (
     <aside className={styles.sidebar}>
       <nav className={styles.nav}>
@@ -28,6 +38,7 @@ export default function Sidebar() {
           <NavLink
             key={to}
             to={to}
+            onClick={(event) => handleFeedClick(event, to)}
             className={({ isActive }) =>
               `${styles.navItem} ${isActive ? styles.active : ''}`
             }
