@@ -29,6 +29,39 @@ function isAuthOrLockedError(response, message) {
   )
 }
 
+let refreshInFlight = null
+
+async function refreshAccessToken() {
+  const refresh = getRefreshToken()
+  if (!refresh) return null
+
+  if (!refreshInFlight) {
+    refreshInFlight = (async () => {
+      const response = await fetch(`${API_BASE_URL}/auth/token/refresh/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refresh }),
+        credentials: 'omit',
+      })
+
+      const data = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        const message = getFirstError(data)
+        throw new Error(message)
+      }
+
+      // SimpleJWT refresh thường trả { access: "..." } (có thể kèm refresh).
+      saveAuth(data)
+      return data.access || null
+    })().finally(() => {
+      refreshInFlight = null
+    })
+  }
+
+  return await refreshInFlight
+}
+
+
 export async function apiRequest(path, options = {}) {
   const token = getToken()
   const isFormData = options.body instanceof FormData

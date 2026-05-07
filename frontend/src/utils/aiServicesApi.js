@@ -16,14 +16,7 @@ export async function sendAssistantMessage({
       message,
       history,
       context,
-    },
-    {
-      headers: {
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      },
-      withCredentials: true,
-    },
-  )
-
-  return response.data
+    }),
+    credentials: 'include', // nếu backend cần cookie; không cần thì bỏ dòng này
+  })
 }

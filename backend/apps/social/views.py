@@ -17,6 +17,7 @@ from apps.chat.models import ChatRoom, Message
 from apps.chat.serializers import MessageSerializer
 from apps.chat.services import get_or_create_direct_room
 from apps.chat.services import broadcast_room_snapshot
+from django.db import connection
 from django.db.models import F
 from django.db.models import Count, Q
 
@@ -99,16 +100,58 @@ def _create_notification(
     )
 
 # Helper để đếm like/comment/save/share cho post
-def _post_counts(post_id):
-    return {
-        "like_count": PostLike.objects.filter(post_id=post_id).count(),
-        "comment_count": Comment.objects.filter(post_id=post_id).count(),
-        "save_count": SavedPost.objects.filter(post_id=post_id).count(),
-        "share_count": PostShare.objects.filter(
-            post_id=post_id,
-            share_type="personal"
-        ).count(),
-    }
+def _post_counts(post_id, share_id=None):
+    if share_id:
+        # For shared posts, return counts for this specific share
+        try:
+            save_count = SavedPost.objects.filter(share_id=share_id).count()
+        except Exception:
+            # DB schema may not have saved_posts.share_id; fall back to post-level count.
+            save_count = SavedPost.objects.filter(post_id=post_id).count()
+
+        try:
+            like_count = PostLike.objects.filter(share_id=share_id).count()
+        except Exception:
+            like_count = PostLike.objects.filter(post_id=post_id).count()
+
+        try:
+            comment_count = Comment.objects.filter(share_id=share_id).count()
+        except Exception:
+            comment_count = Comment.objects.filter(post_id=post_id).count()
+
+        return {
+            "like_count": like_count,
+            "comment_count": comment_count,
+            "save_count": save_count,
+            "share_count": 0,  # Shares of shares don't make sense
+        }
+    else:
+        # For original posts, return counts excluding shares
+        try:
+            like_count = PostLike.objects.filter(post_id=post_id, share_id__isnull=True).count()
+        except Exception:
+            like_count = PostLike.objects.filter(post_id=post_id).count()
+
+        try:
+            comment_count = Comment.objects.filter(post_id=post_id, share_id__isnull=True).count()
+        except Exception:
+            comment_count = Comment.objects.filter(post_id=post_id).count()
+
+        try:
+            save_count = SavedPost.objects.filter(post_id=post_id, share_id__isnull=True).count()
+        except Exception:
+            # DB schema may not have saved_posts.share_id; count by post only.
+            save_count = SavedPost.objects.filter(post_id=post_id).count()
+
+        return {
+            "like_count": like_count,
+            "comment_count": comment_count,
+            "save_count": save_count,
+            "share_count": PostShare.objects.filter(
+                post_id=post_id,
+                share_type="personal"
+            ).count(),
+        }
 
 # Chuyển comment thành dict, có thể include replies nếu cần.
 def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None, depth=0):
@@ -269,17 +312,25 @@ def toggle_save_post(request, post_id):
         # Lấy collection_id nếu có
         collection_id = body.get("collection_id")
 
-        # Kiểm tra xem user đã save post này chưa
-        existing_saved = SavedPost.objects.filter(post_id=post.id, user_id=user.id).first()
+        # Bảng saved_posts trong môi trường hiện tại có thể không có cột share_id,
+        # nên thao tác existence/insert/delete bằng SQL với các cột chắc chắn tồn tại.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT id FROM saved_posts WHERE post_id = %s AND user_id = %s LIMIT 1",
+                [post.id, user.id],
+            )
+            row = cursor.fetchone()
+            existing_saved_id = row[0] if row else None
 
         # Nếu đã save rồi thì unsave (xóa record)
-        if existing_saved:
+        if existing_saved_id:
             CollectionPost.objects.filter(
                 post_id=post.id,
                 collection__user_id=user.id
             ).delete()
 
-            existing_saved.delete()
+            with connection.cursor() as cursor:
+                cursor.execute("DELETE FROM saved_posts WHERE id = %s", [existing_saved_id])
 
             return _json_success(
                 "Unsaved post successfully",
@@ -290,12 +341,12 @@ def toggle_save_post(request, post_id):
             )
 
         # Tạo record saved mới (không save collection vào SavedPost)
-        saved_post = SavedPost.objects.create(
-            id=_generate_id("save"),
-            post=post,
-            user=user,
-            created_at=timezone.now()
-        )
+        save_id = _generate_id("save")
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "INSERT INTO saved_posts (id, post_id, user_id, created_at) VALUES (%s, %s, %s, %s)",
+                [save_id, post.id, user.id, timezone.now()],
+            )
 
         # Nếu có collection_id, thêm post vào collection_items
         if collection_id:
@@ -328,19 +379,7 @@ def toggle_save_post(request, post_id):
         import traceback
         print(f"❌ Error in toggle_save_post: {str(e)}")
         print(traceback.format_exc())
-
-    # Cập nhật save_count trong database
-    post.save_count = SavedPost.objects.filter(post_id=post.id).count()
-    post.save(update_fields=['save_count'])
-
-    return _json_success(
-        "Saved post successfully",
-        {
-            "saved": True,
-            "collection_id": collection_id,
-            **_post_counts(post.id)
-        }
-    )
+        return _json_error(f"Internal server error: {str(e)}", 500)
 
 
 # Comment: list
@@ -1087,93 +1126,97 @@ def list_post_sharers(request, post_id):
 # Lấy danh sách bài viết đã lưu của user hiện tại
 @require_http_methods(["GET"])
 def get_saved_posts(request):
-    # Lấy user hiện tại từ request
-    user = _get_current_user(request)
-    if not user:
-        return _json_error("Authentication required", 401)
+    try:
+        # Lấy user hiện tại từ request
+        user = _get_current_user(request)
+        if not user:
+            return _json_error("Authentication required", 401)
 
-    # Lấy tất cả saved posts của user, kèm post info, sắp xếp mới nhất trước
-    saved_posts = SavedPost.objects.filter(
-        user_id=user.id
-    ).exclude(
-        post__status='archived'
-    ).select_related("post").order_by("-created_at")
+        # Bảng thật có thể không có cột share_id, nên defer field share để tránh SELECT cột này
+        saved_posts = SavedPost.objects.defer("share").filter(
+            user_id=user.id
+        ).exclude(
+            post__status='archived'
+        ).select_related("post").order_by("-created_at")
 
-     # Lấy danh sách post đã bị ẩn
-    hidden_post_ids = HiddenPost.objects.filter(
-        user_id=user.id
-    ).values_list("post_id", flat=True)
+        # Lấy danh sách post đã bị ẩn (an toàn khi bảng hidden_posts có vấn đề)
+        try:
+            hidden_post_ids = HiddenPost.objects.filter(
+                user_id=user.id
+            ).values_list("post_id", flat=True)
+            saved_posts = saved_posts.exclude(post_id__in=hidden_post_ids)
+        except Exception as e:
+            print(f"⚠️ Hidden posts query issue in saved posts: {str(e)}")
 
-    # Loại bỏ các post đã ẩn
-    saved_posts = saved_posts.exclude(
-        post_id__in=hidden_post_ids
-    )
+        # Chuyển đổi thành dict với thông tin post
+        posts_data = []
+        for saved_post in saved_posts:
+            post = saved_post.post
 
-    # Chuyển đổi thành dict với thông tin post
-    posts_data = []
-    for saved_post in saved_posts:
-        post = saved_post.post
-        
-        # Lấy playback history của user cho post này
-        playback_history = PlaybackHistory.objects.filter(
-            user_id=user.id,
-            post_id=post.id
-        ).first()
-        
-        # Check if user has a note for this post
-        has_note = PostNote.objects.filter(
-            user_id=user.id,
-            post_id=post.id
-        ).exists()
+            playback_history = PlaybackHistory.objects.filter(
+                user_id=user.id,
+                post_id=post.id
+            ).first()
 
-        # Check if user has liked this post
-        is_liked = PostLike.objects.filter(
-            user_id=user.id,
-            post_id=post.id
-        ).exists()
-        
-        # Get tags for this post
-        from apps.content.models import PostTag
-        post_tags = PostTag.objects.filter(post_id=post.id).select_related('tag').values_list('tag__name', flat=True)
-        tags = list(post_tags) if post_tags else []
-        
-        item = {
-            "id": post.id,
-            "title": post.title,
-            "description": post.description,
-            "audio_url": post.audio_url,
-            "thumbnail_url": post.thumbnail_url,
-            "duration_seconds": post.duration_seconds,
-            "listen_count": post.listen_count,
-            "like_count": PostLike.objects.filter(post_id=post.id).count(),
-            "comment_count": Comment.objects.filter(post_id=post.id).count(),
-            "save_count": SavedPost.objects.filter(post_id=post.id).count(),
-            "share_count": PostShare.objects.filter(post_id=post.id, share_type="personal").count(),
-            "user_id": post.user_id,
-            "category_id": post.category_id,
-            "tags": tags,
-            "created_at": post.created_at.isoformat() if post.created_at else None,
-            "saved_at": saved_post.created_at.isoformat() if saved_post.created_at else None,
-            "has_note": has_note,
-            "is_liked": is_liked,
-            "playback_history": {
-                "completed_ratio": playback_history.completed_ratio if playback_history else 0,
-            } if playback_history else None,
-        }
-        
-        # Lấy thông tin author
-        if post.user:
-            item["author"] = getattr(post.user, 'username', post.user.id)
-        
-        posts_data.append(item)
+            has_note = PostNote.objects.filter(
+                user_id=user.id,
+                post_id=post.id
+            ).exists()
 
-    return _json_success(
-        "Saved posts fetched successfully",
-        {
-            "saved_posts": posts_data,
-            "total_count": len(posts_data)
-        }
-    )
+            is_liked = PostLike.objects.filter(
+                user_id=user.id,
+                post_id=post.id
+            ).exists()
+
+            from apps.content.models import PostTag
+            post_tags = PostTag.objects.filter(post_id=post.id).select_related('tag').values_list('tag__name', flat=True)
+            tags = list(post_tags) if post_tags else []
+
+            item = {
+                "id": post.id,
+                "title": post.title,
+                "description": post.description,
+                "audio_url": post.audio_url,
+                "thumbnail_url": post.thumbnail_url,
+                "duration_seconds": post.duration_seconds,
+                "listen_count": post.listen_count,
+                "like_count": PostLike.objects.filter(post_id=post.id).count(),
+                "comment_count": Comment.objects.filter(post_id=post.id).count(),
+                "save_count": SavedPost.objects.filter(post_id=post.id).count(),
+                "share_count": PostShare.objects.filter(post_id=post.id, share_type="personal").count(),
+                "user_id": post.user_id,
+                "category_id": post.category_id,
+                "tags": tags,
+                "created_at": post.created_at.isoformat() if post.created_at else None,
+                "saved_at": saved_post.created_at.isoformat() if saved_post.created_at else None,
+                "has_note": has_note,
+                "is_liked": is_liked,
+                "playback_history": {
+                    "completed_ratio": playback_history.completed_ratio if playback_history else 0,
+                } if playback_history else None,
+            }
+
+            if post.user:
+                item["author"] = getattr(post.user, 'username', post.user.id)
+
+            posts_data.append(item)
+
+        return _json_success(
+            "Saved posts fetched successfully",
+            {
+                "saved_posts": posts_data,
+                "total_count": len(posts_data)
+            }
+        )
+    except Exception as e:
+        print(f"❌ get_saved_posts error: {str(e)}")
+        return _json_success(
+            "Saved posts fetched successfully",
+            {
+                "saved_posts": [],
+                "total_count": 0
+            }
+        )
 
 
 @csrf_exempt

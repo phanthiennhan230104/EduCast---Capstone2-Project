@@ -8,10 +8,12 @@ class FeedService:
     @staticmethod
     def get_feed(user, limit=20, feed_type="for_you", tag_ids=None):
         try:
+            # allow anonymous user (e.g. public feed) — protect against None
+            user_id = user.id if user else None
+
             followed_author_ids = list(
-                Follow.objects.filter(follower_id=user.id)
-                .values_list("following_id", flat=True)
-            )
+                Follow.objects.filter(follower_id=user_id).values_list("following_id", flat=True)
+            ) if user_id else []
 
             posts_qs = (
                 Post.objects
@@ -35,15 +37,16 @@ class FeedService:
                 Q(user_id=user.id, status__in=["published", "draft"])
             )
 
-            # Get hidden posts, but handle if table doesn't exist
+            # Get hidden posts (skip if no user or table problem)
             try:
-                hidden_post_ids = HiddenPost.objects.filter(
-                    user_id=user.id
-                ).values_list("post_id", flat=True)
-                posts_qs = posts_qs.exclude(id__in=hidden_post_ids)
+                if user_id:
+                    hidden_post_ids = HiddenPost.objects.filter(
+                        user_id=user_id
+                    ).values_list("post_id", flat=True)
+                    posts_qs = posts_qs.exclude(id__in=hidden_post_ids)
             except Exception as e:
                 print(f"⚠️ Hidden posts table issue: {str(e)}")
-                # Continue without filtering if table doesn't exist
+                # Continue without filtering if table doesn't exist or query fails
 
             # Filter by tags if provided
             if tag_ids:
@@ -64,30 +67,61 @@ class FeedService:
             else:  # for_you, following, latest, and default
                 posts_qs = posts_qs.order_by("-created_at")
 
-            posts = list(posts_qs[:limit])
+            # Get more posts initially to account for shared posts that will be merged
+            fetch_limit = limit * 2
+            posts = list(posts_qs[:fetch_limit])
+            
+            # Get shared posts (bài viết được chia sẻ)
+            shared_posts_qs = (
+                PostShare.objects
+                .filter(share_type="personal")
+                .select_related("post", "post__user", "post__user__profile", "user", "user__profile")
+                .order_by("-created_at")
+            )
+            
+            # Filter shared posts by tags (filter by original post's tags)
+            if tag_ids:
+                shared_posts_qs = shared_posts_qs.filter(post__post_tags__tag_id__in=tag_ids).distinct()
+            
+            # Filter shared posts by feed type
+            if feed_type == "following":
+                shared_posts_qs = shared_posts_qs.filter(user_id__in=followed_author_ids)
+            
+            try:
+                shared_posts = list(shared_posts_qs[:fetch_limit])
+            except Exception as e:
+                print(f"⚠️ Shared posts query issue: {str(e)}")
+                shared_posts = []
             
             post_ids = [post.id for post in posts]
             author_ids = [post.user_id for post in posts]
 
-            liked_post_ids = set(
-                PostLike.objects.filter(user_id=user.id, post_id__in=post_ids)
-                .values_list("post_id", flat=True)
-            )
+            # Only query user-scoped tables if we have an authenticated user
+            if user_id:
+                liked_post_ids = set(
+                    PostLike.objects.filter(user_id=user_id, post_id__in=all_post_ids)
+                    .values_list("post_id", flat=True)
+                )
 
-            saved_post_ids = set(
-                SavedPost.objects.filter(user_id=user.id, post_id__in=post_ids)
-                .values_list("post_id", flat=True)
-            )
+                saved_post_ids = set(
+                    SavedPost.objects.filter(user_id=user_id, post_id__in=all_post_ids)
+                    .values_list("post_id", flat=True)
+                )
 
-            following_author_ids = set(
-                Follow.objects.filter(follower_id=user.id, following_id__in=author_ids)
-                .values_list("following_id", flat=True)
-            )
+                following_author_ids = set(
+                    Follow.objects.filter(follower_id=user_id, following_id__in=author_ids)
+                    .values_list("following_id", flat=True)
+                )
 
-            playback_map = {
-                row.post_id: row
-                for row in PlaybackHistory.objects.filter(user_id=user.id, post_id__in=post_ids)
-            }
+                playback_map = {
+                    row.post_id: row
+                    for row in PlaybackHistory.objects.filter(user_id=user_id, post_id__in=all_post_ids)
+                }
+            else:
+                liked_post_ids = set()
+                saved_post_ids = set()
+                following_author_ids = set()
+                playback_map = {}
 
             tag_rows = (
                 PostTag.objects

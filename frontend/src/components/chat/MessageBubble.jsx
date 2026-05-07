@@ -17,6 +17,7 @@ import {
   getFileNameFromUrl,
 } from "../../utils/chat/chatHelpers"
 
+
 const { Text } = Typography;
 
 function FileTypeIcon({ ext }) {

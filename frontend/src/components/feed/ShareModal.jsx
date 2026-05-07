@@ -6,6 +6,7 @@ import styles from '../../style/feed/ShareModal.module.css'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { getInitials } from '../../utils/getInitials'
 
+
 export default function ShareModal({ podcast, onClose, onShareSuccess }) {
   const [caption, setCaption] = useState('')
   const [submitting, setSubmitting] = useState(false)

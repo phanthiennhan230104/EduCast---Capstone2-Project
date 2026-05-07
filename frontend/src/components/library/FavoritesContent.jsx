@@ -1008,6 +1008,7 @@ export default function FavoritesContent() {
         onNoteLoaded={handleNoteLoaded}
       />
 
+
       <AllPostsModal
         isOpen={showAllPostsModal}
         onClose={() => {

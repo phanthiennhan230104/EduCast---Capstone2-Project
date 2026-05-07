@@ -1,6 +1,6 @@
 import { useState } from 'react'
-
 import styles from '../../style/assistant/AssistantWidget.module.css'
+
 
 function renderPlainText(text) {
   return String(text || '')

@@ -69,32 +69,56 @@
 
         localStorage.setItem(`post-sync-${d.postId}`, JSON.stringify(nextSync))
 
-        setPodcasts(prev =>
-          prev.map(p =>
+      // Defer state updates to avoid React "setState during render" errors
+      // when events are dispatched synchronously from child components.
+      setTimeout(() => {
+        setPodcasts((prev) =>
+          prev.map((p) =>
             String(p.id) === String(d.postId)
               ? {
                   ...p,
                   liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
                   likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
                   saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
-                  saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+                  saveCount:
+                    typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+                  comments:
+                    typeof d.commentCount === 'number'
+                      ? d.commentCount
+                      : p.comments,
+                  comment_count:
+                    typeof d.commentCount === 'number'
+                      ? d.commentCount
+                      : p.comment_count,
                 }
               : p
           )
         )
 
-        setSelectedPodcast(prev =>
+        setSelectedPodcast((prev) =>
           prev && String(prev.id) === String(d.postId)
             ? {
                 ...prev,
                 liked: typeof d.liked === 'boolean' ? d.liked : prev.liked,
                 likes: typeof d.likeCount === 'number' ? d.likeCount : prev.likes,
                 saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
-                saveCount: typeof d.saveCount === 'number' ? d.saveCount : prev.saveCount,
+                saveCount:
+                  typeof d.saveCount === 'number'
+                    ? d.saveCount
+                    : prev.saveCount,
+                comments:
+                  typeof d.commentCount === 'number'
+                    ? d.commentCount
+                    : prev.comments,
+                comment_count:
+                  typeof d.commentCount === 'number'
+                    ? d.commentCount
+                    : prev.comment_count,
               }
             : prev
         )
-      }
+      }, 0)
+    }
 
       window.addEventListener(POST_SYNC_EVENT, handlePostSync)
       return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)

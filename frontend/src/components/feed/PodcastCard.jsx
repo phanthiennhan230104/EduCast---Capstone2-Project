@@ -496,6 +496,7 @@ export default function PodcastCard({ podcast, queue = [], onDelete, onHide, hid
         return
       }
 
+      
       // Nếu chưa save -> show collection picker modal
       console.log('🔖 Showing collection modal')
       setShowCollectionModal(true)

@@ -169,16 +169,23 @@ function App() {
                   </ProtectedRoute>
                 }
               />
-              <Route
-                path="/profile/:username"
-                element={
-                  <ProtectedRoute>
-                    <MainLayout rightPanel={false}>
-                      <PersonalPageComponent />
-                    </MainLayout>
-                  </ProtectedRoute>
-                }
-              />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="/publish-post"
+              element={
+                <ProtectedRoute>
+                  <PublishPostPage />
+                </ProtectedRoute>
+              }
+            />
+
 
               <Route path="*" element={<Navigate to="/" replace />} />
             </Routes>

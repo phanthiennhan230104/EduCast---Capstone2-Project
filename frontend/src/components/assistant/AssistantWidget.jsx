@@ -4,6 +4,7 @@ import { useLocation } from "react-router-dom";
 import AssistantPopup from "./AssistantPopup";
 import styles from "../../style/assistant/AssistantWidget.module.css";
 
+
 const STORAGE_KEY = "assistant-widget-position";
 const BUBBLE_SIZE = 64;
 const GAP = 20;
