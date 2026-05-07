@@ -4,13 +4,21 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
+from requests import post
+from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 
-from .models import PostLike, SavedPost, Comment, CommentLike, Follow, Notification, PostShare, PlaybackHistory
+from .models import HiddenPost, PostLike, SavedPost, Comment, CommentLike, Follow, Notification, PostShare, PlaybackHistory, PostNote, Collection, CollectionPost, Report
 from apps.content.models import Post
 from apps.users.models import User
 from apps.users.authentication import CustomJWTAuthentication
 from apps.social.models import PlaybackHistory
+from apps.chat.models import ChatRoom, Message
+from apps.chat.serializers import MessageSerializer
+from apps.chat.services import get_or_create_direct_room
+from apps.chat.services import broadcast_room_snapshot
 from django.db.models import F
+from django.db.models import Count, Q
 
 # Tạo response thành công thống nhất.
 def _json_success(message, data=None, status=200):
@@ -88,7 +96,6 @@ def _create_notification(
         reference_type=reference_type,
         reference_id=reference_id,
         is_read=False,
-        created_at=timezone.now(),
     )
 
 # Helper để đếm like/comment/save/share cho post
@@ -97,11 +104,14 @@ def _post_counts(post_id):
         "like_count": PostLike.objects.filter(post_id=post_id).count(),
         "comment_count": Comment.objects.filter(post_id=post_id).count(),
         "save_count": SavedPost.objects.filter(post_id=post_id).count(),
-        "share_count": PostShare.objects.filter(post_id=post_id).count(),
+        "share_count": PostShare.objects.filter(
+            post_id=post_id,
+            share_type="personal"
+        ).count(),
     }
 
 # Chuyển comment thành dict, có thể include replies nếu cần.
-def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None):
+def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None, depth=0):
     liked_comment_ids = liked_comment_ids or set()
     like_count = CommentLike.objects.filter(comment_id=comment.id).count()
 
@@ -127,7 +137,7 @@ def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None):
     if hasattr(comment, "reply_to_username"):
         data["reply_to_username"] = comment.reply_to_username
 
-    if include_replies:
+    if include_replies and depth < 3:
         replies = Comment.objects.filter(
             parent_comment_id=comment.id
         ).select_related("user").order_by("-created_at")
@@ -136,7 +146,8 @@ def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None):
             _comment_to_dict(
                 reply,
                 include_replies=True,
-                liked_comment_ids=liked_comment_ids
+                liked_comment_ids=liked_comment_ids,
+                depth=depth + 1
             )
             for reply in replies
         ]
@@ -164,18 +175,30 @@ def _notification_to_dict(notification):
 
     return data
 
-
 # Toggle like/unlike post
 @csrf_exempt
 @require_http_methods(["POST"])
 def toggle_like_post(request, post_id):
+    # Lấy body JSON từ request
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+    
     # Lấy user hiện tại từ request hoặc body
-    user = _get_current_user(request)
+    user = _get_current_user(request, body)
     if not user:
         return _json_error("Authentication required", 401)
 
+    # Kiểm tra xem post_id có phải là composite share ID không (format: share_xxx_yyy)
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
     # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, id=actual_post_id)
 
     # Kiểm tra xem user đã like post này chưa
     existing_like = PostLike.objects.filter(post_id=post.id, user_id=user.id).first()
@@ -218,45 +241,103 @@ def toggle_like_post(request, post_id):
         }
     )
 
-
 # Post Save / Unsave (toggle)
 @csrf_exempt
 @require_http_methods(["POST"])
 def toggle_save_post(request, post_id):
-    # Lấy user hiện tại từ request hoặc body
-    user = _get_current_user(request)
-    if not user:
-        return _json_error("Authentication required", 401)
+    try:
+        # Lấy body JSON từ request
+        body = _parse_body(request)
+        if body is None:
+            body = {}
 
-    # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+        # Lấy user hiện tại từ request hoặc body
+        user = _get_current_user(request, body)
+        if not user:
+            return _json_error("Authentication required", 401)
 
-    # Kiểm tra xem user đã save post này chưa
-    existing_saved = SavedPost.objects.filter(post_id=post.id, user_id=user.id).first()
+        # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+        actual_post_id = post_id
+        if post_id.startswith('share_'):
+            parts = post_id.split('_')
+            if len(parts) >= 3:
+                actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+        
+        # Kiểm tra post tồn tại
+        post = get_object_or_404(Post, id=actual_post_id)
 
-    # Nếu đã save rồi thì unsave (xóa record), nếu chưa save thì tạo mới record saved
-    if existing_saved:
-        existing_saved.delete()
+        # Lấy collection_id nếu có
+        collection_id = body.get("collection_id")
+
+        # Kiểm tra xem user đã save post này chưa
+        existing_saved = SavedPost.objects.filter(post_id=post.id, user_id=user.id).first()
+
+        # Nếu đã save rồi thì unsave (xóa record)
+        if existing_saved:
+            CollectionPost.objects.filter(
+                post_id=post.id,
+                collection__user_id=user.id
+            ).delete()
+
+            existing_saved.delete()
+
+            return _json_success(
+                "Unsaved post successfully",
+                {
+                    "saved": False,
+                    **_post_counts(post.id)
+                }
+            )
+
+        # Tạo record saved mới (không save collection vào SavedPost)
+        saved_post = SavedPost.objects.create(
+            id=_generate_id("save"),
+            post=post,
+            user=user,
+            created_at=timezone.now()
+        )
+
+        # Nếu có collection_id, thêm post vào collection_items
+        if collection_id:
+            collection = Collection.objects.filter(id=collection_id, user_id=user.id).first()
+            if not collection:
+                return _json_error("Collection not found or you don't have access", 404)
+
+            # Mỗi post chỉ nằm trong 1 bộ sưu tập của user
+            CollectionPost.objects.filter(
+                post_id=post.id,
+                collection__user_id=user.id
+            ).delete()
+
+            CollectionPost.objects.create(
+                id=_generate_id("colp"),
+                collection=collection,
+                post=post,
+                added_at=timezone.now()
+            )
+
         return _json_success(
-            "Unsaved post successfully",
+            "Saved post successfully",
             {
-                "saved": False,
+                "saved": True,
+                "collection_id": collection_id,
                 **_post_counts(post.id)
             }
         )
+    except Exception as e:
+        import traceback
+        print(f"❌ Error in toggle_save_post: {str(e)}")
+        print(traceback.format_exc())
 
-    # Tạo record saved mới
-    SavedPost.objects.create(
-        id=_generate_id("save"),
-        post=post,
-        user=user,
-        created_at=timezone.now()
-    )
+    # Cập nhật save_count trong database
+    post.save_count = SavedPost.objects.filter(post_id=post.id).count()
+    post.save(update_fields=['save_count'])
 
     return _json_success(
         "Saved post successfully",
         {
             "saved": True,
+            "collection_id": collection_id,
             **_post_counts(post.id)
         }
     )
@@ -265,7 +346,14 @@ def toggle_save_post(request, post_id):
 # Comment: list
 @require_http_methods(["GET"])
 def list_post_comments(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
+    post = get_object_or_404(Post, id=actual_post_id)
 
     user = _get_current_user(request)
 
@@ -301,7 +389,14 @@ def list_post_comments(request, post_id):
 # List commmentors
 @require_http_methods(["GET"])
 def list_post_commenters(request, post_id):
-    post = get_object_or_404(Post, id=post_id)
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
+    post = get_object_or_404(Post, id=actual_post_id)
 
     comments = (
         Comment.objects.filter(post_id=post.id)
@@ -358,8 +453,15 @@ def create_comment(request, post_id):
     if not content:
         return _json_error("content is required", 400)
 
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+
     # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, id=actual_post_id)
 
     # Tạo comment mới với parent_comment_id = null
     comment = Comment.objects.create(
@@ -382,6 +484,8 @@ def create_comment(request, post_id):
         reference_type="comment",
         reference_id=comment.id
     )
+
+    comment = Comment.objects.filter(id=comment.id).select_related("user").first()
 
     return _json_success(
         "Comment created successfully",
@@ -475,12 +579,16 @@ def reply_comment(request, comment_id):
 
     target_comment = get_object_or_404(Comment, id=comment_id)
 
-    # luôn gom reply về comment cha gốc
+    if target_comment.parent_comment and target_comment.parent_comment.parent_comment:
+        reply_parent = target_comment.parent_comment
+    else:
+        reply_parent = target_comment
+
     reply = Comment.objects.create(
         id=_generate_id("cmt"),
         post_id=target_comment.post_id,
         user=user,
-        parent_comment=target_comment,
+        parent_comment=reply_parent,
         content=content,
         created_at=timezone.now(),
         updated_at=timezone.now()
@@ -508,6 +616,8 @@ def reply_comment(request, comment_id):
             reference_id=reply.id
         )
 
+    reply = Comment.objects.filter(id=reply.id).select_related("user").first()
+    
     data = _comment_to_dict(reply, include_replies=True)
     data["reply_to_user_id"] = target_comment.user_id
     data["reply_to_username"] = getattr(target_comment.user, "username", target_comment.user_id)
@@ -604,8 +714,15 @@ def delete_comment(request, comment_id):
 # Lấy danh sách user đã like post
 @require_http_methods(["GET"])
 def list_post_likers(request, post_id):
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
     # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, id=actual_post_id)
 
     # Lấy tất cả like
     likes = PostLike.objects.filter(post_id=post.id).select_related("user").order_by("-created_at")
@@ -635,32 +752,26 @@ def list_post_likers(request, post_id):
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_following_list(request):
-    # Lấy user hiện tại từ request
     user = _get_current_user(request)
     if not user:
         return _json_error("Authentication required", 401)
 
-    # Lấy danh sách user mà current user đang follow
-    following_list = Follow.objects.filter(
+    follows = Follow.objects.filter(
         follower_id=user.id
-    ).select_related('following').values(
-        'id', 'following_id', 'following__username', 'following__display_name'
-    )
+    ).select_related("following")
 
-    following = [
-        {
-            'id': f['following_id'],
-            'username': f['following__username'],
-            'display_name': f['following__display_name']
-        }
-        for f in following_list
-    ]
+    following = []
+    for f in follows:
+        following.append({
+            "id": f.following_id,
+            "username": getattr(f.following, "username", ""),
+            "display_name": getattr(f.following, "display_name", getattr(f.following, "username", "")),
+        })
 
     return _json_success(
         "Following list retrieved successfully",
         {"following": following}
     )
-
 
 # Follow / Unfollow user (toggle)
 @csrf_exempt
@@ -729,7 +840,6 @@ def toggle_follow_user(request, target_user_id):
         }
     )
 
-
 # Notifications
 @require_http_methods(["GET"])
 def list_notifications(request):
@@ -763,74 +873,94 @@ def mark_all_notifications_as_read(request):
 
     return _json_success("All notifications marked as read")
 
-
 # Share post
 @csrf_exempt
 @require_http_methods(["POST"])
 def share_post(request, post_id):
-    # Lấy body JSON từ request
-    body = _parse_body(request)
-    if body is None:
-        return _json_error("Invalid JSON body", 400)
+    try:
+        # Lấy body JSON từ request
+        body = _parse_body(request)
+        if body is None:
+            return _json_error("Invalid JSON body", 400)
 
-    # Lấy user hiện tại từ request hoặc body
-    user = _get_current_user(request, body)
-    if not user:
-        return _json_error("Authentication required", 401)
+        # Lấy user hiện tại từ request hoặc body
+        user = _get_current_user(request, body)
+        if not user:
+            return _json_error("Authentication required", 401)
 
-    # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+        # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+        actual_post_id = post_id
+        if post_id.startswith('share_'):
+            parts = post_id.split('_')
+            if len(parts) >= 3:
+                actual_post_id = parts[-1]  # Lấy post ID từ composite ID
 
-    # Lấy share_type từ body, mặc định là "copy_link" nếu không có
-    share_type = (body.get("share_type") or "copy_link").strip()
+        # Kiểm tra post tồn tại
+        post = get_object_or_404(Post, id=actual_post_id)
 
-    # Kiểm tra share_type hợp lệ
-    allowed_share_types = {
-        "copy_link",
-        "facebook",
-        "messenger",
-        "zalo",
-        "other",
-    }
-    # Nếu share_type không hợp lệ thì trả về lỗi
-    if share_type not in allowed_share_types:
-        return _json_error("Invalid share_type", 400)
+        # Kiểm tra xem user đã share bài viết này chưa
+        existing_share = PostShare.objects.filter(
+            post_id=post.id,
+            user_id=user.id,
+            share_type="personal"
+        ).first()
 
-    # Tạo record share mới
-    share = PostShare.objects.create(
-        id=_generate_id("shr"),
-        post=post,
-        user=user,
-        share_type=share_type,
-        created_at=timezone.now()
-    )
+        if existing_share:
+            return _json_error("Bạn đã chia sẻ bài viết này rồi", 400)
 
-    # Thông báo cho chủ post nếu người share không phải chủ post
-    _create_notification(
-        recipient_id=post.user_id,
-        actor_user_id=user.id,
-        notification_type="new_post",  
-        title="Your post was shared",
-        body=f"{getattr(user, 'username', user.id)} shared your post",
-        reference_type="post",
-        reference_id=post.id
-    )
+        share_type = (body.get("share_type") or "personal").strip()
 
-    return _json_success(
-        "Post shared successfully",
-        {
-            "share": {
-                "id": share.id,
-                "post_id": share.post_id,
-                "user_id": share.user_id,
-                "share_type": share.share_type,
-                "created_at": share.created_at.isoformat() if share.created_at else None,
+        if share_type != "personal":
+            return _json_error("Only 'personal' share type is supported", 400)
+
+        caption = body.get("caption")
+        if caption:
+            caption = caption.strip()
+
+        # Tạo record share mới (chỉ cho personal shares)
+        share = PostShare.objects.create(
+            id=_generate_id("shr"),
+            post=post,
+            user=user,
+            share_type="personal",
+            caption=caption,
+            created_at=timezone.now()
+        )
+
+        # Thông báo cho chủ post
+        notification_title = "Your post was shared"
+        notification_body = f"{getattr(user, 'username', user.id)} shared your post to their profile"
+
+        _create_notification(
+            recipient_id=post.user_id,
+            actor_user_id=user.id,
+            notification_type="new_post",  
+            title=notification_title,
+            body=notification_body,
+            reference_type="post",
+            reference_id=post.id
+        )
+
+        return _json_success(
+            "Post shared successfully",
+            {
+                "share": {
+                    "id": share.id,
+                    "post_id": share.post_id,
+                    "user_id": share.user_id,
+                    "share_type": share.share_type,
+                    "caption": share.caption,
+                    "created_at": share.created_at.isoformat() if share.created_at else None,
+                },
+                **_post_counts(post.id)
             },
-            **_post_counts(post.id)
-        },
-        status=201
-    )
-
+            status=201
+        )
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Share post error: {str(e)}")
+        return _json_error(f"Server error: {str(e)}", 500)
 
 # Xóa share post
 @csrf_exempt
@@ -872,16 +1002,65 @@ def delete_shared_post(request, post_id):
         }
     )
 
+# Hide post from profile (không ảnh hưởng đến Feed)
+@csrf_exempt
+@require_http_methods(["POST"])
+def hide_post_from_profile(request, post_id):
+    """Hide a post from user's profile view (doesn't affect Feed)"""
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]
+
+    post = get_object_or_404(Post, id=actual_post_id)
+
+    # Tạo hoặc lấy HiddenPost record
+    hidden_post, created = HiddenPost.objects.get_or_create(
+        post_id=post.id,
+        user_id=user.id,
+        defaults={
+            'id': _generate_id("hide"),
+            'created_at': timezone.now()
+        }
+    )
+
+    return _json_success(
+        "Post hidden from profile successfully",
+        {
+            "post_id": post.id,
+            "hidden": True
+        }
+    )
 
 # List share post 
 @require_http_methods(["GET"])
 def list_post_sharers(request, post_id):
+    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    actual_post_id = post_id
+    if post_id.startswith('share_'):
+        parts = post_id.split('_')
+        if len(parts) >= 3:
+            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+    
     # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=post_id)
+    post = get_object_or_404(Post, id=actual_post_id)
 
     # Lấy tất cả share
-    shares = PostShare.objects.filter(post_id=post.id).select_related("user").order_by("-created_at")
-
+    shares = PostShare.objects.filter(
+        post_id=post.id,
+        share_type="personal"
+    ).select_related("user").order_by("-created_at")
+    
     # Chuyển từng share thành dict
     data = []
     for share in shares:
@@ -904,6 +1083,98 @@ def list_post_sharers(request, post_id):
             **_post_counts(post.id)
         }
     )
+
+# Lấy danh sách bài viết đã lưu của user hiện tại
+@require_http_methods(["GET"])
+def get_saved_posts(request):
+    # Lấy user hiện tại từ request
+    user = _get_current_user(request)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    # Lấy tất cả saved posts của user, kèm post info, sắp xếp mới nhất trước
+    saved_posts = SavedPost.objects.filter(
+        user_id=user.id
+    ).exclude(
+        post__status='archived'
+    ).select_related("post").order_by("-created_at")
+
+     # Lấy danh sách post đã bị ẩn
+    hidden_post_ids = HiddenPost.objects.filter(
+        user_id=user.id
+    ).values_list("post_id", flat=True)
+
+    # Loại bỏ các post đã ẩn
+    saved_posts = saved_posts.exclude(
+        post_id__in=hidden_post_ids
+    )
+
+    # Chuyển đổi thành dict với thông tin post
+    posts_data = []
+    for saved_post in saved_posts:
+        post = saved_post.post
+        
+        # Lấy playback history của user cho post này
+        playback_history = PlaybackHistory.objects.filter(
+            user_id=user.id,
+            post_id=post.id
+        ).first()
+        
+        # Check if user has a note for this post
+        has_note = PostNote.objects.filter(
+            user_id=user.id,
+            post_id=post.id
+        ).exists()
+
+        # Check if user has liked this post
+        is_liked = PostLike.objects.filter(
+            user_id=user.id,
+            post_id=post.id
+        ).exists()
+        
+        # Get tags for this post
+        from apps.content.models import PostTag
+        post_tags = PostTag.objects.filter(post_id=post.id).select_related('tag').values_list('tag__name', flat=True)
+        tags = list(post_tags) if post_tags else []
+        
+        item = {
+            "id": post.id,
+            "title": post.title,
+            "description": post.description,
+            "audio_url": post.audio_url,
+            "thumbnail_url": post.thumbnail_url,
+            "duration_seconds": post.duration_seconds,
+            "listen_count": post.listen_count,
+            "like_count": PostLike.objects.filter(post_id=post.id).count(),
+            "comment_count": Comment.objects.filter(post_id=post.id).count(),
+            "save_count": SavedPost.objects.filter(post_id=post.id).count(),
+            "share_count": PostShare.objects.filter(post_id=post.id, share_type="personal").count(),
+            "user_id": post.user_id,
+            "category_id": post.category_id,
+            "tags": tags,
+            "created_at": post.created_at.isoformat() if post.created_at else None,
+            "saved_at": saved_post.created_at.isoformat() if saved_post.created_at else None,
+            "has_note": has_note,
+            "is_liked": is_liked,
+            "playback_history": {
+                "completed_ratio": playback_history.completed_ratio if playback_history else 0,
+            } if playback_history else None,
+        }
+        
+        # Lấy thông tin author
+        if post.user:
+            item["author"] = getattr(post.user, 'username', post.user.id)
+        
+        posts_data.append(item)
+
+    return _json_success(
+        "Saved posts fetched successfully",
+        {
+            "saved_posts": posts_data,
+            "total_count": len(posts_data)
+        }
+    )
+
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -933,7 +1204,7 @@ def track_listen(request, post_id):
     )
 
     if not created:
-        old_progress = history.progress_seconds or 0
+        old_completed_ratio = history.completed_ratio or 0
 
         history.progress_seconds = progress
         history.duration_seconds = duration
@@ -942,15 +1213,16 @@ def track_listen(request, post_id):
         history.is_completed = history.completed_ratio >= 0.9
         history.save()
 
-        # chỉ tăng 1 lần khi lần đầu vượt mốc 10s
-        if old_progress < 10 and progress >= 10:
+        # Tăng listen_count chỉ khi vừa vượt quá mốc 50% lần đầu tiên
+        new_completed_ratio = history.completed_ratio or 0
+        if old_completed_ratio < 0.5 and new_completed_ratio >= 0.5:
             Post.objects.filter(id=post.id).update(
                 listen_count=F("listen_count") + 1
             )
             post.refresh_from_db(fields=["listen_count"])
     else:
-        # nếu record vừa tạo mà đã >=10s thì tăng luôn
-        if progress >= 10:
+        # Nếu record vừa tạo mà đã >=50% thì tăng luôn
+        if progress >= (duration * 0.5) if duration else 0:
             Post.objects.filter(id=post.id).update(
                 listen_count=F("listen_count") + 1
             )
@@ -963,5 +1235,795 @@ def track_listen(request, post_id):
             "listen_count": post.listen_count,
             "progress_seconds": progress,
             "duration_seconds": duration,
+            "completed_ratio": history.completed_ratio,
         }
     )
+
+@require_http_methods(["GET"])
+def get_friends_list(request):
+    user = _get_current_user(request)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    # người mình follow
+    following_ids = Follow.objects.filter(
+        follower_id=user.id
+    ).values_list("following_id", flat=True)
+
+    # người follow lại mình
+    follower_ids = Follow.objects.filter(
+        following_id=user.id
+    ).values_list("follower_id", flat=True)
+
+    # mutual = giao nhau
+    friend_ids = set(following_ids).intersection(set(follower_ids))
+
+    friends = (
+        User.objects
+        .filter(id__in=friend_ids)
+        .exclude(id=user.id)
+        .select_related("profile")
+    )
+
+    data = [
+        {
+            "id": u.id,
+            "username": getattr(u, "username", ""),
+            "display_name": (
+                getattr(getattr(u, "profile", None), "display_name", None)
+                or getattr(u, "username", "")
+            )
+        }
+        for u in friends
+    ]
+
+    return _json_success("Friends list", {"friends": data})
+
+
+@csrf_exempt
+def handle_note(request, post_id):
+    """Handle GET and POST requests for notes"""
+    if request.method == "GET":
+        return get_note(request, post_id)
+    elif request.method == "POST":
+        return save_note(request, post_id)
+    else:
+        return _json_error("Method not allowed", 405)
+
+
+@require_http_methods(["POST"])
+@csrf_exempt
+def save_note(request, post_id):
+    """Save or update a note for a post by the current user"""
+    body = _parse_body(request) or {}
+    user = _get_current_user(request, body)
+
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    post = get_object_or_404(Post, id=post_id)
+    content = body.get("content", "").strip()
+
+    # Get or create note
+    note, created = PostNote.objects.get_or_create(
+        post_id=post.id,
+        user_id=user.id,
+        defaults={
+            "id": _generate_id("note"),
+            "content": content,
+            "created_at": timezone.now(),
+            "updated_at": timezone.now(),
+        }
+    )
+
+    if not created:
+        # Update existing note
+        note.content = content
+        note.updated_at = timezone.now()
+        note.save()
+
+    return _json_success(
+        "Note saved successfully",
+        {
+            "post_id": post.id,
+            "note_content": note.content,
+            "created_at": note.created_at,
+            "updated_at": note.updated_at,
+        }
+    )
+
+
+@require_http_methods(["GET"])
+@csrf_exempt
+def get_note(request, post_id):
+    """Get the note for a post by the current user"""
+    user = _get_current_user(request)
+
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    post = get_object_or_404(Post, id=post_id)
+
+    note = PostNote.objects.filter(
+        post_id=post.id,
+        user_id=user.id
+    ).first()
+
+    if not note:
+        return _json_success(
+            "No note found for this post",
+            {
+                "post_id": post.id,
+                "has_note": False,
+                "note_content": None,
+            }
+        )
+
+    return _json_success(
+        "Note retrieved successfully",
+        {
+            "post_id": post.id,
+            "has_note": True,
+            "note_content": note.content,
+            "created_at": note.created_at,
+            "updated_at": note.updated_at,
+        }
+    )
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def hide_post(request, post_id):
+    body = _parse_body(request) or {}
+    user = _get_current_user(request, body)
+
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    post = get_object_or_404(Post, id=post_id)
+
+    hidden, created = HiddenPost.objects.get_or_create(
+        user=user,
+        post=post,
+        defaults={
+            "id": _generate_id("hid"),
+            "created_at": timezone.now(),
+        }
+    )
+
+    return _json_success("Post hidden successfully", {
+        "post_id": post.id,
+        "user_id": user.id,
+        "hidden": True,
+    })
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def list_collections(request):
+    user = _get_current_user(request)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    try:
+        hidden_post_ids = HiddenPost.objects.filter(
+            user_id=user.id
+        ).values_list("post_id", flat=True)
+
+        collections = Collection.objects.filter(
+            user_id=user.id
+        ).order_by("-created_at")
+
+        data = []
+
+        for collection in collections:
+            post_count = CollectionPost.objects.filter(
+                collection_id=collection.id
+            ).exclude(
+                post__status="archived"
+            ).exclude(
+                post_id__in=hidden_post_ids
+            ).count()
+
+            data.append({
+                "id": collection.id,
+                "name": collection.name,
+                "description": collection.description or "",
+                "is_default": collection.is_default,
+                "post_count": post_count,
+                "created_at": collection.created_at.isoformat() if collection.created_at else None,
+            })
+
+        return _json_success(
+            "Collections fetched successfully",
+            {"collections": data}
+        )
+
+    except Exception as e:
+        import traceback
+        print(f"❌ Error in list_collections: {str(e)}")
+        print(traceback.format_exc())
+        return _json_error(f"Error fetching collections: {str(e)}", 500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def create_collection(request):
+    body = _parse_body(request)
+    if body is None:
+        return _json_error("Invalid JSON body", 400)
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    name = (body.get("name") or "").strip()
+    if not name:
+        return _json_error("Collection name is required", 400)
+
+    description = body.get("description", "").strip()
+
+    existing = Collection.objects.filter(user_id=user.id, name=name).first()
+    if existing:
+        return _json_error("Collection with this name already exists", 400)
+
+    collection = Collection.objects.create(
+        id=_generate_id("col"),
+        user=user,
+        name=name,
+        description=description,
+        is_default=False,
+        created_at=timezone.now()
+    )
+
+    return _json_success(
+        "Collection created successfully",
+        {
+            "collection": {
+                "id": collection.id,
+                "name": collection.name,
+                "description": collection.description,
+                "is_default": collection.is_default,
+                "post_count": 0,
+                "created_at": collection.created_at.isoformat(),
+            }
+        },
+        status=201
+    )
+
+
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def update_collection(request, collection_id):
+    body = _parse_body(request)
+    if body is None:
+        return _json_error("Invalid JSON body", 400)
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    collection = get_object_or_404(Collection, id=collection_id)
+
+    if collection.user_id != user.id:
+        return _json_error("You can only edit your own collections", 403)
+
+    name = body.get("name", "").strip()
+    if name:
+        existing = Collection.objects.filter(user_id=user.id, name=name).exclude(id=collection.id).first()
+        if existing:
+            return _json_error("Collection with this name already exists", 400)
+        collection.name = name
+
+    description = body.get("description")
+    if description is not None:
+        collection.description = description.strip()
+
+    collection.save()
+
+    return _json_success(
+        "Collection updated successfully",
+        {
+            "collection": {
+                "id": collection.id,
+                "name": collection.name,
+                "description": collection.description,
+                "is_default": collection.is_default,
+                "post_count": collection.posts.count(),
+                "created_at": collection.created_at.isoformat() if collection.created_at else None,
+            }
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def get_collection_posts(request, collection_id):
+    try:
+        user = _get_current_user(request)
+        if not user:
+            return _json_error("Authentication required", 401)
+
+        collection = get_object_or_404(Collection, id=collection_id)
+        
+        if collection.user_id != user.id:
+            return _json_error("You don't have access to this collection", 403)
+
+        collection_posts = CollectionPost.objects.filter(
+            collection_id=collection.id
+        ).exclude(
+            post__status='archived'   
+        ).select_related('post').order_by('-added_at')
+        
+        # Lấy danh sách post đã bị ẩn
+        hidden_post_ids = HiddenPost.objects.filter(user_id=user.id).values_list("post_id", flat=True)
+        
+        data = []
+        for cp in collection_posts:
+            post = cp.post
+            
+            if post.id in hidden_post_ids:
+                continue
+            
+            playback_history = PlaybackHistory.objects.filter(
+                user_id=user.id,
+                post_id=post.id
+            ).first()
+            
+            has_note = PostNote.objects.filter(
+                user_id=user.id,
+                post_id=post.id
+            ).exists()
+
+            is_liked = PostLike.objects.filter(
+                user_id=user.id,
+                post_id=post.id
+            ).exists()
+            
+            from apps.content.models import PostTag
+            post_tags = PostTag.objects.filter(post_id=post.id).select_related('tag').values_list('tag__name', flat=True)
+            tags = list(post_tags) if post_tags else []
+            
+            item = {
+                "id": post.id,
+                "title": post.title,
+                "description": post.description,
+                "audio_url": post.audio_url,
+                "thumbnail_url": post.thumbnail_url,
+                "duration_seconds": post.duration_seconds,
+                "listen_count": post.listen_count,
+                "like_count": PostLike.objects.filter(post_id=post.id).count(),
+                "comment_count": Comment.objects.filter(post_id=post.id).count(),
+                "save_count": SavedPost.objects.filter(post_id=post.id).count(),
+                "share_count": PostShare.objects.filter(post_id=post.id, share_type="personal").count(),
+                "user_id": post.user_id,
+                "category_id": post.category_id,
+                "tags": tags,
+                "created_at": post.created_at.isoformat() if post.created_at else None,
+                "has_note": has_note,
+                "is_liked": is_liked,
+                "playback_history": {
+                    "completed_ratio": playback_history.completed_ratio if playback_history else 0,
+                } if playback_history else None,
+            }
+            
+            # Lấy thông tin author
+            if post.user:
+                item["author"] = getattr(post.user, 'username', post.user.id)
+                item["author_username"] = getattr(post.user, 'username', post.user.id)
+            else:
+                item["author"] = "Unknown"
+                item["author_username"] = "Unknown"
+            
+            item["is_owner"] = post.user_id == user.id
+            
+            data.append(item)
+
+        return _json_success(
+            "Collection posts fetched successfully",
+            {"posts": data}
+        )
+    except Exception as e:
+        import traceback
+        print(f"❌ Error in get_collection_posts: {str(e)}")
+        print(traceback.format_exc())
+        return _json_error(f"Error fetching collection posts: {str(e)}", 500)
+
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+def delete_collection(request, collection_id):
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    collection = get_object_or_404(Collection, id=collection_id)
+
+    if collection.user_id != user.id:
+        return _json_error("You can only delete your own collections", 403)
+
+    collection_id_value = collection.id
+    collection.delete()
+
+    return _json_success(
+        "Collection deleted successfully",
+        {"collection_id": collection_id_value}
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def add_post_to_collection(request, post_id, collection_id):
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    post = get_object_or_404(Post, id=post_id)
+    collection = get_object_or_404(Collection, id=collection_id)
+
+    if collection.user_id != user.id:
+        return _json_error("You can only add posts to your own collections", 403)
+
+    existing = CollectionPost.objects.filter(collection_id=collection.id, post_id=post.id).first()
+    if existing:
+        return _json_success("Post already in collection", {"collection_post_id": existing.id})
+
+    collection_post = CollectionPost.objects.create(
+        id=_generate_id("colp"),
+        collection=collection,
+        post=post,
+        added_at=timezone.now()
+    )
+
+    return _json_success(
+        "Post added to collection successfully",
+        {
+            "collection_post_id": collection_post.id,
+            "collection_id": collection.id,
+            "post_id": post.id,
+        },
+        status=201
+    )
+
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+def remove_post_from_collection(request, post_id, collection_id):
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    collection = get_object_or_404(Collection, id=collection_id)
+
+    if collection.user_id != user.id:
+        return _json_error("You can only remove posts from your own collections", 403)
+
+    collection_post = CollectionPost.objects.filter(
+        collection_id=collection.id,
+        post_id=post_id
+    ).first()
+
+    if not collection_post:
+        return _json_error("Post not found in collection", 404)
+
+    collection_post.delete()
+
+    return _json_success(
+        "Post removed from collection successfully",
+        {"collection_id": collection.id, "post_id": post_id}
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def share_post_to_user(request, post_id):
+    """
+    Share a post with one or more users via direct message
+    POST /api/social/posts/{post_id}/share-to-user/
+    
+    Body:
+    {
+        "target_user_id": "user_id",  # Single user ID
+        "caption": "Optional message"  # Optional caption/message
+    }
+    
+    Or for multiple users:
+    {
+        "target_user_ids": ["user_id1", "user_id2"],
+        "caption": "Optional message"
+    }
+    """
+    try:
+        body = _parse_body(request)
+        if body is None:
+            return _json_error("Invalid JSON body", 400)
+
+        user = _get_current_user(request, body)
+        if not user:
+            return _json_error("Authentication required", 401)
+
+        post = get_object_or_404(Post, id=post_id)
+
+        target_user_id = body.get("target_user_id")
+        target_user_ids = body.get("target_user_ids") or []
+
+        if target_user_id is not None and target_user_id != "":
+            target_user_ids = [target_user_id]
+
+        if isinstance(target_user_ids, (str, int)):
+            target_user_ids = [target_user_ids]
+
+        target_user_ids = [str(target_id).strip() for target_id in target_user_ids if str(target_id).strip()]
+
+        if not target_user_ids:
+            return _json_error("target_user_id or target_user_ids is required", 400)
+
+        caption = body.get("caption", "").strip() or None
+
+        results = []
+        channel_layer = get_channel_layer()
+        candidate_users = User.objects.filter(
+            Q(id__in=target_user_ids) | Q(username__in=target_user_ids)
+        )
+
+        target_users = {}
+        for target in candidate_users:
+            target_users[str(target.id)] = target
+            target_users[str(getattr(target, "username", ""))] = target
+        
+        for target_id in target_user_ids:
+            try:
+                target_user = target_users.get(str(target_id))
+
+                if not target_user:
+                    results.append({
+                        "target_user_id": target_id,
+                        "success": False,
+                        "error": "Target user not found"
+                    })
+                    continue
+                
+                if str(target_user.id) == str(user.id):
+                    results.append({
+                        "target_user_id": target_id,
+                        "success": False,
+                        "error": "Cannot share with yourself"
+                    })
+                    continue
+
+                room = get_or_create_direct_room(user, target_user)
+
+                message_content = json.dumps({
+                    "type": "podcast",
+                    "post_id": post.id,
+                    "title": post.title,
+                    "description": post.description or "",
+                    "audio_url": post.audio_url,
+                    "thumbnail_url": post.thumbnail_url,
+                    "duration_seconds": post.duration_seconds,
+                    "user_id": post.user_id,
+                    "author": getattr(post.user, 'username', 'Unknown') if post.user else 'Unknown',
+                    "author_username": getattr(post.user, 'username', '') if post.user else '',
+                    "like_count": PostLike.objects.filter(post_id=post.id).count(),
+                    "comment_count": Comment.objects.filter(post_id=post.id).count(),
+                    "share_count": PostShare.objects.filter(post_id=post.id).count(),
+                    "save_count": SavedPost.objects.filter(post_id=post.id).count(),
+                    "created_at": post.created_at.isoformat() if post.created_at else None,
+                    "caption": caption,
+                })
+                
+                message = Message.objects.create(
+                    id=_generate_id("msg"),
+                    room=room,
+                    sender=user,
+                    content=message_content,
+                    message_type="text",
+                )
+
+                serialized_message = MessageSerializer(
+                    message,
+                    context={"request": None, "user": user}
+                ).data
+
+                if channel_layer:
+                    async_to_sync(channel_layer.group_send)(
+                        f"chat_{room.id}",
+                        {
+                            "type": "message_event",
+                            "message": serialized_message,
+                        },
+                    )
+
+                broadcast_room_snapshot(room=room, event_type="conversation_updated")
+
+                warnings = []
+
+                try:
+                    PostShare.objects.create(
+                        id=_generate_id("shr"),
+                        post=post,
+                        user=user,
+                        share_type="message",
+                        caption=caption,
+                    )
+                except Exception as share_error:
+                    warnings.append(f"PostShare skipped: {share_error}")
+
+                try:
+                    _create_notification(
+                        recipient_id=target_user.id,
+                        actor_user_id=user.id,
+                        notification_type="message",
+                        title="New message",
+                        body=f"{getattr(user, 'username', user.id)} shared a podcast with you",
+                        reference_type="post",
+                        reference_id=post.id
+                    )
+                except Exception as notify_error:
+                    warnings.append(f"Notification skipped: {notify_error}")
+
+                results.append({
+                    "target_user_id": target_id,
+                    "success": True,
+                    "message_id": message.id,
+                    "room_id": room.id,
+                    **({"warnings": warnings} if warnings else {})
+                })
+
+            except Exception as e:
+                results.append({
+                    "target_user_id": target_id,
+                    "success": False,
+                    "error": str(e)
+                })
+
+        success_count = len([r for r in results if r.get("success")])
+
+        if success_count == 0:
+            first_error = next((r.get("error") for r in results if r.get("error")), None)
+            return JsonResponse(
+                {
+                    "success": False,
+                    "message": first_error or "Khong gui duoc cho nguoi nhan nao",
+                    "data": {
+                        "results": results,
+                        "post_id": post.id,
+                        "shared_with": 0,
+                        "total": len(target_user_ids),
+                    },
+                },
+                status=400,
+            )
+
+        response_message = (
+            "Post shared successfully"
+            if success_count == len(target_user_ids)
+            else "Post shared partially"
+        )
+
+        return _json_success(
+            response_message,
+            {
+                "results": results,
+                "post_id": post.id,
+                "shared_with": success_count,
+                "total": len(target_user_ids),
+                **_post_counts(post.id)
+            },
+            status=201
+        )
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"Share post to user error: {str(e)}")
+        return _json_error(f"Server error: {str(e)}", 500)
+
+
+# Create Report
+@csrf_exempt
+@require_http_methods(["POST"])
+def create_report(request):
+    """
+    Tạo một báo cáo cho bài viết, bình luận, hoặc người dùng.
+    Người dùng không thể báo cáo chính bài viết/bình luận của mình.
+    
+    Request body:
+    {
+        "user_id": "user_id_của_người_báo_cáo",
+        "target_type": "post|comment|user|message",
+        "target_id": "id_của_bài_viết/bình_luận/người_dùng",
+        "reason": "spam|inappropriate_content|harassment|misinformation|copyright|other",
+        "description": "Mô tả chi tiết về báo cáo (tùy chọn)"
+    }
+    """
+    body = _parse_body(request)
+    
+    if not body:
+        return _json_error("Invalid request body", 400)
+    
+    reporter = _get_current_user(request, body)
+    
+    if not reporter:
+        return _json_error("Authentication required", 401)
+    
+    target_type = body.get("target_type", "").lower()
+    target_id = body.get("target_id", "").strip()
+    reason = body.get("reason", "").lower()
+    description = body.get("description", "").strip()
+    
+    # Validate inputs
+    valid_target_types = ["post", "comment", "user", "message"]
+    valid_reasons = ["spam", "inappropriate_content", "harassment", "misinformation", "copyright", "other"]
+    
+    if not target_type or target_type not in valid_target_types:
+        return _json_error(f"Invalid target_type. Must be one of: {', '.join(valid_target_types)}", 400)
+    
+    if not target_id:
+        return _json_error("target_id is required", 400)
+    
+    if not reason or reason not in valid_reasons:
+        return _json_error(f"Invalid reason. Must be one of: {', '.join(valid_reasons)}", 400)
+    
+    # Prevent users from reporting their own content
+    if target_type == "post":
+        post = get_object_or_404(Post, id=target_id)
+        if post.user_id == reporter.id:
+            return _json_error("Bạn không thể báo cáo bài viết của chính mình", 400)
+        # Ensure the post exists and is accessible
+    elif target_type == "comment":
+        comment = get_object_or_404(Comment, id=target_id)
+        if comment.user_id == reporter.id:
+            return _json_error("Bạn không thể báo cáo bình luận của chính mình", 400)
+    elif target_type == "user":
+        target_user = get_object_or_404(User, id=target_id)
+        if target_user.id == reporter.id:
+            return _json_error("Bạn không thể báo cáo chính mình", 400)
+    
+    # Check if user already reported this content (prevent duplicate reports)
+    existing_report = Report.objects.filter(
+        user_id=reporter.id,
+        target_type=target_type,
+        target_id=target_id,
+        status="pending"
+    ).first()
+    
+    if existing_report:
+        return _json_error("Bạn đã báo cáo nội dung này rồi", 400)
+    
+    # Create the report
+    try:
+        report = Report.objects.create(
+            id=_generate_id("rep"),
+            user_id=reporter.id,
+            target_type=target_type,
+            target_id=target_id,
+            reason=reason,
+            description=description,
+            status="pending",
+            created_at=timezone.now(),
+            updated_at=timezone.now(),
+        )
+        
+        return _json_success(
+            "Báo cáo đã được gửi thành công",
+            {
+                "report_id": report.id,
+                "status": report.status,
+                "created_at": report.created_at.isoformat() if report.created_at else None,
+            },
+            201
+        )
+    except Exception as e:
+        return _json_error(f"Lỗi khi tạo báo cáo: {str(e)}", 500)

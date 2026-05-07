@@ -5,7 +5,28 @@ export function getMessagePreview(message) {
   if (message.message_type === "file") {
     return message.original_filename || "Đã gửi một file";
   }
-  return message.content || "Tin nhắn";
+  // If content is a JSON string from a shared post/podcast, try to parse and show a friendly preview
+  const content = message.content;
+  if (typeof content === "string") {
+    const trimmed = content.trim();
+    if (trimmed.startsWith("{")) {
+      try {
+        const obj = JSON.parse(trimmed);
+        // Known shared payloads include type: 'podcast' or similar and have a title/caption
+        if (obj && typeof obj === "object") {
+          const title = obj.title || obj.name || obj.caption || obj.post_title;
+          if (title) return title;
+          // fallback to a generic shared label
+          if (obj.type === "podcast") return "Đã chia sẻ một podcast";
+          if (obj.post_id || obj.type) return "Đã chia sẻ một bài viết";
+        }
+      } catch (e) {
+        // Not JSON, fall through
+      }
+    }
+  }
+
+  return content || "Tin nhắn";
 }
 
 export function getFileNameFromUrl(url = "") {

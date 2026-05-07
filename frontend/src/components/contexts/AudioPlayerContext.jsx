@@ -28,6 +28,19 @@ export function AudioPlayerProvider({ children }) {
   const [duration, setDuration] = useState(0)
   const [volume, setVolume] = useState(80)
   const [trackProgressMap, setTrackProgressMap] = useState({})
+  const [isSeeking, setIsSeeking] = useState(false)
+
+  useEffect(() => {
+    const savedProgress = localStorage.getItem('audioPlayerProgress')
+    if (savedProgress) {
+      try {
+        progressRef.current = JSON.parse(savedProgress)
+        setTrackProgressMap(progressRef.current)
+      } catch (err) {
+        console.error('Failed to load progress from localStorage:', err)
+      }
+    }
+  }, [])
 
   const getSavedProgress = useCallback((track) => {
     if (!track?.id) return null
@@ -46,6 +59,12 @@ export function AudioPlayerProvider({ children }) {
       ...prev,
       [trackId]: progressRef.current[trackId],
     }))
+
+    try {
+      localStorage.setItem('audioPlayerProgress', JSON.stringify(progressRef.current))
+    } catch (err) {
+      console.error('Failed to save progress to localStorage:', err)
+    }
   }, [])
 
   useEffect(() => {
@@ -53,10 +72,27 @@ export function AudioPlayerProvider({ children }) {
     audioRef.current.volume = volume / 100
   }, [volume])
 
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      const audio = audioRef.current
+      if (audio) {
+        audio.pause()
+        audio.src = ''
+      }
+    }
+  }, [])
+
   const trackedListenRef = useRef({})
 
   const playTrack = useCallback((track, trackQueue = []) => {
     if (!track?.audioUrl) return
+
+    const audio = audioRef.current
+    if (!audio) {
+      console.warn('Audio element not found in DOM')
+      return
+    }
 
     trackedListenRef.current[track.id] = false
 
@@ -71,16 +107,25 @@ export function AudioPlayerProvider({ children }) {
     setDuration(nextDuration)
     setPlaying(true)
 
-    const audio = audioRef.current
-    if (audio && currentTrack?.id === track.id) {
+    if (audio) {
       if (Math.abs(audio.currentTime - resumeTime) > 0.3) {
         audio.currentTime = resumeTime
       }
-      audio.play().catch((err) => {
-        console.error('Play failed:', err)
-      })
+      
+      // Add a small delay to ensure audio element is ready
+      setTimeout(() => {
+        if (audioRef.current) {
+          audioRef.current.play().catch((err) => {
+            if (err.name === 'AbortError') {
+              console.warn('Play interrupted - audio element may have been removed from DOM')
+            } else {
+              console.error('Play failed:', err)
+            }
+          })
+        }
+      }, 50)
     }
-  }, [currentTrack, getSavedProgress])
+  }, [getSavedProgress])
 
   const togglePlay = useCallback(() => {
     const audio = audioRef.current
@@ -88,7 +133,11 @@ export function AudioPlayerProvider({ children }) {
 
     if (audio.paused) {
       audio.play().catch((err) => {
-        console.error('Play failed:', err)
+        if (err.name === 'AbortError') {
+          console.warn('Play interrupted - audio element may have been removed from DOM')
+        } else {
+          console.error('Play failed:', err)
+        }
       })
     } else {
       audio.pause()
@@ -99,10 +148,50 @@ export function AudioPlayerProvider({ children }) {
     audioRef.current?.pause()
   }, [])
 
+  const pauseTrackIfDeleted = useCallback((postId) => {
+    console.log('⏸️ [AudioPlayer] pauseTrackIfDeleted called:', {
+      postId,
+      postIdType: typeof postId,
+      currentTrackId: currentTrack?.id,
+      currentTrackIdType: typeof currentTrack?.id,
+      directMatch: currentTrack?.id === postId,
+      stringMatch: String(currentTrack?.id) === String(postId),
+    })
+
+    if (currentTrack?.id === postId || String(currentTrack?.id) === String(postId)) {
+      console.log('⏸️ [AudioPlayer] MATCH FOUND - resetting player state')
+      const audio = audioRef.current
+      try {
+        audio?.pause()
+      } catch (err) {
+        console.warn('⏸️ [AudioPlayer] Failed to pause audio element:', err)
+      }
+
+      try {
+        if (audio) {
+          audio.src = ''
+          audio.load()
+        }
+      } catch (err) {
+        console.warn('⏸️ [AudioPlayer] Failed to clear audio src:', err)
+      }
+
+      setPlaying(false)
+      setCurrentTime(0)
+      setDuration(0)
+      setCurrentTrack(null)
+
+      console.log('⏸️ [AudioPlayer] Player reset: currentTrack cleared, playing=false')
+    } else {
+      console.log('⏸️ [AudioPlayer] NO MATCH - track not paused')
+    }
+  }, [currentTrack, setCurrentTime, setDuration, setCurrentTrack])
+
   const seekToPercent = useCallback((percent) => {
     const audio = audioRef.current
     if (!audio || !duration || !currentTrack?.id) return
 
+    setIsSeeking(true)
     const nextTime = (Number(percent) / 100) * duration
     audio.currentTime = nextTime
     setCurrentTime(nextTime)
@@ -278,6 +367,10 @@ export function AudioPlayerProvider({ children }) {
       setPlaying(false)
     }
 
+    const handleSeeked = () => {
+      setIsSeeking(false)
+    }
+
     audio.addEventListener('loadedmetadata', handleLoadedMetadata)
     audio.addEventListener('timeupdate', handleTimeUpdate)
     audio.addEventListener('play', handlePlay)
@@ -312,7 +405,11 @@ export function AudioPlayerProvider({ children }) {
 
       if (playing) {
         audio.play().catch((err) => {
-          console.error('Autoplay failed:', err)
+          if (err.name === 'AbortError') {
+            console.warn('Autoplay interrupted - audio element may have been removed from DOM')
+          } else {
+            console.error('Autoplay failed:', err)
+          }
           setPlaying(false)
         })
       }
@@ -345,6 +442,7 @@ export function AudioPlayerProvider({ children }) {
     playTrack,
     togglePlay,
     pause,
+    pauseTrackIfDeleted,
     seekToPercent,
     seekToTime,
     playNext,
@@ -362,10 +460,12 @@ export function AudioPlayerProvider({ children }) {
     playTrack,
     togglePlay,
     pause,
+    pauseTrackIfDeleted,
     seekToPercent,
     seekToTime,
     playNext,
     playPrev,
+    isSeeking,
   ])
 
   return (

@@ -1,3 +1,4 @@
+from django.utils import timezone
 import uuid
 from django.db import models
 
@@ -20,6 +21,7 @@ class User(models.Model):
     STATUS_CHOICES = (
         ("active", "Active"),
         ("inactive", "Inactive"),
+        ("locked", "Locked"),
         ("suspended", "Suspended"),
         ("banned", "Banned"),
     )
@@ -44,6 +46,7 @@ class User(models.Model):
 
     # DB hiện tại đang dùng last_login_at
     last_login_at = models.DateTimeField(null=True, blank=True)
+    
 
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -69,6 +72,7 @@ class User(models.Model):
     def is_anonymous(self):
         return False
 
+        
 
 # ==========================================
 # PROFILE CỦA USER
@@ -165,3 +169,76 @@ class RefreshToken(models.Model):
 
     def __str__(self):
         return f"RefreshToken - {self.user.username}"
+    
+class UserLockLog(models.Model):
+    LOCK_TYPE_CHOICES = (
+        ("temporary", "Temporary"),
+        ("permanent", "Permanent"),
+    )
+
+    id = models.CharField(primary_key=True, max_length=26, default=generate_id, editable=False)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name="lock_logs",
+        db_column="user_id",
+    )
+    locked_by = models.ForeignKey(
+        User,
+        on_delete=models.RESTRICT,
+        related_name="created_lock_logs",
+        db_column="locked_by_id",
+    )
+    reason = models.TextField()
+    lock_type = models.CharField(max_length=20, choices=LOCK_TYPE_CHOICES, default="temporary")
+    locked_at = models.DateTimeField(default=timezone.now)
+    locked_until = models.DateTimeField(null=True, blank=True)
+    unlocked_at = models.DateTimeField(null=True, blank=True)
+    unlocked_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="resolved_lock_logs",
+        db_column="unlocked_by_id",
+    )
+    unlock_reason = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = "user_lock_logs"
+        app_label = "users"
+        ordering = ["-locked_at", "-created_at"]
+
+    def __str__(self):
+        return f"LockLog - {self.user_id} - {self.lock_type}"
+
+
+class UserTagPreference(models.Model):
+    """Tags yêu thích của user để lọc feed theo tags"""
+    id = models.CharField(max_length=26, primary_key=True, default=generate_id, editable=False)
+    user = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        db_column='user_id',
+        related_name='tag_preferences'
+    )
+    tag = models.ForeignKey(
+        'content.Tag',
+        on_delete=models.CASCADE,
+        db_column='tag_id',
+        related_name='user_preferences'
+    )
+    score = models.FloatField(default=1.0)  # Mức độ yêu thích
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'user_tag_preferences'
+        app_label = 'users'
+        unique_together = ('user', 'tag')
+        ordering = ['-score', '-created_at']
+
+    def __str__(self):
+        return f"{self.user_id} - Tag {self.tag.name} (score: {self.score})"

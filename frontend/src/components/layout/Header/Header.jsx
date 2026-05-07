@@ -6,7 +6,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { getInitials } from '../../../utils/getInitials'
 import NotificationPanel from '../NotificationPanel/NotificationPanel'
 
-export default function Header() {
+export default function Header({ hideGlobalProgress = false }) {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
   const [query, setQuery] = useState('')
@@ -107,7 +107,11 @@ export default function Header() {
             type="button"
           >
             <div className={styles.avatar}>
-              <span className={styles.avatarFallback}>{avatarFallback}</span>
+              {user?.avatar_url ? (
+                <img src={user.avatar_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              ) : (
+                <span className={styles.avatarFallback}>{avatarFallback}</span>
+              )}
             </div>
             <ChevronDown
               size={14}
@@ -118,7 +122,11 @@ export default function Header() {
           <div className={`${styles.dropdownMenu} ${openMenu ? styles.dropdownMenuOpen : ''}`}>
             <div className={styles.dropdownHeader}>
               <div className={styles.dropdownAvatar}>
-                <span className={styles.avatarFallback}>{avatarFallback}</span>
+                {user?.avatar_url ? (
+                  <img src={user.avatar_url} alt={displayName} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+                ) : (
+                  <span className={styles.avatarFallback}>{avatarFallback}</span>
+                )}
               </div>
               <div className={styles.dropdownMeta}>
                 <strong>{displayName}</strong>

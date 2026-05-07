@@ -3,6 +3,7 @@ from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.tokens import UntypedToken
 
 from .models import User
+from .utils import build_locked_message, get_active_lock, sync_user_lock_status, unlock_expired_lock_for_user
 
 
 # ==========================================
@@ -38,4 +39,13 @@ class CustomJWTAuthentication(BaseAuthentication):
         except User.DoesNotExist:
             raise AuthenticationFailed("Không tìm thấy người dùng.")
 
+        user = unlock_expired_lock_for_user(user)
+        sync_user_lock_status(user)
+        active_lock = get_active_lock(user)
+        if active_lock:
+            raise AuthenticationFailed(build_locked_message(user))
+        if user.status != "active":
+            if user.status == "locked":
+                raise AuthenticationFailed("Tài khoản của bạn đang bị khóa.")
+            raise AuthenticationFailed("Tài khoản hiện không hoạt động.")
         return (user, validated_token)

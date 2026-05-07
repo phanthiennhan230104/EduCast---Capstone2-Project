@@ -1,4 +1,5 @@
-import { Button, Card, Input, Progress, Space, Typography, Modal } from 'antd'
+import { Button, Card, Input, Space, Typography, Modal } from 'antd'
+import { createPortal } from 'react-dom'
 import {
   DownloadOutlined,
   PlayCircleOutlined,
@@ -81,7 +82,6 @@ export default function GenerateSection({ vm }) {
               />
             </div>
             <Text className={styles.subText}>{vm.procStep}</Text>
-            <Progress percent={vm.progress} status="active" />
           </Space>
         </Card>
       )}

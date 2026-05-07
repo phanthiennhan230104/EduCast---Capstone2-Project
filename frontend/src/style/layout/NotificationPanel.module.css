@@ -14,12 +14,17 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  transition: all 0.2s ease;
+  transition: all 0.3s ease;
 }
 
 .bellBtn:hover {
   background: rgba(113, 146, 247, 0.15);
   color: #7192f7;
+  transform: scale(1.05);
+}
+
+.bellBtn:active {
+  transform: scale(0.95);
 }
 
 .badge {
@@ -38,28 +43,50 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 8px rgba(255, 107, 107, 0.3);
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
 }
 
 .panel {
   position: absolute;
   top: 100%;
   right: 0;
-  margin-top: 10px;
-  width: 310px;
-  max-height: 500px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(20, 28, 55, 1), rgba(20, 28, 55, 0.95));
-  border: 1px solid rgba(113, 146, 247, 0.1);
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  margin-top: 12px;
+  width: 350px;
+  max-height: 550px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.98), rgba(20, 28, 55, 0.98));
+  border: 1px solid rgba(113, 146, 247, 0.15);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(113, 146, 247, 0.1);
   display: flex;
   flex-direction: column;
   z-index: 1000;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(15px);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .panelHeader {
-  padding: 10px 16px;
-  border-bottom: 1px solid rgba(113, 146, 247, 0.08);
+  padding: 16px;
+  border-bottom: 1px solid rgba(113, 146, 247, 0.12);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -72,25 +99,6 @@
   font-weight: 700;
   color: #f5f7fb;
   letter-spacing: 0px;
-}
-
-.closeBtn {
-  width: 30px;
-  height: 30px;
-  border: none;
-  background: rgba(113, 146, 247, 0.1);
-  color: #7192f7;
-  border-radius: 8px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-}
-
-.closeBtn:hover {
-  background: rgba(113, 146, 247, 0.2);
-  color: #9bb1ff;
 }
 
 .panelBody {
