@@ -46,164 +46,152 @@ function App() {
         <PodcastProvider>
           <TagFilterProvider>
             <BrowserRouter>
-              <Routes>
-                <Route path="/" element={<RootRedirect />} />
+            <Routes>
+              <Route path="/" element={<RootRedirect />} />
 
-                <Route
-                  path="/feed"
-                  element={
-                    <ProtectedRoute>
-                      <FeedPage />
-                    </ProtectedRoute>
-                  }
-                />
+              <Route
+                path="/feed"
+                element={
+                  <ProtectedRoute>
+                    <FeedPage />
+                  </ProtectedRoute>
+                }
+              />
 
-                <Route
-                  path="/search"
-                  element={
-                    <ProtectedRoute>
-                      <SearchResultsPage />
-                    </ProtectedRoute>
-                  }
-                />
+              <Route
+                path="/search"
+                element={
+                  <ProtectedRoute>
+                    <SearchResultsPage />
+                  </ProtectedRoute>
+                }
+              />
 
-                <Route
-                  path="/admin"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AdminPage />
-                    </ProtectedRoute>
-                  }
-                />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminPage />
+                  </ProtectedRoute>
+                }
+              />
 
-                <Route
-                  path="/admin/users"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AdminUsersPage />
-                    </ProtectedRoute>
-                  }
-                />
+              <Route
+                path="/admin/users"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminUsersPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/stats"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminStatsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/moderation"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminContentModerationPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/system"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminSystemPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/create-audio"
+                element={
+                  <ProtectedRoute>
+                    <CreateAudioPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/edit/:postId"
+                element={
+                  <ProtectedRoute>
+                    <EditAudioPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/favorites"
+                element={
+                  <ProtectedRoute>
+                    <FavoritesPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/community"
+                element={
+                  <ProtectedRoute>
+                    <CommunityPage />
+                  </ProtectedRoute>
+                }
+              />
 
-                <Route
-                  path="/admin/stats"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AdminStatsPage />
-                    </ProtectedRoute>
-                  }
-                />
+              <Route
+                path="/messages"
+                element={
+                  <ProtectedRoute>
+                    <MainLayout>
+                      <ChatPage />
+                    </MainLayout>
+                  </ProtectedRoute>
+                }
+              />
 
-                <Route
-                  path="/admin/moderation"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AdminContentModerationPage />
-                    </ProtectedRoute>
-                  }
-                />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
 
-                <Route
-                  path="/admin/system"
-                  element={
-                    <ProtectedRoute requireAdmin>
-                      <AdminSystemPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/create-audio"
-                  element={
-                    <ProtectedRoute>
-                      <CreateAudioPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/edit/:postId"
-                  element={
-                    <ProtectedRoute>
-                      <EditAudioPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/favorites"
-                  element={
-                    <ProtectedRoute>
-                      <FavoritesPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/community"
-                  element={
-                    <ProtectedRoute>
-                      <CommunityPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/messages"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout>
-                        <ChatPage />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/settings"
-                  element={
-                    <ProtectedRoute>
-                      <SettingsPage />
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/profile"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout rightPanel={false}>
-                        <PersonalPageComponent />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/profile/:username"
-                  element={
-                    <ProtectedRoute>
-                      <MainLayout rightPanel={false}>
-                        <PersonalPageComponent />
-                      </MainLayout>
-                    </ProtectedRoute>
-                  }
-                />
-
-                <Route
-                  path="/publish-post"
-                  element={
-                    <ProtectedRoute>
-                      <PublishPostPage />
-                    </ProtectedRoute>
-                  }
-                />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute>
+                    <MainLayout rightPanel={false}>
+                      <PersonalPageComponent />
+                    </MainLayout>
+                  </ProtectedRoute>
+                }
+              />
+            <Route
+              path="/settings"
+              element={
+                <ProtectedRoute>
+                  <SettingsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route 
+              path="/publish-post"
+              element={
+                <ProtectedRoute>
+                  <PublishPostPage />
+                </ProtectedRoute>
+              }
+            />
 
 
-                <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-              <AssistantWidget />
-            </BrowserRouter>
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </BrowserRouter>
           </TagFilterProvider>
         </PodcastProvider>
       </AudioPlayerProvider>

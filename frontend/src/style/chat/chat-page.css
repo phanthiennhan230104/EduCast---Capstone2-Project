@@ -13,6 +13,7 @@
   min-height: 0;
 }
 
+
 .chat-layout {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr) 320px;

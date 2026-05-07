@@ -15,7 +15,6 @@ Quy tắc bắt buộc:
 - Nội dung phải rõ ràng, hữu ích, tự nhiên, phù hợp để đăng feed giáo dục trên EduCast.
 """.strip()
 
-
 def build_json_schema_hint(intent: str) -> str:
     return f"""
 Return exactly one valid JSON object with this schema:

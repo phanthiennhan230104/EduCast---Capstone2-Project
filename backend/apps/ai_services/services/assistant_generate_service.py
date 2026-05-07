@@ -14,7 +14,6 @@ from apps.ai_services.services.assistant_response_parser import (
 )
 from apps.content.services.post_search_service import search_published_posts
 
-
 SEARCH_POSTS_TOOL = {
     "type": "function",
     "function": {

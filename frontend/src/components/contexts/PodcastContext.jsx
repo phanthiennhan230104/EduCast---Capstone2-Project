@@ -8,10 +8,8 @@ export const PodcastProvider = ({ children }) => {
   const [savedPostIds, setSavedPostIds] = useState(new Set())
   const [hiddenPostIds, setHiddenPostIds] = useState(new Set())
   const [deletedPostIds, setDeletedPostIds] = useState(new Set())
-
   const [deletedPostsVersion, setDeletedPostsVersion] = useState(0)
   const [hiddenPostsVersion, setHiddenPostsVersion] = useState(0)
-  
   const [collections, setCollections] = useState([])
   const [collectionsVersion, setCollectionsVersion] = useState(0)
 

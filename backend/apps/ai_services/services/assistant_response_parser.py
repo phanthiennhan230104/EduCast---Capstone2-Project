@@ -10,7 +10,6 @@ from apps.ai_services.serializers import AssistantGeneratedPayloadSerializer
 def _clean_text(raw_text: str) -> str:
     return (raw_text or "").strip()
 
-
 def _extract_json_from_fenced_block(text: str) -> dict[str, Any] | None:
     matches = re.findall(r"```json\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
     for candidate in matches:

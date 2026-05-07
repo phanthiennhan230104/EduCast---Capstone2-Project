@@ -1,6 +1,5 @@
 from django.http import HttpResponse
 
-
 class SimpleCORSMiddleware:
     ALLOWED_ORIGINS = {
         "http://localhost:5173",

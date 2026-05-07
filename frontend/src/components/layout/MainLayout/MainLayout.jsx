@@ -8,6 +8,7 @@ import { useLocation } from 'react-router-dom'
 import { PodcastContext } from '../../contexts/PodcastContext'
 import { useAudioPlayer } from '../../contexts/AudioPlayerContext'
 
+
 export default function MainLayout({
   children,
   rightPanel = true,

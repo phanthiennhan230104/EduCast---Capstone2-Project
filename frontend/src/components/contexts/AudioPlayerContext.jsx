@@ -7,7 +7,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { useAuth } from './AuthContext'
+import { AuthContext } from './AuthContext'
 
 const AudioPlayerContext = createContext(null)
 
@@ -19,7 +19,8 @@ function formatTime(seconds) {
 }
 
 export function AudioPlayerProvider({ children }) {
-  const { user } = useAuth()
+  const authCtx = useContext(AuthContext)
+  const user = authCtx?.user || null
   const progressRef = useRef({})
   const audioRef = useRef(null)
 
@@ -275,6 +276,7 @@ export function AudioPlayerProvider({ children }) {
       return
     }
 
+    
     const currentIndex = queue.findIndex((item) => item.id === currentTrack.id)
     if (currentIndex <= 0) return
 

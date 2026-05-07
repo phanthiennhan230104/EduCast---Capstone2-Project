@@ -308,6 +308,7 @@ export default function ChatPage() {
     }
   };
 
+  
   useEffect(() => {
     const handleChatMessageSent = async (event) => {
       const roomId = event.detail?.roomId;
