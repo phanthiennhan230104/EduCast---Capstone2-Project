@@ -41,12 +41,6 @@ class FeedService:
                 print(f"⚠️ Hidden posts table issue: {str(e)}")
                 # Continue without filtering if table doesn't exist or query fails
 
-            hidden_post_ids = HiddenPost.objects.filter(
-                user_id=user.id
-            ).values_list("post_id", flat=True)
-
-            posts_qs = posts_qs.exclude(id__in=hidden_post_ids)
-
             # Filter by tags if provided
             if tag_ids:
                 posts_qs = posts_qs.filter(post_tags__tag_id__in=tag_ids).distinct()

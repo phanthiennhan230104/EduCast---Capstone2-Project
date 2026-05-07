@@ -1275,14 +1275,7 @@ def track_listen(request, post_id):
     if not user:
         return _json_error("Authentication required", 401)
 
-    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract actual post ID
-    actual_post_id = post_id
-    if post_id.startswith('share_'):
-        parts = post_id.split('_')
-        if len(parts) >= 3:
-            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
-
-    post = get_object_or_404(Post, id=actual_post_id)
+    post = get_object_or_404(Post, id=post_id)
 
     progress = int(body.get("progress_seconds", 0) or 0)
     duration = int(body.get("duration_seconds", 0) or 0)

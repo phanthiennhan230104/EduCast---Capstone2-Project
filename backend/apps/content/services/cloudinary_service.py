@@ -44,40 +44,6 @@ def get_audio_duration_from_api(public_id, resource_type="video"):
         print(f"Cloudinary API error for {public_id}: {e}")
         return None
 
-def get_audio_duration_from_api(public_id, resource_type="video"):
-    if not public_id:
-        return None
-
-    try:
-        resource = cloudinary.api.resource(
-            public_id,
-            resource_type=resource_type,
-            type="upload",
-            media_metadata=True,
-        )
-
-        duration = resource.get("duration")
-
-        if duration is None:
-            media_metadata = resource.get("media_metadata") or {}
-            duration = media_metadata.get("duration")
-
-        if duration is None:
-            video_metadata = resource.get("video") or {}
-            duration = video_metadata.get("duration")
-
-        if duration is None:
-            print(f"No duration found for {public_id}")
-            print("Cloudinary keys:", resource.keys())
-            print("media_metadata:", resource.get("media_metadata"))
-            return None
-
-        return int(round(float(duration)))
-
-    except Exception as e:
-        print(f"Cloudinary API error for {public_id}: {e}")
-        return None
-
 def upload_file_to_cloudinary(file, folder="educast/files", resource_type="auto"):
     result = cloudinary.uploader.upload(
         file,

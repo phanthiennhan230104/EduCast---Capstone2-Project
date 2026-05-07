@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import { getCategories, getTopics, publishPost, uploadAudioFile } from '../../utils/contentApi'
 import styles from '../../style/pages/PublishPostPage/PublishPostPage.module.css'
@@ -178,6 +177,7 @@ export default function PublishPostPage() {
     )
   }
 
+  
   const addNewTopic = () => {
     const normalized = normalizeTopicName(newTopicInput)
 
