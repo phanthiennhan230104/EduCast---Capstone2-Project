@@ -86,13 +86,33 @@ export default function Feed() {
 
       const nextSync = { ...oldSync }
 
-      if (typeof d.liked === 'boolean') nextSync.liked = d.liked
-      if (typeof d.likeCount === 'number') nextSync.likeCount = d.likeCount
-      if (typeof d.saved === 'boolean') nextSync.saved = d.saved
-      if (typeof d.saveCount === 'number') nextSync.saveCount = d.saveCount
-      if (typeof d.commentCount === 'number') nextSync.commentCount = d.commentCount
+        localStorage.setItem(`post-sync-${d.postId}`, JSON.stringify(nextSync))
 
-      localStorage.setItem(`post-sync-${d.postId}`, JSON.stringify(nextSync))
+      // Defer state updates to avoid React "setState during render" errors
+      // when events are dispatched synchronously from child components.
+      setTimeout(() => {
+        setPodcasts((prev) =>
+          prev.map((p) =>
+            String(p.id) === String(d.postId)
+              ? {
+                  ...p,
+                  liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
+                  likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
+                  saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+                  saveCount:
+                    typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+                  comments:
+                    typeof d.commentCount === 'number'
+                      ? d.commentCount
+                      : p.comments,
+                  comment_count:
+                    typeof d.commentCount === 'number'
+                      ? d.commentCount
+                      : p.comment_count,
+                }
+              : p
+          )
+        )
 
       // Defer state updates to avoid React "setState during render" errors
       // when events are dispatched synchronously from child components.

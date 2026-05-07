@@ -12,6 +12,6 @@ export async function sendAssistantMessage({
       history,
       context,
     }),
-    credentials: 'include', // nếu backend cần cookie; không cần thì bỏ dòng này
+    credentials: 'include',
   })
 }
