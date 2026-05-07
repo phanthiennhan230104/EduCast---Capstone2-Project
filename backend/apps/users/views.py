@@ -298,8 +298,16 @@ def get_user_profile(request, user_id):
         
         # Get follower/following counts
         from apps.social.models import Follow
+        from apps.content.models import Post
+        
         followers_count = Follow.objects.filter(following_id=user_id).count()
         following_count = Follow.objects.filter(follower_id=user_id).count()
+        
+        # Get podcast count (published posts by this user)
+        podcast_count = Post.objects.filter(
+            user_id=user_id,
+            status="published"
+        ).count()
         
         return Response(
             {
@@ -313,6 +321,7 @@ def get_user_profile(request, user_id):
                     "bio": profile.bio if profile else "",
                     "followers_count": followers_count,
                     "following_count": following_count,
+                    "podcast_count": podcast_count,
                     "preferred_language": profile.preferred_language if profile else "vi",
                 }
             },

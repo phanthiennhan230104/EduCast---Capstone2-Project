@@ -985,6 +985,7 @@ class UserPostsAPIView(APIView):
         from apps.social.models import PostShare
         
         author_name = post.user.username
+        author_username = post.user.username  # Always include username
         if hasattr(post.user, 'profile') and post.user.profile:
             author_name = post.user.profile.display_name or post.user.username
         
@@ -1004,11 +1005,32 @@ class UserPostsAPIView(APIView):
             post_id=post.id
         ).exists() if request_user_id else False
         
-        # Lấy counts thực tế từ bài gốc (cả bài share và bài gốc đều dùng counts của bài gốc)
-        like_count = PostLike.objects.filter(post_id=post.id).count()
-        comment_count = Comment.objects.filter(post_id=post.id).count()
-        save_count = SavedPost.objects.filter(post_id=post.id).count()
-        share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
+        # For shared posts, get counts for the share itself; for original posts, use post counts
+        if share_info and share_info.get("share_id"):
+            # Shared post: get counts for this specific share
+            share_id = share_info.get("share_id")
+            # Check if user liked/saved this share specifically
+            is_liked = PostLike.objects.filter(
+                user_id=request_user_id,
+                share_id=share_id
+            ).exists() if request_user_id else False
+            
+            is_saved = SavedPost.objects.filter(
+                user_id=request_user_id,
+                share_id=share_id
+            ).exists() if request_user_id else False
+            
+            # Get counts for this share
+            like_count = PostLike.objects.filter(share_id=share_id).count()
+            comment_count = Comment.objects.filter(share_id=share_id).count()
+            save_count = SavedPost.objects.filter(share_id=share_id).count()
+            share_count = 0  # Shares of shares don't make sense
+        else:
+            # Original post: get counts from the post itself
+            like_count = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            comment_count = Comment.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            save_count = SavedPost.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
         
         post_data = {
             "id": post.id,
@@ -1019,6 +1041,7 @@ class UserPostsAPIView(APIView):
             "dialogue_script": post.dialogue_script,
             "transcript_text": post.transcript_text,
             "author": author_name,
+            "author_username": author_username,  # Add username field
             "author_id": post.user.id,
             "author_avatar": author_avatar,
             "thumbnail_url": post.thumbnail_url,
@@ -1042,6 +1065,7 @@ class UserPostsAPIView(APIView):
             "share_count": share_count,
             "is_liked": is_liked,
             "is_saved": is_saved,
+            "tags": [{"id": tag.id, "name": tag.name} for tag in Tag.objects.filter(tag_posts__post_id=post.id)],
         }
         
         # Add share info if provided

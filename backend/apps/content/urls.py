@@ -29,6 +29,7 @@ urlpatterns = [
     path("upload-audio/", TestCloudinaryUploadView.as_view(), name="upload-audio"),
     path("feed/", FeedAPIView.as_view(), name="feed"),
     path("search/", SearchAPIView.as_view(), name="search"),
+    path("posts/<str:post_id>/", PostDetailView.as_view(), name="post-detail"),
     path("users/<str:user_id>/posts/", UserPostsAPIView.as_view(), name="user-posts"),
 
     path("drafts/", DraftCreateView.as_view(), name="draft-create"),
