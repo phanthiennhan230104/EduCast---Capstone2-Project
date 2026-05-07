@@ -5,7 +5,7 @@ import {
   useRef,
   useState,
 } from 'react'
-import { useLocation, useSearchParams } from 'react-router-dom'
+import { useLocation } from 'react-router-dom'
 import { toast } from 'react-toastify'
 
 import PodcastCard from './PodcastCard'
@@ -30,14 +30,10 @@ const POST_SYNC_EVENT = 'post-sync-updated'
 
 export default function Feed() {
   const location = useLocation()
-  const [searchParams, setSearchParams] = useSearchParams()
 
   const { selectedTagIds } = useTagFilter()
-  const {
-    setSavedPostIds_batch,
-    deletePost,
-    hidePost,
-  } = useContext(PodcastContext)
+  const { setSavedPostIds_batch, deletePost, hidePost } =
+    useContext(PodcastContext)
 
   const { pauseTrackIfDeleted, currentTrack } = useAudioPlayer()
 
@@ -84,18 +80,19 @@ export default function Feed() {
         localStorage.getItem(`post-sync-${d.postId}`) || '{}'
       )
 
-      const nextSync = { ...oldSync }
-
-      if (typeof d.liked === 'boolean') nextSync.liked = d.liked
-      if (typeof d.likeCount === 'number') nextSync.likeCount = d.likeCount
-      if (typeof d.saved === 'boolean') nextSync.saved = d.saved
-      if (typeof d.saveCount === 'number') nextSync.saveCount = d.saveCount
-      if (typeof d.commentCount === 'number') nextSync.commentCount = d.commentCount
+      const nextSync = {
+        ...oldSync,
+        ...(typeof d.liked === 'boolean' ? { liked: d.liked } : {}),
+        ...(typeof d.likeCount === 'number' ? { likeCount: d.likeCount } : {}),
+        ...(typeof d.saved === 'boolean' ? { saved: d.saved } : {}),
+        ...(typeof d.saveCount === 'number' ? { saveCount: d.saveCount } : {}),
+        ...(typeof d.commentCount === 'number'
+          ? { commentCount: d.commentCount }
+          : {}),
+      }
 
       localStorage.setItem(`post-sync-${d.postId}`, JSON.stringify(nextSync))
 
-      // Defer state updates to avoid React "setState during render" errors
-      // when events are dispatched synchronously from child components.
       setTimeout(() => {
         setPodcasts((prev) =>
           prev.map((p) =>
@@ -103,10 +100,15 @@ export default function Feed() {
               ? {
                   ...p,
                   liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
-                  likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
+                  likes:
+                    typeof d.likeCount === 'number'
+                      ? d.likeCount
+                      : p.likes,
                   saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
                   saveCount:
-                    typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+                    typeof d.saveCount === 'number'
+                      ? d.saveCount
+                      : p.saveCount,
                   comments:
                     typeof d.commentCount === 'number'
                       ? d.commentCount
@@ -125,7 +127,10 @@ export default function Feed() {
             ? {
                 ...prev,
                 liked: typeof d.liked === 'boolean' ? d.liked : prev.liked,
-                likes: typeof d.likeCount === 'number' ? d.likeCount : prev.likes,
+                likes:
+                  typeof d.likeCount === 'number'
+                    ? d.likeCount
+                    : prev.likes,
                 saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
                 saveCount:
                   typeof d.saveCount === 'number'
