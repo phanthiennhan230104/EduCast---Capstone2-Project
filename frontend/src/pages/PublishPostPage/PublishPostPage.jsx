@@ -177,6 +177,7 @@ export default function PublishPostPage() {
     )
   }
 
+  
   const addNewTopic = () => {
     const normalized = normalizeTopicName(newTopicInput)
 
