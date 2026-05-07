@@ -1834,7 +1834,7 @@ Hành động này không thể hoàn tác."
           postId={podcast.id}
           onSave={handleCollectionModalSave}
           triggerRef={saveButtonRef}
-          isPopup={true}
+          isPopup={false}
         />,
         document.body
       ),
