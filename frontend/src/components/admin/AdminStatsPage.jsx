@@ -1,66 +1,55 @@
-import { BarChart3, Clock3, Sparkles, TrendingUp } from "lucide-react";
-import AdminLayout from "./AdminLayout";
-import "../../style/admin/admin-stats-page.css";
+import { useEffect, useState } from "react"
+import { BarChart3, Clock3, Sparkles, TrendingUp } from "lucide-react"
+import AdminLayout from "./AdminLayout"
+import { getAdminOverview } from "../../utils/usersApi"
+import { toast } from "react-toastify"
+import "../../style/admin/admin-stats-page.css"
 
 function formatSubtitle() {
-  const today = new Date();
-  const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"];
-  const dayName = days[today.getDay()];
-  const date = String(today.getDate()).padStart(2, "0");
-  const month = today.getMonth() + 1;
-  const year = today.getFullYear();
-  return `EduCast · ${dayName}, ${date} tháng ${month}, ${year}`;
+  const today = new Date()
+  const days = ["Chủ Nhật", "Thứ Hai", "Thứ Ba", "Thứ Tư", "Thứ Năm", "Thứ Sáu", "Thứ Bảy"]
+  const dayName = days[today.getDay()]
+  const date = String(today.getDate()).padStart(2, "0")
+  const month = today.getMonth() + 1
+  const year = today.getFullYear()
+  return `EduCast · ${dayName}, ${date} tháng ${month}, ${year}`
 }
 
 const mockData = {
   header: {
     title: "THỐNG KÊ",
     subtitle: formatSubtitle(),
-    online_users: 1255,
+    online_users: 0,
   },
   overview: [
     {
       key: "avg_session",
       title: "THỜI GIAN PHIÊN TB",
-      display_value: "14m 22s",
-      change: 22.4,
+      display_value: "0m 00s",
+      change: 0,
     },
     {
       key: "completion_rate",
       title: "TỈ LỆ NGHE HẾT",
-      display_value: "68.4%",
-      change: 5.1,
+      display_value: "0%",
+      change: 0,
     },
     {
       key: "ai_content_rate",
       title: "TỈ LỆ TẠO NỘI DUNG",
-      display_value: "12.7%",
-      change: 3.2,
+      display_value: "0%",
+      change: 0,
     },
   ],
-  topic_distribution: [
-    { label: "Công Nghệ", percent: 22 },
-    { label: "Ngôn Ngữ", percent: 18 },
-    { label: "Kinh Doanh", percent: 14 },
-    { label: "Khoa Học", percent: 12 },
-    { label: "Nghệ Thuật", percent: 34 },
-  ],
+  topic_distribution: [],
   daily_growth: {
     title: "TĂNG TRƯỞNG - NGƯỜI DÙNG HOẠT ĐỘNG MỚI NGÀY",
-    week_range: "2-8 Tháng 3, 2026",
-    total: 1500,
-    growth_percent: 22.4,
-    bars: [
-      { label: "T2", value: 320 },
-      { label: "T3", value: 480 },
-      { label: "T4", value: 280 },
-      { label: "T5", value: 760 },
-      { label: "T6", value: 640 },
-      { label: "T7", value: 500 },
-      { label: "CN", value: 470, is_today: true },
-    ],
+    week_range: "Đang tải...",
+    total: 0,
+    growth_percent: 0,
+    bars: Array(7).fill(null).map((_, i) => ({ label: ["T2", "T3", "T4", "T5", "T6", "T7", "CN"][i], value: 0 })),
   },
-};
+}
 
 const BAR_TONES = ["gold", "cyan", "violet", "orange", "peach"];
 
@@ -84,14 +73,123 @@ function OverviewCard({ item, icon: Icon }) {
 }
 
 export default function AdminStatsPage() {
-  const data = mockData;
-  const overview = data.overview || [];
-  const topicDistribution = data.topic_distribution || [];
-  const dailyGrowth = data.daily_growth || { bars: [] };
+  const [data, setData] = useState(mockData)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    fetchAdminStats()
+  }, [])
+
+  const fetchAdminStats = async () => {
+    try {
+      setLoading(true)
+      const response = await getAdminOverview()
+      
+      if (response && response.data && response.data.overview) {
+        const overview = response.data.overview
+        
+        // Transform API data to component format
+        const totalPosts = overview.posts.total_posts || 0
+        const aiPosts = overview.posts.ai_generated_posts || 0
+        const totalListens = overview.engagement.total_listens || 0
+        const totalViews = overview.engagement.total_views || 0
+        
+        // Calculate metrics
+        const avgCompletion = totalListens > 0 ? ((totalListens / Math.max(totalViews, 1)) * 100).toFixed(1) : 0
+        const aiContentRate = totalPosts > 0 ? ((aiPosts / totalPosts) * 100).toFixed(1) : 0
+        
+        // Prepare overview cards
+        const overviewCards = [
+          {
+            key: "total_posts",
+            title: "TỔNG PODCAST",
+            display_value: totalPosts.toLocaleString("vi-VN"),
+            change: ((overview.posts.new_posts_30d || 0) / Math.max(totalPosts, 1) * 100).toFixed(1),
+          },
+          {
+            key: "completion_rate",
+            title: "TỈ LỆ NGHE HẾT",
+            display_value: `${avgCompletion}%`,
+            change: 0,
+          },
+          {
+            key: "ai_content_rate",
+            title: "TỈ LỆ AI TẠO",
+            display_value: `${aiContentRate}%`,
+            change: 0,
+          },
+        ]
+        
+        // Prepare daily growth data (7 days)
+        const newUsers7d = overview.charts.new_users_7d || []
+        const dayLabels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]
+        const bars = newUsers7d.map((item, index) => ({
+          label: dayLabels[index],
+          value: item.count || 0,
+          is_today: index === 6,
+        }))
+        
+        const totalNewUsers = bars.reduce((sum, b) => sum + b.value, 0)
+        
+        // Get date range
+        const today = new Date()
+        const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
+        const dateRange = `${sevenDaysAgo.getDate()} - ${today.getDate()} tháng ${today.getMonth() + 1}, ${today.getFullYear()}`
+        
+        setData({
+          header: {
+            title: "THỐNG KÊ",
+            subtitle: formatSubtitle(),
+            online_users: overview.users.active_users || 0,
+          },
+          overview: overviewCards,
+          topic_distribution: [
+            { label: "Công Khai", percent: Math.round((overview.posts.public_posts / Math.max(totalPosts, 1)) * 100) },
+            { label: "Riêng Tư", percent: Math.round((overview.posts.private_posts / Math.max(totalPosts, 1)) * 100) },
+            { label: "Không Liệt Kê", percent: Math.round((overview.posts.unlisted_posts / Math.max(totalPosts, 1)) * 100) },
+            { label: "Xuất Bản", percent: Math.round((overview.posts.published_posts / Math.max(totalPosts, 1)) * 100) },
+            { label: "Nháp", percent: Math.round((overview.posts.draft_posts / Math.max(totalPosts, 1)) * 100) },
+          ],
+          daily_growth: {
+            title: "TĂNG TRƯỞNG - NGƯỜI DÙNG MỚI TRONG TUẦN",
+            week_range: dateRange,
+            total: totalNewUsers,
+            growth_percent: 0,
+            bars: bars,
+          },
+        })
+      }
+    } catch (error) {
+      console.error("Failed to fetch admin stats:", error)
+      toast.error("Lỗi tải dữ liệu thống kê", { position: "top-center" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <AdminLayout
+        title="THỐNG KÊ"
+        subtitle={formatSubtitle()}
+        onlineUsers={0}
+      >
+        <div className="admin-stats-page">
+          <div style={{ textAlign: "center", padding: "40px", color: "#888" }}>
+            Đang tải dữ liệu thống kê...
+          </div>
+        </div>
+      </AdminLayout>
+    )
+  }
+
+  const overview = data.overview || []
+  const topicDistribution = data.topic_distribution || []
+  const dailyGrowth = data.daily_growth || { bars: [] }
   const maxBarValue = Math.max(
     ...(dailyGrowth.bars || []).map((item) => item.value || 0),
     1
-  );
+  )
 
   return (
     <AdminLayout

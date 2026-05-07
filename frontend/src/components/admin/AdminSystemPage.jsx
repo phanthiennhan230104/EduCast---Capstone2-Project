@@ -1,6 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import AdminLayout from "./AdminLayout";
 import "../../style/admin/adminsystem.css";
+import {
+  getAdminSystemNotifications,
+  updateAdminSystemNotifications,
+} from "../../utils/adminApi";
 
 function formatSubtitle() {
   const today = new Date();
@@ -21,9 +25,7 @@ function SettingRow({ label, value }) {
   );
 }
 
-function ToggleRow({ label, checked: initialChecked = false }) {
-  const [checked, setChecked] = useState(initialChecked);
-
+function ToggleRow({ label, checked = false, disabled = false, onToggle }) {
   return (
     <div className="adminsystem-row">
       <span className="adminsystem-row-label">{label}</span>
@@ -31,7 +33,8 @@ function ToggleRow({ label, checked: initialChecked = false }) {
       <button
         type="button"
         className={`adminsystem-switch ${checked ? "is-on" : ""}`}
-        onClick={() => setChecked((prev) => !prev)}
+        onClick={onToggle}
+        disabled={disabled}
         aria-pressed={checked}
       >
         <span className="adminsystem-switch-thumb" />
@@ -50,6 +53,61 @@ function Section({ title, children }) {
 }
 
 export default function AdminSystemPage() {
+  const [notificationSettings, setNotificationSettings] = useState({
+    email_admin_on_new_report: true,
+    daily_statistics_report: true,
+    notify_on_new_user: false,
+  });
+
+  const [savingNotificationKey, setSavingNotificationKey] = useState(null);
+
+  useEffect(() => {
+    const fetchNotificationSettings = async () => {
+      try {
+        const data = await getAdminSystemNotifications();
+
+        setNotificationSettings({
+          email_admin_on_new_report: Boolean(data.email_admin_on_new_report),
+          daily_statistics_report: Boolean(data.daily_statistics_report),
+          notify_on_new_user: Boolean(data.notify_on_new_user),
+        });
+      } catch (error) {
+        console.error("Load admin notification settings error:", error);
+      }
+    };
+
+    fetchNotificationSettings();
+  }, []);
+
+  const handleNotificationToggle = async (key) => {
+    const oldValue = notificationSettings[key];
+    const newValue = !oldValue;
+
+    setNotificationSettings((prev) => ({
+      ...prev,
+      [key]: newValue,
+    }));
+
+    setSavingNotificationKey(key);
+
+    try {
+      await updateAdminSystemNotifications({
+        [key]: newValue,
+      });
+    } catch (error) {
+      console.error("Update admin notification setting error:", error);
+
+      setNotificationSettings((prev) => ({
+        ...prev,
+        [key]: oldValue,
+      }));
+
+      alert(error.message || "Cập nhật thất bại");
+    } finally {
+      setSavingNotificationKey(null);
+    }
+  };
+
   return (
     <AdminLayout
       title="QUẢN LÝ HỆ THỐNG"
@@ -70,9 +128,26 @@ export default function AdminSystemPage() {
         </Section>
 
         <Section title="THÔNG BÁO">
-          <ToggleRow label="Email quản trị khi có báo cáo mới" checked />
-          <ToggleRow label="Báo cáo thống kê hằng ngày" checked />
-          <ToggleRow label="Thông báo người dùng mới" checked={false} />
+          <ToggleRow
+            label="Email quản trị khi có báo cáo mới"
+            checked={notificationSettings.email_admin_on_new_report}
+            disabled={savingNotificationKey === "email_admin_on_new_report"}
+            onToggle={() => handleNotificationToggle("email_admin_on_new_report")}
+          />
+
+          <ToggleRow
+            label="Báo cáo thống kê hằng ngày"
+            checked={notificationSettings.daily_statistics_report}
+            disabled={savingNotificationKey === "daily_statistics_report"}
+            onToggle={() => handleNotificationToggle("daily_statistics_report")}
+          />
+
+          <ToggleRow
+            label="Thông báo người dùng mới"
+            checked={notificationSettings.notify_on_new_user}
+            disabled={savingNotificationKey === "notify_on_new_user"}
+            onToggle={() => handleNotificationToggle("notify_on_new_user")}
+          />
         </Section>
       </div>
     </AdminLayout>

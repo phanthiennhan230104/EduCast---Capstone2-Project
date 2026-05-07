@@ -23,4 +23,12 @@ const notify = {
     toast.warning(message, { ...defaultOptions, ...options }),
 }
 
+export const showToast = (message, type = 'info', options = {}) => {
+  if (notify[type]) {
+    notify[type](message, options)
+  } else {
+    notify.info(message, options)
+  }
+}
+
 export default notify

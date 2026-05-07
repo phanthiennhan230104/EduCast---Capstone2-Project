@@ -148,6 +148,45 @@ export function AudioPlayerProvider({ children }) {
     audioRef.current?.pause()
   }, [])
 
+  const pauseTrackIfDeleted = useCallback((postId) => {
+    console.log('⏸️ [AudioPlayer] pauseTrackIfDeleted called:', {
+      postId,
+      postIdType: typeof postId,
+      currentTrackId: currentTrack?.id,
+      currentTrackIdType: typeof currentTrack?.id,
+      directMatch: currentTrack?.id === postId,
+      stringMatch: String(currentTrack?.id) === String(postId),
+    })
+
+    if (currentTrack?.id === postId || String(currentTrack?.id) === String(postId)) {
+      console.log('⏸️ [AudioPlayer] MATCH FOUND - resetting player state')
+      const audio = audioRef.current
+      try {
+        audio?.pause()
+      } catch (err) {
+        console.warn('⏸️ [AudioPlayer] Failed to pause audio element:', err)
+      }
+
+      try {
+        if (audio) {
+          audio.src = ''
+          audio.load()
+        }
+      } catch (err) {
+        console.warn('⏸️ [AudioPlayer] Failed to clear audio src:', err)
+      }
+
+      setPlaying(false)
+      setCurrentTime(0)
+      setDuration(0)
+      setCurrentTrack(null)
+
+      console.log('⏸️ [AudioPlayer] Player reset: currentTrack cleared, playing=false')
+    } else {
+      console.log('⏸️ [AudioPlayer] NO MATCH - track not paused')
+    }
+  }, [currentTrack, setCurrentTime, setDuration, setCurrentTrack])
+
   const seekToPercent = useCallback((percent) => {
     const audio = audioRef.current
     if (!audio || !duration || !currentTrack?.id) return
@@ -403,6 +442,7 @@ export function AudioPlayerProvider({ children }) {
     playTrack,
     togglePlay,
     pause,
+    pauseTrackIfDeleted,
     seekToPercent,
     seekToTime,
     playNext,
@@ -420,6 +460,7 @@ export function AudioPlayerProvider({ children }) {
     playTrack,
     togglePlay,
     pause,
+    pauseTrackIfDeleted,
     seekToPercent,
     seekToTime,
     playNext,

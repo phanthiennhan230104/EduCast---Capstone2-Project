@@ -18,16 +18,19 @@ class SimpleCORSMiddleware:
         else:
             response = self.get_response(request)
 
-        # Set CORS headers for allowed origins
-        if origin in self.ALLOWED_ORIGINS:
+        # CORS: Only echo explicit allowed origins.
+        # Never return "*" for browser CORS, especially when credentials are involved.
+        if origin and origin in self.ALLOWED_ORIGINS:
             response["Access-Control-Allow-Origin"] = origin
             response["Access-Control-Allow-Credentials"] = "true"
             response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
             response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
             response["Access-Control-Max-Age"] = "3600"
+        elif origin:
+            # Untrusted cross-origin request: don't add CORS headers.
+            pass
         else:
-            # For any origin, allow at least basic CORS
-            response["Access-Control-Allow-Origin"] = "*"
+            # Same-origin / non-browser clients (no Origin header)
             response["Access-Control-Allow-Methods"] = "GET, POST, PUT, PATCH, DELETE, OPTIONS"
             response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"
 

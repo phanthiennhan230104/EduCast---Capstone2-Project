@@ -68,7 +68,13 @@ function CommentNode({
         <div className={styles.commentRow}>
           <div className={styles.commentBubbleWrap}>
             <div className={bubbleClass}>
-              <div className={authorClass}>
+              <div
+                className={authorClass}
+                role="button"
+                tabIndex={0}
+                onClick={() => navigate(`/profile/${item.username || item.user_id}`)}
+                onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/profile/${item.username || item.user_id}`) }}
+              >
                 {item.username || item.user_id}
               </div>
 
@@ -289,28 +295,25 @@ function CommentNode({
 
 function formatTimeAgo(date) {
   if (!date) return 'Vừa đăng'
-  
+
+  const created = new Date(date)
   const now = new Date()
-  const postDate = new Date(date)
-  const secondsAgo = Math.floor((now - postDate) / 1000)
-  
-  if (secondsAgo < 60) return 'Vừa đăng'
-  const minutesAgo = Math.floor(secondsAgo / 60)
-  if (minutesAgo < 60) return `${minutesAgo} phút trước`
-  
-  const hoursAgo = Math.floor(minutesAgo / 60)
-  if (hoursAgo < 24) return `${hoursAgo} giờ trước`
-  
-  const daysAgo = Math.floor(hoursAgo / 24)
-  if (daysAgo < 7) return `${daysAgo} ngày trước`
-  
-  const weeksAgo = Math.floor(daysAgo / 7)
-  if (weeksAgo < 4) return `${weeksAgo} tuần trước`
-  
-  const monthsAgo = Math.floor(daysAgo / 30)
-  if (monthsAgo < 12) return `${monthsAgo} tháng trước`
-  
-  return `${Math.floor(monthsAgo / 12)} năm trước`
+  const diffMs = now - created
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes < 1) return 'Vừa đăng'
+  if (diffMinutes < 60) return `${diffMinutes} phút trước`
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} giờ trước`
+
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 30) return `${diffDays} ngày trước`
+
+  const months = Math.floor(diffDays / 30)
+  if (months < 12) return `${months} tháng trước`
+
+  return `${Math.floor(months / 12)} năm trước`
 }
 
 export default function CommentModal({
@@ -367,6 +370,7 @@ export default function CommentModal({
   const replyInputRef = useRef(null)
   const menuRefs = useRef({})
   const [didInitialScroll, setDidInitialScroll] = useState(false)
+  const scrollPositionRef = useRef(0)
 
   const currentUser = getCurrentUser()
 
@@ -388,9 +392,23 @@ export default function CommentModal({
   }, [])
 
   useEffect(() => {
+    // Save scroll position when modal opens
+    const main = document.querySelector('main')
+    if (main) {
+      scrollPositionRef.current = main.scrollTop
+      console.log('💾 [CommentModal] Saved scroll position:', scrollPositionRef.current)
+    }
+    
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = ''
+      // Restore scroll position when modal closes
+      if (main) {
+        setTimeout(() => {
+          main.scrollTop = scrollPositionRef.current
+          console.log('🔄 [CommentModal] Restored scroll position:', scrollPositionRef.current)
+        }, 0)
+      }
     }
   }, [])
 
@@ -1293,6 +1311,16 @@ export default function CommentModal({
     setOpenMenuId(null)
   }
 
+  // Wrapper for onClose to restore scroll position before closing
+  const handleClose = () => {
+    const main = document.querySelector('main')
+    if (main) {
+      main.scrollTop = scrollPositionRef.current
+      console.log('🔄 [CommentModal] Restoring scroll on close:', scrollPositionRef.current)
+    }
+    onClose?.()
+  }
+
   const coverImage = podcast.cover || podcast.thumbnail_url || podcast.thumbnailUrl
   const isOwnerPost =
   podcast?.isOwner === true ||
@@ -1304,12 +1332,12 @@ export default function CommentModal({
 
   return [
       createPortal(
-        <div className={styles.overlay} onClick={onClose}>
+        <div className={styles.overlay} onClick={handleClose}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.topBar}>
           <h2 className={styles.modalTitle}>Bài viết của {podcast.author}</h2>
           <div className={styles.topBarRight}>
-            <button className={styles.closeBtn} type="button" onClick={onClose}>
+            <button className={styles.closeBtn} type="button" onClick={handleClose}>
               <X size={22} />
             </button>
           </div>

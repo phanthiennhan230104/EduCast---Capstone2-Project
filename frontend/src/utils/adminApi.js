@@ -24,7 +24,7 @@ export async function unlockUser(userId) {
 // Posts endpoints
 export async function getAdminPosts(filters = {}) {
   const params = new URLSearchParams()
-  
+
   if (filters.status) params.append('status', filters.status)
   if (filters.visibility) params.append('visibility', filters.visibility)
   if (filters.source_type) params.append('source_type', filters.source_type)
@@ -34,7 +34,7 @@ export async function getAdminPosts(filters = {}) {
 
   const query = params.toString()
   const url = `/content/admin/posts/${query ? '?' + query : ''}`
-  
+
   return apiRequest(url)
 }
 
@@ -78,4 +78,16 @@ export async function rejectReportWithPublish(postId, reportId) {
     body: JSON.stringify({ report_id: reportId }),
   })
 }
+
+export async function getAdminSystemNotifications() {
+  return apiRequest('/auth/admin/system/notifications/')
+}
+
+export async function updateAdminSystemNotifications(payload) {
+  return apiRequest('/auth/admin/system/notifications/', {
+    method: 'PATCH',
+    body: JSON.stringify(payload),
+  })
+}
+
 

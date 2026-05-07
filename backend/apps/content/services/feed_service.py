@@ -19,7 +19,6 @@ class FeedService:
                 .annotate(
                     likes_count=Count("likes", distinct=True),
                     comments_count=Count("comments", distinct=True),
-                    shares_count=Count("shares", distinct=True),
                     saves_count=Count("saved_by_users", distinct=True),
                 )
             )
@@ -36,11 +35,15 @@ class FeedService:
                 Q(user_id=user.id, status__in=["published", "draft"])
             )
 
-            hidden_post_ids = HiddenPost.objects.filter(
-                user_id=user.id
-            ).values_list("post_id", flat=True)
-
-            posts_qs = posts_qs.exclude(id__in=hidden_post_ids)
+            # Get hidden posts, but handle if table doesn't exist
+            try:
+                hidden_post_ids = HiddenPost.objects.filter(
+                    user_id=user.id
+                ).values_list("post_id", flat=True)
+                posts_qs = posts_qs.exclude(id__in=hidden_post_ids)
+            except Exception as e:
+                print(f"⚠️ Hidden posts table issue: {str(e)}")
+                # Continue without filtering if table doesn't exist
 
             # Filter by tags if provided
             if tag_ids:
@@ -56,7 +59,6 @@ class FeedService:
                 posts_qs = posts_qs.order_by(
                     "-likes_count",
                     "-comments_count",
-                    "-shares_count",
                     "-created_at",
                 )
             else:  # for_you, following, latest, and default
@@ -131,7 +133,7 @@ class FeedService:
                     "stats": {
                         "likes": post.likes_count,
                         "comments": post.comments_count,
-                        "shares": post.shares_count,
+                        "shares": post.share_count,
                         "saves": post.saves_count,
                     },
                     "viewer_state": {

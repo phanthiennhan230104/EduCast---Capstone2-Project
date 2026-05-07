@@ -19,7 +19,7 @@ function getReasonLabel(reason) {
   const reasons = {
     'spam': 'Spam',
     'inappropriate_content': 'Nội dung không phù hợp',
-    'harassment': 'Qu騷rành',
+    'harassment': 'Quấy rối',
     'misinformation': 'Thông tin sai lệch',
     'copyright': 'Vi phạm bản quyền',
     'other': 'Khác'
