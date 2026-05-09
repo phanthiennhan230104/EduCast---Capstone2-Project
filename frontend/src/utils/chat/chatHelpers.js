@@ -1,3 +1,21 @@
+import dayjs from "dayjs";
+
+export function formatChatTime(dateString) {
+  if (!dateString) return "";
+
+  const date = dayjs(dateString);
+  const now = dayjs();
+
+  const diffDays = now.startOf("day").diff(date.startOf("day"), "day");
+  const time = date.format("HH:mm");
+
+  if (diffDays === 0) return time;
+  if (diffDays === 1) return `Hôm qua ${time}`;
+  if (diffDays >= 2 && diffDays <= 7) return `${diffDays} ngày trước ${time}`;
+
+  return date.format("DD/MM/YYYY");
+}
+
 export function getMessagePreview(message) {
   if (!message) return "Chưa có tin nhắn";
   if (message.message_type === "image") return "Đã gửi một hình ảnh";

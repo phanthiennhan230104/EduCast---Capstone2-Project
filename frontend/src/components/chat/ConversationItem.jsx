@@ -1,7 +1,6 @@
 import { Avatar, Badge, Typography } from "antd";
 import { UserOutlined } from "@ant-design/icons";
-import dayjs from "dayjs";
-import { getMessagePreview } from "../../utils/chat/chatHelpers";
+import { getMessagePreview, formatChatTime } from "../../utils/chat/chatHelpers";
 
 const { Text } = Typography;
 
@@ -34,7 +33,7 @@ export default function ConversationItem({ item, active, onClick }) {
         <div className="conversation-meta">
           {lastMessage?.created_at && (
             <Text className="conversation-time">
-              {dayjs(lastMessage.created_at).format("HH:mm")}
+              {formatChatTime(lastMessage.created_at)}
             </Text>
           )}
 

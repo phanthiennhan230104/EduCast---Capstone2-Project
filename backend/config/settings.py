@@ -30,9 +30,11 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = ["*"]
 
+ASGI_APPLICATION = "config.asgi.application"
 # Application definition
 
 INSTALLED_APPS = [
+    "daphne",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -41,8 +43,8 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'apps.users.apps.UsersConfig',
     'rest_framework_simplejwt',
-    'rest_framework_simplejwt.token_blacklist',
     # Cloudinary
+    
     'channels',
     "rest_framework",
     "apps.content",

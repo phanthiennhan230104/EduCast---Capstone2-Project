@@ -8,13 +8,13 @@ import {
   FileTextOutlined,
   FileWordOutlined,
 } from "@ant-design/icons";
-import dayjs from "dayjs";
 import ChatAudioPlayer from "./ChatAudioPlayer"
 import CommentModal from "../feed/CommentModal"
 import {
   formatFileSize,
   getFileExtension,
   getFileNameFromUrl,
+  formatChatTime,
 } from "../../utils/chat/chatHelpers"
 
 
@@ -48,7 +48,7 @@ export default function MessageBubble({ message, containerRef }) {
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [podcastData, setPodcastData] = useState(null)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const messageTimeLabel = dayjs(message.created_at).format("HH:mm");
+  const messageTimeLabel = formatChatTime(message.created_at);
 
   const fileName =
     message.original_filename || getFileNameFromUrl(message.attachment_url || "");
