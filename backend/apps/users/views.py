@@ -14,6 +14,7 @@ from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 from .permissions import IsAdminRole
 from datetime import timedelta
+from django.shortcuts import get_object_or_404
 
 
 from .models import User, UserProfile, UserSettings
@@ -689,6 +690,14 @@ class UpdateUserProfileView(APIView):
             )
 
 
+class UserProfileView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, user_id):
+        profile = get_object_or_404(UserProfile, user_id=user_id)
+        serializer = UserProfileSerializer(profile)
+        return Response(serializer.data)
+    
 class AdminUsersListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 

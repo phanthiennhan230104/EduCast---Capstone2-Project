@@ -85,7 +85,6 @@ class SaveDraftWithAudioSerializer(serializers.Serializer):
     def validate(self, attrs):
         source_type = attrs.get("source_type")
         audio_url = (attrs.get("audio_url") or "").strip()
-        original_text = (attrs.get("original_text") or "").strip()
 
         if not audio_url:
             raise serializers.ValidationError({
@@ -98,11 +97,6 @@ class SaveDraftWithAudioSerializer(serializers.Serializer):
                 raise serializers.ValidationError({
                     "document_url": "Thiếu thông tin tài liệu đã upload."
                 })
-
-        if not original_text:
-            raise serializers.ValidationError({
-                "original_text": "Thiếu nội dung gốc để lưu nháp."
-            })
 
         return attrs
 

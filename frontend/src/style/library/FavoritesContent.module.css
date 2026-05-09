@@ -431,10 +431,21 @@
   top: 0;
   left: 0;
   height: 100%;
+  width: 0%;
   background: linear-gradient(90deg, #8893ff, #a8b5ff);
   border-radius: 999px;
   pointer-events: none;
   box-shadow: 0 0 10px rgba(132,146,255,0.18);
+  transition: width 0.15s linear;
+  z-index: 2;
+}
+
+.progressBar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: rgba(255,255,255,0.02);
 }
 
 .seekingIndicator {

@@ -17,6 +17,8 @@ const { Text, Title } = Typography
 const { TextArea } = Input
 
 export default function GenerateSection({ vm }) {
+  const isPublishLocked = vm.activeDraftStatus === 'published'
+
   const handlePreview = () => {
     if (vm.genState === 'processing') {
       toast.info('Vui lòng đợi tạo audio xong trước khi nghe thử')
@@ -191,7 +193,8 @@ export default function GenerateSection({ vm }) {
                 type="primary"
                 icon={<RocketOutlined />}
                 onClick={vm.goToPublish}
-                disabled={vm.genState === 'processing' || !vm.audioUrl}
+                disabled={vm.genState === 'processing' || !vm.audioUrl || isPublishLocked}
+                title={isPublishLocked ? 'Bài này đã được đăng rồi' : undefined}
               >
                 Tiếp tục đăng bài
               </Button>

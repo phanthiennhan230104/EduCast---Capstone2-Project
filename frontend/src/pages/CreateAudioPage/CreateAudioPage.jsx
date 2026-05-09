@@ -40,6 +40,11 @@ export default function CreateAudioPage() {
       return
     }
 
+    if (baseVm.activeDraftStatus === 'published') {
+      toast.info('Bài này đã được đăng rồi, không thể tiếp tục đăng bài')
+      return
+    }
+
     if (!baseVm.audioUrl) {
       toast.info('Chưa có audio để đăng bài')
       return
@@ -74,6 +79,7 @@ export default function CreateAudioPage() {
   const vm = {
     ...baseVm,
     goToPublish,
+    isPublishLocked: baseVm.activeDraftStatus === 'published',
   }
 
   return (

@@ -216,7 +216,14 @@ export default function Feed() {
             post_id: item.post_id || originalPostId,
             share_id: item.share_id || null,
             title: item.title,
-            author: item.author?.name || 'Ẩn danh',
+
+            author: item.author || {
+              name: 'Ẩn danh',
+              username: '',
+              avatar_url: '',
+            },
+
+            author_avatar: item.author?.avatar_url || '',
             authorUsername: item.author?.username || '',
             authorId: item.author?.id || '',
             authorInitials: getInitials(item.author || 'A'),

@@ -1,30 +1,28 @@
-import { useState, useRef, useEffect } from 'react'
+import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import styles from '../../style/feed/CreatePostBar.module.css'
 import { getInitials } from '../../utils/getInitials'
+import { useAuth } from '../contexts/AuthContext'
 
 export default function CreatePostBar() {
   const navigate = useNavigate()
-  const [user, setUser] = useState(null)
+  const { user } = useAuth()
+
   const [showDraftModal, setShowDraftModal] = useState(false)
   const [drafts, setDrafts] = useState([])
   const [loadingDrafts, setLoadingDrafts] = useState(false)
   const fileInputRef = useRef(null)
 
-  // Load user info
-  useEffect(() => {
-    const userData = localStorage.getItem('user')
-    if (userData) {
-      try {
-        setUser(JSON.parse(userData))
-      } catch (error) {
-        console.error('Failed to parse user data:', error)
-      }
-    }
-  }, [])
+  const displayName =
+    user?.full_name ||
+    user?.name ||
+    user?.display_name ||
+    user?.username ||
+    'bạn'
 
-  // Load drafts
+  const avatarFallback = getInitials(user)
+
   const loadDrafts = async () => {
     try {
       setLoadingDrafts(true)
@@ -40,8 +38,11 @@ export default function CreatePostBar() {
       if (!res.ok) throw new Error('Failed to load drafts')
 
       const data = await res.json()
-      const draftList = Array.isArray(data) ? data : data.results || data.data || []
-      setDrafts(draftList.filter((d) => d?.id)) // Filter valid drafts
+      const draftList = Array.isArray(data)
+        ? data
+        : data.results || data.data || []
+
+      setDrafts(draftList.filter((d) => d?.id))
     } catch (error) {
       console.error('Load drafts error:', error)
       toast.error('Không tải được bản nháp')
@@ -70,22 +71,19 @@ export default function CreatePostBar() {
     const file = e.target.files?.[0]
     if (!file) return
 
-    // Validate file type
     if (!file.type.startsWith('audio/')) {
       toast.error('Vui lòng chọn tệp audio')
       return
     }
 
-    // Validate file size (5MB max)
     const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
       toast.error('Tệp quá lớn. Tối đa 5MB')
       return
     }
 
-    // For now, navigate to publish with file info
-    // In a real app, you might upload to backend first
     const audioUrl = URL.createObjectURL(file)
+
     navigate('/publish-post', {
       state: {
         draftData: {
@@ -104,24 +102,32 @@ export default function CreatePostBar() {
     <>
       <div className={styles.createPostBar}>
         <div className={styles.container}>
-          {/* User Avatar */}
           <div className={styles.avatar}>
             {user?.avatar_url ? (
-              <img src={user.avatar_url} alt={user.name} />
-            ) : (
-              <div className={styles.avatarInitials}>
-                {getInitials(user || 'A')}
-              </div>
-            )}
+              <img
+                src={user.avatar_url}
+                alt={displayName}
+                onError={(e) => {
+                  e.currentTarget.style.display = 'none'
+                  e.currentTarget.nextElementSibling.style.display = 'flex'
+                }}
+              />
+            ) : null}
+
+            <div
+              className={styles.avatarInitials}
+              style={{ display: user?.avatar_url ? 'none' : 'flex' }}
+            >
+              {avatarFallback}
+            </div>
           </div>
 
-          {/* Input and actions */}
           <div className={styles.content}>
             <div className={styles.inputWrapper}>
               <input
                 type="text"
                 className={styles.input}
-                placeholder={`Tín gì nào, ${user?.name || 'bạn'}?`}
+                placeholder={`Tín gì nào, ${displayName}?`}
                 readOnly
                 onClick={() => navigate('/publish-post')}
               />
@@ -166,7 +172,6 @@ export default function CreatePostBar() {
         </div>
       </div>
 
-      {/* Draft Selection Modal */}
       {showDraftModal && (
         <div className={styles.modalOverlay} onClick={() => setShowDraftModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
@@ -208,8 +213,11 @@ export default function CreatePostBar() {
                           <div className={styles.draftPlaceholder}>🎙️</div>
                         )}
                       </div>
+
                       <div className={styles.draftInfo}>
-                        <h3 className={styles.draftTitle}>{draft.title || 'Không có tiêu đề'}</h3>
+                        <h3 className={styles.draftTitle}>
+                          {draft.title || 'Không có tiêu đề'}
+                        </h3>
                         <p className={styles.draftStatus}>
                           {draft.status === 'draft'
                             ? 'Bản nháp'
@@ -229,7 +237,6 @@ export default function CreatePostBar() {
         </div>
       )}
 
-      {/* Hidden file input */}
       <input
         ref={fileInputRef}
         type="file"

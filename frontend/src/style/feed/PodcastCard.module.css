@@ -864,3 +864,11 @@
   background: rgba(255,255,255,0.06);
   margin: 4px 0;
 }
+
+.authorAvatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}

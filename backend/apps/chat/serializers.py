@@ -41,10 +41,24 @@ class ChatUserSerializer(serializers.ModelSerializer):
         fields = ["id", "username", "email", "display_name", "avatar_url", "is_online"]
 
     def get_display_name(self, obj):
-        return getattr(obj, "display_name", None) or getattr(obj, "full_name", None) or obj.username
+        profile = getattr(obj, "profile", None)
+
+        return (
+            profile.display_name
+            if profile and profile.display_name
+            else getattr(obj, "display_name", None)
+            or getattr(obj, "full_name", None)
+            or obj.username
+        )
 
     def get_avatar_url(self, obj):
-        return getattr(obj, "avatar_url", None)
+        profile = getattr(obj, "profile", None)
+
+        return (
+            profile.avatar_url
+            if profile and profile.avatar_url
+            else getattr(obj, "avatar_url", None)
+        )
 
     def get_is_online(self, obj):
         return is_user_online(obj.id)

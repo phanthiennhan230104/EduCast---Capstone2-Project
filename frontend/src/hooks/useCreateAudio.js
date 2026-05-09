@@ -90,6 +90,7 @@ export function useCreateAudio() {
   const [description, setDescription] = useState('')
 
   const [activeDraftId, setActiveDraftId] = useState('')
+  const [activeDraftStatus, setActiveDraftStatus] = useState('')
   const [isLoadingDraft, setIsLoadingDraft] = useState(false)
   const [durationSeconds, setDurationSeconds] = useState(0)
 
@@ -199,6 +200,7 @@ export function useCreateAudio() {
   const clearText = useCallback(() => {
     setText('')
     setActiveDraftId('')
+    setActiveDraftStatus('')
     setDurationSeconds(0)
     resetGenerateState()
   }, [resetGenerateState])
@@ -206,6 +208,7 @@ export function useCreateAudio() {
   const fillDemoText = useCallback(() => {
     setSourceTab('text')
     setActiveDraftId('')
+    setActiveDraftStatus('')
     setText(demoText)
     setDurationSeconds(0)
     resetGenerateState()
@@ -220,6 +223,7 @@ export function useCreateAudio() {
     setUploadedDocPublicId('')
     setUploadedExtractedText('')
     setActiveDraftId('')
+    setActiveDraftStatus('')
     setDurationSeconds(0)
     resetGenerateState()
   }, [resetGenerateState])
@@ -230,6 +234,7 @@ export function useCreateAudio() {
 
       try {
         setActiveDraftId('')
+        setActiveDraftStatus('')
         setFile(selectedFile)
         setFileReady(false)
         setIsUploadingFile(true)
@@ -302,6 +307,7 @@ export function useCreateAudio() {
       setDescription(draft.description || '')
       setAudioUrl(resolvedAudioUrl)
       setPublicId('')
+      setActiveDraftStatus(draft.status || '')
       setFileReady(hasDocument)
       setDurationSeconds(resolvedDurationSeconds)
 
@@ -522,6 +528,7 @@ export function useCreateAudio() {
 
       toast.success(res?.message || 'Lưu nháp thành công')
       setActiveDraftId(res?.data?.id || '')
+      setActiveDraftStatus(res?.data?.status || 'draft')
       await loadRecentDrafts()
     } catch (error) {
       console.error('Save draft error:', error)
@@ -596,6 +603,7 @@ export function useCreateAudio() {
     description,
     setDescription,
     activeDraftId,
+    activeDraftStatus,
     isLoadingDraft,
     loadDraftToForm,
     loadRecentDrafts,

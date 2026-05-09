@@ -44,6 +44,39 @@
   flex-shrink: 0;
 }
 
+.previewTopActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
+.topCornerActions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.iconButton {
+  width: 36px;
+  height: 36px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid rgba(245,240,232,0.06);
+  color: #f5f0e8;
+  cursor: pointer;
+  padding: 6px;
+}
+
+.iconButton:hover {
+  transform: translateY(-2px);
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(244,162,39,0.28);
+}
+
 .layout {
   display: grid;
   grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.9fr);

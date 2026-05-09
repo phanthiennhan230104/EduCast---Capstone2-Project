@@ -768,7 +768,27 @@ class FeedAPIView(APIView):
                 if str(item.get("id", "")).strip() not in hidden_ids
             ]
 
-            
+            for item in items:
+                post_id = item.get("post_id") or item.get("id")
+
+                post = (
+                    Post.objects
+                    .filter(id=post_id)
+                    .select_related("user", "user__profile")
+                    .first()
+                )
+
+                if not post:
+                    continue
+
+                profile = getattr(post.user, "profile", None)
+
+                item["author"] = {
+                    "id": str(post.user.id),
+                    "username": post.user.username,
+                    "name": profile.display_name if profile and profile.display_name else post.user.username,
+                    "avatar_url": profile.avatar_url if profile else None,
+                }
 
             serializer = FeedItemSerializer(items, many=True)
             

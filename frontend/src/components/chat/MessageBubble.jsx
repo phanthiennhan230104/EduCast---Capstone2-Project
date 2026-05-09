@@ -135,9 +135,13 @@ export default function MessageBubble({ message, containerRef }) {
 
   const isSharedPostMessage = Boolean(podcastData?.post_id) && (isPodcast || isText)
   const sharedAuthor =
-    podcastData?.author ||
-    podcastData?.author_username ||
-    senderLabel
+  typeof podcastData?.author === 'object'
+    ? podcastData.author?.name ||
+      podcastData.author?.username ||
+      senderLabel
+    : podcastData?.author ||
+      podcastData?.author_username ||
+      senderLabel
 
   return (
     <>
@@ -286,8 +290,15 @@ export default function MessageBubble({ message, containerRef }) {
             postId: podcastData.post_id,
             title: podcastData.title,
             description: podcastData.description,
-            author: sharedAuthor,
-            authorUsername: podcastData.author_username || sharedAuthor || '',
+            author: podcastData.author || sharedAuthor,
+            author_avatar:
+              typeof podcastData?.author === 'object'
+                ? podcastData.author?.avatar_url || ''
+                : '',
+            authorUsername:
+              typeof podcastData?.author === 'object'
+                ? podcastData.author?.username || ''
+                : podcastData.author_username || sharedAuthor || '',
             cover: podcastData.thumbnail_url || '',
             thumbnail_url: podcastData.thumbnail_url || '',
             audio_url: podcastData.audio_url || '',

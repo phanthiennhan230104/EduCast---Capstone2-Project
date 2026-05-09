@@ -12,12 +12,39 @@ import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { PodcastContext } from '../contexts/PodcastContext'
 import { useNavigate, useLocation } from 'react-router-dom'
 
+function Avatar({ src, name, username, className, imageClassName }) {
+  const displayName = name || username || 'Người dùng'
+
+  return (
+    <div className={className}>
+      {src ? (
+        <img
+          src={src}
+          alt={displayName}
+          className={imageClassName}
+          onError={(e) => {
+            e.currentTarget.style.display = 'none'
+            e.currentTarget.nextElementSibling.style.display = 'flex'
+          }}
+        />
+      ) : null}
+
+      <span style={{ display: src ? 'none' : 'flex' }}>
+        {getInitials({
+          username,
+          display_name: displayName,
+        })}
+      </span>
+    </div>
+  )
+}
 
 function CommentNode({
   item,
   level = 0,
   currentUser,
   podcast,
+  navigate,
   openMenuId,
   setOpenMenuId,
   menuRefs,
@@ -63,7 +90,13 @@ function CommentNode({
       className={wrapperClass}
       style={level > 2 ? { marginLeft: `${(level - 2) * 24}px` } : undefined}
     >
-      <div className={avatarClass}>{getInitials(item.username)}</div>
+      <Avatar
+        src={item.avatar_url || item.user_avatar || item.user?.avatar_url}
+        name={item.display_name || item.name || item.username}
+        username={item.username || item.user_id}
+        className={avatarClass}
+        imageClassName={styles.avatarImage}
+      />
 
       <div className={mainClass}>
         <div className={styles.commentRow}>
@@ -210,7 +243,13 @@ function CommentNode({
             style={level > 1 ? { marginLeft: `-${(level - 1) * 24}px` } : undefined}
             onSubmit={(e) => handleSubmitReply(e, replyingTarget)}
           >
-            <div className={avatarClass}>{getInitials(currentUser?.username)}</div>
+            <Avatar
+              src={currentUser?.avatar_url || currentUser?.avatar}
+              name={currentUser?.display_name || currentUser?.name}
+              username={currentUser?.username}
+              className={avatarClass}
+              imageClassName={styles.avatarImage}
+            />
 
             <div className={styles.replyInputWrap}>
               <div className={styles.replyTagLine}>
@@ -260,6 +299,7 @@ function CommentNode({
                 level={level + 1}
                 currentUser={currentUser}
                 podcast={podcast}
+                navigate={navigate}
                 openMenuId={openMenuId}
                 setOpenMenuId={setOpenMenuId}
                 menuRefs={menuRefs}
@@ -374,19 +414,6 @@ export default function CommentModal({
   const scrollPositionRef = useRef(0)
 
   const currentUser = getCurrentUser()
-
-  useEffect(() => {
-    console.log('🔍 DEBUG CommentModal - FULL PODCAST OBJECT:', podcast)
-    console.log('🔍 DEBUG - Podcast fields:', {
-      id: podcast.id,
-      title: podcast.title,
-      duration_seconds: podcast.duration_seconds,
-      audio_url: podcast.audio_url,
-      audioUrl: podcast.audioUrl,
-      all_keys: Object.keys(podcast),
-    })
-    console.log('🔍 DEBUG - currentUser:', currentUser)
-  }, [currentUser, podcast])
 
   useEffect(() => {
     fetchComments()
@@ -639,7 +666,7 @@ export default function CommentModal({
       id: podcast.id,
       postId: podcast.id,
       title: podcast.title,
-      author: podcast.author || podcast.authorUsername || 'Unknown',
+      author: authorName,
       audioUrl: finalAudioUrl,
       audio_url: finalAudioUrl,
       durationSeconds: finalDuration,
@@ -667,7 +694,7 @@ export default function CommentModal({
         id: podcast.id,
         postId: podcast.id,
         title: podcast.title,
-        author: podcast.author || podcast.authorUsername || 'Unknown',
+        author: authorName,
         audioUrl: getFullAudioUrl(audioUrl),
         audio_url: getFullAudioUrl(audioUrl),
         durationSeconds: Number(durationSeconds || 0),
@@ -1331,12 +1358,27 @@ export default function CommentModal({
   String(currentUser?.id) === String(podcast.user_id) ||
   String(currentUser?.username) === String(podcast.authorUsername)
 
+  const authorName =
+    typeof podcast.author === 'object'
+      ? podcast.author?.name || podcast.author?.username || 'Ẩn danh'
+      : podcast.author || 'Ẩn danh'
+
+  const authorUsername =
+    typeof podcast.author === 'object'
+      ? podcast.author?.username || podcast.authorUsername || ''
+      : podcast.authorUsername || ''
+
+  const authorAvatarUrl =
+    typeof podcast.author === 'object'
+      ? podcast.author?.avatar_url || ''
+      : podcast.author_avatar || ''
+
   return [
       createPortal(
         <div className={styles.overlay} onClick={handleClose}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.topBar}>
-          <h2 className={styles.modalTitle}>Bài viết của {podcast.author}</h2>
+          <h2 className={styles.modalTitle}>Bài viết của {authorName}</h2>
           <div className={styles.topBarRight}>
             <button className={styles.closeBtn} type="button" onClick={handleClose}>
               <X size={22} />
@@ -1347,11 +1389,15 @@ export default function CommentModal({
         <div ref={contentScrollRef} className={styles.contentScroll}>
           <div className={styles.postHeader}>
             <div className={styles.authorBlock}>
-              <div className={styles.avatar}>
-                {getInitials({ username: podcast.authorUsername, display_name: podcast.author })}
-              </div>
+              <Avatar
+                src={authorAvatarUrl}
+                name={authorName}
+                username={authorUsername}
+                className={styles.avatar}
+                imageClassName={styles.avatarImage}
+              />
               <div>
-                <div className={styles.author}>{podcast.author}</div>
+                <div className={styles.author}>{authorName}</div>
                 <div className={styles.meta}>
                   {podcast.timeAgo || formatTimeAgo(podcast.created_at)}
                 </div>
@@ -1707,6 +1753,7 @@ export default function CommentModal({
                   .map((comment) => (
                     <CommentNode
                       key={comment.id}
+                      navigate={navigate}
                       item={comment}
                       level={0}
                       currentUser={currentUser}
@@ -1745,7 +1792,13 @@ export default function CommentModal({
         </div>
 
         <form className={styles.commentComposer} onSubmit={handleSubmitComment}>
-          <div className={styles.composerAvatar}>{getInitials(currentUser?.username || currentUser?.display_name)}</div>
+          <Avatar
+            src={currentUser?.avatar_url || currentUser?.avatar}
+            name={currentUser?.display_name || currentUser?.name}
+            username={currentUser?.username}
+            className={styles.composerAvatar}
+            imageClassName={styles.avatarImage}
+          />
 
           <div className={styles.inputWrap}>
             <input
