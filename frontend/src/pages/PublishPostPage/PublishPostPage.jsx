@@ -1,8 +1,18 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
-import { getCategories, getTopics, publishPost, uploadAudioFile } from '../../utils/contentApi'
+import {
+  createDraft,
+  getCategories,
+  getTopics,
+  publishPost,
+  saveDraftWithAudio,
+  updateDraft,
+  uploadAudioFile,
+} from '../../utils/contentApi'
+import { getAudioDuration } from '../../utils/formatDuration'
 import styles from '../../style/pages/PublishPostPage/PublishPostPage.module.css'
 
 const AGE_GROUP_OPTIONS = [
@@ -72,6 +82,12 @@ function normalizeCategoryList(raw) {
     .filter((item) => item.id && item.name)
 }
 
+function toIntegerDuration(value) {
+  const numberValue = Number(value)
+  if (!Number.isFinite(numberValue) || numberValue <= 0) return 0
+  return Math.max(0, Math.round(numberValue))
+}
+
 export default function PublishPostPage() {
   const location = useLocation()
   const navigate = useNavigate()
@@ -121,7 +137,39 @@ export default function PublishPostPage() {
   const [topics, setTopics] = useState([])
   const [loadingMeta, setLoadingMeta] = useState(true)
   const [submitting, setSubmitting] = useState(false)
+  const fileInputRef = useRef(null)
+  const [showDraftModal, setShowDraftModal] = useState(false)
+  const [drafts, setDrafts] = useState([])
+  const [loadingDrafts, setLoadingDrafts] = useState(false)
+  const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
 
+  const hasDraftWork = useMemo(() => {
+    return Boolean(
+      form.audioUrl ||
+        form.title.trim() ||
+        form.description.trim() ||
+        form.originalText.trim() ||
+        form.script.trim() ||
+        form.tags.length ||
+        form.topicIds.length ||
+        newTopics.length ||
+        form.learningField.trim() ||
+        form.categoryId ||
+        form.ageGroup
+    )
+  }, [
+    form.audioUrl,
+    form.title,
+    form.description,
+    form.originalText,
+    form.script,
+    form.tags.length,
+    form.topicIds.length,
+    form.learningField,
+    form.categoryId,
+    form.ageGroup,
+    newTopics.length,
+  ])
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
@@ -277,6 +325,58 @@ export default function PublishPostPage() {
     }
   }
 
+  const resolveAudioSource = async () => {
+    let audioUrl = form.audioUrl
+    let durationSeconds = toIntegerDuration(form.durationSeconds)
+    let publicId = null
+
+    if (!audioUrl) {
+      return { audioUrl, durationSeconds, publicId }
+    }
+
+    if (audioUrl.startsWith('blob:')) {
+      if (!durationSeconds) {
+        durationSeconds = toIntegerDuration(await getAudioDuration(audioUrl))
+        if (durationSeconds) {
+          setForm((prev) => ({ ...prev, durationSeconds }))
+        }
+      }
+
+      toast.info('Đang tải audio lên...')
+
+      try {
+        const response = await fetch(audioUrl)
+        const blob = await response.blob()
+        const file = new File([blob], 'audio.mp3', {
+          type: blob.type || 'audio/mpeg',
+        })
+        const result = await uploadAudioFile(file)
+
+        audioUrl = result.audio_url
+        publicId = result.public_id || null
+
+        const uploadedDuration = toIntegerDuration(result.duration)
+        durationSeconds =
+          uploadedDuration || durationSeconds || toIntegerDuration(await getAudioDuration(form.audioUrl))
+
+        if (durationSeconds) {
+          setForm((prev) => ({ ...prev, durationSeconds }))
+        }
+
+        toast.success('Tải audio thành công!')
+      } catch (error) {
+        throw new Error('Không thể tải audio lên: ' + (error?.message || 'Lỗi không xác định'))
+      }
+    } else if (!durationSeconds) {
+      durationSeconds = toIntegerDuration(await getAudioDuration(audioUrl))
+      if (durationSeconds) {
+        setForm((prev) => ({ ...prev, durationSeconds }))
+      }
+    }
+
+    return { audioUrl, durationSeconds, publicId }
+  }
+
   const handleSubmit = async () => {
     if (!form.audioUrl) {
       toast.info('Chưa có audio để đăng bài')
@@ -295,22 +395,7 @@ export default function PublishPostPage() {
 
     try {
       setSubmitting(true)
-      let finalAudioUrl = form.audioUrl
-
-      // Auto-upload if it's a blob URL (from device upload)
-      if (form.audioUrl.startsWith('blob:')) {
-        toast.info('Đang tải audio lên...')
-        try {
-          const response = await fetch(form.audioUrl)
-          const blob = await response.blob()
-          const file = new File([blob], 'audio.mp3', { type: blob.type })
-          const result = await uploadAudioFile(file)
-          finalAudioUrl = result.audio_url
-          toast.success('Tải audio thành công!')
-        } catch (error) {
-          throw new Error('Không thể tải audio lên: ' + (error?.message || 'Lỗi không xác định'))
-        }
-      }
+      const audioResult = await resolveAudioSource()
 
       const payload = {
         draft_id: form.draftId || null,
@@ -318,8 +403,9 @@ export default function PublishPostPage() {
         description: form.description.trim(),
         original_text: form.originalText || form.script || '',
         transcript_text: form.script || '',
-        audio_url: finalAudioUrl,
-        duration_seconds: form.durationSeconds || null,
+        audio_url: audioResult.audioUrl,
+        duration_seconds: toIntegerDuration(audioResult.durationSeconds) || null,
+        public_id: audioResult.publicId || null,
         category_id: form.categoryId || null,
         topic_ids: form.topicIds,
         new_topics: newTopics,
@@ -334,7 +420,7 @@ export default function PublishPostPage() {
       console.log('Submitting payload:', payload)
       toast.info('Đang đăng bài...')
 
-      const res = await publishPost(payload)
+      await publishPost(payload)
 
       navigate('/feed', {
         state: {
@@ -347,10 +433,164 @@ export default function PublishPostPage() {
       })
     } catch (error) {
       console.error('Publish error:', error)
-      toast.error((error?.message || 'Đăng bài thất bại. Vui lòng thử lại.'))
+      toast.error(error?.message || 'Đăng bài thất bại. Vui lòng thử lại.')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const saveCurrentDraft = async () => {
+    if (!hasDraftWork) return
+
+    try {
+      setSubmitting(true)
+
+      const audioResult = form.audioUrl ? await resolveAudioSource() : null
+
+      if (form.draftId) {
+        await updateDraft(form.draftId, {
+          title: form.title.trim(),
+          description: form.description.trim(),
+          original_text: form.originalText || form.script || '',
+          summary_text: form.script || '',
+          audio_url: audioResult?.audioUrl || form.audioUrl || '',
+          public_id: audioResult?.publicId || null,
+          voice_name: 'Minh Tuấn',
+          format: 'mp3',
+          duration_seconds: toIntegerDuration(audioResult?.durationSeconds || form.durationSeconds) || null,
+          status: 'draft',
+        })
+      } else if (form.audioUrl) {
+        await saveDraftWithAudio({
+          title: form.title.trim(),
+          description: form.description.trim(),
+          original_text: form.originalText || form.script || '',
+          source_type: 'ai_generated',
+          mode: 'summary',
+          processed_text: form.script || form.originalText || '',
+          audio_url: audioResult?.audioUrl || form.audioUrl,
+          public_id: audioResult?.publicId || null,
+          voice_name: 'Minh Tuấn',
+          format: 'mp3',
+          duration_seconds: toIntegerDuration(audioResult?.durationSeconds || form.durationSeconds) || null,
+        })
+      } else {
+        await createDraft({
+          title: form.title.trim(),
+          description: form.description.trim(),
+          original_text: form.originalText || form.script || '',
+          source_type: 'ai_generated',
+        })
+      }
+
+      toast.success('Đã lưu nháp')
+      setShowLeaveConfirm(false)
+      navigate(-1)
+    } catch (error) {
+      console.error('Save draft error:', error)
+      toast.error(error?.message || 'Không thể lưu nháp')
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  const requestLeave = () => {
+    if (hasDraftWork) {
+      setShowLeaveConfirm(true)
+      return
+    }
+
+    navigate(-1)
+  }
+
+  const handleUploadClick = () => {
+    fileInputRef.current?.click()
+  }
+
+  const loadDrafts = async () => {
+    try {
+      setLoadingDrafts(true)
+      const token = localStorage.getItem('educast_access')
+
+      const res = await fetch('http://localhost:8000/api/content/drafts/my/', {
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!res.ok) throw new Error('Failed to load drafts')
+
+      const data = await res.json()
+      const draftList = Array.isArray(data) ? data : data.results || data.data || []
+      setDrafts(draftList.filter((d) => d?.id))
+    } catch (error) {
+      console.error('Load drafts error:', error)
+      toast.error('Không tải được bản nháp')
+    } finally {
+      setLoadingDrafts(false)
+    }
+  }
+
+  const handleDraftsClick = async () => {
+    setShowDraftModal(true)
+    await loadDrafts()
+  }
+
+  const handleDraftSelect = (draft) => {
+    setShowDraftModal(false)
+    // load draft into form
+    setForm((prev) => ({
+      ...prev,
+      draftId: draft.id || '',
+      title: draft.title || '',
+      description: draft.description || '',
+      script: getDisplayScript(draft) || '',
+      originalText: draft.original_text || '',
+      audioUrl: draft.audio_url || draft.audioUrl || '',
+      durationSeconds: draft.duration_seconds || draft.durationSeconds || 0,
+      categoryId: draft?.category?.id || draft?.category_id || prev.categoryId,
+      topicIds: Array.isArray(draft?.topics)
+        ? draft.topics.map((t) => t?.id ?? t?.topic_id ?? '').filter(Boolean)
+        : prev.topicIds,
+      tags: Array.isArray(draft?.tags)
+        ? draft.tags.map((item) => (typeof item === 'string' ? item : item?.name || '')).filter(Boolean)
+        : prev.tags,
+    }))
+  }
+
+  const handleFileSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('audio/')) {
+      toast.error('Vui lòng chọn tệp audio')
+      return
+    }
+
+    const maxSize = 50 * 1024 * 1024 // 50MB
+    if (file.size > maxSize) {
+      toast.error('Tệp quá lớn. Tối đa 50MB')
+      return
+    }
+
+    const audioUrl = URL.createObjectURL(file)
+    setForm((prev) => ({ ...prev, audioUrl, durationSeconds: 0 }))
+
+    try {
+      const dur = await getAudioDuration(audioUrl)
+      setForm((prev) => ({ ...prev, durationSeconds: dur }))
+    } catch (err) {
+      console.warn('Failed to read audio duration locally', err)
+    }
+  }
+
+  const handleRemoveAudio = () => {
+    // revoke object URL if any
+    try {
+      if (form.audioUrl && form.audioUrl.startsWith('blob:')) URL.revokeObjectURL(form.audioUrl)
+    } catch (e) {}
+    setForm((prev) => ({ ...prev, audioUrl: '', durationSeconds: 0 }))
   }
 
   return (
@@ -368,7 +608,7 @@ export default function PublishPostPage() {
             <button
               type="button"
               className={styles.secondaryButton}
-              onClick={() => navigate(-1)}
+              onClick={requestLeave}
             >
               Quay lại
             </button>
@@ -606,10 +846,217 @@ export default function PublishPostPage() {
             <div className={`${styles.card} ${styles.stickyCard}`}>
               <div className={styles.previewTop}>
                 <span className={styles.previewBadge}>Xem trước audio</span>
-                <span className={styles.previewDuration}>
-                  {formatDuration(form.durationSeconds)}
-                </span>
+                <div className={styles.previewTopActions}>
+                  
+                  {/* <span className={styles.previewDuration}>
+                    {formatDuration(form.durationSeconds)}
+                  </span> */}
+
+                  <div className={styles.topCornerActions}>
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      onClick={handleUploadClick}
+                      title="Tải audio từ thiết bị"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6" />
+                        <path d="M12 2v7M9 6l3 3 3-3" />
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      onClick={handleDraftsClick}
+                      title="Chọn từ bản nháp"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                        <polyline points="14 2 14 8 20 8" />
+                        <line x1="12" y1="19" x2="12" y2="13" />
+                        <line x1="9" y1="16" x2="15" y2="16" />
+                      </svg>
+                    </button>
+
+                    <button
+                      type="button"
+                      className={styles.iconButton}
+                      onClick={() => navigate('/create')}
+                      title="Tạo audio mới"
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M12 5v14M5 12h14" />
+                      </svg>
+                    </button>
+                  </div>
+                </div>
               </div>
+
+              {/* Hidden file input for upload in publish page */}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="audio/*"
+                style={{ display: 'none' }}
+                onChange={handleFileSelect}
+              />
+
+              {showLeaveConfirm && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.62)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1400,
+                  }}
+                  onClick={() => setShowLeaveConfirm(false)}
+                >
+                  <div
+                    style={{
+                      width: 'min(92vw, 460px)',
+                      borderRadius: 16,
+                      padding: 20,
+                      background: '#11172d',
+                      border: '1px solid rgba(255,255,255,0.08)',
+                      boxShadow: '0 24px 60px rgba(0, 0, 0, 0.42)',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <h3 style={{ margin: 0, color: '#fff', fontSize: 20 }}>Thoát trang?</h3>
+                    <p style={{ margin: '10px 0 0', color: 'rgba(245,240,232,0.72)', lineHeight: 1.6 }}>
+                      Bạn đang có audio hoặc nội dung đang làm dở. Bạn có muốn lưu lại nháp trước khi rời đi không?
+                    </p>
+
+                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, flexWrap: 'wrap' }}>
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={() => {
+                          setShowLeaveConfirm(false)
+                          navigate(-1)
+                        }}
+                        disabled={submitting}
+                      >
+                        Rời đi
+                      </button>
+
+                      <button
+                        type="button"
+                        className={styles.secondaryButton}
+                        onClick={() => setShowLeaveConfirm(false)}
+                        disabled={submitting}
+                      >
+                        Ở lại
+                      </button>
+
+                      <button
+                        type="button"
+                        className={styles.primaryButton}
+                        onClick={saveCurrentDraft}
+                        disabled={submitting}
+                      >
+                        {submitting ? 'Đang lưu...' : 'Lưu nháp'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {showDraftModal && (
+                <div
+                  style={{
+                    position: 'fixed',
+                    inset: 0,
+                    background: 'rgba(0,0,0,0.6)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1200,
+                  }}
+                  onClick={() => setShowDraftModal(false)}
+                >
+                  <div
+                    style={{
+                      width: '90%',
+                      maxWidth: 760,
+                      maxHeight: '80vh',
+                      overflow: 'auto',
+                      background: '#0e1224',
+                      borderRadius: 12,
+                      padding: 18,
+                      border: '1px solid rgba(255,255,255,0.06)',
+                    }}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <h3 style={{ margin: 0 }}>Chọn bản nháp</h3>
+                      <button
+                        onClick={() => setShowDraftModal(false)}
+                        style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer' }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+
+                    <div style={{ marginTop: 12 }}>
+                      {loadingDrafts ? (
+                        <div style={{ color: 'rgba(255,255,255,0.7)' }}>Đang tải bản nháp...</div>
+                      ) : drafts.length === 0 ? (
+                        <div style={{ color: 'rgba(255,255,255,0.7)' }}>
+                          Không có bản nháp nào
+                          <div style={{ marginTop: 12 }}>
+                            <button
+                              className={styles.primaryButton}
+                              onClick={() => {
+                                setShowDraftModal(false)
+                                navigate('/create')
+                              }}
+                            >
+                              + Tạo bản nháp mới
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {drafts.map((draft) => (
+                            <div
+                              key={`modal-draft-${draft.id}`}
+                              onClick={() => handleDraftSelect(draft)}
+                              style={{
+                                cursor: 'pointer',
+                                padding: 12,
+                                borderRadius: 8,
+                                background: 'rgba(255,255,255,0.02)',
+                                border: '1px solid rgba(255,255,255,0.04)',
+                                display: 'flex',
+                                gap: 12,
+                                alignItems: 'center',
+                              }}
+                            >
+                              <div style={{ width: 56, height: 56, borderRadius: 8, background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                {draft.thumbnail_url ? (
+                                  <img src={draft.thumbnail_url} alt={draft.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                                ) : (
+                                  <div style={{ fontSize: 22 }}>🎙️</div>
+                                )}
+                              </div>
+
+                              <div style={{ flex: 1 }}>
+                                <div style={{ fontWeight: 700, color: '#fff' }}>{draft.title || 'Không có tiêu đề'}</div>
+                                <div style={{ color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>{draft.status || ''}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
               <h3 className={styles.previewTitle}>{form.title || 'Chưa có tiêu đề'}</h3>
 
@@ -701,7 +1148,7 @@ export default function PublishPostPage() {
                 <button
                   type="button"
                   className={styles.secondaryButton}
-                  onClick={() => navigate(-1)}
+                  onClick={requestLeave}
                   disabled={submitting}
                 >
                   Hủy

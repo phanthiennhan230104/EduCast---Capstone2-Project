@@ -1221,3 +1221,20 @@
     border-radius: inherit;
     background: linear-gradient(90deg, #8c97ff 0%, #b8beff 100%);
   }
+  .avatarImage {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .commentAvatar span,
+  .replyAvatar span,
+  .avatar span,
+  .composerAvatar span {
+    width: 100%;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+  }

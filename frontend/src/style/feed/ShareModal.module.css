@@ -463,3 +463,23 @@
   opacity: 0.6;
   cursor: not-allowed;
 }
+.avatarImage {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+  display: block;
+}
+
+.avatar,
+.friendAvatar {
+  overflow: hidden;
+}
+
+.avatar span,
+.friendAvatar span {
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}

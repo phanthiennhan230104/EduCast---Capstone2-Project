@@ -171,8 +171,22 @@ def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None, dep
         "updated_at": comment.updated_at.isoformat() if comment.updated_at else None,
     }
 
+    profile = getattr(comment.user, "profile", None)
+
     if hasattr(comment.user, "username"):
         data["username"] = comment.user.username
+
+    data["display_name"] = (
+        profile.display_name
+        if profile and profile.display_name
+        else comment.user.username
+    )
+
+    data["avatar_url"] = (
+        profile.avatar_url
+        if profile and profile.avatar_url
+        else None
+    )
 
     if hasattr(comment, "reply_to_user_id"):
         data["reply_to_user_id"] = comment.reply_to_user_id
@@ -842,7 +856,6 @@ def list_post_likers(request, post_id):
     )
 
 
-# Get following list of current user
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_following_list(request):
@@ -852,14 +865,18 @@ def get_following_list(request):
 
     follows = Follow.objects.filter(
         follower_id=user.id
-    ).select_related("following")
+    ).select_related("following", "following__profile")
 
     following = []
     for f in follows:
+        following_user = f.following
+        profile = getattr(following_user, "profile", None)
+
         following.append({
             "id": f.following_id,
-            "username": getattr(f.following, "username", ""),
-            "display_name": getattr(f.following, "display_name", getattr(f.following, "username", "")),
+            "username": getattr(following_user, "username", ""),
+            "display_name": profile.display_name if profile else getattr(following_user, "username", ""),
+            "avatar_url": profile.avatar_url if profile else None,
         })
 
     return _json_success(
@@ -1244,7 +1261,24 @@ def get_saved_posts(request):
             }
 
             if post.user:
-                item["author"] = getattr(post.user, 'username', post.user.id)
+                profile = getattr(post.user, "profile", None)
+
+                item["author"] = {
+                    "id": str(post.user.id),
+                    "username": getattr(post.user, "username", ""),
+                    "name": (
+                        profile.display_name
+                        if profile and profile.display_name
+                        else getattr(post.user, "username", "")
+                    ),
+                    "avatar_url": (
+                        profile.avatar_url
+                        if profile and profile.avatar_url
+                        else None
+                    ),
+                }
+
+                item["author_username"] = getattr(post.user, "username", "")
 
             posts_data.append(item)
 
@@ -1365,17 +1399,24 @@ def get_friends_list(request):
         .select_related("profile")
     )
 
-    data = [
-        {
+    data = []
+    for u in friends:
+        profile = getattr(u, "profile", None)
+
+        data.append({
             "id": u.id,
             "username": getattr(u, "username", ""),
             "display_name": (
-                getattr(getattr(u, "profile", None), "display_name", None)
-                or getattr(u, "username", "")
-            )
-        }
-        for u in friends
-    ]
+                profile.display_name
+                if profile and profile.display_name
+                else getattr(u, "username", "")
+            ),
+            "avatar_url": (
+                profile.avatar_url
+                if profile and profile.avatar_url
+                else None
+            ),
+        })
 
     return _json_success("Friends list", {"friends": data})
 
@@ -1708,8 +1749,24 @@ def get_collection_posts(request, collection_id):
             
             # Lấy thông tin author
             if post.user:
-                item["author"] = getattr(post.user, 'username', post.user.id)
-                item["author_username"] = getattr(post.user, 'username', post.user.id)
+                profile = getattr(post.user, "profile", None)
+
+                item["author"] = {
+                    "id": str(post.user.id),
+                    "username": getattr(post.user, "username", ""),
+                    "name": (
+                        profile.display_name
+                        if profile and profile.display_name
+                        else getattr(post.user, "username", "")
+                    ),
+                    "avatar_url": (
+                        profile.avatar_url
+                        if profile and profile.avatar_url
+                        else None
+                    ),
+                }
+
+                item["author_username"] = getattr(post.user, "username", "")
             else:
                 item["author"] = "Unknown"
                 item["author_username"] = "Unknown"
@@ -1904,6 +1961,8 @@ def share_post_to_user(request, post_id):
 
                 room = get_or_create_direct_room(user, target_user)
 
+                profile = getattr(post.user, "profile", None)
+
                 message_content = json.dumps({
                     "type": "podcast",
                     "post_id": post.id,
@@ -1913,8 +1972,29 @@ def share_post_to_user(request, post_id):
                     "thumbnail_url": post.thumbnail_url,
                     "duration_seconds": post.duration_seconds,
                     "user_id": post.user_id,
-                    "author": getattr(post.user, 'username', 'Unknown') if post.user else 'Unknown',
-                    "author_username": getattr(post.user, 'username', '') if post.user else '',
+
+                    "author": {
+                        "id": str(post.user.id),
+                        "username": getattr(post.user, "username", ""),
+                        "name": (
+                            profile.display_name
+                            if profile and profile.display_name
+                            else getattr(post.user, "username", "")
+                        ),
+                        "avatar_url": (
+                            profile.avatar_url
+                            if profile and profile.avatar_url
+                            else None
+                        ),
+                    },
+
+                    "author_username": getattr(post.user, "username", ""),
+                    "author_avatar": (
+                        profile.avatar_url
+                        if profile and profile.avatar_url
+                        else None
+                    ),
+
                     "like_count": PostLike.objects.filter(post_id=post.id).count(),
                     "comment_count": Comment.objects.filter(post_id=post.id).count(),
                     "share_count": PostShare.objects.filter(post_id=post.id).count(),
@@ -1928,7 +2008,7 @@ def share_post_to_user(request, post_id):
                     room=room,
                     sender=user,
                     content=message_content,
-                    message_type="text",
+                    message_type="podcast",
                 )
 
                 serialized_message = MessageSerializer(
@@ -2012,6 +2092,17 @@ def share_post_to_user(request, post_id):
             else "Post shared partially"
         )
 
+        try:
+            counts = _post_counts(post.id)
+        except Exception as count_error:
+            print("Post count error:", count_error)
+            counts = {
+                "like_count": 0,
+                "comment_count": 0,
+                "save_count": 0,
+                "share_count": 0,
+            }
+
         return _json_success(
             response_message,
             {
@@ -2019,7 +2110,7 @@ def share_post_to_user(request, post_id):
                 "post_id": post.id,
                 "shared_with": success_count,
                 "total": len(target_user_ids),
-                **_post_counts(post.id)
+                **counts,
             },
             status=201
         )

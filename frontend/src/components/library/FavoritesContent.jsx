@@ -47,8 +47,20 @@ function formatTime(seconds) {
 }
 
 function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail }) {
-  const { playTrack, currentTrack, playing, togglePlay, currentTime, duration, formattedCurrentTime, trackProgressMap, seekToPercent, isSeeking } = useAudioPlayer()
+  const {
+    playTrack,
+    currentTrack,
+    playing,
+    togglePlay,
+    currentTime,
+    duration,
+    trackProgressMap,
+    seekToPercent,
+    isSeeking,
+  } = useAudioPlayer()
+
   const progressBarRef = useRef(null)
+  const draggingRef = useRef(false)
 
   const handlePlayClick = () => {
     if (!item.audioUrl) {
@@ -65,7 +77,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
       id: item.id,
       postId: item.id,
       title: item.title,
-      author: item.author,
+      author: authorName,
       audioUrl: item.audioUrl,
       durationSeconds: item.durationSeconds,
       thumbnail_url: item.thumbnail_url,
@@ -75,47 +87,108 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
   }
 
   const handleProgressBarClick = (e) => {
-    if (!item.durationSeconds || item.durationSeconds === 0) return
-    
+    const safeDuration = Number(item.durationSeconds) || 0
+    if (safeDuration <= 0) return
+
     const barRect = progressBarRef.current?.getBoundingClientRect()
     if (!barRect) return
-    
+
     const clickX = e.clientX - barRect.left
-    const percentage = Math.max(0, Math.min(100, (clickX / barRect.width) * 100))
-    
-    // If this track is currently playing, seek directly
+    const percentage = Math.max(
+      0,
+      Math.min(100, (clickX / barRect.width) * 100)
+    )
+
     if (currentTrack?.id === item.id) {
       seekToPercent(percentage)
     } else {
-      // Otherwise, play the track and then seek
       playTrack({
         id: item.id,
+        postId: item.id,
         title: item.title,
-        author: item.author,
+        author: authorName,
         audioUrl: item.audioUrl,
         durationSeconds: item.durationSeconds,
         thumbnail_url: item.thumbnail_url,
+        liked: item.is_liked,
+        saved: item.saved,
       })
-      // Seek after a small delay to ensure audio is loaded
-      setTimeout(() => seekToPercent(percentage), 100)
+
+      setTimeout(() => {
+        seekToPercent(percentage)
+      }, 150)
     }
   }
 
-  const isCurrentPlaying = currentTrack?.id === item.id && playing
+  const handlePointerMove = (clientX) => {
+    const safeDuration = Number(item.durationSeconds) || 0
+    if (safeDuration <= 0) return
+    const barRect = progressBarRef.current?.getBoundingClientRect()
+    if (!barRect) return
 
-  // Lấy saved progress nếu track đã từng chạy
+    const clickX = clientX - barRect.left
+    const percentage = Math.max(0, Math.min(100, (clickX / barRect.width) * 100))
+
+    if (currentTrack?.id === item.id) {
+      seekToPercent(percentage)
+    }
+  }
+
+  const handlePointerDown = (e) => {
+    e.stopPropagation()
+    draggingRef.current = true
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX
+    handlePointerMove(clientX)
+
+    const onMove = (ev) => handlePointerMove(ev.touches ? ev.touches[0].clientX : ev.clientX)
+    const onUp = () => {
+      draggingRef.current = false
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('touchmove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      window.removeEventListener('touchend', onUp)
+    }
+
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('touchmove', onMove)
+    window.addEventListener('mouseup', onUp)
+    window.addEventListener('touchend', onUp)
+  }
+
+  const isCurrentTrack = currentTrack?.id === item.id
+  const isCurrentPlaying = isCurrentTrack && playing
+
   const savedProgress = trackProgressMap?.[item.id]
-  
-  const displayTime = currentTrack?.id === item.id ? currentTime : (savedProgress?.currentTime || 0)
-  const displayProgress = currentTrack?.id === item.id 
-    ? (item.durationSeconds ? (currentTime / item.durationSeconds) * 100 : 0)
-    : (savedProgress?.progressPercent || 0)
-  
-  // Display duration - giống như Feed PodcastCard
-  const displayDuration = currentTrack?.id === item.id
-    ? formatTime(duration || item.durationSeconds || 0)
-    : formatTime(savedProgress?.duration || item.durationSeconds || 0)
 
+  const safeDuration = Number(
+    isCurrentTrack
+      ? duration || item.durationSeconds
+      : savedProgress?.duration || item.durationSeconds
+  ) || 0
+
+  const safeCurrentTime = Number(
+    isCurrentTrack
+      ? currentTime
+      : savedProgress?.currentTime || 0
+  ) || 0
+
+  const displayProgress = Math.min(
+    100,
+    Math.max(
+      0,
+      isCurrentTrack
+        ? safeDuration > 0
+          ? (safeCurrentTime / safeDuration) * 100
+          : 0
+        : Number(savedProgress?.progressPercent || 0)
+    )
+  )
+
+  const displayDuration = formatTime(safeDuration)
+  const authorName =
+    typeof item.author === 'object'
+      ? item.author?.name || item.author?.username || 'Người dùng'
+      : item.author || 'Người dùng'
   return (
     <article className={`${styles.savedCard} ${viewMode === 'list' ? styles.savedCardList : ''}`}>
       <div className={styles.savedTop}>
@@ -130,25 +203,36 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
       <div className={styles.savedBody} onClick={() => onOpenDetail(item)}>
         <div className={styles.savedMain} style={{ cursor: 'pointer' }}>
           <h4 className={styles.savedTitle}>{item.title}</h4>
+
           <p className={styles.savedMeta}>
-            {item.author} · {item.listens}
+            {authorName} · {item.listens}
           </p>
+
           <div className={styles.tagsContainer}>
             {item.tags && item.tags.length > 0 && (
               <p className={styles.tags}>
                 {item.tags.slice(0, 2).map((tag, idx) => (
-                  <span key={idx} className={styles.tag}>{tag}</span>
+                  <span key={idx} className={styles.tag}>
+                    {tag}
+                  </span>
                 ))}
-                {item.tags.length > 2 && <span className={styles.tag}>+{item.tags.length - 2}</span>}
+
+                {item.tags.length > 2 && (
+                  <span className={styles.tag}>
+                    +{item.tags.length - 2}
+                  </span>
+                )}
               </p>
             )}
           </div>
 
-          {/* Flat player bar like feed */}
           <div className={styles.player}>
             <button
               className={`${styles.playBtn} ${isCurrentPlaying ? styles.playing : ''}`}
-              onClick={(e) => { e.stopPropagation(); handlePlayClick() }}
+              onClick={(e) => {
+                e.stopPropagation()
+                handlePlayClick()
+              }}
               type="button"
               disabled={!item.audioUrl}
               aria-label={isCurrentPlaying ? 'Tạm dừng' : 'Phát'}
@@ -158,33 +242,68 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
             </button>
 
             <div className={styles.progressSection}>
-              <span className={styles.time}>{formatTime(displayTime)}</span>
-              <div 
+              <span className={styles.time}>
+                {formatTime(safeCurrentTime)}
+              </span>
+
+              <div
                 className={styles.progressBar}
                 ref={progressBarRef}
-                onClick={(e) => { e.stopPropagation(); handleProgressBarClick(e) }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  handleProgressBarClick(e)
+                }}
+                onMouseDown={handlePointerDown}
+                onTouchStart={handlePointerDown}
                 role="progressbar"
                 tabIndex={0}
                 aria-label="Seek bar"
+                aria-valuemin={0}
+                aria-valuemax={100}
+                aria-valuenow={Math.round(displayProgress)}
               >
-                <div className={styles.progressFill} style={{ width: `${displayProgress}%` }} />
-                {currentTrack?.id === item.id && isSeeking && (
+                <div
+                  className={styles.progressFill}
+                  style={{ width: `${displayProgress}%` }}
+                />
+
+                {isCurrentTrack && isSeeking && (
                   <div className={styles.seekingIndicator}>
                     <Loader size={14} />
                   </div>
                 )}
               </div>
-              <span className={styles.time}>{displayDuration}</span>
+
+              <span className={styles.time}>
+                {displayDuration}
+              </span>
             </div>
           </div>
 
           <div className={styles.savedFooter}>
-            <button type="button" className={`${styles.metaPill} ${styles.metaPillInfo}`}>
-              {item.listenedPercent >= 100 ? <CheckCircle2 size={14} /> : <PlayCircle size={14} />}
+            <button
+              type="button"
+              className={`${styles.metaPill} ${styles.metaPillInfo}`}
+            >
+              {item.listenedPercent >= 100 ? (
+                <CheckCircle2 size={14} />
+              ) : (
+                <PlayCircle size={14} />
+              )}
+
               <span>{getListenLabel(item.listenedPercent)}</span>
             </button>
 
-            <button type="button" className={`${styles.metaPill} ${item.hasNote ? styles.metaPillNoted : styles.metaPillMuted}`} onClick={(e) => { e.stopPropagation(); onOpenNotes(item) }}>
+            <button
+              type="button"
+              className={`${styles.metaPill} ${
+                item.hasNote ? styles.metaPillNoted : styles.metaPillMuted
+              }`}
+              onClick={(e) => {
+                e.stopPropagation()
+                onOpenNotes(item)
+              }}
+            >
               <MessageSquareText size={14} />
               <span>Ghi chú</span>
             </button>
@@ -286,8 +405,24 @@ export default function FavoritesContent() {
           id: post.id,
           pinned: false,
           title: post.title,
-          author: post.author || 'Người dùng',
-          authorUsername: post.author_username || post.author || 'Người dùng',
+          author:
+            typeof post.author === 'object'
+              ? post.author
+              : {
+                  name: post.author || 'Người dùng',
+                  username: post.author_username || '',
+                  avatar_url: post.author_avatar || '',
+                },
+
+          author_avatar:
+            post.author?.avatar_url ||
+            post.author_avatar ||
+            '',
+
+          authorUsername:
+            post.author?.username ||
+            post.author_username ||
+            '',
           authorId: post.user_id,
           author_id: post.user_id,
           user_id: post.user_id,
@@ -364,8 +499,24 @@ export default function FavoritesContent() {
             id: post.id,
             pinned: false,
             title: post.title,
-            author: post.author || 'Người dùng',
-            authorUsername: post.author_username || post.author || 'Người dùng',
+            author:
+              typeof post.author === 'object'
+                ? post.author
+                : {
+                    name: post.author || 'Người dùng',
+                    username: post.author_username || '',
+                    avatar_url: post.author_avatar || '',
+                  },
+
+            author_avatar:
+              post.author?.avatar_url ||
+              post.author_avatar ||
+              '',
+
+            authorUsername:
+              post.author?.username ||
+              post.author_username ||
+              '',
             authorId: post.user_id,
             author_id: post.user_id,
             user_id: post.user_id,
@@ -808,8 +959,24 @@ export default function FavoritesContent() {
             id: raw.id,
             title: raw.title,
             description: raw.description,
-            author: raw.author?.name || raw.author || 'Người dùng',
-            authorUsername: raw.author?.username || raw.author_username || '',
+            author:
+              typeof post.author === 'object'
+                ? post.author
+                : {
+                    name: post.author || 'Người dùng',
+                    username: post.author_username || '',
+                    avatar_url: post.author_avatar || '',
+                  },
+
+            author_avatar:
+              post.author?.avatar_url ||
+              post.author_avatar ||
+              '',
+
+            authorUsername:
+              post.author?.username ||
+              post.author_username ||
+              '',
             authorId: raw.user_id || raw.author_id,
             user_id: raw.user_id || raw.author_id,
             userId: raw.user_id || raw.author_id,

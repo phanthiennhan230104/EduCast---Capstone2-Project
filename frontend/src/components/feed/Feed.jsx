@@ -6,6 +6,7 @@ import {
   useState,
 } from 'react'
 import { useLocation } from 'react-router-dom'
+import { Bookmark, Heart, MessageCircle, MoreHorizontal, Share2 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
 import PodcastCard from './PodcastCard'
@@ -35,7 +36,7 @@ export default function Feed() {
   const { setSavedPostIds_batch, deletePost, hidePost } =
     useContext(PodcastContext)
 
-  const { pauseTrackIfDeleted, currentTrack } = useAudioPlayer()
+  const { pauseTrackIfDeleted } = useAudioPlayer()
 
   const [activeTab, setActiveTab] = useState(() => {
     const saved = sessionStorage.getItem('feedActiveTab')
@@ -47,6 +48,8 @@ export default function Feed() {
   const [podcasts, setPodcasts] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [openShareMenuId, setOpenShareMenuId] = useState(null)
+  const [failedAvatarUrls, setFailedAvatarUrls] = useState(new Set())
 
   const isRestoringRef = useRef(false)
   const feedScrollKey = 'mainScroll:/feed'
@@ -192,8 +195,11 @@ export default function Feed() {
             item.viewer_state?.progress_seconds || 0
           )
 
+          const originalPostId = item.post_id || item.id
+          const viewId = item.id
+
           const cachedSync = JSON.parse(
-            localStorage.getItem(`post-sync-${item.id}`) || '{}'
+            localStorage.getItem(`post-sync-${originalPostId}`) || '{}'
           )
 
           const commentCount =
@@ -204,10 +210,22 @@ export default function Feed() {
             0
 
           return {
-            id: item.id,
+            id: originalPostId,
+            viewId,
+            type: item.type || 'original',
+            post_id: item.post_id || originalPostId,
+            share_id: item.share_id || null,
             title: item.title,
-            author: item.author?.name || 'Ẩn danh',
+
+            author: item.author || {
+              name: 'Ẩn danh',
+              username: '',
+              avatar_url: '',
+            },
+
+            author_avatar: item.author?.avatar_url || '',
             authorUsername: item.author?.username || '',
+            authorId: item.author?.id || '',
             authorInitials: getInitials(item.author || 'A'),
             cover: item.thumbnail_url,
             description: item.description || '',
@@ -230,6 +248,10 @@ export default function Feed() {
             comment_count: commentCount,
 
             timeAgo: formatTimeAgo(item.created_at),
+            sharedTimeAgo: item.shared_at ? formatTimeAgo(item.shared_at) : null,
+            postTimeAgo: item.post_created_at ? formatTimeAgo(item.post_created_at) : formatTimeAgo(item.created_at),
+            sharedBy: item.shared_by || null,
+            share_caption: item.share_caption || '',
             listens: `${item.listen_count || 0} lượt nghe`,
             shares: item.stats?.shares || 0,
 
@@ -451,6 +473,173 @@ export default function Feed() {
     })
   }
 
+
+  const handleOpenPostModal = (podcast) => {
+    setDisableModalAutoScroll(false)
+    setSelectedPodcast({
+      ...podcast,
+      timeAgo: podcast.type === 'shared' ? podcast.postTimeAgo : podcast.timeAgo,
+    })
+  }
+
+  const renderSharedPost = (podcast) => {
+    const sharedBy = podcast.sharedBy || {}
+    const avatarKey = `share-${podcast.viewId || podcast.id}`
+    const shareAuthorName = sharedBy.name || sharedBy.username || 'Ẩn danh'
+    const shareAuthorInitials = getInitials(sharedBy || shareAuthorName)
+
+    return (
+      <div
+        key={podcast.viewId || podcast.id}
+        className={styles.postShareContainer}
+        data-post-id={podcast.id}
+      >
+        <div className={styles.postShareWrapper}>
+          <div className={styles.postShareInfo}>
+            <div className={styles.postShareAuthor}>
+              {sharedBy.avatar_url && !failedAvatarUrls.has(avatarKey) ? (
+                <div className={styles.postShareAvatarWrapper}>
+                  <img
+                    src={sharedBy.avatar_url}
+                    alt={shareAuthorName}
+                    className={styles.postShareAvatar}
+                    onError={() => {
+                      setFailedAvatarUrls((prev) => new Set([...prev, avatarKey]))
+                    }}
+                  />
+                </div>
+              ) : (
+                <div className={styles.postShareAvatarWrapper}>
+                  <div className={styles.postShareAvatarInitials}>{shareAuthorInitials}</div>
+                </div>
+              )}
+
+              <div>
+                <h5 className={styles.postShareAuthorName}>{shareAuthorName}</h5>
+                <p className={styles.postShareTime}>{podcast.sharedTimeAgo || podcast.timeAgo}</p>
+              </div>
+            </div>
+
+            <div className={styles.shareMenuWrap}>
+              <button
+                type="button"
+                className={styles.shareMenuBtn}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpenShareMenuId(openShareMenuId === podcast.viewId ? null : podcast.viewId)
+                }}
+                aria-label="Tùy chọn"
+              >
+                <MoreHorizontal size={20} />
+              </button>
+
+              {openShareMenuId === podcast.viewId && (
+                <div className={styles.shareMenuDropdown}>
+                  <button
+                    type="button"
+                    className={styles.shareMenuOption}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setOpenShareMenuId(null)
+                      handleOpenPostModal(podcast)
+                    }}
+                  >
+                    Xem bài gốc
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {podcast.share_caption && (
+            <div className={styles.shareCaption}>
+              <p>{podcast.share_caption}</p>
+            </div>
+          )}
+
+          <div
+            className={styles.postShareCard}
+            onClick={() => handleOpenPostModal(podcast)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleOpenPostModal(podcast)
+            }}
+            title="Click để xem bài đăng gốc"
+          >
+            <PodcastCard
+              podcast={{ ...podcast, timeAgo: podcast.postTimeAgo || podcast.timeAgo }}
+              queue={podcasts}
+              onDelete={handleDeletePost}
+              onHide={handleHidePost}
+              hideMenu={true}
+              hideActions={true}
+            />
+          </div>
+
+          <div className={styles.postShareActions}>
+            <button
+              type="button"
+              className={`${styles.shareActionBtn} ${podcast.liked ? styles.liked : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenPostModal(podcast)
+              }}
+            >
+              <Heart size={16} fill={podcast.liked ? 'currentColor' : 'none'} />
+              <span>{podcast.likes || 0}</span>
+            </button>
+            <button
+              type="button"
+              className={styles.shareActionBtn}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenPostModal(podcast)
+              }}
+            >
+              <MessageCircle size={16} />
+              <span>{podcast.comments || 0} Bình luận</span>
+            </button>
+            <button
+              type="button"
+              className={styles.shareActionBtn}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenPostModal(podcast)
+              }}
+            >
+              <Share2 size={16} />
+              <span>{podcast.shares || 0} Chia sẻ</span>
+            </button>
+            <button
+              type="button"
+              className={`${styles.shareActionBtn} ${styles.shareActionBtnSave} ${podcast.saved ? styles.saved : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleOpenPostModal(podcast)
+              }}
+            >
+              <Bookmark size={16} fill={podcast.saved ? 'currentColor' : 'none'} />
+              <span>{podcast.saveCount || 0} Lưu</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const handleDeletePost = (postId) => {
+    pauseTrackIfDeleted(postId)
+    deletePost(postId)
+    setPodcasts((prev) => prev.filter((p) => String(p.id) !== String(postId)))
+  }
+
+  const handleHidePost = (postId) => {
+    pauseTrackIfDeleted(postId)
+    hidePost(postId)
+    setPodcasts((prev) => prev.filter((p) => String(p.id) !== String(postId)))
+  }
+
   return (
     <section className={styles.feed}>
       <CreatePostBar />
@@ -476,38 +665,20 @@ export default function Feed() {
 
         {!loading &&
           !error &&
-          podcasts.map((podcast) => (
-            <div key={podcast.id} data-post-id={podcast.id}>
-              <PodcastCard
-                podcast={podcast}
-                queue={podcasts}
-                onDelete={(postId) => {
-                  console.log(
-                    '[Feed] onDelete:',
-                    postId,
-                    'currentTrack:',
-                    currentTrack?.id
-                  )
-
-                  pauseTrackIfDeleted(postId)
-                  deletePost(postId)
-                  setPodcasts((prev) => prev.filter((p) => p.id !== postId))
-                }}
-                onHide={(postId) => {
-                  console.log(
-                    '[Feed] onHide:',
-                    postId,
-                    'currentTrack:',
-                    currentTrack?.id
-                  )
-
-                  pauseTrackIfDeleted(postId)
-                  hidePost(postId)
-                  setPodcasts((prev) => prev.filter((p) => p.id !== postId))
-                }}
-              />
-            </div>
-          ))}
+          podcasts.map((podcast) =>
+            podcast.type === 'shared' ? (
+              renderSharedPost(podcast)
+            ) : (
+              <div key={podcast.viewId || podcast.id} data-post-id={podcast.id}>
+                <PodcastCard
+                  podcast={podcast}
+                  queue={podcasts}
+                  onDelete={handleDeletePost}
+                  onHide={handleHidePost}
+                />
+              </div>
+            )
+          )}
       </div>
 
       {selectedPodcast && (

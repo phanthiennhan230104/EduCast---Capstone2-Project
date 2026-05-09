@@ -219,17 +219,34 @@ export function AudioPlayerProvider({ children }) {
 
   const seekToPercent = useCallback((percent) => {
     const audio = audioRef.current
-    if (!audio || !duration || !currentTrack?.id) return
+
+    if (!audio || !currentTrack?.id) return
+
+    const audioDuration =
+      Number(audio.duration) ||
+      Number(duration) ||
+      Number(currentTrack?.durationSeconds) ||
+      0
+
+    if (audioDuration <= 0) return
 
     setIsSeeking(true)
-    const nextTime = (Number(percent) / 100) * duration
+
+    const nextTime = Math.max(
+      0,
+      Math.min(
+        audioDuration,
+        (Number(percent) / 100) * audioDuration
+      )
+    )
+
     audio.currentTime = nextTime
     setCurrentTime(nextTime)
 
     saveProgress(currentTrack.id, {
       currentTime: nextTime,
-      duration,
-      progressPercent: Number(percent),
+      duration: audioDuration,
+      progressPercent: (nextTime / audioDuration) * 100,
       hasPlayed: nextTime > 0,
     })
   }, [duration, currentTrack, saveProgress])
@@ -493,6 +510,7 @@ export function AudioPlayerProvider({ children }) {
     volume,
     progressPercent,
     trackProgressMap,
+    isSeeking,
     formattedCurrentTime: formatTime(currentTime),
     formattedDuration: formatTime(duration),
     setVolume,
