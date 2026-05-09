@@ -1928,7 +1928,7 @@ def share_post_to_user(request, post_id):
                     room=room,
                     sender=user,
                     content=message_content,
-                    message_type="text",
+                    message_type="podcast",
                 )
 
                 serialized_message = MessageSerializer(
@@ -2012,6 +2012,17 @@ def share_post_to_user(request, post_id):
             else "Post shared partially"
         )
 
+        try:
+            counts = _post_counts(post.id)
+        except Exception as count_error:
+            print("Post count error:", count_error)
+            counts = {
+                "like_count": 0,
+                "comment_count": 0,
+                "save_count": 0,
+                "share_count": 0,
+            }
+
         return _json_success(
             response_message,
             {
@@ -2019,7 +2030,7 @@ def share_post_to_user(request, post_id):
                 "post_id": post.id,
                 "shared_with": success_count,
                 "total": len(target_user_ids),
-                **_post_counts(post.id)
+                **counts,
             },
             status=201
         )
