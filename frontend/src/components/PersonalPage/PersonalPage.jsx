@@ -48,19 +48,28 @@ export default function PersonalPage() {
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const saveBookmarkRef = useRef(null)
   const { user } = useAuth()
-  const { username: routeUsername } = useParams()
+  const { userId: routeUserId } = useParams()
   const navigate = useNavigate()
   const { deletedPostIds, deletedPostsVersion, hiddenPostIds, hiddenPostsVersion, deletePost, hidePost, addSavedPost, removeSavedPost } = useContext(PodcastContext)
   const { pauseTrackIfDeleted } = useAudioPlayer()
 
+const profileUserId = routeUserId || user?.id
+const isOwnProfile = String(profileUserId) === String(user?.id)
+const profileAvatar =
+  userProfile?.avatar_url ||
+  userProfile?.avatar ||
+  userProfile?.profile_image ||
+  userProfile?.image ||
+  ''
+
   React.useEffect(() => {
-    // If routeUsername is present, show that user's profile; otherwise use logged-in user
-    if (!user?.id && !routeUsername) return
+    if (!profileUserId) return
+
     fetchUserProfile()
     fetchUserPosts()
     fetchUserPodcasts()
     fetchUserFriends()
-  }, [user?.id, routeUsername])
+  }, [profileUserId])
 
   React.useEffect(() => {
     setPosts(prev => 
@@ -135,40 +144,15 @@ export default function PersonalPage() {
         }
       }))
     }
-
+    
     window.addEventListener(POST_SYNC_EVENT, handlePostSync)
     return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
   }, [])
 
   const fetchUserProfile = async () => {
     try {
-      // If routeUsername provided, try to load that user's profile
-      if (routeUsername) {
-        try {
-          const byName = await apiRequest(`/users/username/${routeUsername}/profile/`)
-          setUserProfile(byName.data || {})
-          return
-        } catch (err) {
-          // fallback: try search endpoint to resolve id
-          try {
-            const search = await apiRequest(`/users/?username=${routeUsername}`)
-            const found = (search.data?.results || search.data || []).find(u => u.username === routeUsername)
-            if (found?.id) {
-              const data = await apiRequest(`/users/${found.id}/profile/`)
-              setUserProfile(data.data || {})
-              return
-            }
-          } catch (err2) {
-            console.warn('Fallback username lookup failed', err2)
-          }
-        }
-      }
-
-      // Default: current user
-      const data = await apiRequest(`/users/${user.id}/profile/`)
-      console.log('User profile data:', data.data)
+      const data = await apiRequest(`/users/${profileUserId}/profile/`)
       setUserProfile(data.data || {})
-      console.log('✅ UserProfile state set to:', data.data)
     } catch (err) {
       console.error('Failed to fetch user profile:', err)
       setUserProfile(null)
@@ -177,7 +161,7 @@ export default function PersonalPage() {
 
   const fetchUserPosts = async () => {
     try {
-      const data = await apiRequest(`/content/users/${user?.id}/posts/?limit=100`)
+      const data = await apiRequest(`/content/users/${profileUserId}/posts/?limit=100`)
       const posts = data.data?.posts || []
       
       console.log('📌 Fetched posts:', posts.map(p => ({ id: p.id, type: p.type, is_liked: p.is_liked, like_count: p.like_count, title: p.title })))
@@ -300,14 +284,22 @@ export default function PersonalPage() {
   }
 
   const fetchUserFriends = async () => {
-    try {
-      const data = await apiRequest('/social/follow-list/')
-      setFriends(data.data?.following || [])
-    } catch (err) {
-      console.error('Failed to fetch friends:', err)
-      setFriends([])
-    }
+  try {
+    const data = await apiRequest(`/social/friends/?user_id=${profileUserId}`)
+    setFriends(data.data?.friends || [])
+
+    const following =
+      data.data?.following ||
+      data.data?.friends ||
+      data.data?.results ||
+      []
+
+    setFriends(following)
+  } catch (err) {
+    console.error('Failed to fetch friends:', err)
+    setFriends([])
   }
+}
 
   const handleOpenOriginalPost = async (post) => {
     if (!post.post_id) return
@@ -726,10 +718,12 @@ export default function PersonalPage() {
             alt="Cover"
             className={styles.coverImage}
           />
-          <button className={styles.editCoverBtn}>
-            <ImageIcon size={16} />
-            <span className={styles.editCoverText}>Chỉnh sửa ảnh bìa</span>
-          </button>
+          {isOwnProfile && (
+            <button className={styles.editCoverBtn}>
+              <ImageIcon size={16} />
+              <span className={styles.editCoverText}>Chỉnh sửa ảnh bìa</span>
+            </button>
+          )}
         </div>
 
         {/* Profile Info Row */}
@@ -738,9 +732,9 @@ export default function PersonalPage() {
             {/* Avatar */}
             <div className={styles.avatarWrapper}>
               <div className={styles.avatar}>
-                {(userProfile?.avatar_url || user?.avatar_url) && !failedAvatarUrls.has('profile') ? (
+                {profileAvatar && !failedAvatarUrls.has('profile') ? (
                   <img
-                    src={userProfile?.avatar_url || user?.avatar_url}
+                    src={profileAvatar}
                     alt="Avatar"
                     className={styles.avatarImage}
                     onError={() => {
@@ -749,7 +743,11 @@ export default function PersonalPage() {
                   />
                 ) : (
                   <div className={styles.avatarInitialsLarge}>
-                    {getInitials({ username: user?.username, display_name: userProfile?.display_name, name: userProfile?.full_name || userProfile?.name } || 'User')}
+                    {getInitials({
+                      username: userProfile?.username,
+                      display_name: userProfile?.display_name,
+                      name: userProfile?.full_name || userProfile?.name,
+                    } || 'User')}
                   </div>
                 )}
               </div>
@@ -758,7 +756,7 @@ export default function PersonalPage() {
             {/* Name & Stats */}
             <div className={styles.profileInfo}>
               <h1 className={styles.profileName}>
-                {userProfile?.display_name || user?.username || 'User'}
+                {userProfile?.display_name || userProfile?.full_name || userProfile?.name || userProfile?.username || 'User'}
               </h1>
               <p className={styles.profileStats}>
                 {userProfile?.podcast_count || 0} Podcast · {userProfile?.followers_count || 0} Người theo dõi · {userProfile?.following_count || 0} Đang theo dõi
@@ -767,10 +765,12 @@ export default function PersonalPage() {
 
             {/* Actions */}
             <div className={styles.actions}>
-              <button className={styles.editBtn} onClick={handleEditProfile}>
-                <Edit3 size={16} />
-                Chỉnh sửa
-              </button>
+              {isOwnProfile && (
+                <button className={styles.editBtn} onClick={handleEditProfile}>
+                  <Edit3 size={16} />
+                  Chỉnh sửa
+                </button>
+              )}
               <button className={styles.shareBtn} onClick={handleShareProfile}>
                 <Share2 size={16} />
                 Chia sẻ
@@ -817,11 +817,10 @@ export default function PersonalPage() {
                 <div className={styles.postsLayout}>
                   {posts.length > 0 ? (
                     posts.map((post) => {
-                      // Check if this is the user's own post
-                      const isOwnPost = String(post.authorId || post.author_id) === String(user?.id)
+                      const isOriginalPost = post.type !== 'shared'
 
                       // If it's own post, display like Feed (just PodcastCard without share frame)
-                      if (isOwnPost) {
+                      if (isOriginalPost) {
                         return (
                           <div key={post.id} className={styles.postCard}>
                             <PodcastCard
@@ -844,11 +843,11 @@ export default function PersonalPage() {
                             {/* Share Info Header - Hiển thị tên người chia sẻ và thời gian */}
                             <div className={styles.postShareInfo}>
                               <div className={styles.postShareAuthor}>
-                                {(userProfile?.avatar_url || user?.avatar_url) && !failedAvatarUrls.has('postShare') ? (
+                                {profileAvatar && !failedAvatarUrls.has('postShare') ? (
                                   <div className={styles.postShareAvatarWrapper}>
                                     <img 
-                                      src={userProfile?.avatar_url || user?.avatar_url} 
-                                      alt={user?.username} 
+                                      src={profileAvatar}
+                                      alt={userProfile?.username || userProfile?.display_name || 'Avatar'}
                                       className={styles.postShareAvatar}
                                       onError={() => {
                                         setFailedAvatarUrls(prev => new Set([...prev, 'postShare']))
@@ -858,7 +857,11 @@ export default function PersonalPage() {
                                 ) : (
                                   <div className={styles.postShareAvatarWrapper}>
                                     <div className={styles.postShareAvatarInitials}>
-                                      {getInitials({ username: user?.username, display_name: userProfile?.display_name, name: userProfile?.full_name || userProfile?.name } || 'User')}
+                                      {getInitials({
+                                        username: userProfile?.username,
+                                        display_name: userProfile?.display_name,
+                                        name: userProfile?.full_name || userProfile?.name,
+                                      } || 'User')}
                                     </div>
                                   </div>
                                 )}

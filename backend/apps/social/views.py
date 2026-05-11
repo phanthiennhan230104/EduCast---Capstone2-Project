@@ -859,12 +859,14 @@ def list_post_likers(request, post_id):
 @csrf_exempt
 @require_http_methods(["GET"])
 def get_following_list(request):
-    user = _get_current_user(request)
-    if not user:
+    current_user = _get_current_user(request)
+    if not current_user:
         return _json_error("Authentication required", 401)
 
+    target_user_id = request.GET.get("user_id") or current_user.id
+
     follows = Follow.objects.filter(
-        follower_id=user.id
+        follower_id=target_user_id
     ).select_related("following", "following__profile")
 
     following = []
@@ -1375,18 +1377,18 @@ def track_listen(request, post_id):
 
 @require_http_methods(["GET"])
 def get_friends_list(request):
-    user = _get_current_user(request)
-    if not user:
+    current_user = _get_current_user(request)
+    if not current_user:
         return _json_error("Authentication required", 401)
 
-    # người mình follow
+    target_user_id = request.GET.get("user_id") or current_user.id
+
     following_ids = Follow.objects.filter(
-        follower_id=user.id
+        follower_id=target_user_id
     ).values_list("following_id", flat=True)
 
-    # người follow lại mình
     follower_ids = Follow.objects.filter(
-        following_id=user.id
+        following_id=target_user_id
     ).values_list("follower_id", flat=True)
 
     # mutual = giao nhau
@@ -1395,7 +1397,7 @@ def get_friends_list(request):
     friends = (
         User.objects
         .filter(id__in=friend_ids)
-        .exclude(id=user.id)
+        .exclude(id=target_user_id)
         .select_related("profile")
     )
 

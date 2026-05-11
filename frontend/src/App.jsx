@@ -178,6 +178,17 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+
+              <Route
+                path="/profile/:userId"
+                element={
+                  <ProtectedRoute>
+                    <MainLayout rightPanel={false}>
+                      <PersonalPageComponent />
+                    </MainLayout>
+                  </ProtectedRoute>
+                }
+              />
             <Route
               path="/settings"
               element={
