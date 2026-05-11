@@ -11,9 +11,12 @@ def _clean_text(raw_text: str) -> str:
     return (raw_text or "").strip()
 
 def _extract_json_from_fenced_block(text: str) -> dict[str, Any] | None:
-    matches = re.findall(r"```json\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
+    """Extract JSON from fenced code blocks (```json ... ```)"""
+    matches = re.findall(r"```(?:json)?\s*(.*?)\s*```", text, flags=re.IGNORECASE | re.DOTALL)
     for candidate in matches:
         candidate = candidate.strip()
+        if not candidate:
+            continue
         try:
             parsed = json.loads(candidate)
             if isinstance(parsed, dict):

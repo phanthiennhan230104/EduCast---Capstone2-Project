@@ -10,43 +10,26 @@ const INITIAL_ASSISTANT_MESSAGE = {
     content: {
       title: 'Mình có thể giúp bạn',
       bullets: [
-        'Gợi ý topic nội dung giáo dục',
-        'Tạo dàn ý và bản nháp bài viết',
-        'Viết lại nội dung cho dễ đọc hơn',
-        'Đổi sang script podcast',
-        'Tìm kiếm bài viết có sẵn trong feed',
+        'Tạo bài học tiếng Anh cho người mới bắt đầu',
+        'Giải thích lập trình bằng ví dụ dễ hiểu',
+        'Tạo nội dung kỹ năng mềm và lối sống',
+        'Gợi ý bài tập sức khỏe an toàn cho người lớn tuổi',
+        'Soạn script podcast giáo dục ngắn',
       ],
       description: '',
       body: '',
       hashtags: [],
     },
     suggestions: [
-      'Gợi ý 5 topic về học tiếng Anh',
-      'Viết bài ngắn về Pomodoro',
-      'Tìm bài viết về kỹ năng học tập trong feed',
-      'Đổi nội dung này thành script podcast',
+      'Tạo bài học tiếng Anh giao tiếp cho beginner',
+      'Giải thích async await trong JavaScript',
+      'Viết script podcast 2 phút về kỹ năng giao tiếp',
+      'Gợi ý bài tập nhẹ cho người lớn tuổi',
     ],
   },
 }
 
-const SEARCH_KEYWORDS = [
-  'tìm',
-  'tìm kiếm',
-  'search',
-  'bài viết',
-  'post',
-  'feed',
-  'trong feed',
-  'có sẵn',
-  'đã đăng',
-]
-
-function isSearchRequest(message) {
-  const normalizedMessage = (message || '').toLowerCase()
-  return SEARCH_KEYWORDS.some((keyword) => normalizedMessage.includes(keyword))
-}
-
-function toHistoryText(content) {
+function normalizeContent(content) {
   if (typeof content === 'string') {
     return content.trim()
   }
@@ -59,9 +42,11 @@ function toHistoryText(content) {
   const title = content?.content?.title || ''
   const description = content?.content?.description || ''
   const body = content?.content?.body || ''
+
   const bullets = Array.isArray(content?.content?.bullets)
     ? content.content.bullets.join('\n')
     : ''
+
   const posts = Array.isArray(content?.content?.posts)
     ? content.content.posts
         .map((post) => {
@@ -71,7 +56,9 @@ function toHistoryText(content) {
             ? `Tác giả: ${post.author.username}`
             : ''
 
-          return [postTitle, postDescription, author].filter(Boolean).join('\n')
+          return [postTitle, postDescription, author]
+            .filter(Boolean)
+            .join('\n')
         })
         .join('\n\n')
     : ''
@@ -84,19 +71,24 @@ function toHistoryText(content) {
 
 function buildHistoryPayload(messages) {
   return messages
-    .filter((message) => message.role === 'user' || message.role === 'assistant')
+    .filter(
+      (message) =>
+        message.role === 'user' || message.role === 'assistant',
+    )
     .map((message) => ({
       role: message.role,
-      content: toHistoryText(message.content),
+      content: normalizeContent(message.content),
     }))
     .filter((item) => item.content)
-    .slice(-8)
+    .slice(-20)  // Tăng lên 20 item để giữ lâu hơn context
 }
 
 export function useChatAssistant() {
-  const [messages, setMessages] = useState([INITIAL_ASSISTANT_MESSAGE])
+  const [messages, setMessages] = useState([
+    INITIAL_ASSISTANT_MESSAGE,
+  ])
+
   const [isLoading, setIsLoading] = useState(false)
-  const [isSearching, setIsSearching] = useState(false)
   const [error, setError] = useState('')
 
   const sendMessage = useCallback(
@@ -113,33 +105,63 @@ export function useChatAssistant() {
         content,
       }
 
-      const historyPayload = buildHistoryPayload(messages)
-      const shouldSearch = isSearchRequest(content)
+      const historyPayload = buildHistoryPayload([
+        ...messages,
+        userMessage,
+      ])
 
-      setMessages((previousMessages) => [...previousMessages, userMessage])
+      setMessages((previousMessages) => [
+        ...previousMessages,
+        userMessage,
+      ])
+
       setIsLoading(true)
-      setIsSearching(shouldSearch)
       setError('')
 
       try {
         const response = await sendAssistantMessage({
           message: content,
+
           history: historyPayload,
+
           context: {
-            tone: 'friendly',
-            target_audience: 'students and young professionals',
-            format: shouldSearch ? 'feed_search' : 'feed_post',
+            tone: 'friendly, educational, practical',
+
+            target_audience:
+              'elderly adults, adult learners, english learners, programming students',
+
+            format: 'assistant_response',
+
             length: 'medium',
+
             language: 'vi',
           },
         })
 
+        const assistantPayload =
+          response?.message ||
+          response?.data?.message ||
+          null
+
         const assistantMessage = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
+
           content:
-            response?.message ||
-            'Hệ thống chưa thể đưa ra phản hồi cho câu hỏi này.',
+            assistantPayload || {
+              type: 'generate',
+              intent: 'fallback',
+              summary:
+                'AI chưa thể tạo phản hồi phù hợp.',
+              content: {
+                title: '',
+                description: '',
+                body: 'Vui lòng thử lại.',
+                bullets: [],
+                hashtags: [],
+              },
+              suggestions: [],
+            },
         }
 
         setMessages((previousMessages) => [
@@ -147,6 +169,8 @@ export function useChatAssistant() {
           assistantMessage,
         ])
       } catch (requestError) {
+        console.error('Assistant request error:', requestError)
+
         const errorMessage =
           requestError?.response?.data?.detail ||
           requestError?.response?.data?.message ||
@@ -154,20 +178,48 @@ export function useChatAssistant() {
           'Không thể gửi tin nhắn tới AI Assistant.'
 
         setError(errorMessage)
+
+        const assistantErrorMessage = {
+          id: `assistant-error-${Date.now()}`,
+          role: 'assistant',
+          content: {
+            type: 'error',
+            summary: 'AI Assistant gặp lỗi',
+            content: {
+              title: 'Không thể xử lý yêu cầu',
+              description: '',
+              body: errorMessage,
+              bullets: [],
+              hashtags: [],
+            },
+            suggestions: [
+              'Thử lại',
+              'Viết ngắn gọn hơn',
+              'Đổi chủ đề khác',
+            ],
+          },
+        }
+
+        setMessages((previousMessages) => [
+          ...previousMessages,
+          assistantErrorMessage,
+        ])
       } finally {
         setIsLoading(false)
-        setIsSearching(false)
       }
     },
-    [isLoading, messages],
+    [isLoading],
   )
 
-  const canSend = useMemo(() => !isLoading, [isLoading])
+  const canSend = useMemo(
+    () => !isLoading,
+    [isLoading],
+  )
 
   return {
     messages,
     isLoading,
-    isSearching,
+    isSearching: false,  // Thêm property này (hiện chưa có logic search)
     error,
     canSend,
     sendMessage,

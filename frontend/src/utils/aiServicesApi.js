@@ -13,5 +13,6 @@ export async function sendAssistantMessage({
       context,
     }),
     credentials: 'include',
+    timeoutMs: 60000, // Tăng timeout lên 60 giây cho AI generation
   })
 }
