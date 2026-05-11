@@ -2,7 +2,7 @@ from django.db.models import Q
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-
+from .models import ChatRoom, ChatRoomMember, Message
 from apps.users.models import User
 from .models import ChatRoom, Message
 from .serializers import (
@@ -80,6 +80,32 @@ class MarkReadView(APIView):
         read_count = mark_room_as_read(room=room, user=request.user)
         return Response({"read_count": read_count}, status=status.HTTP_200_OK)
 
+class DeleteRoomView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def delete(self, request, room_id):
+        if not user_is_room_member(request.user, room_id):
+            return Response(
+                {"detail": "Bạn không thuộc room này."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        room = ChatRoom.objects.filter(id=room_id).first()
+        if not room:
+            return Response(
+                {"detail": "Room không tồn tại."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Xoá toàn bộ room chat cho cả 2 người
+        Message.objects.filter(room_id=room_id).delete()
+        ChatRoomMember.objects.filter(room_id=room_id).delete()
+        room.delete()
+
+        return Response(
+            {"detail": "Đã xoá cuộc trò chuyện.", "room_id": room_id},
+            status=status.HTTP_200_OK,
+        )
 
 class UploadAttachmentView(APIView):
     permission_classes = [permissions.IsAuthenticated]

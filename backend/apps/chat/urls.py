@@ -6,6 +6,7 @@ from .views import (
     MessagesView,
     StartChatView,
     UploadAttachmentView,
+    DeleteRoomView,
 )
 
 urlpatterns = [
@@ -15,4 +16,5 @@ urlpatterns = [
     path("rooms/<str:room_id>/read/", MarkReadView.as_view(), name="chat-mark-read"),
     path("attachments/upload/", UploadAttachmentView.as_view(), name="chat-upload-attachment"),
     path("users/search/", ChatUserSearchView.as_view(), name="chat-user-search"),
+    path("rooms/<str:room_id>/delete/", DeleteRoomView.as_view(), name="chat-delete-room"),
 ]

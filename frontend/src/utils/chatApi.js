@@ -63,3 +63,9 @@ export function createChatInboxSocket() {
   const token = getToken();
   return new WebSocket(`${WS_BASE}/ws/chat/inbox/?token=${token}`);
 }
+
+export async function deleteChatRoom(roomId) {
+  return apiRequest(`/chat/rooms/${roomId}/delete/`, {
+    method: "DELETE",
+  });
+}

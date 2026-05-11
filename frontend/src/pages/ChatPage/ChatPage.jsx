@@ -31,6 +31,7 @@ import {
   markRoomRead,
   startDirectChat,
   uploadChatAttachment,
+  deleteChatRoom,
 } from "../../utils/chatApi";
 import { useAuth } from "../../components/contexts/AuthContext";
 
@@ -43,12 +44,32 @@ import {
   normalizeConversationOwnership,
   normalizeMessageOwnership,
 } from "../../utils/chat/chatHelpers";
+import { useNavigate } from "react-router-dom";
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
+const IMAGE_ACCEPT = "image/*";
+const FILE_ACCEPT = [
+  ".pdf",
+  ".doc",
+  ".docx",
+  ".txt",
+  ".ppt",
+  ".pptx",
+  ".xls",
+  ".xlsx",
+  ".zip",
+  ".rar",
+  ".mp3",
+  ".wav",
+  ".m4a",
+  ".ogg",
+  "audio/*",
+].join(",");
 
 export default function ChatPage() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
@@ -56,7 +77,16 @@ export default function ChatPage() {
   const [draft, setDraft] = useState("");
   const [openNewChat, setOpenNewChat] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [rightPanelOpen, setRightPanelOpen] = useState(true);
+  const [rightPanelOpen, setRightPanelOpen] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [recordSeconds, setRecordSeconds] = useState(0);
+  const [recordedAudio, setRecordedAudio] = useState(null);
+
+  const mediaRecorderRef = useRef(null);
+  const audioChunksRef = useRef([]);
+  const recordTimerRef = useRef(null);
+  const micStreamRef = useRef(null);
+  const discardRecordingRef = useRef(false);
 
   const messagesEndRef = useRef(null);
   const messageNodeRefs = useRef({});
@@ -90,6 +120,27 @@ export default function ChatPage() {
       setLoading(false);
     }
   }, [user?.id]);
+
+  const handleDeleteRoom = async (roomId) => {
+    try {
+      await deleteChatRoom(roomId);
+
+      setConversations((prev) => {
+        const next = prev.filter((item) => item.id !== roomId);
+
+        if (activeRoomId === roomId) {
+          setActiveRoomId(next[0]?.id || null);
+          setMessages([]);
+        }
+
+        return next;
+      });
+
+      toast.success("Đã xoá cuộc trò chuyện");
+    } catch (error) {
+      toast.error(error.message || "Không xoá được cuộc trò chuyện");
+    }
+  };
 
   const loadMessages = useCallback(
     async (roomId) => {
@@ -285,6 +336,120 @@ export default function ChatPage() {
     return false;
   };
 
+  const handleUploadByType = (type) => async (file) => {
+    const mime = file.type || "";
+    const isImage = mime.startsWith("image/");
+
+    if (type === "image" && !isImage) {
+      toast.error("Nút hình ảnh chỉ được chọn file ảnh");
+      return Upload.LIST_IGNORE;
+    }
+
+    if (type === "file" && isImage) {
+      toast.error("Nút attachment không dùng để gửi ảnh");
+      return Upload.LIST_IGNORE;
+    }
+
+    return handleUploadAndSend(file);
+  };
+
+  const stopMicStream = () => {
+    micStreamRef.current?.getTracks()?.forEach((track) => track.stop());
+    micStreamRef.current = null;
+  };
+
+  const clearRecordTimer = () => {
+    if (recordTimerRef.current) {
+      clearInterval(recordTimerRef.current);
+      recordTimerRef.current = null;
+    }
+  };
+
+  const handleStartRecording = async () => {
+    if (status !== "open") {
+      toast.error("Vui lòng chờ kết nối chat hoàn tất");
+      return;
+    }
+
+    try {
+      setRecordedAudio(null);
+      setRecordSeconds(0);
+      discardRecordingRef.current = false;
+      audioChunksRef.current = [];
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      micStreamRef.current = stream;
+
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      recorder.onstop = () => {
+        clearRecordTimer();
+        stopMicStream();
+        setRecording(false);
+
+        if (discardRecordingRef.current) {
+          setRecordedAudio(null);
+          setRecordSeconds(0);
+          return;
+        }
+
+        const blob = new Blob(audioChunksRef.current, {
+          type: recorder.mimeType || "audio/webm",
+        });
+
+        setRecordedAudio(blob);
+      };
+
+      recorder.start();
+      setRecording(true);
+
+      recordTimerRef.current = setInterval(() => {
+        setRecordSeconds((prev) => prev + 1);
+      }, 1000);
+    } catch (error) {
+      toast.error("Không thể bật micro");
+    }
+  };
+
+  const handleStopRecording = () => {
+    mediaRecorderRef.current?.stop();
+  };
+
+  const handleCancelRecording = () => {
+    discardRecordingRef.current = true;
+
+    if (mediaRecorderRef.current?.state === "recording") {
+      mediaRecorderRef.current.stop();
+    } else {
+      stopMicStream();
+      clearRecordTimer();
+      setRecording(false);
+      setRecordedAudio(null);
+      setRecordSeconds(0);
+    }
+  };
+
+    const handleSendRecordedAudio = async () => {
+      if (!recordedAudio) return;
+
+      const audioFile = new File(
+        [recordedAudio],
+        `voice-message-${Date.now()}.webm`,
+        { type: recordedAudio.type || "audio/webm" }
+      );
+
+      await handleUploadAndSend(audioFile);
+      setRecordedAudio(null);
+      setRecordSeconds(0);
+    };
+
   const scrollToMessage = useCallback((messageId) => {
     const node = messageNodeRefs.current[messageId];
     if (!node) return;
@@ -376,6 +541,7 @@ export default function ChatPage() {
                   item={item}
                   active={item.id === activeRoomId}
                   onClick={() => setActiveRoomId(item.id)}
+                  onDelete={() => handleDeleteRoom(item.id)}
                 />
               ))
             )}
@@ -414,8 +580,9 @@ export default function ChatPage() {
               <div className="chat-composer">
                 <div className="chat-composer-actions">
                   <Upload
+                    accept={IMAGE_ACCEPT}
                     showUploadList={false}
-                    beforeUpload={handleUploadAndSend}
+                    beforeUpload={handleUploadByType("image")}
                     disabled={uploading || status !== "open"}
                   >
                     <Button
@@ -426,22 +593,17 @@ export default function ChatPage() {
                     />
                   </Upload>
 
-                  <Upload
-                    showUploadList={false}
-                    beforeUpload={handleUploadAndSend}
-                    disabled={uploading || status !== "open"}
-                  >
-                    <Button
-                      className="composer-icon-btn"
-                      icon={<AudioOutlined />}
-                      loading={uploading}
-                      disabled={status !== "open"}
-                    />
-                  </Upload>
+                  <Button
+                    className="composer-icon-btn"
+                    icon={<AudioOutlined />}
+                    disabled={status !== "open" || uploading}
+                    onClick={recording ? handleStopRecording : handleStartRecording}
+                  />
 
                   <Upload
+                    accept={FILE_ACCEPT}
                     showUploadList={false}
-                    beforeUpload={handleUploadAndSend}
+                    beforeUpload={handleUploadByType("file")}
                     disabled={uploading || status !== "open"}
                   >
                     <Button
@@ -452,7 +614,29 @@ export default function ChatPage() {
                     />
                   </Upload>
                 </div>
+                {recording && (
+                  <div className="recording-box">
+                    <span>Đang ghi âm: {recordSeconds}s</span>
+                    <Button size="small" onClick={handleStopRecording}>
+                      Dừng
+                    </Button>
+                    <Button size="small" danger onClick={handleCancelRecording}>
+                      Huỷ
+                    </Button>
+                  </div>
+                )}
 
+                {recordedAudio && !recording && (
+                  <div className="recording-box">
+                    <audio controls src={URL.createObjectURL(recordedAudio)} />
+                    <Button size="small" type="primary" onClick={handleSendRecordedAudio}>
+                      Gửi
+                    </Button>
+                    <Button size="small" danger onClick={() => setRecordedAudio(null)}>
+                      Huỷ
+                    </Button>
+                  </div>
+                )}
                 <TextArea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
@@ -508,7 +692,19 @@ export default function ChatPage() {
                 {activeConversation.peer.email}
               </Text>
 
-              <Button icon={<MessageOutlined />} block>
+              <Button
+                icon={<MessageOutlined />}
+                block
+                onClick={() => {
+                  const peerId = activeConversation?.peer?.id;
+                  if (!peerId) {
+                    toast.error("Không tìm thấy ID người dùng");
+                    return;
+                  }
+
+                  navigate(`/profile/${peerId}`);
+                }}
+              >
                 Hồ sơ
               </Button>
 
