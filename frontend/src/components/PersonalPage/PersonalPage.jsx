@@ -11,7 +11,6 @@ import { toast } from 'react-toastify'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import PodcastCard from '../feed/PodcastCard'
 import CommentModal from '../feed/CommentModal'
-import { useTranslation } from 'react-i18next'
 import ShareModal from '../feed/ShareModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
 import {
@@ -35,8 +34,7 @@ import styles from '../../style/personal/PersonalPage.module.css'
 const TABS = ['Bài đăng', 'Bạn bè']
 
 export default function PersonalPage() {
-  const { t, i18n } = useTranslation()
-  const [activeTab, setActiveTab] = useState('posts')
+  const [activeTab, setActiveTab] = useState('Bài đăng')
   const [posts, setPosts] = useState([])
   const [podcasts, setPodcasts] = useState([])
   const [friends, setFriends] = useState([])
@@ -55,14 +53,14 @@ export default function PersonalPage() {
   const { deletedPostIds, deletedPostsVersion, hiddenPostIds, hiddenPostsVersion, deletePost, hidePost, addSavedPost, removeSavedPost } = useContext(PodcastContext)
   const { pauseTrackIfDeleted } = useAudioPlayer()
 
-const profileUserId = routeUserId || user?.id
-const isOwnProfile = String(profileUserId) === String(user?.id)
-const profileAvatar =
-  userProfile?.avatar_url ||
-  userProfile?.avatar ||
-  userProfile?.profile_image ||
-  userProfile?.image ||
-  ''
+  const profileUserId = routeUserId || user?.id
+  const isOwnProfile = String(profileUserId) === String(user?.id)
+  const profileAvatar =
+    userProfile?.avatar_url ||
+    userProfile?.avatar ||
+    userProfile?.profile_image ||
+    userProfile?.image ||
+    ''
 
   React.useEffect(() => {
     if (!profileUserId) return
@@ -74,14 +72,13 @@ const profileAvatar =
   }, [profileUserId])
 
   React.useEffect(() => {
-    setPosts(prev => 
+    setPosts(prev =>
       prev.filter(p => !deletedPostIds.has(String(p.id)) && !hiddenPostIds.has(String(p.id)))
     )
   }, [deletedPostsVersion, hiddenPostsVersion])
 
   // Sync event for Feed and Profile page communication
   const POST_SYNC_EVENT = 'post-sync-updated'
-
   const dispatchPostSync = (payload) => {
     window.dispatchEvent(new CustomEvent(POST_SYNC_EVENT, { detail: payload }))
   }
@@ -91,7 +88,7 @@ const profileAvatar =
       const d = event.detail || {}
 
       if (!d.postId) return
-      
+
       // Update localStorage cache (same as Feed does)
       const oldSync = JSON.parse(
         localStorage.getItem(`post-sync-${d.postId}`) || '{}'
@@ -124,12 +121,12 @@ const profileAvatar =
         prev.map(p =>
           String(p.id) === String(d.postId)
             ? {
-                ...p,
-                liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
-                likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
-                saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
-                saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
-              }
+              ...p,
+              liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
+              likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
+              saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+              saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+            }
             : p
         )
       )
@@ -146,7 +143,7 @@ const profileAvatar =
         }
       }))
     }
-    
+
     window.addEventListener(POST_SYNC_EVENT, handlePostSync)
     return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
   }, [])
@@ -171,10 +168,9 @@ const profileAvatar =
       // Load local overrides from localStorage
       const localCommentCountOverrides = JSON.parse(localStorage.getItem('personalPageCommentCountOverrides') || '{}')
       const profileHiddenPosts = JSON.parse(localStorage.getItem('profileHiddenPosts') || '[]')
-      
       console.log('📌 Local comment count overrides:', localCommentCountOverrides)
       console.log('📌 Profile hidden posts:', profileHiddenPosts)
-      
+
       const mappedPosts = posts.map((post) => {
         // Use backend field names directly (cả bài gốc và bài share đều dùng counts từ backend)
         const shareCount = post.share_count || 0
@@ -187,14 +183,14 @@ const profileAvatar =
         const isLiked = syncState.liked ?? (post.is_liked || false)
         const finalLikeCount = syncState.likeCount ?? (post.like_count || 0)
         const isSaved = syncState.saved ?? (post.is_saved || false)
-        
+
         const hasLocalCommentOverride = post.id in localCommentCountOverrides
         const commentCount = hasLocalCommentOverride ? localCommentCountOverrides[post.id] : (post.comment_count || 0)
 
         console.log('📌 Post state:', {
           id: post.id,
           type: post.type,
-          backendLiked: post.is_liked, 
+          backendLiked: post.is_liked,
           finalLiked: isLiked,
           backendLikeCount: post.like_count,
           finalLikeCount: finalLikeCount,
@@ -236,7 +232,7 @@ const profileAvatar =
           saved: isSaved,
         }
       })
-      
+
       const newPostStates = {}
       mappedPosts.forEach(post => {
         console.log('📌 Initializing post state:', {
@@ -251,19 +247,19 @@ const profileAvatar =
           title: post.title
         })
         newPostStates[post.id] = {
-          liked: post.liked,  
+          liked: post.liked,
           likeCount: post.likes,
           saved: post.saved,
           saveCount: post.saveCount,
-          commentCount: post.comments,  
+          commentCount: post.comments,
           shareCount: post.shares,
         }
       })
       console.log('📌 postStates initialized:', newPostStates)
       setPostStates(newPostStates)
-      
-      const filteredPosts = mappedPosts.filter(p => 
-        !deletedPostIds.has(String(p.id)) && 
+
+      const filteredPosts = mappedPosts.filter(p =>
+        !deletedPostIds.has(String(p.id)) &&
         !hiddenPostIds.has(String(p.id)) &&
         !profileHiddenPosts.includes(p.id)
       )
@@ -286,34 +282,34 @@ const profileAvatar =
   }
 
   const fetchUserFriends = async () => {
-  try {
-    const data = await apiRequest(`/social/friends/?user_id=${profileUserId}`)
-    setFriends(data.data?.friends || [])
+    try {
+      const data = await apiRequest(`/social/friends/?user_id=${profileUserId}`)
+      setFriends(data.data?.friends || [])
 
-    const following =
-      data.data?.following ||
-      data.data?.friends ||
-      data.data?.results ||
-      []
+      const following =
+        data.data?.following ||
+        data.data?.friends ||
+        data.data?.results ||
+        []
 
-    setFriends(following)
-  } catch (err) {
-    console.error('Failed to fetch friends:', err)
-    setFriends([])
+      setFriends(following)
+    } catch (err) {
+      console.error('Failed to fetch friends:', err)
+      setFriends([])
+    }
   }
-}
 
   const handleOpenOriginalPost = async (post) => {
     if (!post.post_id) return
-    
+
     try {
       // Fetch the original post with its original stats
       const data = await apiRequest(`/content/posts/${post.post_id}/`)
       console.log('📌 Original post data:', data)
-      
+
       if (data && data.data) {
         const origPost = data.data
-        
+
         // Map to match PodcastCard format
         const mappedPost = {
           ...origPost,
@@ -338,7 +334,7 @@ const profileAvatar =
           liked: origPost.is_liked || false,
           saved: origPost.is_saved || false,
         }
-        
+
         // Use CommentModal to display original post (same as viewing comments)
         setSelectedPost(mappedPost)
         setShowCommentModal(true)
@@ -359,17 +355,17 @@ const profileAvatar =
     if (navigator.share) {
       await navigator.share({
         title: `${user.username}'s EduCast Profile`,
-        text: t('personal.profileShareText', { username: user.username }),
+        text: `Xem trang cá nhân của ${user.username} trên EduCast`,
         url: profileUrl,
       })
     } else {
       navigator.clipboard.writeText(profileUrl)
-      toast.success(t('personal.copiedLink'))
+      toast.success('Đã sao chép liên kết')
     }
   }
 
   const handleMoreOptions = () => {
-    toast.info(t('personal.moreOptions'))
+    toast.info('Các tùy chọn khác')
   }
 
   const handleToggleLike = async (postId) => {
@@ -457,7 +453,7 @@ const profileAvatar =
       })
     } catch (err) {
       console.error('Like failed:', err)
-      toast.error(t('personal.likeError'))
+      toast.error('Lỗi khi thích bài viết')
     }
   }
 
@@ -469,7 +465,7 @@ const profileAvatar =
       // Use the composite ID (share_xxx_yyy) if it's a shared post, otherwise use post ID
       const saveEndpointId = postId
 
-      
+
       if (isSaved) {
         // Unsave
         const token = getToken()
@@ -527,7 +523,7 @@ const profileAvatar =
       }
     } catch (err) {
       console.error('Save failed:', err)
-      toast.error(t('personal.saveError'))
+      toast.error('Lỗi khi lưu bài viết')
     }
   }
 
@@ -544,8 +540,8 @@ const profileAvatar =
     }))
 
     addSavedPost(postId)
-    setPosts(prev => prev.map(p => 
-      p.id === postId 
+    setPosts(prev => prev.map(p =>
+      p.id === postId
         ? { ...p, saved: true, saveCount: newSaveCount }
         : p
     ))
@@ -693,10 +689,10 @@ const profileAvatar =
         return filtered
       })
       deletePost(postId)
-      toast.success(t('personal.deleteSuccess'))
+      toast.success('Đã xóa bài đăng khỏi trang cá nhân')
     } catch (err) {
       console.error('Delete failed:', err)
-      toast.error(t('personal.deleteError', { message: err.message }))
+      toast.error('Lỗi khi xóa bài viết: ' + err.message)
     }
   }
 
@@ -706,7 +702,7 @@ const profileAvatar =
     pauseTrackIfDeleted(postId)
     setPosts(prev => prev.filter(p => p.id !== postId))
     hidePost(postId)
-    toast.success(t('personal.hideSuccess'))
+    toast.success('Đã ẩn bài đăng')
   }
 
   return (
@@ -775,7 +771,7 @@ const profileAvatar =
               )}
               <button className={styles.shareBtn} onClick={handleShareProfile}>
                 <Share2 size={16} />
-                {t('personal.share')}
+                Chia sẻ
               </button>
               <button className={styles.moreBtn} onClick={handleMoreOptions}>
                 <MoreHorizontal size={16} />
@@ -785,18 +781,19 @@ const profileAvatar =
 
           {/* Bio */}
           <p className={styles.bio}>
-            {userProfile?.bio || user?.bio || t('personal.defaultBio')}          </p>
+            {userProfile?.bio || user?.bio || 'Podcaster | AI Enthusiast | Chia sẻ kiến thức công nghệ mỗi ngày 🎙️🚀'}
+          </p>
         </div>
 
         {/* Tabs */}
         <div className={styles.tabsContainer}>
           {TABS.map((tab) => (
             <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              className={`${styles.tabBtn} ${activeTab === tab.key ? styles.activeTab : ''}`}
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`${styles.tabBtn} ${activeTab === tab ? styles.activeTab : ''}`}
             >
-              {t(tab.labelKey)}
+              {tab}
               {activeTab === tab && <motion.div layoutId="activeTab" className={styles.tabIndicator} />}
             </button>
           ))}
@@ -846,7 +843,7 @@ const profileAvatar =
                               <div className={styles.postShareAuthor}>
                                 {profileAvatar && !failedAvatarUrls.has('postShare') ? (
                                   <div className={styles.postShareAvatarWrapper}>
-                                    <img 
+                                    <img
                                       src={profileAvatar}
                                       alt={userProfile?.username || userProfile?.display_name || 'Avatar'}
                                       className={styles.postShareAvatar}
@@ -876,7 +873,7 @@ const profileAvatar =
                                 </div>
                               </div>
                               <div className={styles.postMenuWrap}>
-                                <button 
+                                <button
                                   className={styles.postShareMenuBtn}
                                   onClick={() => setOpenMenuPostId(openMenuPostId === post.id ? null : post.id)}
                                 >
@@ -884,7 +881,7 @@ const profileAvatar =
                                 </button>
                                 {openMenuPostId === post.id && (
                                   <div className={styles.postMenu}>
-                                    <button 
+                                    <button
                                       className={styles.postMenuOption}
                                       onClick={() => {
                                         setOpenMenuPostId(null)
@@ -894,7 +891,7 @@ const profileAvatar =
                                       <Edit size={16} />
                                       <span>Chỉnh sửa</span>
                                     </button>
-                                    <button 
+                                    <button
                                       className={`${styles.postMenuOption} ${styles.danger}`}
                                       onClick={() => handleDeletePost(post.id)}
                                     >
@@ -914,7 +911,7 @@ const profileAvatar =
                             )}
 
                             {/* Shared Post Content - Hiển thị bài đăng gốc */}
-                            <div 
+                            <div
                               className={styles.postCard}
                               onClick={() => handleOpenOriginalPost(post)}
                               style={{ cursor: 'pointer' }}
@@ -932,28 +929,28 @@ const profileAvatar =
 
                             {/* Share Actions - Hiển thị like, comment, share, lưu */}
                             <div className={styles.postShareActions}>
-                              <button 
+                              <button
                                 className={`${styles.shareActionBtn} ${postStates[post.id]?.liked ? styles.liked : ''}`}
                                 onClick={() => handleToggleLike(post.id)}
                               >
                                 <Heart size={16} fill={postStates[post.id]?.liked ? 'currentColor' : 'none'} />
                                 <span>{postStates[post.id]?.likeCount ?? post.likes ?? 0}</span>
                               </button>
-                              <button 
+                              <button
                                 className={styles.shareActionBtn}
                                 onClick={() => handleOpenCommentModal(post)}
                               >
                                 <MessageCircle size={16} />
                                 <span>{postStates[post.id]?.commentCount ?? post.comments ?? 0} Bình luận</span>
                               </button>
-                              <button 
+                              <button
                                 className={styles.shareActionBtn}
                                 onClick={() => handleOpenShareModal(post)}
                               >
                                 <Share2 size={16} />
                                 <span>{postStates[post.id]?.shareCount ?? post.shares ?? 0} Chia sẻ</span>
                               </button>
-                              <button 
+                              <button
                                 ref={saveBookmarkRef}
                                 className={`${styles.shareActionBtn} ${postStates[post.id]?.saved ? styles.saved : ''}`}
                                 onClick={() => handleToggleSave(post.id)}
@@ -968,7 +965,7 @@ const profileAvatar =
                     })
                   ) : (
                     <div className={styles.emptyState}>
-                      <p>{t('personal.noPosts')}</p>
+                      <p>Chưa có bài đăng nào</p>
                     </div>
                   )}
                 </div>
@@ -976,23 +973,21 @@ const profileAvatar =
             )}
 
 
-            {activeTab === 'friends' && (
+            {activeTab === 'Bạn bè' && (
               <div className={styles.tabContent}>
                 <div className={styles.tabContentHeader}>
-                  <h3 className={styles.cardTitle}>{t('personal.tabs.friends')}</h3>
-                  <div className={styles.friendsCount}>
-                    {t('personal.people', { count: friends.length })}
-                  </div>
+                  <h3 className={styles.cardTitle}>Bạn bè</h3>
+                  <div className={styles.friendsCount}>{friends.length} người</div>
                 </div>
                 <div className={styles.friendsGrid}>
                   {friends.length > 0 ? (
                     friends.map((friend) => (
                       <div key={friend.name || friend.username} className={styles.friendCard}>
                         {(friend.avatar_url || friend.avatar) && !failedAvatarUrls.has(`friend-${friend.id || friend.username}`) ? (
-                          <img 
-                            src={friend.avatar_url || friend.avatar} 
-                            alt={friend.name || friend.username} 
-                            className={styles.friendAvatar} 
+                          <img
+                            src={friend.avatar_url || friend.avatar}
+                            alt={friend.name || friend.username}
+                            className={styles.friendAvatar}
                             onError={() => setFailedAvatarUrls(prev => new Set([...prev, `friend-${friend.id || friend.username}`]))}
                           />
                         ) : (
@@ -1008,7 +1003,7 @@ const profileAvatar =
                     ))
                   ) : (
                     <div className={styles.emptyState}>
-                      <p>{t('personal.noFriends')}</p>
+                      <p>Chưa có bạn bè nào</p>
                     </div>
                   )}
                 </div>
