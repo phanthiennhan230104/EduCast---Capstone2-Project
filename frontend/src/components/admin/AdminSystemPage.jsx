@@ -4,7 +4,9 @@ import "../../style/admin/adminsystem.css";
 import {
   getAdminSystemNotifications,
   updateAdminSystemNotifications,
+  getAdminOverview,
 } from "../../utils/adminApi";
+
 
 function formatSubtitle() {
   const today = new Date();
@@ -53,6 +55,7 @@ function Section({ title, children }) {
 }
 
 export default function AdminSystemPage() {
+  const [onlineUsers, setOnlineUsers] = useState(0);
   const [notificationSettings, setNotificationSettings] = useState({
     email_admin_on_new_report: true,
     daily_statistics_report: true,
@@ -62,21 +65,27 @@ export default function AdminSystemPage() {
   const [savingNotificationKey, setSavingNotificationKey] = useState(null);
 
   useEffect(() => {
-    const fetchNotificationSettings = async () => {
+    const fetchData = async () => {
       try {
-        const data = await getAdminSystemNotifications();
+        const [notificationData, overviewData] = await Promise.all([
+          getAdminSystemNotifications(),
+          getAdminOverview(),
+        ]);
 
         setNotificationSettings({
-          email_admin_on_new_report: Boolean(data.email_admin_on_new_report),
-          daily_statistics_report: Boolean(data.daily_statistics_report),
-          notify_on_new_user: Boolean(data.notify_on_new_user),
+          email_admin_on_new_report: Boolean(notificationData.email_admin_on_new_report),
+          daily_statistics_report: Boolean(notificationData.daily_statistics_report),
+          notify_on_new_user: Boolean(notificationData.notify_on_new_user),
         });
+
+        const overview = overviewData?.overview || overviewData?.data?.overview;
+        setOnlineUsers(overview?.users?.active_users || 0);
       } catch (error) {
-        console.error("Load admin notification settings error:", error);
+        console.error("Load admin system data error:", error);
       }
     };
 
-    fetchNotificationSettings();
+    fetchData();
   }, []);
 
   const handleNotificationToggle = async (key) => {
@@ -112,7 +121,7 @@ export default function AdminSystemPage() {
     <AdminLayout
       title="QUẢN LÝ HỆ THỐNG"
       subtitle={formatSubtitle()}
-      onlineUsers={1255}
+      onlineUsers={onlineUsers}
     >
       <div className="adminsystem-page">
         <Section title="CẤU HÌNH AI">

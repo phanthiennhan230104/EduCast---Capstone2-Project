@@ -79,6 +79,21 @@ export async function rejectReportWithPublish(postId, reportId) {
   })
 }
 
+// Reports endpoints
+export async function getAdminReports(filters = {}) {
+  const params = new URLSearchParams()
+
+  if (filters.status) params.append('status', filters.status)
+  if (filters.search) params.append('search', filters.search)
+  if (filters.page) params.append('page', filters.page)
+  if (filters.page_size) params.append('page_size', filters.page_size)
+
+  const query = params.toString()
+  const url = `/auth/admin/reports/${query ? '?' + query : ''}`
+
+  return apiRequest(url)
+}
+
 export async function getAdminSystemNotifications() {
   return apiRequest('/auth/admin/system/notifications/')
 }
@@ -89,5 +104,3 @@ export async function updateAdminSystemNotifications(payload) {
     body: JSON.stringify(payload),
   })
 }
-
-

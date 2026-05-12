@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react'
 import { Button, Card, Space, Typography, Skeleton } from 'antd'
+import { useTranslation } from 'react-i18next'
 import { ClockCircleOutlined, HistoryOutlined } from '@ant-design/icons'
 import { toast } from 'react-toastify'
 import styles from '../../style/create-audio/RecentHistoryCard.module.css'
 import { formatDurationVi, getAudioDuration } from '../../utils/formatDuration'
 
+
 const { Text, Paragraph } = Typography
 
 function HistoryItemDuration({ audioUrl, fallbackDuration }) {
+  
   const [duration, setDuration] = useState(null)
 
   useEffect(() => {
@@ -40,6 +43,7 @@ function HistoryItemDuration({ audioUrl, fallbackDuration }) {
 }
 
 export default function RecentHistoryCard({ vm, onViewAll }) {
+    const { t } = useTranslation()
   const history = vm?.recentDrafts || []
 
   return (
@@ -56,7 +60,7 @@ export default function RecentHistoryCard({ vm, onViewAll }) {
     >
       {!history.length ? (
         <div className={styles.emptyState}>
-          <Text className={styles.meta}>Chưa có bản nháp nào</Text>
+          <Text className={styles.meta}>{t('createAudio.recentHistory.empty')}</Text>
         </div>
       ) : (
         <div className={styles.list}>
@@ -87,7 +91,7 @@ export default function RecentHistoryCard({ vm, onViewAll }) {
 
                     <div className={styles.content}>
                       <Text strong className={styles.title}>
-                        {item.title || 'Bản nháp không tên'}
+                        {item.title || t('createAudio.recentHistory.untitledDraft')}
                       </Text>
 
                       <Text className={styles.meta}>

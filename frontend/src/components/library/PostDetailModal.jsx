@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, Play, Pause, MessageSquareText, Heart, Share2, Bookmark, BookmarkCheck } from 'lucide-react'
 import styles from '../../style/library/PostDetailModal.module.css'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { getToken } from '../../utils/auth'
 
 export default function PostDetailModal({ isOpen, onClose, post }) {
+  const { t } = useTranslation()
   const { playTrack, currentTrack, playing, togglePlay, seekToPercent, isSeeking } = useAudioPlayer()
   const [isLiked, setIsLiked] = useState(false)
   const [isSaved, setIsSaved] = useState(false)
@@ -84,7 +86,7 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
             type="button"
             className={styles.closeBtn}
             onClick={onClose}
-            aria-label="Đóng"
+            aria-label={t('library.close')}
           >
             <X size={24} />
           </button>
@@ -138,15 +140,15 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
           <div className={styles.statsSection}>
             <div className={styles.statItem}>
               <Heart size={16} />
-              <span>{post.like_count || 0} lượt thích</span>
+              <span>{t('library.postDetail.likes', { count: post.like_count || 0 })}</span>
             </div>
             <div className={styles.statItem}>
               <MessageSquareText size={16} />
-              <span>{post.comment_count || 0} bình luận</span>
+              <span>{t('library.postDetail.comments', { count: post.comment_count || 0 })}</span>
             </div>
             <div className={styles.statItem}>
               <Share2 size={16} />
-              <span>{post.share_count || 0} chia sẻ</span>
+              <span>{t('library.postDetail.shares', { count: post.share_count || 0 })}</span>
             </div>
           </div>
 
@@ -158,14 +160,14 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
               onClick={handleLikeClick}
             >
               <Heart size={18} fill={isLiked ? 'currentColor' : 'none'} />
-              <span>Thích</span>
+              <span>{t('library.postDetail.like')}</span>
             </button>
             <button
               type="button"
               className={`${styles.actionBtn}`}
             >
               <MessageSquareText size={18} />
-              <span>Bình luận</span>
+              <span>{t('library.postDetail.comment')}</span>
             </button>
             <button
               type="button"
@@ -173,7 +175,9 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
               onClick={handleSaveClick}
             >
               {isSaved ? <BookmarkCheck size={18} /> : <Bookmark size={18} />}
-              <span>{isSaved ? 'Đã lưu' : 'Lưu'}</span>
+              <span>
+                {isSaved ? t('library.postDetail.saved') : t('library.postDetail.save')}
+              </span>
             </button>
           </div>
         </div>

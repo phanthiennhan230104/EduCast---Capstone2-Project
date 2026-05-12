@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bot, X } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import AssistantPopup from "./AssistantPopup";
+import { useTranslation } from "react-i18next";
 import styles from "../../style/assistant/AssistantWidget.module.css";
 
 
@@ -18,6 +19,7 @@ function getDefaultPosition() {
 
 export default function AssistantWidget() {
   const location = useLocation();
+  const { t } = useTranslation();
   const [isOpen, setIsOpen] = useState(false);
   const [position, setPosition] = useState({ x: 0, y: 0 });
   const [mounted, setMounted] = useState(false);
@@ -149,7 +151,7 @@ export default function AssistantWidget() {
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerCancel}
-        aria-label="Mở AI Assistant"
+        aria-label={t("assistant.openLabel")}
       >
         {isOpen ? <X size={26} /> : <Bot size={26} />}
       </button>

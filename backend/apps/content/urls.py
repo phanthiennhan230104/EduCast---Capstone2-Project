@@ -21,6 +21,13 @@ from .admin_views import (
     AdminUpdateReportStatusView,
     AdminLockPostWithReportView,
     AdminRejectReportView,
+    AdminNotificationsListView,
+    AdminNotificationDetailView,
+    AdminDeleteNotificationView,
+    AdminMarkNotificationAsReadView,
+    AdminMarkAllNotificationsAsReadView,
+    AdminGetUnreadNotificationCountView,
+    AdminDebugNotificationsView,
 )
 
 
@@ -51,6 +58,15 @@ urlpatterns = [
     path("admin/posts/<str:post_id>/lock-with-report/", AdminLockPostWithReportView.as_view(), name="admin-post-lock"),
     path("admin/posts/<str:post_id>/reject-report/", AdminRejectReportView.as_view(), name="admin-post-reject-report"),
     path("admin/reports/<str:report_id>/status/", AdminUpdateReportStatusView.as_view(), name="admin-report-status"),
+    
+    # Admin Notifications endpoints
+    path("admin/notifications/", AdminNotificationsListView.as_view(), name="admin-notifications-list"),
+    path("admin/notifications/unread-count/", AdminGetUnreadNotificationCountView.as_view(), name="admin-unread-count"),
+    path("admin/notifications/mark-all-as-read/", AdminMarkAllNotificationsAsReadView.as_view(), name="admin-mark-all-notifications-read"),
+    path("admin/notifications/debug/", AdminDebugNotificationsView.as_view(), name="admin-notifications-debug"),
+    path("admin/notifications/<str:notification_id>/read/", AdminMarkNotificationAsReadView.as_view(), name="admin-notification-read"),
+    path("admin/notifications/<str:notification_id>/delete/", AdminDeleteNotificationView.as_view(), name="admin-notification-delete"),
+    path("admin/notifications/<str:notification_id>/", AdminNotificationDetailView.as_view(), name="admin-notification-detail"),
     
     path("categories/", CategoryListView.as_view(), name="category-list"),
     path("topics/", TopicListView.as_view(), name="topic-list"),

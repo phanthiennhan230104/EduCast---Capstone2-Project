@@ -7,6 +7,7 @@ import 'antd/dist/reset.css'
 import './style/index.css'
 import App from './App.jsx'
 import './style/theme.css'
+import './utils/i18n'
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>

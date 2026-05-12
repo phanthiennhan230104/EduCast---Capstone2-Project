@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-toastify'
+import { useTranslation } from 'react-i18next'
 import {
   getMyDrafts,
   previewAudio,
@@ -23,37 +24,58 @@ const VOICE_ID_BY_NAME = {
   'Thu Hà': 'thu-ha',
 }
 
-const DEFAULT_TOPICS = [
-  'Lập trình',
-  'AI',
-  'Tâm lý học',
-  'Kinh doanh',
-  'Tiếng Anh',
-  'Khoa học',
+const DEFAULT_TOPIC_KEYS = [
+  'createAudio.hook.topics.programming',
+  'createAudio.hook.topics.ai',
+  'createAudio.hook.topics.psychology',
+  'createAudio.hook.topics.business',
+  'createAudio.hook.topics.english',
+  'createAudio.hook.topics.science',
 ]
 
 export function useCreateAudio() {
+  const { t } = useTranslation();
+   const defaultTopics = useMemo(
+    () => DEFAULT_TOPIC_KEYS.map((key) => t(key)),
+    [t]
+  )
   const demoText = `Kỹ năng mềm là tập hợp những khả năng giúp con người tương tác, làm việc và thích nghi hiệu quả trong môi trường sống và làm việc. Một trong những kỹ năng quan trọng nhất là kỹ năng giao tiếp, bởi nó giúp bạn truyền đạt ý tưởng rõ ràng, lắng nghe người khác và xây dựng mối quan hệ tích cực. Bên cạnh đó, kỹ năng quản lý thời gian giúp bạn sắp xếp công việc hợp lý, tránh căng thẳng và nâng cao hiệu suất. Ngoài ra, kỹ năng làm việc nhóm cũng rất cần thiết, vì trong hầu hết các môi trường, thành công thường đến từ sự hợp tác. Việc rèn luyện kỹ năng mềm không chỉ giúp bạn phát triển bản thân mà còn mở ra nhiều cơ hội trong học tập và sự nghiệp.`
 
   const voices = [
-    { id: 'minh-tuan', name: 'Minh Tuấn', tag: 'Nam · Ấm · Miền Nam' },
-    { id: 'lan-anh', name: 'Lan Anh', tag: 'Nữ · Sáng · Miền Bắc' },
-    { id: 'hung', name: 'Hùng', tag: 'Nam · Trầm · Miền Bắc' },
-    { id: 'thu-ha', name: 'Thu Hà', tag: 'Nữ · Dịu · Miền Trung' },
+    {
+      id: 'minh-tuan',
+      name: t('createAudio.hook.voices.minhTuan.name'),
+      tag: t('createAudio.hook.voices.minhTuan.tag'),
+    },
+    {
+      id: 'lan-anh',
+      name: t('createAudio.hook.voices.lanAnh.name'),
+      tag: t('createAudio.hook.voices.lanAnh.tag'),
+    },
+    {
+      id: 'hung',
+      name: t('createAudio.hook.voices.hung.name'),
+      tag: t('createAudio.hook.voices.hung.tag'),
+    },
+    {
+      id: 'thu-ha',
+      name: t('createAudio.hook.voices.thuHa.name'),
+      tag: t('createAudio.hook.voices.thuHa.tag'),
+    },
   ]
 
   const formats = ['MP3', 'WAV', 'OGG', 'AAC']
 
   const aiModes = [
-    { value: 'summary', label: 'Tóm tắt AI' },
-    { value: 'dialogue', label: 'Đổi sang hội thoại' },
-    { value: 'original', label: 'Giữ nguyên văn' },
-    { value: 'translate', label: 'Dịch sang Anh' },
+    { value: 'summary', label: t('createAudio.hook.aiModes.summary') },
+    { value: 'dialogue', label: t('createAudio.hook.aiModes.dialogue') },
+    { value: 'original', label: t('createAudio.hook.aiModes.original') },
+    { value: 'translate', label: t('createAudio.hook.aiModes.translate') },
   ]
 
   const sourceTabs = [
-    { key: 'text', label: 'Nhập văn bản' },
-    { key: 'upload', label: 'Tải tài liệu' },
+    { key: 'text', label: t('createAudio.hook.sourceTabs.text') },
+    { key: 'upload', label: t('createAudio.hook.sourceTabs.upload') },
   ]
 
   const [step, setStep] = useState(2)
@@ -71,10 +93,16 @@ export function useCreateAudio() {
 
   const [voice, setVoice] = useState('minh-tuan')
   const [format, setFormat] = useState('MP3')
-  const [topics, setTopics] = useState(['Lập trình', 'AI'])
+  const [topics, setTopics] = useState(() => [
+  t('createAudio.hook.topics.programming'),
+  t('createAudio.hook.topics.ai'),
+])
 
-  const [topicOptions, setTopicOptions] = useState(DEFAULT_TOPICS)
+const [topicOptions, setTopicOptions] = useState(defaultTopics)
   const [aiSuggestedTopics, setAiSuggestedTopics] = useState([])
+  useEffect(() => {
+  setTopicOptions(defaultTopics)
+}, [defaultTopics])
 
   const [genState, setGenState] = useState('idle')
   const [progress, setProgress] = useState(0)
@@ -191,7 +219,7 @@ export function useCreateAudio() {
       console.error('Load drafts error:', error)
       setRecentDrafts([])
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     loadRecentDrafts()
@@ -212,8 +240,8 @@ export function useCreateAudio() {
     setText(demoText)
     setDurationSeconds(0)
     resetGenerateState()
-    toast.success('Đã chèn văn bản mẫu')
-  }, [demoText, resetGenerateState])
+    toast.success(t('createAudio.hook.sampleInserted'))
+}, [demoText, resetGenerateState, t])
 
   const removeFile = useCallback(() => {
     setFile(null)
@@ -251,7 +279,7 @@ export function useCreateAudio() {
         const extractedText = (payload.extracted_text || '').trim()
 
         if (!extractedText) {
-          throw new Error('Không thể trích xuất nội dung từ file')
+          throw new Error(t('createAudio.hook.extractFailed'))
         }
 
         setUploadedDocUrl(payload.document_url || '')
@@ -259,7 +287,7 @@ export function useCreateAudio() {
         setUploadedExtractedText(extractedText)
         setFileReady(true)
 
-        toast.success(`Đã tải và phân tích file: ${selectedFile.name}`)
+        toast.success(t('createAudio.hook.uploadSuccess', { name: selectedFile.name }))
       } catch (error) {
         console.error('Upload document error:', error)
         setFile(null)
@@ -267,12 +295,12 @@ export function useCreateAudio() {
         setUploadedDocUrl('')
         setUploadedDocPublicId('')
         setUploadedExtractedText('')
-        toast.error(error?.message || 'Upload file thất bại')
+        toast.error(error?.message || t('createAudio.hook.uploadFailed'))
       } finally {
         setIsUploadingFile(false)
       }
     },
-    [resetGenerateState]
+    [resetGenerateState, t]
   )
 
   const loadDraftToForm = useCallback(async (draftId) => {
@@ -316,7 +344,7 @@ export function useCreateAudio() {
 
       if (hasDocument && documents[0]) {
         setFile({
-          name: documents[0].file_name || 'document',
+          name: documents[0].file_name || t('createAudio.hook.documentFallbackName'),
           size: documents[0].file_size || 0,
           type: documents[0].file_type || '',
         })
@@ -364,11 +392,11 @@ export function useCreateAudio() {
       }
     } catch (error) {
       console.error('Load draft detail error:', error)
-      toast.error(error?.message || 'Không thể tải lại bản nháp')
+      toast.error(error?.message || t('createAudio.hook.draftLoadFailed'))
     } finally {
       setIsLoadingDraft(false)
     }
-  }, [])
+  }, [t])
 
   const startGenerate = useCallback(async () => {
     const inputText =
@@ -388,8 +416,8 @@ export function useCreateAudio() {
 
       toast.error(
         sourceTab === 'upload'
-          ? 'Vui lòng tải file hợp lệ và đợi phân tích xong'
-          : 'Vui lòng nhập đủ nội dung đầu vào'
+          ? t('createAudio.hook.invalidUploadInput')
+          : t('createAudio.hook.invalidTextInput')
       )
       return
     }
@@ -410,8 +438,8 @@ export function useCreateAudio() {
       setProgress(0)
       setProcStep(
         sourceTab === 'upload'
-          ? 'Đang xử lý nội dung từ tài liệu...'
-          : 'Đang gửi yêu cầu tạo audio...'
+          ? t('createAudio.hook.processingDocument')
+          : t('createAudio.hook.sendingAudioRequest')
       )
 
       setProcessedText('')
@@ -460,10 +488,10 @@ export function useCreateAudio() {
       }
 
       setProgress(100)
-      setProcStep('Hoàn tất')
+      setProcStep(t('createAudio.hook.completed'))
       setGenState(resolvedAudioUrl ? 'done' : 'idle')
 
-      toast.success('Tạo podcast thành công')
+      toast.success(t('createAudio.hook.generateSuccess'))
     } catch (error) {
       if (error?.name === 'AbortError') {
         return
@@ -487,11 +515,12 @@ export function useCreateAudio() {
     sourceTab,
     text,
     uploadedExtractedText,
+    t,
   ])
 
   const saveCurrentDraft = useCallback(async () => {
     if (!audioUrl) {
-      toast.info('Hãy tạo audio trước khi lưu nháp')
+      toast.info(t('createAudio.hook.createAudioBeforeSave'))
       return
     }
 
@@ -501,7 +530,8 @@ export function useCreateAudio() {
         : (text || '').trim()
 
     const titleFromFile = file?.name?.replace(/\.[^/.]+$/, '') || ''
-    const titleFromText = baseText.slice(0, 60) || 'Bản nháp audio'
+    const titleFromText =
+  baseText.slice(0, 60) || t('createAudio.hook.draftTitleFallback')
 
     try {
       const payload = {
@@ -526,13 +556,13 @@ export function useCreateAudio() {
 
       const res = await saveDraftWithAudio(payload)
 
-      toast.success(res?.message || 'Lưu nháp thành công')
+      toast.success(res?.message || t('createAudio.hook.saveDraftSuccess'))
       setActiveDraftId(res?.data?.id || '')
       setActiveDraftStatus(res?.data?.status || 'draft')
       await loadRecentDrafts()
     } catch (error) {
       console.error('Save draft error:', error)
-      toast.error(error?.message || 'Lưu nháp thất bại')
+      toast.error(error?.message || t('createAudio.hook.saveDraftFailed'))
     }
   }, [
     aiMode,
@@ -550,6 +580,7 @@ export function useCreateAudio() {
     uploadedExtractedText,
     uploadedDocUrl,
     uploadedDocPublicId,
+    t,
   ])
 
   return {
@@ -593,7 +624,7 @@ export function useCreateAudio() {
     cancelGenerate,
     saveCurrentDraft,
     voices,
-    topicsMaster: DEFAULT_TOPICS,
+    topicsMaster: defaultTopics,
     formats,
     aiModes,
     sourceTabs,
@@ -608,6 +639,6 @@ export function useCreateAudio() {
     loadDraftToForm,
     loadRecentDrafts,
     setDurationSeconds,
-    setResultDur, 
+    setResultDur,
   }
 }

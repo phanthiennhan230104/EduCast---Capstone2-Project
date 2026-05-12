@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import styles from '../../../style/layout/NotificationPanel.module.css'
 import { getNotifications, markAllNotificationsAsRead } from '../../../utils/notificationApi'
 
@@ -18,8 +19,9 @@ function getNotificationIcon(type) {
   }
 }
 
-function formatTime(dateString) {
+function formatTime(dateString, t, i18n) {
   if (!dateString) return ''
+
   const date = new Date(dateString)
   const now = new Date()
   const diff = now - date
@@ -28,15 +30,16 @@ function formatTime(dateString) {
   const hours = Math.floor(diff / 3600000)
   const days = Math.floor(diff / 86400000)
 
-  if (minutes < 1) return 'Vừa xong'
-  if (minutes < 60) return `${minutes}p`
-  if (hours < 24) return `${hours}h`
-  if (days < 7) return `${days}d`
+  if (minutes < 1) return t('notification.justNow')
+  if (minutes < 60) return t('notification.minutesShort', { count: minutes })
+  if (hours < 24) return t('notification.hoursShort', { count: hours })
+  if (days < 7) return t('notification.daysShort', { count: days })
 
-  return date.toLocaleDateString('vi-VN')
+  return date.toLocaleDateString(i18n.language === 'en' ? 'en-US' : 'vi-VN')
 }
 
 export default function NotificationPanel() {
+  const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
   const [notifications, setNotifications] = useState([])
   const [unreadCount, setUnreadCount] = useState(0)
@@ -121,7 +124,7 @@ export default function NotificationPanel() {
     <div ref={panelRef} className={styles.notificationWrap}>
       <button
         className={styles.bellBtn}
-        aria-label="Thông báo"
+        aria-label={t('notification.ariaLabel')}
         type="button"
         onClick={handleTogglePanel}
       >
@@ -134,14 +137,14 @@ export default function NotificationPanel() {
       {open && (
         <div className={styles.panel}>
           <div className={styles.panelHeader}>
-            <h3>Thông báo</h3>
+            <h3>{t('notification.title')}</h3>
           </div>
 
           <div className={styles.panelBody}>
             {loading ? (
-              <div className={styles.empty}>Đang tải...</div>
+              <div className={styles.empty}>{t('notification.loading')}</div>
             ) : notifications.length === 0 ? (
-              <div className={styles.empty}>Không có thông báo nào</div>
+              <div className={styles.empty}>{t('notification.empty')}</div>
             ) : (
               <div className={styles.notificationList}>
                 {notifications.map((notif) => (
@@ -162,7 +165,7 @@ export default function NotificationPanel() {
                         {notif.body}
                       </div>
                       <div className={styles.notificationTime}>
-                        {formatTime(notif.created_at)}
+                        {formatTime(notif.created_at, t, i18n)}
                       </div>
                     </div>
                   </div>

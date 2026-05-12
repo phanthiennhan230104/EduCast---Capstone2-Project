@@ -3,6 +3,7 @@ import AdminLayout from "./AdminLayout";
 import "../../style/admin/admin-users-page.css";
 import { Search, Shield, BarChart3, Users as UsersIcon, UserCog, X } from "lucide-react";
 import { apiRequest } from "../../utils/api";
+import { getAdminOverview } from "../../utils/adminApi";
 import notify from "../../utils/toast";
 
 function formatJoinDate(dateString) {
@@ -159,6 +160,7 @@ function UserDetailModal({ user, onClose }) {
 }
 
 export default function AdminUsersPage() {
+  const [onlineUsers, setOnlineUsers] = useState(0);
   const [users, setUsers] = useState([]);
   const [stats, setStats] = useState({
     total_users: 0,
@@ -188,9 +190,38 @@ export default function AdminUsersPage() {
     try {
       setLoading(true);
       setError("");
-      const data = await apiRequest("/auth/admin/users/");
-      setUsers(data.users || []);
-      setStats(data.stats || {});
+
+      const [usersData, overviewData] = await Promise.all([
+        apiRequest("/auth/admin/users/"),
+        getAdminOverview(),
+      ]);
+
+      setUsers(usersData.users || []);
+
+      const overviewUsers = overviewData?.overview?.users || {};
+      setOnlineUsers(overviewUsers.active_users || 0);
+
+      setStats({
+        total_users:
+          overviewUsers.total_users ??
+          usersData.stats?.total_users ??
+          0,
+
+        total_admins:
+          overviewUsers.total_admins ??
+          usersData.stats?.total_admins ??
+          0,
+
+        total_active:
+          overviewUsers.active_users ??
+          usersData.stats?.total_active ??
+          0,
+
+        total_locked:
+          overviewUsers.locked_users ??
+          usersData.stats?.total_locked ??
+          0,
+      });
     } catch (err) {
       const message = err.message || "Không thể tải danh sách người dùng.";
       setError(message);
@@ -311,9 +342,9 @@ export default function AdminUsersPage() {
 
   return (
     <AdminLayout
-      title="QUẢN LÝ HỆ THỐNG"
+      title="QUẢN LÝ NGƯỜI DÙNG"
       subtitle={formatSubtitle()}
-      onlineUsers={1255}
+      onlineUsers={onlineUsers}
     >
       <div className="admin-users-page">
         <div className="admin-users-topbar">

@@ -4,6 +4,7 @@ import { toast } from 'react-toastify'
 import ConfirmModal from './ConfirmModal'
 import ShareModal from './ShareModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/feed/CommentModal.module.css'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { getInitials } from '../../utils/getInitials'
@@ -70,6 +71,7 @@ function CommentNode({
   handleDeleteComment,
   hiddenCommentIds,
   hideCommentLocally,
+  t,
 }) {
   const own = isOwnComment(item)
   const isMenuOpen = openMenuId === item.id
@@ -120,7 +122,7 @@ function CommentNode({
                       value={editingInput}
                       onChange={(e) => setEditingInput(e.target.value)}
                       className={styles.editInput}
-                      placeholder="Nhập nội dung mới..."
+                      placeholder={t('feed.comment.editPlaceholder')}
                     />
 
                     <div className={styles.editActions}>
@@ -130,7 +132,7 @@ function CommentNode({
                         onClick={() => handleUpdateComment(item.id)}
                         disabled={editingSubmitting || !editingInput.trim() || editingInput === item.content}
                       >
-                        Lưu
+                        {t('feed.comment.save')}
                       </button>
 
                       <button
@@ -139,7 +141,7 @@ function CommentNode({
                         onClick={cancelEditComment}
                         disabled={editingSubmitting}
                       >
-                        Hủy
+                        {t('feed.comment.cancel')}
                       </button>
                     </div>
                   </div>
@@ -167,7 +169,7 @@ function CommentNode({
             <button
               type="button"
               className={styles.commentMoreBtn}
-              aria-label="Tùy chọn bình luận"
+              aria-label={t('feed.comment.commentOptions')}
               onClick={(e) => {
                 e.stopPropagation()
                 setOpenMenuId(isMenuOpen ? null : item.id)
@@ -185,7 +187,7 @@ function CommentNode({
                       className={styles.commentDropdownItem}
                       onClick={() => openEditComment(item)}
                     >
-                      Chỉnh sửa
+                      {t('feed.comment.edit')}
                     </button>
 
                     <button
@@ -193,7 +195,7 @@ function CommentNode({
                       className={`${styles.commentDropdownItem} ${styles.commentDropdownItemDanger}`}
                       onClick={() => handleDeleteComment(item)}
                     >
-                      Xóa
+                      {t('feed.comment.delete')}
                     </button>
                   </>
                 ) : (
@@ -202,7 +204,7 @@ function CommentNode({
                     className={styles.commentDropdownItem}
                     onClick={() => hideCommentLocally(item.id)}
                   >
-                    Ẩn
+                    {t('feed.comment.hide')}
                   </button>
                 )}
               </div>
@@ -218,7 +220,7 @@ function CommentNode({
             className={`${styles.commentMetaBtn} ${item.is_liked ? styles.commentMetaBtnActive : ''}`}
             onClick={() => handleToggleCommentLike(item.id)}
           >
-            Thích
+            {t('feed.comment.like')}
           </button>
 
           <button
@@ -226,7 +228,7 @@ function CommentNode({
             className={styles.commentMetaBtn}
             onClick={() => openReplyBox(item)}
           >
-            Trả lời
+            {t('feed.comment.reply')}
           </button>
 
           {((item.like_count || 0) > 0 || item.is_liked) && (
@@ -253,7 +255,7 @@ function CommentNode({
 
             <div className={styles.replyInputWrap}>
               <div className={styles.replyTagLine}>
-                <span className={styles.replyTagLabel}>Trả lời</span>
+                <span className={styles.replyTagLabel}>{t('feed.comment.replyTo')}</span>
                 <span className={styles.replyMention}>
                   @{getDisplayName(replyingTarget)}
                 </span>
@@ -265,7 +267,9 @@ function CommentNode({
                   type="text"
                   value={replyInput}
                   onChange={(e) => setReplyInput(e.target.value)}
-                  placeholder={`Viết phản hồi cho ${getDisplayName(replyingTarget)}...`}
+                  placeholder={t('feed.comment.replyPlaceholder', {
+  name: getDisplayName(replyingTarget),
+})}
                   className={styles.replyInput}
                 />
                 <button
@@ -273,7 +277,7 @@ function CommentNode({
                   className={styles.replySendBtn}
                   disabled={replySubmitting || !replyInput.trim()}
                 >
-                  Gửi
+                  {t('feed.comment.send')}
                 </button>
               </div>
             </div>
@@ -283,7 +287,7 @@ function CommentNode({
               className={styles.replyCancelBtn}
               onClick={closeReplyBox}
             >
-              Hủy
+              {t('feed.comment.cancel')}
             </button>
           </form>
         )}
@@ -325,6 +329,7 @@ function CommentNode({
                 handleDeleteComment={handleDeleteComment}
                 hiddenCommentIds={hiddenCommentIds}
                 hideCommentLocally={hideCommentLocally}
+                t={t}
               />
             ))}
           </div>
@@ -373,6 +378,7 @@ export default function CommentModal({
   onPostDeleted,
   disableAutoScroll = false,
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { playTrack, currentTrack, playing, togglePlay, currentTime, formattedCurrentTime, trackProgressMap, seekToPercent, isSeeking } = useAudioPlayer()
@@ -653,7 +659,7 @@ export default function CommentModal({
     })
 
     if (!finalAudioUrl) {
-      alert('Bài này chưa có file audio')
+      alert(t('feed.comment.noAudioAlert'))
       return
     }
 
@@ -729,7 +735,8 @@ export default function CommentModal({
     )
   }
 
-  const getDisplayName = (comment) => comment?.username || comment?.user_id || 'Người dùng'
+  const getDisplayName = (comment) =>
+  comment?.username || comment?.user_id || t('feed.comment.user')
 
   const formatCommentTime = (comment) => {
     if (comment.time_ago && typeof comment.time_ago === 'string') {
@@ -737,31 +744,31 @@ export default function CommentModal({
     }
 
     const raw = comment.created_at
-    if (!raw) return 'Vừa xong'
+    if (!raw) return t('feed.comment.justNow')
 
-    const created = new Date(raw)
-    if (Number.isNaN(created.getTime())) return 'Vừa xong'
+const created = new Date(raw)
+if (Number.isNaN(created.getTime())) return t('feed.comment.justNow')
 
-    const diffMs = Date.now() - created.getTime()
-    const diffMinutes = Math.floor(diffMs / 60000)
+const diffMs = Date.now() - created.getTime()
+const diffMinutes = Math.floor(diffMs / 60000)
 
-    if (diffMinutes < 1) return 'Vừa xong'
-    if (diffMinutes < 60) return `${diffMinutes} phút trước`
+if (diffMinutes < 1) return t('feed.comment.justNow')
+if (diffMinutes < 60) return t('feed.comment.minutesAgo', { count: diffMinutes })
 
-    const diffHours = Math.floor(diffMinutes / 60)
-    if (diffHours < 24) return `${diffHours} giờ trước`
+const diffHours = Math.floor(diffMinutes / 60)
+if (diffHours < 24) return t('feed.comment.hoursAgo', { count: diffHours })
 
-    const diffDays = Math.floor(diffHours / 24)
-    if (diffDays < 7) return `${diffDays} ngày trước`
+const diffDays = Math.floor(diffHours / 24)
+if (diffDays < 7) return t('feed.comment.daysAgo', { count: diffDays })
 
-    const diffWeeks = Math.floor(diffDays / 7)
-    if (diffWeeks < 5) return `${diffWeeks} tuần trước`
+const diffWeeks = Math.floor(diffDays / 7)
+if (diffWeeks < 5) return t('feed.comment.weeksAgo', { count: diffWeeks })
 
-    const diffMonths = Math.floor(diffDays / 30)
-    if (diffMonths < 12) return `${diffMonths} tháng trước`
+const diffMonths = Math.floor(diffDays / 30)
+if (diffMonths < 12) return t('feed.comment.monthsAgo', { count: diffMonths })
 
-    const diffYears = Math.floor(diffDays / 365)
-    return `${diffYears} năm trước`
+const diffYears = Math.floor(diffDays / 365)
+return t('feed.comment.yearsAgo', { count: diffYears })
   }
 
   const updateCommentTree = (items, targetId, updater) =>
@@ -858,7 +865,7 @@ export default function CommentModal({
       }, 60)
     } catch (err) {
       console.error('Create comment failed:', err)
-      toast.error(err.message || 'Gửi bình luận thất bại')
+      toast.error(err.message || t('feed.comment.sendCommentFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -890,7 +897,7 @@ export default function CommentModal({
         data = JSON.parse(rawText)
       } catch {
         console.error('Toggle comment like returned non-JSON:', rawText)
-        throw new Error(`Backend không trả JSON. Status: ${res.status}`)
+        throw new Error(t('feed.comment.backendNotJson', { status: res.status }))
       }
 
       if (!res.ok || !data.success) {
@@ -906,7 +913,7 @@ export default function CommentModal({
       )
     } catch (err) {
       console.error('Toggle comment like failed:', err)
-      toast.error(err.message || 'Không thể thích bình luận')
+      toast.error(err.message || t('feed.comment.toggleLikeFailed'))
     }
   }
 
@@ -955,7 +962,7 @@ export default function CommentModal({
       closeReplyBox()
     } catch (err) {
       console.error('Reply comment failed:', err)
-      toast.error(err.message || 'Gửi phản hồi thất bại')
+      toast.error(err.message || t('feed.comment.sendReplyFailed'))
     } finally {
       setReplySubmitting(false)
     }
@@ -1032,7 +1039,7 @@ export default function CommentModal({
       cancelEditComment()
     } catch (err) {
       console.error('Update comment failed:', err)
-      toast.error(err.message || 'Sửa bình luận thất bại')
+      toast.error(err.message || t('feed.comment.updateCommentFailed'))
     } finally {
       setEditingSubmitting(false)
     }
@@ -1089,7 +1096,7 @@ export default function CommentModal({
       setCommentToDelete(null)
     } catch (err) {
       console.error('Delete comment failed:', err)
-      toast.error(err.message || 'Xóa bình luận thất bại')
+      toast.error(err.message || t('feed.comment.deleteCommentFailed'))
     }
   }
 
@@ -1172,7 +1179,7 @@ export default function CommentModal({
       console.error('❌ Delete error:', err)
       setDeleteProgress(0)
       setIsDeleting(false)
-      toast.error(err.message || 'Xóa bài viết thất bại')
+      toast.error(err.message || t('feed.comment.deletePostFailed'))
       sessionStorage.removeItem('feedScrollPosition')
     }
   }
@@ -1199,7 +1206,7 @@ export default function CommentModal({
       })
 
       if (!res.ok) {
-        throw new Error('Ẩn bài viết thất bại')
+        throw new Error(t('feed.comment.hidePostFailed'))
       }
 
       hidePost(podcast.id)
@@ -1209,7 +1216,7 @@ export default function CommentModal({
       onClose()
     } catch (err) {
       console.error('Hide post error:', err)
-      toast.error(err.message || 'Ẩn bài viết thất bại')
+      toast.error(err.message || t('feed.comment.hidePostFailed'))
     }
   }
 
@@ -1220,7 +1227,7 @@ export default function CommentModal({
 
   const handleReport = () => {
     setPostMoreMenuOpen(false)
-    toast.info('Tính năng báo cáo bài viết sắp có')
+    toast.info(t('feed.comment.reportComingSoon'))
   }
 
   const [statsHoverType, setStatsHoverType] = useState(null) 
@@ -1399,7 +1406,7 @@ export default function CommentModal({
               <div>
                 <div className={styles.author}>{authorName}</div>
                 <div className={styles.meta}>
-                  {podcast.timeAgo || formatTimeAgo(podcast.created_at)}
+                  {podcast.timeAgo || formatTimeAgo(podcast.created_at, t)}
                 </div>
               </div>
             </div>
@@ -1425,7 +1432,7 @@ export default function CommentModal({
                     onClick={handleEditPost}
                   >
                     <Edit size={16} />
-                    <span>Chỉnh sửa</span>
+                    <span>{t('feed.edit')}</span>
                   </button>
                   <button
                     type="button"
@@ -1433,7 +1440,7 @@ export default function CommentModal({
                     onClick={handleDeletePost}
                   >
                     <Trash2 size={16} />
-                    <span>Xóa</span>
+                    <span>{t('feed.delete')}</span>
                   </button>
                 </div>
               )}
@@ -1461,7 +1468,7 @@ export default function CommentModal({
                     onClick={handleHide}
                   >
                     <EyeOff size={16} />
-                    <span>Ẩn bài viết</span>
+                    <span>{t('feed.hidePost')}</span>
                   </button>
                   <button
                     type="button"
@@ -1469,7 +1476,7 @@ export default function CommentModal({
                     onClick={handleReport}
                   >
                     <Flag size={16} />
-                    <span>Báo cáo</span>
+                    <span>{t('feed.report')}</span>
                   </button>
                 </div>
               )}
@@ -1602,7 +1609,7 @@ export default function CommentModal({
                   >
 
                     {statsPopupLoading ? (
-                      <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                      <div className={styles.statsPopupEmpty}>{t('feed.loadingText')}</div>
                     ) : statsPopupData.likes.length > 0 ? (
                       statsPopupData.likes.map((user) => (
                         <div key={user.user_id} className={styles.statsPopupItem}>
@@ -1612,7 +1619,7 @@ export default function CommentModal({
                         </div>
                       ))
                     ) : (
-                      <div className={styles.statsPopupEmpty}>Chưa có lượt thích</div>
+                      <div className={styles.statsPopupEmpty}>{t('feed.noLikes')}</div>
                     )}
                   </div>
                 )}
@@ -1629,7 +1636,7 @@ export default function CommentModal({
                     onMouseLeave={handleStatsMouseLeave}
                     className={styles.statsText}
                   >
-                    {commentCount} bình luận
+                    {t('feed.commentsLower', { count: commentCount })}
                   </span>
                 </button>
 
@@ -1641,7 +1648,7 @@ export default function CommentModal({
                   >
 
                     {statsPopupLoading ? (
-                      <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                      <div className={styles.statsPopupEmpty}>{t('feed.loadingText')}</div>
                     ) : statsPopupData.comments.length > 0 ? (
                       statsPopupData.comments.map((user) => (
                         <div key={user.user_id} className={styles.statsPopupItem}>
@@ -1651,7 +1658,7 @@ export default function CommentModal({
                         </div>
                       ))
                     ) : (
-                      <div className={styles.statsPopupEmpty}>Chưa có bình luận</div>
+                      <div className={styles.statsPopupEmpty}>{t('feed.noComments')}</div>
                     )}
                   </div>
                 )}
@@ -1666,7 +1673,7 @@ export default function CommentModal({
                     onMouseLeave={handleStatsMouseLeave}
                     className={styles.statsText}
                   >
-                    {shareCount ?? 0} lượt chia sẻ
+                    {t('feed.shareCount', { count: shareCount ?? 0 })}
                   </span>
                 </button>
 
@@ -1678,7 +1685,7 @@ export default function CommentModal({
                   >
 
                     {statsPopupLoading ? (
-                      <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                      <div className={styles.statsPopupEmpty}>{t('feed.loadingText')}</div>
                     ) : getUniqueUsersById(statsPopupData.shares).length > 0 ? (
                       getUniqueUsersById(statsPopupData.shares).map((user) => (
                         <div key={user.user_id || user.username} className={styles.statsPopupItem}>
@@ -1688,7 +1695,7 @@ export default function CommentModal({
                         </div>
                       ))
                     ) : (
-                      <div className={styles.statsPopupEmpty}>Chưa có lượt chia sẻ</div>
+                      <div className={styles.statsPopupEmpty}>{t('feed.noShares')}</div>
                     )}
                   </div>
                 )}
@@ -1707,17 +1714,17 @@ export default function CommentModal({
               }}
             >
               <Heart size={17} fill={liked ? 'currentColor' : 'none'} />
-              <span>Thích</span>
+              <span>{t('feed.like')}</span>
             </button>
 
             <button type="button" className={styles.actionBtn} onClick={scrollToComments}>
               <MessageCircle size={17} />
-              <span>Bình luận</span>
+              <span>{t('feed.commentAction')}</span>
             </button>
 
             <button type="button" className={styles.actionBtn} onClick={() => setShowShareModal(true)}>
               <Share2 size={17} />
-              <span>Chia sẻ</span>
+              <span>{t('buttons.share')}</span>
             </button>
 
             <button
@@ -1737,16 +1744,16 @@ export default function CommentModal({
               }}
             >
               <Bookmark size={17} fill={saved ? 'currentColor' : 'none'} />
-              <span>Lưu</span>
+              <span>{t('common.save')}</span>
             </button>
           </div>
 
           <div className={styles.commentSection}>
             <div ref={commentListRef} className={styles.commentList}>
               {loadingComments ? (
-                <p className={styles.empty}>Đang tải bình luận...</p>
+                <p className={styles.empty}>{t('feed.comment.loadingComments')}</p>
               ) : comments.length === 0 ? (
-                <p className={styles.empty}>Chưa có bình luận nào.</p>
+                <p className={styles.empty}>{t('feed.comment.noComments')}</p>
               ) : (
                 comments
                   .filter((comment) => !hiddenCommentIds.includes(comment.id))
@@ -1783,6 +1790,7 @@ export default function CommentModal({
                       handleDeleteComment={handleDeleteComment}
                       hiddenCommentIds={hiddenCommentIds}
                       hideCommentLocally={hideCommentLocally}
+                       t={t}
                     />
                   )
                 )
@@ -1807,7 +1815,7 @@ export default function CommentModal({
               type="text"
               value={commentInput}
               onChange={(e) => setCommentInput(e.target.value)}
-              placeholder="Viết bình luận..."
+              placeholder={t('feed.comment.writeComment')}
               className={styles.commentInput}
             />
             <button
@@ -1815,7 +1823,7 @@ export default function CommentModal({
               className={styles.sendBtn}
               disabled={submitting || !commentInput.trim()}
             >
-              Gửi
+              {t('feed.comment.send')}
             </button>
           </div>
         </form>
@@ -1826,11 +1834,10 @@ export default function CommentModal({
       createPortal(
         <ConfirmModal
           isOpen={deleteModalOpen}
-          title="Xóa bình luận"
-          message="Bạn có chắc muốn xóa bình luận này không?
-Hành động này không thể hoàn tác."
-          confirmText="Xóa"
-          cancelText="Hủy"
+          title={t('feed.confirm.deleteCommentTitle')}
+message={t('feed.confirm.deleteCommentMessage')}
+confirmText={t('feed.delete')}
+cancelText={t('feed.confirm.cancel')}
           isDangerous={true}
           onConfirm={confirmDeleteComment}
           onCancel={() => {
@@ -1843,11 +1850,10 @@ Hành động này không thể hoàn tác."
       createPortal(
         <ConfirmModal
           isOpen={deletePostModalOpen}
-          title="Xóa bài viết"
-          message="Bạn chắc chắn muốn xóa bài viết này?
-Hành động này không thể hoàn tác."
-          confirmText="Xóa"
-          cancelText="Hủy"
+          title={t('feed.confirm.deletePostTitle')}
+message={t('feed.confirm.deletePostMessage')}
+confirmText={t('feed.delete')}
+cancelText={t('feed.confirm.cancel')}
           isDangerous={true}
           isLoading={isDeleting}
           progress={deleteProgress}
@@ -1871,10 +1877,10 @@ Hành động này không thể hoàn tác."
       createPortal(
         <ConfirmModal
           isOpen={hidePostModalOpen}
-          title="Ẩn bài viết"
-          message="Bạn có muốn ẩn bài viết này không?"
-          confirmText="Ẩn"
-          cancelText="Hủy"
+          title={t('feed.confirm.hidePostTitle')}
+message={t('feed.confirm.hidePostMessage')}
+confirmText={t('feed.confirm.hide')}
+cancelText={t('feed.confirm.cancel')}
           onConfirm={confirmHidePost}
           onCancel={() => setHidePostModalOpen(false)}
         />,

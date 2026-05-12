@@ -17,6 +17,7 @@ import {
   Loader,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/library/FavoritesContent.module.css'
 import { getToken } from '../../utils/auth'
 import { PodcastContext } from '../contexts/PodcastContext'
@@ -33,10 +34,10 @@ const COLLECTIONS = [
 ]
 
 
-function getListenLabel(percent) {
-  if (percent >= 100) return 'Đã nghe xong'
-  if (percent <= 0) return 'Chưa nghe'
-  return `Đã nghe ${percent}%`
+function getListenLabel(percent, t) {
+  if (percent >= 100) return t('library.content.listenDone')
+  if (percent <= 0) return t('library.content.listenNotStarted')
+  return t('library.content.listenedPercent', { percent })
 }
 
 function formatTime(seconds) {
@@ -64,7 +65,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
 
   const handlePlayClick = () => {
     if (!item.audioUrl) {
-      alert('Bài này chưa có file audio')
+      alert(t('library.content.noAudioAlert'))
       return
     }
 
@@ -92,6 +93,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
 
     const barRect = progressBarRef.current?.getBoundingClientRect()
     if (!barRect) return
+
 
     const clickX = e.clientX - barRect.left
     const percentage = Math.max(
@@ -195,7 +197,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
         {item.pinned && (
           <span className={styles.savedBadge}>
             <Pin size={11} />
-            Đã ghim
+            {t('library.content.pinned')}
           </span>
         )}
       </div>
@@ -235,8 +237,8 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
               }}
               type="button"
               disabled={!item.audioUrl}
-              aria-label={isCurrentPlaying ? 'Tạm dừng' : 'Phát'}
-              title={!item.audioUrl ? 'Không có file audio' : ''}
+              aria-label={isCurrentPlaying ? t('buttons.pause') : t('buttons.play')}
+              title={!item.audioUrl ? t('library.content.noAudioTitle') : ''}
             >
               {isCurrentPlaying ? <Pause size={16} /> : <Play size={16} />}
             </button>
@@ -305,7 +307,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
               }}
             >
               <MessageSquareText size={14} />
-              <span>Ghi chú</span>
+              <span>{t('library.content.notes')}</span>
             </button>
           </div>
         </div>
@@ -315,6 +317,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
 }
 
 export default function FavoritesContent() {
+  const { t } = useTranslation()
   console.log('🎵 FavoritesContent RENDER')
   const [viewMode, setViewMode] = useState('grid')
   const [podcasts, setPodcasts] = useState([])
@@ -356,7 +359,7 @@ export default function FavoritesContent() {
       const token = getToken()
       console.log('🔑 Token:', token ? `${token.substring(0, 20)}...` : 'NOT FOUND')
       console.log('📡 Fetching /api/social/collections/')
-      
+
       const response = await fetch('http://127.0.0.1:8000/api/social/collections/', {
         method: 'GET',
         headers: {
@@ -366,10 +369,10 @@ export default function FavoritesContent() {
       })
 
       console.log('📊 Response Status:', response.status)
-      
+
       if (!response.ok) throw new Error(`HTTP ${response.status}`)
       const data = await response.json()
-      
+
       console.log('✅ Collections fetched:', data.data?.collections?.length || 0)
 
       if (data.success && data.data.collections) {
@@ -428,16 +431,20 @@ export default function FavoritesContent() {
           user_id: post.user_id,
           userId: post.user_id,
           isOwner: post.is_owner || false,
-          topic: post.tags && post.tags.length > 0 ? post.tags[0] : 'Chung',
+          topic: post.tags && post.tags.length > 0 ? post.tags[0] : t('library.content.general'),
           tags: post.tags || [],
           like_count: post.like_count || 0,
           comment_count: post.comment_count || 0,
           share_count: post.share_count || 0,
           is_liked: post.is_liked || false,
-          listens: post.listen_count 
-            ? `${post.listen_count >= 1000 ? Math.floor(post.listen_count / 1000) + 'k' : post.listen_count} lượt nghe` 
-            : '0 lượt nghe',
-          duration: post.duration_seconds 
+          listens: t('library.content.listens', {
+            count: post.listen_count
+              ? post.listen_count >= 1000
+                ? `${Math.floor(post.listen_count / 1000)}k`
+                : post.listen_count
+              : 0,
+          }),
+          duration: post.duration_seconds
             ? `${Math.floor(post.duration_seconds / 60)}:${String(post.duration_seconds % 60).padStart(2, '0')}`
             : '0:00',
           durationSeconds: post.duration_seconds || 0,
@@ -445,7 +452,7 @@ export default function FavoritesContent() {
           noteCount: post.has_note ? 1 : 0,
           hasNote: post.has_note || false,
           saved: true,
-          listenedPercent: post.playback_history?.completed_ratio 
+          listenedPercent: post.playback_history?.completed_ratio
             ? Math.round(post.playback_history.completed_ratio * 100)
             : 0,
           audioUrl: post.audio_url || '',
@@ -462,7 +469,7 @@ export default function FavoritesContent() {
     } finally {
       setLoadingCollections(false)
     }
-  }, [])
+  }, [t])
 
   const handleCollectionClick = useCallback((collection) => {
     setSelectedCollection(collection)
@@ -491,10 +498,10 @@ export default function FavoritesContent() {
         // Transform API data to match UI format
         const transformedPodcasts = data.data.saved_posts.map(post => {
           // Get listen percentage from playback history if available
-          const listenedPercent = post.playback_history?.completed_ratio 
+          const listenedPercent = post.playback_history?.completed_ratio
             ? Math.round(post.playback_history.completed_ratio * 100)
             : 0
-          
+
           return {
             id: post.id,
             pinned: false,
@@ -522,16 +529,20 @@ export default function FavoritesContent() {
             user_id: post.user_id,
             userId: post.user_id,
             isOwner: post.is_owner || false,
-            topic: post.tags && post.tags.length > 0 ? post.tags[0] : 'Chung',
+            topic: post.tags && post.tags.length > 0 ? post.tags[0] : t('library.content.general'),
             tags: post.tags || [],
             like_count: post.like_count || 0,
             comment_count: post.comment_count || 0,
             share_count: post.share_count || 0,
             is_liked: post.is_liked || false,
-            listens: post.listen_count 
-              ? `${post.listen_count >= 1000 ? Math.floor(post.listen_count / 1000) + 'k' : post.listen_count} lượt nghe` 
-              : '0 lượt nghe',
-            duration: post.duration_seconds 
+            listens: t('library.content.listens', {
+              count: post.listen_count
+                ? post.listen_count >= 1000
+                  ? `${Math.floor(post.listen_count / 1000)}k`
+                  : post.listen_count
+                : 0,
+            }),
+            duration: post.duration_seconds
               ? `${Math.floor(post.duration_seconds / 60)}:${String(post.duration_seconds % 60).padStart(2, '0')}`
               : '0:00',
             durationSeconds: post.duration_seconds || 0,
@@ -555,7 +566,7 @@ export default function FavoritesContent() {
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     const handlePostSync = (event) => {
@@ -566,11 +577,11 @@ export default function FavoritesContent() {
         prev.map(item =>
           String(item.id) === String(d.postId)
             ? {
-                ...item,
-                is_liked: typeof d.liked === 'boolean' ? d.liked : item.is_liked,
-                like_count: typeof d.likeCount === 'number' ? d.likeCount : item.like_count,
-                saved: typeof d.saved === 'boolean' ? d.saved : item.saved,
-              }
+              ...item,
+              is_liked: typeof d.liked === 'boolean' ? d.liked : item.is_liked,
+              like_count: typeof d.likeCount === 'number' ? d.likeCount : item.like_count,
+              saved: typeof d.saved === 'boolean' ? d.saved : item.saved,
+            }
             : item
         )
       )
@@ -578,11 +589,11 @@ export default function FavoritesContent() {
       setSelectedPostDetail(prev =>
         prev && String(prev.id) === String(d.postId)
           ? {
-              ...prev,
-              is_liked: typeof d.liked === 'boolean' ? d.liked : prev.is_liked,
-              like_count: typeof d.likeCount === 'number' ? d.likeCount : prev.like_count,
-              saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
-            }
+            ...prev,
+            is_liked: typeof d.liked === 'boolean' ? d.liked : prev.is_liked,
+            like_count: typeof d.likeCount === 'number' ? d.likeCount : prev.like_count,
+            saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
+          }
           : prev
       )
 
@@ -679,16 +690,16 @@ export default function FavoritesContent() {
           saveCount: Number(data.data?.save_count || 0),
         })
       } else {
-        throw new Error(data.message || 'Bỏ lưu thất bại')
+        throw new Error(data.message || t('library.content.unsaveFailed'))
       }
     } catch (err) {
       console.error('❌ API error:', err)
-      toast.error(err.message || 'Bỏ lưu bài viết thất bại')
+      toast.error(err.message || t('library.content.unsavePostFailed'))
       if (removedItem) {
         setPodcasts(prev => [...prev, removedItem])
       }
     }
-  }, [podcasts, removeSavedPost, decreaseCollectionCountByPostId, fetchCollections])
+  }, [podcasts, removeSavedPost, decreaseCollectionCountByPostId, fetchCollections, t])
 
   const handleOpenNotes = (post) => {
     setSelectedPostForNotes(post)
@@ -758,14 +769,14 @@ export default function FavoritesContent() {
 
   const handleToggleSave = async () => {
     const removedItem = podcasts.find(item => item.id === selectedPostDetail?.id)
-    
+
     try {
       const token = getToken()
-      
+
       setPodcasts(prev => prev.filter(item => item.id !== selectedPostDetail?.id))
       removeSavedPost(selectedPostDetail?.id)
       decreaseCollectionCountByPostId(selectedPostDetail?.id)
-      
+
       const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${selectedPostDetail?.id}/save/`, {
         method: 'POST',
         headers: {
@@ -789,11 +800,11 @@ export default function FavoritesContent() {
           saveCount: nextSaveCount,
         })
       } else {
-        throw new Error('Bỏ lưu thất bại')
+        throw new Error(t('library.content.unsaveFailed'))
       }
     } catch (err) {
       console.error('Failed to toggle save:', err)
-      toast.error('Bỏ lưu bài viết thất bại')
+      toast.error(t('library.content.unsavePostFailed'))
       // Restore if API fails
       if (removedItem) {
         setPodcasts(prev => [...prev, removedItem])
@@ -878,7 +889,7 @@ export default function FavoritesContent() {
       }
     } catch (err) {
       console.error('Failed to save note:', err)
-      alert('Lỗi khi lưu ghi chú')
+      alert(t('library.content.saveNoteError'))
     }
   }
 
@@ -899,18 +910,18 @@ export default function FavoritesContent() {
     const notes = activePostcasts.filter(item => item.noteCount > 0).length
 
     return [
-      { key: 'saved', icon: BookMarked, value: saved, sub: 'Đã lưu' },
-      { key: 'listened', icon: Headphones, value: listened, sub: 'Đã nghe' },
-      { key: 'unheard', icon: Clock3, value: unheard, sub: 'Chưa nghe' },
-      { key: 'notes', icon: StickyNote, value: notes, sub: 'Ghi chú' },
+      { key: 'saved', icon: BookMarked, value: saved, sub: t('library.content.saved') },
+      { key: 'listened', icon: Headphones, value: listened, sub: t('library.content.listened') },
+      { key: 'unheard', icon: Clock3, value: unheard, sub: t('library.content.unheard') },
+      { key: 'notes', icon: StickyNote, value: notes, sub: t('library.content.notes') },
     ]
-  }, [podcasts, hiddenPostIds, deletedPostIds, deletedPostsVersion, hiddenPostsVersion])
+  }, [podcasts, hiddenPostIds, deletedPostIds, deletedPostsVersion, hiddenPostsVersion, t])
 
   const visiblePodcasts = useMemo(() => {
     console.log('🔄 Recalc visiblePodcasts - podcasts:', podcasts.length, 'deleted:', deletedPostIds.size, 'hidden:', hiddenPostIds.size, 'deletedVer:', deletedPostsVersion, 'hiddenVer:', hiddenPostsVersion)
     const filtered = podcasts.filter(item => !deletedPostIds.has(String(item.id)) && !hiddenPostIds.has(String(item.id)))
     console.log('  📋 After filter:', filtered.length)
-    
+
     switch (activeFilter) {
       case 'saved':
         return filtered.filter(item => item.saved)
@@ -928,7 +939,7 @@ export default function FavoritesContent() {
   const sortedCollections = useMemo(() => {
     return [...collections].sort((a, b) => {
       const countDiff = (b.post_count || 0) - (a.post_count || 0)
-      if (countDiff !== 0 ) return countDiff
+      if (countDiff !== 0) return countDiff
 
       return new Date(b.updated_at || b.created_at || 0) - new Date(a.updated_at || a.created_at || 0)
     })
@@ -1017,7 +1028,7 @@ export default function FavoritesContent() {
         <div className={styles.mainCol}>
           <div className={styles.sectionCard}>
             <div className={styles.pageHeader}>
-              Đang tải...
+              {t('library.content.loading')}
             </div>
           </div>
         </div>
@@ -1035,9 +1046,9 @@ export default function FavoritesContent() {
                 <MapPin size={14} />
               </div>
               <div className={styles.titleCopy}>
-                <h1 className={styles.pageTitle}>Thư viện yêu thích</h1>
+                <h1 className={styles.pageTitle}>{t('library.content.pageTitle')}</h1>
                 <p className={styles.pageSub}>
-                  Podcast đã lưu, ghi chú và ghim lại
+                  {t('library.content.pageSubtitle')}
                 </p>
               </div>
             </div>
@@ -1045,9 +1056,8 @@ export default function FavoritesContent() {
             <div className={styles.headerActions}>
               <button
                 type="button"
-                className={`${styles.iconBtn} ${
-                  viewMode === 'grid' ? styles.iconBtnActive : ''
-                }`}
+                className={`${styles.iconBtn} ${viewMode === 'grid' ? styles.iconBtnActive : ''
+                  }`}
                 onClick={() => setViewMode('grid')}
               >
                 <LayoutGrid size={15} />
@@ -1055,9 +1065,8 @@ export default function FavoritesContent() {
 
               <button
                 type="button"
-                className={`${styles.iconBtn} ${
-                  viewMode === 'list' ? styles.iconBtnActive : ''
-                }`}
+                className={`${styles.iconBtn} ${viewMode === 'list' ? styles.iconBtnActive : ''
+                  }`}
                 onClick={() => setViewMode('list')}
               >
                 <Rows3 size={15} />
@@ -1070,9 +1079,8 @@ export default function FavoritesContent() {
               <button
                 key={key}
                 type="button"
-                className={`${styles.statCard} ${
-                  activeFilter === key ? styles.statCardActive : ''
-                }`}
+                className={`${styles.statCard} ${activeFilter === key ? styles.statCardActive : ''
+                  }`}
                 onClick={() =>
                   setActiveFilter(prev => (prev === key ? 'all' : key))
                 }
@@ -1092,8 +1100,10 @@ export default function FavoritesContent() {
         <div className={styles.sectionCard}>
           <div className={styles.sectionHead}>
             <div>
-              <h3 className={styles.sectionTitle}>Bộ sưu tập</h3>
-              <p className={styles.sectionSub}>{sortedCollections.length} bộ</p>
+              <h3 className={styles.sectionTitle}>{t('library.content.collections')}</h3>
+              <p className={styles.sectionSub}>
+                {t('library.content.collectionCount', { count: sortedCollections.length })}
+              </p>
             </div>
 
             {sortedCollections.length > 4 && (
@@ -1102,7 +1112,7 @@ export default function FavoritesContent() {
                 className={styles.linkBtn}
                 onClick={() => setShowAllCollections(prev => !prev)}
               >
-                {showAllCollections ? 'Thu gọn' : 'Xem tất cả'} <ChevronRight size={15} />
+                {showAllCollections ? t('library.content.collapse') : t('library.content.viewAll')} <ChevronRight size={15} />
               </button>
             )}
           </div>
@@ -1117,11 +1127,13 @@ export default function FavoritesContent() {
                   onClick={() => handleCollectionClick(item)}
                 >
                   <span className={styles.collectionName}>{item.name}</span>
-                  <span className={styles.collectionCount}>{item.post_count || 0} podcast</span>
+                  <span className={styles.collectionCount}>
+                    {t('library.content.podcastCount', { count: item.post_count || 0 })}
+                  </span>
                 </button>
               ))
             ) : (
-              <p className={styles.emptyMessage}>Chưa có bộ sưu tập nào</p>
+              <p className={styles.emptyMessage}>{t('library.content.noCollections')}</p>
             )}
           </div>
         </div>
@@ -1129,9 +1141,9 @@ export default function FavoritesContent() {
         <div className={styles.sectionCard}>
           <div className={styles.sectionHead}>
             <div>
-              <h3 className={styles.sectionTitle}>Podcast đã lưu</h3>
+              <h3 className={styles.sectionTitle}>{t('library.content.savedPodcasts')}</h3>
               <p className={styles.sectionSub}>
-                {visiblePodcasts.length} podcast
+                {t('library.content.podcastCount', { count: visiblePodcasts.length })}
               </p>
             </div>
             {visiblePodcasts.length > 4 && (
@@ -1144,7 +1156,7 @@ export default function FavoritesContent() {
                   setShowAllPostsModal(true)
                 }}
               >
-                Xem tất cả <ChevronRight size={15} />
+                {t('library.content.viewAll')} <ChevronRight size={15} />
               </button>
             )}
           </div>
@@ -1159,11 +1171,12 @@ export default function FavoritesContent() {
                   onToggleSaved={toggleSaved}
                   onOpenNotes={handleOpenNotes}
                   onOpenDetail={handleOpenPostDetail}
+                  t={t}
                 />
               ))
             ) : (
               <p style={{ gridColumn: '1 / -1', textAlign: 'center', padding: '20px', color: '#999' }}>
-                Chưa có podcast nào được lưu
+                {t('library.noSavedPodcasts')}
               </p>
             )}
           </div>
@@ -1192,8 +1205,8 @@ export default function FavoritesContent() {
         posts={selectedCollection ? collectionPosts : visiblePodcasts}
         title={
           selectedCollection
-            ? `Bộ sưu tập ${selectedCollection.name}`
-            : `Tất cả podcast đã lưu (${visiblePodcasts.length})`
+            ? t('library.content.collectionTitle', { name: selectedCollection.name })
+            : t('library.allSavedPodcasts', { count: visiblePodcasts.length })
         }
         onSelectPost={handleSelectPostFromAllModal}
       />

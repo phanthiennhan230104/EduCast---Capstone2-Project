@@ -1,5 +1,6 @@
 import { useEffect, useState, useContext } from 'react'
 import { useSearchParams } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import { searchContent } from '../../utils/searchApi'
 import SearchPostCard from '../../components/common/SearchPostCard'
@@ -11,6 +12,7 @@ import CommentModal from '../../components/feed/CommentModal'
 import styles from '../../style/pages/SearchResultPage/SearchResults.module.css'
 
 export default function SearchResultsPage() {
+  const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const { user: currentUser } = useAuth()
   const authUser = getCurrentUser()
@@ -18,7 +20,7 @@ export default function SearchResultsPage() {
   const { removeSavedPost, hidePost, deletePost, isPostHidden, isPostDeleted, deletedPostsVersion, hiddenPostsVersion } = useContext(PodcastContext)
   const query = searchParams.get('q') || ''
   const type = searchParams.get('type') || 'all'
-  
+
   const [results, setResults] = useState({
     posts: [],
     authors: [],
@@ -28,7 +30,7 @@ export default function SearchResultsPage() {
   const [activeTab, setActiveTab] = useState(type || 'all')
   const [followingIds, setFollowingIds] = useState(new Set())
   const [loadingFollow, setLoadingFollow] = useState({})
-  
+
   // State for CommentModal
   const [showPostDetail, setShowPostDetail] = useState(false)
   const [selectedPostDetail, setSelectedPostDetail] = useState(null)
@@ -78,12 +80,12 @@ export default function SearchResultsPage() {
         posts: prev.posts.map(post =>
           String(post.id) === String(d.postId)
             ? {
-                ...post,
-                is_liked: typeof d.liked === 'boolean' ? d.liked : post.is_liked,
-                like_count: typeof d.likeCount === 'number' ? d.likeCount : post.like_count,
-                is_saved: typeof d.saved === 'boolean' ? d.saved : post.is_saved,
-                save_count: typeof d.saveCount === 'number' ? d.saveCount : post.save_count,
-              }
+              ...post,
+              is_liked: typeof d.liked === 'boolean' ? d.liked : post.is_liked,
+              like_count: typeof d.likeCount === 'number' ? d.likeCount : post.like_count,
+              is_saved: typeof d.saved === 'boolean' ? d.saved : post.is_saved,
+              save_count: typeof d.saveCount === 'number' ? d.saveCount : post.save_count,
+            }
             : post
         ),
       }))
@@ -91,12 +93,12 @@ export default function SearchResultsPage() {
       setSelectedPostDetail(prev =>
         prev && String(prev.id) === String(d.postId)
           ? {
-              ...prev,
-              is_liked: typeof d.liked === 'boolean' ? d.liked : prev.is_liked,
-              like_count: typeof d.likeCount === 'number' ? d.likeCount : prev.like_count,
-              is_saved: typeof d.saved === 'boolean' ? d.saved : prev.is_saved,
-              save_count: typeof d.saveCount === 'number' ? d.saveCount : prev.save_count,
-            }
+            ...prev,
+            is_liked: typeof d.liked === 'boolean' ? d.liked : prev.is_liked,
+            like_count: typeof d.likeCount === 'number' ? d.likeCount : prev.like_count,
+            is_saved: typeof d.saved === 'boolean' ? d.saved : prev.is_saved,
+            save_count: typeof d.saveCount === 'number' ? d.saveCount : prev.save_count,
+          }
           : prev
       )
 
@@ -127,7 +129,7 @@ export default function SearchResultsPage() {
         const data = await searchContent(query, 'all', 50, 0)
         setResults(data || { posts: [], authors: [] })
       } catch (err) {
-        setError('Lỗi khi tìm kiếm. Vui lòng thử lại.')
+        setError(t('searchResults.searchError'))
         console.error('Search error:', err)
         setResults({ posts: [], authors: [] })
       } finally {
@@ -136,7 +138,7 @@ export default function SearchResultsPage() {
     }
 
     fetchResults()
-  }, [query])
+  }, [query, t])
 
   // Fetch danh sách người đang follow
   useEffect(() => {
@@ -265,7 +267,7 @@ export default function SearchResultsPage() {
     sessionStorage.removeItem('returnToAfterEdit')
     sessionStorage.removeItem('openPostDetailId')
     sessionStorage.removeItem('openPostDetailNoScroll')
-  }, [loading, results.posts])
+ }, [loading, results.posts, currentUser?.id])
 
   const handleToggleLike = async () => {
     if (!selectedPostDetail?.id) return
@@ -303,10 +305,10 @@ export default function SearchResultsPage() {
       setSelectedPostDetail(prev =>
         prev
           ? {
-              ...prev,
-              is_liked: nextLiked,
-              like_count: nextLikeCount,
-            }
+            ...prev,
+            is_liked: nextLiked,
+            like_count: nextLikeCount,
+          }
           : prev
       )
 
@@ -315,10 +317,10 @@ export default function SearchResultsPage() {
         posts: prev.posts.map(p =>
           String(p.id) === String(selectedPostDetail.id)
             ? {
-                ...p,
-                is_liked: nextLiked,
-                like_count: nextLikeCount,
-              }
+              ...p,
+              is_liked: nextLiked,
+              like_count: nextLikeCount,
+            }
             : p
         ),
       }))
@@ -369,10 +371,10 @@ export default function SearchResultsPage() {
       setSelectedPostDetail(prev =>
         prev
           ? {
-              ...prev,
-              is_saved: nextSaved,
-              save_count: nextSaveCount,
-            }
+            ...prev,
+            is_saved: nextSaved,
+            save_count: nextSaveCount,
+          }
           : prev
       )
 
@@ -381,10 +383,10 @@ export default function SearchResultsPage() {
         posts: prev.posts.map(p =>
           String(p.id) === String(selectedPostDetail.id)
             ? {
-                ...p,
-                is_saved: nextSaved,
-                save_count: nextSaveCount,
-              }
+              ...p,
+              is_saved: nextSaved,
+              save_count: nextSaveCount,
+            }
             : p
         ),
       }))
@@ -417,10 +419,10 @@ export default function SearchResultsPage() {
         throw new Error(`HTTP ${response.status}`)
       }
 
-      alert('Chia sẻ thành công!')
+      alert(t('searchResults.shareSuccess'))
     } catch (err) {
       console.error('Failed to share:', err)
-      alert('Lỗi khi chia sẻ')
+      alert(t('searchResults.shareError'))
     }
   }
 
@@ -433,23 +435,23 @@ export default function SearchResultsPage() {
     <MainLayout>
       <div className={styles.searchResultsContainer}>
         <div className={styles.header}>
-          <h1 className={styles.title}>Kết quả tìm kiếm</h1>
+          <h1 className={styles.title}>{t('searchResults.pageTitle')}</h1>
           {query && (
             <p className={styles.query}>
-              Tìm kiếm cho: <strong>"{query}"</strong>
+              {t('searchResults.searchFor')} <strong>"{query}"</strong>
             </p>
           )}
         </div>
 
         {!query && (
           <div className={styles.emptyState}>
-            <p>Hãy nhập từ khóa để tìm kiếm</p>
+            <p>{t('searchResults.enterKeyword')}</p>
           </div>
         )}
 
         {query && loading && (
           <div className={styles.loadingState}>
-            <p>Đang tìm kiếm...</p>
+            <p>{t('searchResults.searching')}</p>
           </div>
         )}
 
@@ -466,19 +468,19 @@ export default function SearchResultsPage() {
                 className={`${styles.tab} ${activeTab === 'all' ? styles.active : ''}`}
                 onClick={() => handleTabChange('all')}
               >
-                Tất cả
+                {t('searchResults.all')}
               </button>
               <button
                 className={`${styles.tab} ${activeTab === 'posts' ? styles.active : ''}`}
                 onClick={() => handleTabChange('posts')}
               >
-                Podcast ({results.posts.length})
+                {t('searchResults.podcasts', { count: results.posts.length })}
               </button>
               <button
                 className={`${styles.tab} ${activeTab === 'authors' ? styles.active : ''}`}
                 onClick={() => handleTabChange('authors')}
               >
-                Tác giả ({results.authors.length})
+                {t('searchResults.authors', { count: results.authors.length })}
               </button>
             </div>
 
@@ -486,7 +488,7 @@ export default function SearchResultsPage() {
             {(activeTab === 'all' || activeTab === 'posts') && (
               <div className={styles.section}>
                 {results.posts.length === 0 ? (
-                  <p className={styles.noResults}>Không tìm thấy podcast nào</p>
+                  <p className={styles.noResults}>{t('searchResults.noPodcasts')}</p>
                 ) : (
                   <div className={styles.podcastsGrid}>
                     {results.posts.filter(post => !isPostHidden(post.id) && !isPostDeleted(post.id)).map((post) => (
@@ -499,7 +501,7 @@ export default function SearchResultsPage() {
 
                           author: post.author,
                           authorUsername: post.author_username || post.username || '',
-                          authorId: post.author_id,  
+                          authorId: post.author_id,
 
                           cover: post.thumbnail_url,
                           thumbnail_url: post.thumbnail_url,
@@ -610,16 +612,16 @@ export default function SearchResultsPage() {
                         )}
                         <h4 className={styles.authorName}>{displayName}</h4>
                         <p className={styles.authorUsername}>@{author.username}</p>
-                        
+
                         {String(currentUserId) === String(author.id) ? (
-                          <button 
+                          <button
                             className={styles.followBtn}
                             disabled
                           >
-                            Xem trang cá nhân
+                            {t('searchResults.viewProfile')}
                           </button>
                         ) : (
-                          <button 
+                          <button
                             className={`${styles.followBtn} ${followingIds.has(String(author.id)) ? styles.following : ''}`}
                             onClick={() => handleFollowClick(author.id)}
                             disabled={loadingFollow[author.id]}
@@ -627,8 +629,8 @@ export default function SearchResultsPage() {
                             {loadingFollow[author.id]
                               ? '...'
                               : followingIds.has(String(author.id))
-                                ? 'Đang theo dõi'
-                                : 'Theo dõi'}
+                                ? t('searchResults.following')
+                                : t('searchResults.follow')}
                           </button>
                         )}
                       </div>

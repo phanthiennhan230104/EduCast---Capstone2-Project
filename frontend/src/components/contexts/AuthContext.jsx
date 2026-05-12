@@ -5,7 +5,7 @@ import {
   getCurrentUser,
   getRefreshToken,
   getToken,
-  EDUCAST_USER,
+  saveAuth,
   AUTH_FORCE_LOGOUT_EVENT,
 } from '../../utils/auth'
 
@@ -21,10 +21,6 @@ export function AuthProvider({ children }) {
     checkAuth()
   }, [])
 
-  /**
-   * Nhận event logout bắt buộc từ api.js.
-   * Ví dụ: backend báo tài khoản bị khóa.
-   */
   useEffect(() => {
     const handleForceLogout = () => {
       clearAuth()
@@ -40,11 +36,6 @@ export function AuthProvider({ children }) {
     }
   }, [])
 
-  /**
-   * Polling trạng thái tài khoản.
-   * Khi admin khóa user ở màn admin, user đang mở web sẽ tự gọi /auth/me/.
-   * Backend thấy user bị khóa => trả lỗi => apiRequest tự clearAuth và redirect.
-   */
   useEffect(() => {
     if (!isAuthenticated) return
 
@@ -94,7 +85,6 @@ export function AuthProvider({ children }) {
 
       setUser(data.user)
       setIsAuthenticated(true)
-      localStorage.setItem(EDUCAST_USER, JSON.stringify(data.user))
     } catch (error) {
       // Nếu token hết hạn/không hợp lệ thì đừng giữ "local session state" nữa.
       // Tránh trường hợp UI nghĩ là còn login và cứ poll ra 403 liên tục.
@@ -117,8 +107,9 @@ export function AuthProvider({ children }) {
     }
   }
 
-  const login = (userData) => {
-    setUser(userData)
+  const login = (authData, rememberMe = false) => {
+    saveAuth(authData, rememberMe)
+    setUser(authData.user)
     setIsAuthenticated(true)
   }
 

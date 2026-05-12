@@ -8,6 +8,7 @@ import {
   Typography,
   Upload,
 } from 'antd'
+import { useTranslation } from 'react-i18next'
 import {
   DeleteOutlined,
   FileAddOutlined,
@@ -20,6 +21,7 @@ const { TextArea } = Input
 const { Text } = Typography
 
 export default function SourceCard({ vm }) {
+  const { t } = useTranslation()
   const tabItems = vm.sourceTabs.map((tab) => ({
     key: tab.key,
     label: tab.label,
@@ -42,7 +44,7 @@ export default function SourceCard({ vm }) {
   return (
     <Card
       className={styles.card}
-      title="Nguồn nội dung"
+      title={t('createAudio.source.title')}
       variant="borderless"
       styles={{
         header: { color: '#fff' },
@@ -79,7 +81,7 @@ export default function SourceCard({ vm }) {
             }}
             rows={10}
             disabled={vm.genState === 'processing'}
-            placeholder="Dán văn bản, bài giảng, ghi chú hoặc nội dung bất kỳ vào đây..."
+            placeholder={t('createAudio.source.textPlaceholder')}
             status={vm.textError ? 'error' : ''}
           />
 
@@ -90,19 +92,20 @@ export default function SourceCard({ vm }) {
                 onClick={vm.clearText}
                 disabled={vm.genState === 'processing'}
               >
-                Xóa
+                {t('createAudio.source.clear')}
               </Button>
               <Button 
                 icon={<FileAddOutlined />} 
                 onClick={vm.fillDemoText}
                 disabled={vm.genState === 'processing'}
               >
-                Dán văn bản mẫu
+                {t('createAudio.source.pasteDemo')}
               </Button>
             </Space>
 
             <Text className={styles.helperText}>
-              {(vm.text || '').length.toLocaleString()} ký tự · Ước tính: {vm.estLabel}
+              {(vm.text || '').length.toLocaleString()} {t('createAudio.source.characters')} ·{' '}
+{t('createAudio.source.estimate')}: {vm.estLabel}
             </Text>
           </Space>
         </Space>
@@ -126,9 +129,9 @@ export default function SourceCard({ vm }) {
             <p className="ant-upload-drag-icon">
               <UploadOutlined />
             </p>
-            <p className="ant-upload-text">Kéo thả hoặc bấm để tải file lên</p>
+            <p className="ant-upload-text">{t('createAudio.source.dragAndDrop')}</p>
             <p className="ant-upload-hint">
-              Hỗ trợ PDF, DOCX, TXT. Tối đa 25MB.
+              {t('createAudio.source.supportedFormats')} PDF, DOCX, TXT. {t('createAudio.source.maxSize')}: 25MB.
             </p>
           </Upload.Dragger>
 
@@ -146,10 +149,10 @@ export default function SourceCard({ vm }) {
                   >
                     {(vm.file.size / 1024 / 1024).toFixed(2)} MB ·{' '}
                     {vm.isUploadingFile
-                      ? 'Đang tải và phân tích...'
-                      : vm.fileReady
-                        ? 'Đã phân tích xong'
-                        : 'Chưa sẵn sàng'}
+  ? t('createAudio.source.uploading')
+  : vm.fileReady
+    ? t('createAudio.source.analyzed')
+    : t('createAudio.source.notReady')}
                   </Text>
                 </Space>
 

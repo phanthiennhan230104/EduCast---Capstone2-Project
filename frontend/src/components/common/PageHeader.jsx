@@ -1,9 +1,11 @@
 import { Link } from 'react-router-dom'
 import { Music } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/common/PageHeader.module.css'
 
 
 export default function PageHeader({ onOpenLogin, onOpenSignup }) {
+  const { t } = useTranslation()
   return (
     <header className={styles.header}>
       <Link to="/" className={styles.logo}>
@@ -14,19 +16,19 @@ export default function PageHeader({ onOpenLogin, onOpenSignup }) {
       </Link>
 
       <nav className={styles.nav}>
-        <a href="#explore" className={styles.navLink}>Khám phá</a>
-        <a href="#topics" className={styles.navLink}>Chủ đề</a>
-        <a href="#community" className={styles.navLink}>Cộng đồng</a>
-        <a href="#ranking" className={styles.navLink}>Bảng xếp hạng</a>
+        <a href="#explore" className={styles.navLink}>{t('landingHeader.explore')}</a>
+        <a href="#topics" className={styles.navLink}>{t('landingHeader.topics')}</a>
+        <a href="#community" className={styles.navLink}>{t('landingHeader.community')}</a>
+        <a href="#ranking" className={styles.navLink}>{t('landingHeader.ranking')}</a>
       </nav>
 
       <div className={styles.actions}>
         <button type="button" className={styles.loginBtn} onClick={onOpenLogin}>
-          Đăng nhập
+          {t('landingHeader.login')}
         </button>
 
         <button type="button" className={styles.freeBtn} onClick={onOpenSignup}>
-          Dùng miễn phí
+          {t('landingHeader.signupFree')}
         </button>
       </div>
     </header>

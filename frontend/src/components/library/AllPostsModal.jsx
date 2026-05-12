@@ -1,19 +1,23 @@
 import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/library/AllPostsModal.module.css'
 
 export default function AllPostsModal({ isOpen, onClose, posts, title, onSelectPost }) {
+  const { t } = useTranslation()
   if (!isOpen) return null
 
   return (
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2 className={styles.title}>{title || `Tất cả podcast đã lưu (${posts.length})`}</h2>
+          <h2 className={styles.title}>
+            {title || t('library.allSavedPodcasts', { count: posts.length })}
+          </h2>
           <button
             type="button"
             className={styles.closeBtn}
             onClick={onClose}
-            aria-label="Đóng"
+            aria-label={t('library.close')}
           >
             <X size={20} />
           </button>
@@ -57,7 +61,7 @@ export default function AllPostsModal({ isOpen, onClose, posts, title, onSelectP
             </div>
           ) : (
             <div className={styles.emptyState}>
-              <p>Chưa có podcast nào được lưu</p>
+              <p>{t('library.noSavedPodcasts')}</p>
             </div>
           )}
         </div>

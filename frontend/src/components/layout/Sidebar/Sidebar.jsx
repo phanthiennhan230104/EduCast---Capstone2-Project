@@ -4,14 +4,15 @@ import {
   User, Settings, Plus
 } from 'lucide-react'
 import styles from '../../../style/layout/Sidebar.module.css'
+import { useTranslation } from "react-i18next";
 import TagSelector from '../../../components/feed/TagSelector'
 
 
-const NAV_MAIN = [
-  { icon: Rss,           label: 'Feed của tôi',        to: '/feed' },
-  { icon: Heart,         label: 'Thư viện yêu thích',  to: '/favorites' },
-  { icon: Users,         label: 'Cộng đồng',           to: '/community' },
-]
+  const NAV_MAIN = [
+    { icon: Rss,           labelKey: 'navigation.main.feed',        to: '/feed' },
+    { icon: Heart,         labelKey: 'navigation.main.favorites',  to: '/favorites' },
+    { icon: Users,         labelKey: 'navigation.main.community',           to: '/community' },
+  ]
 
 const NAV_OTHER = [
   { icon: MessageCircle, label: 'Tin nhắn',   to: '/messages' },
@@ -21,6 +22,7 @@ const NAV_OTHER = [
 ]
 
 export default function Sidebar() {
+  const { t } = useTranslation();
   const location = useLocation()
 
   const handleFeedClick = (event, to) => {
@@ -34,8 +36,8 @@ export default function Sidebar() {
   return (
     <aside className={styles.sidebar}>
       <nav className={styles.nav}>
-        <p className={styles.sectionLabel}>CHÍNH</p>
-        {NAV_MAIN.map(({ icon: Icon, label, to }) => (
+        <p className={styles.sectionLabel}>{t('navigation.main.label')}</p>
+        {NAV_MAIN.map(({ icon: Icon, labelKey, to }) => (
           <NavLink
             key={to}
             to={to}
@@ -45,23 +47,23 @@ export default function Sidebar() {
             }
           >
             <Icon size={17} />
-            <span>{label}</span>
+            <span>{t(labelKey)}</span>
           </NavLink>
         ))}
 
-        <p className={styles.sectionLabel}>KHÁC</p>
+        <p className={styles.sectionLabel}>{t('navigation.other.label')}</p>
         {NAV_OTHER.map(({ icon: Icon, label, to }) => (
-          <NavLink
-            key={to}
-            to={to}
-            className={({ isActive }) =>
-              `${styles.navItem} ${isActive ? styles.active : ''}`
-            }
-          >
-            <Icon size={17} />
-            <span>{label}</span>
-          </NavLink>
-        ))}
+  <NavLink
+    key={to}
+    to={to}
+    className={({ isActive }) =>
+      `${styles.navItem} ${isActive ? styles.active : ''}`
+    }
+  >
+    <Icon size={17} />
+    <span>{label}</span>
+  </NavLink>
+))}
       </nav>
 
       {/* Favourite tags */}

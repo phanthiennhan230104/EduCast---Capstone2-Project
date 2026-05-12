@@ -29,6 +29,54 @@ const TABS = [
 
 const POST_SYNC_EVENT = 'post-sync-updated'
 
+const getAccessToken = () =>
+  localStorage.getItem('educast_access') ||
+  sessionStorage.getItem('educast_access') ||
+  localStorage.getItem('access_token') ||
+  sessionStorage.getItem('access_token') ||
+  localStorage.getItem('access') ||
+  sessionStorage.getItem('access') ||
+  localStorage.getItem('token') ||
+  sessionStorage.getItem('token')
+
+function formatSeconds(seconds) {
+  const total = Number(seconds || 0)
+  const mins = Math.floor(total / 60)
+  const secs = total % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
+function calcProgress(current, duration) {
+  const c = Number(current || 0)
+  const d = Number(duration || 0)
+  if (!d) return 0
+  return Math.min(100, Math.round((c / d) * 100))
+}
+
+function formatTimeAgo(dateString) {
+  if (!dateString) return 'Vừa xong'
+  const created = new Date(dateString)
+  const now = new Date()
+  const diffMs = now - created
+  const diffMinutes = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMinutes < 1) return 'Vừa xong'
+  if (diffMinutes < 60) return `${diffMinutes} phút trước`
+  if (diffHours < 24) return `${diffHours} giờ trước`
+  return `${diffDays} ngày trước`
+}
+
+function clearEditReturnSession() {
+  sessionStorage.removeItem('returnFromEdit')
+  sessionStorage.removeItem('feedScrollPosition')
+  sessionStorage.removeItem('feedFocusPostId')
+  sessionStorage.removeItem('openPostDetailId')
+  sessionStorage.removeItem('openPostDetailNoScroll')
+  sessionStorage.removeItem('returnToAfterEdit')
+}
+
 export default function Feed() {
   const location = useLocation()
 
@@ -101,26 +149,26 @@ export default function Feed() {
           prev.map((p) =>
             String(p.id) === String(d.postId)
               ? {
-                  ...p,
-                  liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
-                  likes:
-                    typeof d.likeCount === 'number'
-                      ? d.likeCount
-                      : p.likes,
-                  saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
-                  saveCount:
-                    typeof d.saveCount === 'number'
-                      ? d.saveCount
-                      : p.saveCount,
-                  comments:
-                    typeof d.commentCount === 'number'
-                      ? d.commentCount
-                      : p.comments,
-                  comment_count:
-                    typeof d.commentCount === 'number'
-                      ? d.commentCount
-                      : p.comment_count,
-                }
+                ...p,
+                liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
+                likes:
+                  typeof d.likeCount === 'number'
+                    ? d.likeCount
+                    : p.likes,
+                saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+                saveCount:
+                  typeof d.saveCount === 'number'
+                    ? d.saveCount
+                    : p.saveCount,
+                comments:
+                  typeof d.commentCount === 'number'
+                    ? d.commentCount
+                    : p.comments,
+                comment_count:
+                  typeof d.commentCount === 'number'
+                    ? d.commentCount
+                    : p.comment_count,
+              }
               : p
           )
         )
@@ -128,26 +176,26 @@ export default function Feed() {
         setSelectedPodcast((prev) =>
           prev && String(prev.id) === String(d.postId)
             ? {
-                ...prev,
-                liked: typeof d.liked === 'boolean' ? d.liked : prev.liked,
-                likes:
-                  typeof d.likeCount === 'number'
-                    ? d.likeCount
-                    : prev.likes,
-                saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
-                saveCount:
-                  typeof d.saveCount === 'number'
-                    ? d.saveCount
-                    : prev.saveCount,
-                comments:
-                  typeof d.commentCount === 'number'
-                    ? d.commentCount
-                    : prev.comments,
-                comment_count:
-                  typeof d.commentCount === 'number'
-                    ? d.commentCount
-                    : prev.comment_count,
-              }
+              ...prev,
+              liked: typeof d.liked === 'boolean' ? d.liked : prev.liked,
+              likes:
+                typeof d.likeCount === 'number'
+                  ? d.likeCount
+                  : prev.likes,
+              saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
+              saveCount:
+                typeof d.saveCount === 'number'
+                  ? d.saveCount
+                  : prev.saveCount,
+              comments:
+                typeof d.commentCount === 'number'
+                  ? d.commentCount
+                  : prev.comments,
+              comment_count:
+                typeof d.commentCount === 'number'
+                  ? d.commentCount
+                  : prev.comment_count,
+            }
             : prev
         )
       }, 0)
@@ -157,13 +205,21 @@ export default function Feed() {
     return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
   }, [])
 
+  // Fetch feed data
   useEffect(() => {
     const fetchFeed = async () => {
       try {
         setLoading(true)
         setError('')
 
-        const token = localStorage.getItem('educast_access')
+        const token = getAccessToken()
+
+        if (!token) {
+          setError('Bạn cần đăng nhập để xem feed')
+          setLoading(false)
+          return
+        }
+
         const currentTab = TABS[activeTab]?.key || 'for_you'
         const limit = focusPostId ? 50 : 10
 
@@ -176,19 +232,28 @@ export default function Feed() {
         const res = await fetch(url, {
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            Authorization: `Bearer ${token}`,
           },
         })
 
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        if (!res.ok) {
+          const text = await res.text()
+          console.error('Feed API failed:', {
+            status: res.status,
+            tokenExists: Boolean(token),
+            tokenPreview: token ? token.slice(0, 20) + '...' : null,
+            body: text,
+          })
+          throw new Error(`HTTP ${res.status}: ${text}`)
+        }
 
         const data = await res.json()
 
         const mapped = (data.items || []).map((item) => {
           const durationSeconds = Number(
             item.audio?.duration_seconds ||
-              item.viewer_state?.duration_seconds ||
-              0
+            item.viewer_state?.duration_seconds ||
+            0
           )
 
           const progressSeconds = Number(
@@ -274,6 +339,7 @@ export default function Feed() {
     fetchFeed()
   }, [activeTab, selectedTagIds, focusPostId, setSavedPostIds_batch])
 
+  // Restore scroll position after edit
   useLayoutEffect(() => {
     if (loading || podcasts.length === 0) return
     if (sessionStorage.getItem('returnFromEdit') !== 'true') return
@@ -310,6 +376,7 @@ export default function Feed() {
     })
   }, [loading, podcasts])
 
+  // Restore scroll position on normal navigation
   useLayoutEffect(() => {
     if (loading || podcasts.length === 0) return
     if (sessionStorage.getItem('returnFromEdit') === 'true') return
@@ -332,6 +399,7 @@ export default function Feed() {
     })
   }, [loading, podcasts.length])
 
+  // Clear scroll on page reload
   useEffect(() => {
     const navType = performance.getEntriesByType('navigation')[0]?.type
     const returnFromEdit = sessionStorage.getItem('returnFromEdit') === 'true'
@@ -349,6 +417,7 @@ export default function Feed() {
     }
   }, [])
 
+  // Handle open post detail event
   useEffect(() => {
     const handleOpenPostDetail = (event) => {
       const postId = event.detail?.postId
@@ -367,112 +436,133 @@ export default function Feed() {
       window.removeEventListener('open-post-detail', handleOpenPostDetail)
   }, [podcasts])
 
+  // Handle like toggle
   const handleModalToggleLike = async (e) => {
     e?.preventDefault?.()
     e?.stopPropagation?.()
 
     if (!selectedPodcast?.id) return
 
-    const token = localStorage.getItem('educast_access')
+    const token = getAccessToken()
+
+    if (!token) {
+      toast.error('Bạn cần đăng nhập để thực hiện thao tác này')
+      return
+    }
+
     const currentUser = JSON.parse(
       localStorage.getItem('educast_user') || 'null'
     )
 
-    const res = await fetch(
-      `http://localhost:8000/api/social/posts/${selectedPodcast.id}/like/`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ user_id: currentUser?.id }),
-      }
-    )
-
-    const data = await res.json()
-    if (!res.ok || !data.success) return
-
-    const nextLiked = Boolean(data.data?.liked)
-    const nextLikeCount = Number(data.data?.like_count || 0)
-
-    setSelectedPodcast((prev) =>
-      prev ? { ...prev, liked: nextLiked, likes: nextLikeCount } : prev
-    )
-
-    setPodcasts((prev) =>
-      prev.map((p) =>
-        p.id === selectedPodcast.id
-          ? { ...p, liked: nextLiked, likes: nextLikeCount }
-          : p
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/social/posts/${selectedPodcast.id}/like/`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ user_id: currentUser?.id }),
+        }
       )
-    )
 
-    dispatchPostSync({
-      postId: selectedPodcast.id,
-      liked: nextLiked,
-      likeCount: nextLikeCount,
-    })
+      const data = await res.json()
+      if (!res.ok || !data.success) return
 
-    window.dispatchEvent(
-      new CustomEvent('audio-track-like-updated', {
-        detail: {
-          postId: selectedPodcast.id,
-          liked: nextLiked,
-          likeCount: nextLikeCount,
-        },
+      const nextLiked = Boolean(data.data?.liked)
+      const nextLikeCount = Number(data.data?.like_count || 0)
+
+      setSelectedPodcast((prev) =>
+        prev ? { ...prev, liked: nextLiked, likes: nextLikeCount } : prev
+      )
+
+      setPodcasts((prev) =>
+        prev.map((p) =>
+          p.id === selectedPodcast.id
+            ? { ...p, liked: nextLiked, likes: nextLikeCount }
+            : p
+        )
+      )
+
+      dispatchPostSync({
+        postId: selectedPodcast.id,
+        liked: nextLiked,
+        likeCount: nextLikeCount,
       })
-    )
+
+      window.dispatchEvent(
+        new CustomEvent('audio-track-like-updated', {
+          detail: {
+            postId: selectedPodcast.id,
+            liked: nextLiked,
+            likeCount: nextLikeCount,
+          },
+        })
+      )
+    } catch (err) {
+      console.error('Like toggle failed:', err)
+    }
   }
 
+  // Handle save toggle
   const handleModalToggleSave = async (e) => {
     e?.preventDefault?.()
     e?.stopPropagation?.()
 
     if (!selectedPodcast?.id) return
 
-    const token = localStorage.getItem('educast_access')
+    const token = getAccessToken()
+
+    if (!token) {
+      toast.error('Bạn cần đăng nhập để thực hiện thao tác này')
+      return
+    }
+
     const currentUser = JSON.parse(
       localStorage.getItem('educast_user') || 'null'
     )
 
-    const res = await fetch(
-      `http://localhost:8000/api/social/posts/${selectedPodcast.id}/save/`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ user_id: currentUser?.id }),
-      }
-    )
-
-    const data = await res.json()
-    if (!res.ok || !data.success) return
-
-    const nextSaved = Boolean(data.data?.saved)
-    const nextSaveCount = Number(data.data?.save_count || 0)
-
-    setSelectedPodcast((prev) =>
-      prev ? { ...prev, saved: nextSaved, saveCount: nextSaveCount } : prev
-    )
-
-    setPodcasts((prev) =>
-      prev.map((p) =>
-        p.id === selectedPodcast.id
-          ? { ...p, saved: nextSaved, saveCount: nextSaveCount }
-          : p
+    try {
+      const res = await fetch(
+        `http://localhost:8000/api/social/posts/${selectedPodcast.id}/save/`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ user_id: currentUser?.id }),
+        }
       )
-    )
 
-    dispatchPostSync({
-      postId: selectedPodcast.id,
-      saved: nextSaved,
-      saveCount: nextSaveCount,
-    })
+      const data = await res.json()
+      if (!res.ok || !data.success) return
+
+      const nextSaved = Boolean(data.data?.saved)
+      const nextSaveCount = Number(data.data?.save_count || 0)
+
+      setSelectedPodcast((prev) =>
+        prev ? { ...prev, saved: nextSaved, saveCount: nextSaveCount } : prev
+      )
+
+      setPodcasts((prev) =>
+        prev.map((p) =>
+          p.id === selectedPodcast.id
+            ? { ...p, saved: nextSaved, saveCount: nextSaveCount }
+            : p
+        )
+      )
+
+      dispatchPostSync({
+        postId: selectedPodcast.id,
+        saved: nextSaved,
+        saveCount: nextSaveCount,
+      })
+    } catch (err) {
+      console.error('Save toggle failed:', err)
+    }
   }
-
 
   const handleOpenPostModal = (podcast) => {
     setDisableModalAutoScroll(false)
@@ -480,6 +570,18 @@ export default function Feed() {
       ...podcast,
       timeAgo: podcast.type === 'shared' ? podcast.postTimeAgo : podcast.timeAgo,
     })
+  }
+
+  const handleDeletePost = (postId) => {
+    pauseTrackIfDeleted(postId)
+    deletePost(postId)
+    setPodcasts((prev) => prev.filter((p) => String(p.id) !== String(postId)))
+  }
+
+  const handleHidePost = (postId) => {
+    pauseTrackIfDeleted(postId)
+    hidePost(postId)
+    setPodcasts((prev) => prev.filter((p) => String(p.id) !== String(postId)))
   }
 
   const renderSharedPost = (podcast) => {
@@ -628,18 +730,6 @@ export default function Feed() {
     )
   }
 
-  const handleDeletePost = (postId) => {
-    pauseTrackIfDeleted(postId)
-    deletePost(postId)
-    setPodcasts((prev) => prev.filter((p) => String(p.id) !== String(postId)))
-  }
-
-  const handleHidePost = (postId) => {
-    pauseTrackIfDeleted(postId)
-    hidePost(postId)
-    setPodcasts((prev) => prev.filter((p) => String(p.id) !== String(postId)))
-  }
-
   return (
     <section className={styles.feed}>
       <CreatePostBar />
@@ -705,47 +795,4 @@ export default function Feed() {
       )}
     </section>
   )
-}
-
-function clearEditReturnSession() {
-  sessionStorage.removeItem('returnFromEdit')
-  sessionStorage.removeItem('feedScrollPosition')
-  sessionStorage.removeItem('feedFocusPostId')
-  sessionStorage.removeItem('openPostDetailId')
-  sessionStorage.removeItem('openPostDetailNoScroll')
-  sessionStorage.removeItem('returnToAfterEdit')
-}
-
-function formatSeconds(seconds) {
-  const total = Number(seconds || 0)
-  const mins = Math.floor(total / 60)
-  const secs = total % 60
-
-  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-}
-
-function calcProgress(current, duration) {
-  const c = Number(current || 0)
-  const d = Number(duration || 0)
-
-  if (!d) return 0
-
-  return Math.min(100, Math.round((c / d) * 100))
-}
-
-function formatTimeAgo(dateString) {
-  if (!dateString) return 'Vừa xong'
-
-  const created = new Date(dateString)
-  const now = new Date()
-  const diffMs = now - created
-  const diffMinutes = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMinutes / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffMinutes < 1) return 'Vừa xong'
-  if (diffMinutes < 60) return `${diffMinutes} phút trước`
-  if (diffHours < 24) return `${diffHours} giờ trước`
-
-  return `${diffDays} ngày trước`
 }

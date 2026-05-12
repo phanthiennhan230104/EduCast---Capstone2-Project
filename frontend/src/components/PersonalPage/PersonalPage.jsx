@@ -11,6 +11,7 @@ import { toast } from 'react-toastify'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import PodcastCard from '../feed/PodcastCard'
 import CommentModal from '../feed/CommentModal'
+import { useTranslation } from 'react-i18next'
 import ShareModal from '../feed/ShareModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
 import {
@@ -34,7 +35,8 @@ import styles from '../../style/personal/PersonalPage.module.css'
 const TABS = ['Bài đăng', 'Bạn bè']
 
 export default function PersonalPage() {
-  const [activeTab, setActiveTab] = useState('Bài đăng')
+  const { t, i18n } = useTranslation()
+  const [activeTab, setActiveTab] = useState('posts')
   const [posts, setPosts] = useState([])
   const [podcasts, setPodcasts] = useState([])
   const [friends, setFriends] = useState([])
@@ -163,9 +165,9 @@ const profileAvatar =
     try {
       const data = await apiRequest(`/content/users/${profileUserId}/posts/?limit=100`)
       const posts = data.data?.posts || []
-      
+
       console.log('📌 Fetched posts:', posts.map(p => ({ id: p.id, type: p.type, is_liked: p.is_liked, like_count: p.like_count, title: p.title })))
-      
+
       // Load local overrides from localStorage
       const localCommentCountOverrides = JSON.parse(localStorage.getItem('personalPageCommentCountOverrides') || '{}')
       const profileHiddenPosts = JSON.parse(localStorage.getItem('profileHiddenPosts') || '[]')
@@ -188,8 +190,8 @@ const profileAvatar =
         
         const hasLocalCommentOverride = post.id in localCommentCountOverrides
         const commentCount = hasLocalCommentOverride ? localCommentCountOverrides[post.id] : (post.comment_count || 0)
-        
-        console.log('📌 Post state:', { 
+
+        console.log('📌 Post state:', {
           id: post.id,
           type: post.type,
           backendLiked: post.is_liked, 
@@ -200,7 +202,7 @@ const profileAvatar =
           localCommentOverride: hasLocalCommentOverride ? localCommentCountOverrides[post.id] : 'none',
           finalCommentCount: commentCount
         })
-        
+
         return {
           ...post, // Keep original data for fallback
           id: post.id,
@@ -237,8 +239,8 @@ const profileAvatar =
       
       const newPostStates = {}
       mappedPosts.forEach(post => {
-        console.log('📌 Initializing post state:', { 
-          id: post.id, 
+        console.log('📌 Initializing post state:', {
+          id: post.id,
           type: post.type,
           post_id: post.post_id,
           share_id: post.share_id,
@@ -246,7 +248,7 @@ const profileAvatar =
           liked: post.liked,
           likes: post.likes,
           comments: post.comments,
-          title: post.title 
+          title: post.title
         })
         newPostStates[post.id] = {
           liked: post.liked,  
@@ -265,7 +267,7 @@ const profileAvatar =
         !hiddenPostIds.has(String(p.id)) &&
         !profileHiddenPosts.includes(p.id)
       )
-      
+
       setPosts(filteredPosts)
     } catch (err) {
       console.error('Failed to fetch posts:', err)
@@ -357,17 +359,17 @@ const profileAvatar =
     if (navigator.share) {
       await navigator.share({
         title: `${user.username}'s EduCast Profile`,
-        text: `Xem trang cá nhân của ${user.username} trên EduCast`,
+        text: t('personal.profileShareText', { username: user.username }),
         url: profileUrl,
       })
     } else {
       navigator.clipboard.writeText(profileUrl)
-      toast.success('Đã sao chép liên kết')
+      toast.success(t('personal.copiedLink'))
     }
   }
 
   const handleMoreOptions = () => {
-    toast.info('Các tùy chọn khác')
+    toast.info(t('personal.moreOptions'))
   }
 
   const handleToggleLike = async (postId) => {
@@ -382,8 +384,8 @@ const profileAvatar =
         return
       }
 
-      console.log('❤️ Like clicked on post:', { 
-        postId, 
+      console.log('❤️ Like clicked on post:', {
+        postId,
         type: post.type,
         post_id: post.post_id,
         share_id: post.share_id,
@@ -416,9 +418,9 @@ const profileAvatar =
       const nextLiked = Boolean(data.data?.liked)
       const nextLikeCount = Number(data.data?.like_count || 0)
 
-      console.log('❤️ Like response:', { 
+      console.log('❤️ Like response:', {
         postId,
-        nextLiked, 
+        nextLiked,
         nextLikeCount,
         currentPostState: postStates[postId]
       })
@@ -455,7 +457,7 @@ const profileAvatar =
       })
     } catch (err) {
       console.error('Like failed:', err)
-      toast.error('Lỗi khi thích bài viết')
+      toast.error(t('personal.likeError'))
     }
   }
 
@@ -506,8 +508,8 @@ const profileAvatar =
 
         removeSavedPost(postId)
 
-        setPosts(prev => prev.map(p => 
-          p.id === postId 
+        setPosts(prev => prev.map(p =>
+          p.id === postId
             ? { ...p, saved: false, saveCount: nextSaveCount }
             : p
         ))
@@ -525,7 +527,7 @@ const profileAvatar =
       }
     } catch (err) {
       console.error('Save failed:', err)
-      toast.error('Lỗi khi lưu bài viết')
+      toast.error(t('personal.saveError'))
     }
   }
 
@@ -570,13 +572,13 @@ const profileAvatar =
 
   const handleCommentCountChange = (postId, newCount) => {
     console.log('💬 Comment count changed:', { postId, newCount })
-    
+
     // Save local override to localStorage
     const localCommentCountOverrides = JSON.parse(localStorage.getItem('personalPageCommentCountOverrides') || '{}')
     localCommentCountOverrides[postId] = newCount
     localStorage.setItem('personalPageCommentCountOverrides', JSON.stringify(localCommentCountOverrides))
     console.log('💬 Saved local comment count override:', { postId, count: newCount })
-    
+
     setPostStates(prev => ({
       ...prev,
       [postId]: {
@@ -585,8 +587,8 @@ const profileAvatar =
       }
     }))
 
-    setPosts(prev => prev.map(p => 
-      p.id === postId 
+    setPosts(prev => prev.map(p =>
+      p.id === postId
         ? { ...p, comments: newCount }
         : p
     ))
@@ -598,15 +600,15 @@ const profileAvatar =
   const handleShareSuccess = (postId, data) => {
     console.log('📤 Share success - postId:', postId)
     console.log('📤 Share success - data:', data)
-    
+
     // Backend trả về like_count, comment_count, save_count, share_count
     const newShareCount = Number(data?.share_count || 0)
     const newLikeCount = Number(data?.like_count)
     const newCommentCount = Number(data?.comment_count)
     const newSaveCount = Number(data?.save_count)
-    
+
     console.log('📤 Parsed counts:', { newShareCount, newLikeCount, newCommentCount, newSaveCount })
-    
+
     setPostStates(prev => {
       const updated = {
         ...prev,
@@ -625,8 +627,8 @@ const profileAvatar =
 
     setPosts(prev => prev.map(p => {
       if (p.id === postId) {
-        const updated = { 
-          ...p, 
+        const updated = {
+          ...p,
           shares: newShareCount,
           // Giữ nguyên các giá trị khác nếu backend không trả về
           ...(typeof newLikeCount === 'number' && !isNaN(newLikeCount) ? { likes: newLikeCount } : {}),
@@ -691,10 +693,10 @@ const profileAvatar =
         return filtered
       })
       deletePost(postId)
-      toast.success('Đã xóa bài đăng khỏi trang cá nhân')
+      toast.success(t('personal.deleteSuccess'))
     } catch (err) {
       console.error('Delete failed:', err)
-      toast.error('Lỗi khi xóa bài viết: ' + err.message)
+      toast.error(t('personal.deleteError', { message: err.message }))
     }
   }
 
@@ -704,7 +706,7 @@ const profileAvatar =
     pauseTrackIfDeleted(postId)
     setPosts(prev => prev.filter(p => p.id !== postId))
     hidePost(postId)
-    toast.success('Đã ẩn bài đăng')
+    toast.success(t('personal.hideSuccess'))
   }
 
   return (
@@ -773,7 +775,7 @@ const profileAvatar =
               )}
               <button className={styles.shareBtn} onClick={handleShareProfile}>
                 <Share2 size={16} />
-                Chia sẻ
+                {t('personal.share')}
               </button>
               <button className={styles.moreBtn} onClick={handleMoreOptions}>
                 <MoreHorizontal size={16} />
@@ -783,19 +785,18 @@ const profileAvatar =
 
           {/* Bio */}
           <p className={styles.bio}>
-            {userProfile?.bio || user?.bio || 'Podcaster | AI Enthusiast | Chia sẻ kiến thức công nghệ mỗi ngày 🎙️🚀'}
-          </p>
+            {userProfile?.bio || user?.bio || t('personal.defaultBio')}          </p>
         </div>
 
         {/* Tabs */}
         <div className={styles.tabsContainer}>
           {TABS.map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`${styles.tabBtn} ${activeTab === tab ? styles.activeTab : ''}`}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`${styles.tabBtn} ${activeTab === tab.key ? styles.activeTab : ''}`}
             >
-              {tab}
+              {t(tab.labelKey)}
               {activeTab === tab && <motion.div layoutId="activeTab" className={styles.tabIndicator} />}
             </button>
           ))}
@@ -967,7 +968,7 @@ const profileAvatar =
                     })
                   ) : (
                     <div className={styles.emptyState}>
-                      <p>Chưa có bài đăng nào</p>
+                      <p>{t('personal.noPosts')}</p>
                     </div>
                   )}
                 </div>
@@ -975,11 +976,13 @@ const profileAvatar =
             )}
 
 
-            {activeTab === 'Bạn bè' && (
+            {activeTab === 'friends' && (
               <div className={styles.tabContent}>
                 <div className={styles.tabContentHeader}>
-                  <h3 className={styles.cardTitle}>Bạn bè</h3>
-                  <div className={styles.friendsCount}>{friends.length} người</div>
+                  <h3 className={styles.cardTitle}>{t('personal.tabs.friends')}</h3>
+                  <div className={styles.friendsCount}>
+                    {t('personal.people', { count: friends.length })}
+                  </div>
                 </div>
                 <div className={styles.friendsGrid}>
                   {friends.length > 0 ? (
@@ -1005,7 +1008,7 @@ const profileAvatar =
                     ))
                   ) : (
                     <div className={styles.emptyState}>
-                      <p>Chưa có bạn bè nào</p>
+                      <p>{t('personal.noFriends')}</p>
                     </div>
                   )}
                 </div>

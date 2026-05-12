@@ -29,6 +29,7 @@ from .admin_views import (
     AdminUserLockView,
     AdminUserUnlockView,
     AdminSystemNotificationSettingsView,
+    AdminReportsListView,
 )
 from .views_tag import (
     get_user_tag_preferences,
@@ -66,6 +67,7 @@ urlpatterns = [
     path("admin/users/<str:user_id>/lock/", AdminUserLockView.as_view(), name="admin-user-lock"),
     path("admin/users/<str:user_id>/unlock/", AdminUserUnlockView.as_view(), name="admin-user-unlock"),
     path("admin/system/notifications/", AdminSystemNotificationSettingsView.as_view(), name="admin-system-notifications",),
+    path("admin/reports/", AdminReportsListView.as_view(), name="admin-reports-list"),
     
     # Tag preferences endpoints
     path("tags/available/", get_available_tags, name="available-tags"),

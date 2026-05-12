@@ -1,5 +1,8 @@
 import { X } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/feed/ConfirmModal.module.css'
+
+
 
 export default function ConfirmModal({
   isOpen,
@@ -10,12 +13,15 @@ export default function ConfirmModal({
   onCancel,
   inputValue = '',
   onInputChange,
-  confirmText = 'Xác nhận',
-  cancelText = 'Hủy',
+  confirmText,
+cancelText,
   isDangerous = false,
   isLoading = false,
   progress = 0,
 }) {
+  const { t } = useTranslation()
+const finalConfirmText = confirmText || t('feed.confirm.defaultConfirm')
+const finalCancelText = cancelText || t('feed.confirm.cancel') 
   console.log('ConfirmModal render:', { isOpen, isLoading, progress })
   if (!isOpen) return null
 
@@ -35,7 +41,7 @@ export default function ConfirmModal({
         )}
         <div className={styles.header}>
           <h2 className={styles.title}>{title}</h2>
-          <button className={styles.closeBtn} onClick={onCancel} aria-label="Đóng">
+          <button className={styles.closeBtn} onClick={onCancel} aria-label={t('feed.confirm.close')}>
             <X size={20} />
           </button>
         </div>
@@ -48,7 +54,7 @@ export default function ConfirmModal({
               className={styles.input}
               value={inputValue}
               onChange={(e) => onInputChange?.(e.target.value)}
-              placeholder="Nhập nội dung..."
+              placeholder={t('feed.confirm.inputPlaceholder')}
               autoFocus
             />
           )}
@@ -56,7 +62,7 @@ export default function ConfirmModal({
 
         <div className={styles.footer}>
           <button className={styles.cancelBtn} onClick={onCancel} disabled={isLoading}>
-            {cancelText}
+            {finalCancelText}
           </button>
           <button
             className={`${styles.confirmBtn} ${isDangerous ? styles.danger : ''}`}
@@ -69,7 +75,7 @@ export default function ConfirmModal({
             }}
             disabled={isLoading}
           >
-            {confirmText}
+            {finalConfirmText}
           </button>
         </div>
       </div>

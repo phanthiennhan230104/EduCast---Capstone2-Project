@@ -1,9 +1,11 @@
 import { Card, Col, Radio, Row, Select, Space, Typography } from 'antd'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/create-audio/VoiceConfigCard.module.css'
 
 const { Text } = Typography
 
 export default function VoiceConfigCard({ vm }) {
+  const { t } = useTranslation()
   const topicOptions = (vm.topicOptions || vm.topicsMaster || []).map((topic) => ({
     value: topic,
     label: topic,
@@ -11,7 +13,7 @@ export default function VoiceConfigCard({ vm }) {
 
   const aiSuggestedOptions = (vm.aiSuggestedTopics || []).map((topic) => ({
     value: topic,
-    label: `${topic} (AI đề xuất)`,
+    label: `${topic} (${t('createAudio.voiceConfig.aiSuggested')})`,
   }))
 
   const mergedTopicOptions = [...topicOptions]
@@ -26,14 +28,14 @@ export default function VoiceConfigCard({ vm }) {
   return (
     <Card
       className={styles.card}
-      title="Cấu hình giọng đọc"
+      title={t('createAudio.voiceConfig.title')}
       variant="borderless"
       styles={{ header: { color: '#fff' } }}
     >
       <Space orientation="vertical" size={20} style={{ width: '100%' }}>
         <div>
           <Text strong className={styles.sectionTitle}>
-            Chọn giọng đọc
+            {t('createAudio.voiceConfig.chooseVoice')}
           </Text>
 
           <Radio.Group
@@ -64,7 +66,7 @@ export default function VoiceConfigCard({ vm }) {
 
         <div>
           <Text strong className={styles.sectionTitle}>
-            Định dạng xuất
+            {t('createAudio.voiceConfig.outputFormat')}
           </Text>
           <Select
             value={vm.format}
@@ -85,14 +87,14 @@ export default function VoiceConfigCard({ vm }) {
 
         <div>
           <Text strong className={styles.sectionTitle}>
-            Chủ đề
+            {t('createAudio.voiceConfig.topics')}
           </Text>
 
           <Select
             mode="multiple"
             allowClear
             showSearch={{ optionFilterProp: 'label' }}
-            placeholder="Chọn chủ đề có sẵn hoặc chủ đề AI đề xuất"
+            placeholder={t('createAudio.voiceConfig.topicPlaceholder')}
             value={vm.topics}
             onChange={(value) => {
               if (vm.genState === 'processing') {

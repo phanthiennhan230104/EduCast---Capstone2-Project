@@ -1,4 +1,5 @@
 import { useMemo, useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { Button, Card, Table, Popconfirm, Tag, Space, Skeleton } from 'antd'
 import {
   DownOutlined,
@@ -12,15 +13,16 @@ import { formatDurationVi, getAudioDuration } from '../../utils/formatDuration'
 import { archiveDraft } from '../../utils/contentApi'
 
 const STATUS_META = {
-  draft: { label: 'Bản nháp', color: 'orange' },
-  processing: { label: 'Đang xử lý', color: 'blue' },
-  published: { label: 'Đã xuất bản', color: 'green' },
-  failed: { label: 'Lỗi', color: 'red' },
-  archived: { label: 'Đã lưu trữ', color: 'default' },
-  hidden: { label: 'Ẩn', color: 'default' },
+  draft: { labelKey: 'draftsPanel.status.draft', color: 'orange' },
+  processing: { labelKey: 'draftsPanel.status.processing', color: 'blue' },
+  published: { labelKey: 'draftsPanel.status.published', color: 'green' },
+  failed: { labelKey: 'draftsPanel.status.failed', color: 'red' },
+  archived: { labelKey: 'draftsPanel.status.archived', color: 'default' },
+  hidden: { labelKey: 'draftsPanel.status.hidden', color: 'default' },
 }
 
 export default function AllDraftsPanel({ vm }) {
+  const { t } = useTranslation()
   const [isExpanded, setIsExpanded] = useState(false)
   const [archivingId, setArchivingId] = useState('')
   const [durationCache, setDurationCache] = useState({})
@@ -61,7 +63,11 @@ export default function AllDraftsPanel({ vm }) {
   }, [allDrafts, durationCache])
 
   const getStatusMeta = (status) => {
-    return STATUS_META[status] || { label: status || 'Không xác định', color: 'default' }
+    return STATUS_META[status] || {
+      labelKey: null,
+      label: status || t('draftsPanel.status.unknown'),
+      color: 'default',
+    }
   }
 
   const handleArchive = async (draftId, draftTitle) => {
@@ -70,14 +76,14 @@ export default function AllDraftsPanel({ vm }) {
     try {
       setArchivingId(draftId)
       await archiveDraft(draftId)
-      toast.success(`"${draftTitle}" đã được lưu trữ`)
+      toast.success(t('draftsPanel.archiveSuccess', { title: draftTitle }))
 
       if (typeof vm?.loadRecentDrafts === 'function') {
         await vm.loadRecentDrafts()
       }
     } catch (error) {
       console.error('Archive draft error:', error)
-      toast.error(error?.message || 'Lỗi khi lưu trữ bản nháp')
+      toast.error(error?.message || t('draftsPanel.archiveError'))
     } finally {
       setArchivingId('')
     }
@@ -85,14 +91,14 @@ export default function AllDraftsPanel({ vm }) {
 
   const columns = [
     {
-      title: 'Tiêu đề',
+      title: t('draftsPanel.titleColumn'),
       dataIndex: 'title',
       key: 'title',
       width: 150,
-      render: (text) => text || 'Bản nháp không tên',
+      render: (text) => text || t('draftsPanel.untitledDraft'),
     },
     {
-      title: 'Mô tả',
+      title: t('draftsPanel.descriptionColumn'),
       dataIndex: 'description',
       key: 'description',
       width: 250,
@@ -112,7 +118,7 @@ export default function AllDraftsPanel({ vm }) {
       ),
     },
     {
-      title: 'Thời lượng',
+      title: t('draftsPanel.durationColumn'),
       dataIndex: 'id',
       key: 'duration',
       width: 100,
@@ -133,17 +139,17 @@ export default function AllDraftsPanel({ vm }) {
       },
     },
     {
-      title: 'Trạng thái',
+      title: t('draftsPanel.statusColumn'),
       dataIndex: 'status',
       key: 'status',
       width: 120,
       render: (status) => {
         const meta = getStatusMeta(status)
-        return <Tag color={meta.color}>{meta.label}</Tag>
+        return <Tag color={meta.color}>{meta.labelKey ? t(meta.labelKey) : meta.label}</Tag>
       },
     },
     {
-      title: 'Ngày tạo',
+      title: t('draftsPanel.createdAtColumn'),
       dataIndex: 'created_at',
       key: 'created_at',
       width: 160,
@@ -151,7 +157,7 @@ export default function AllDraftsPanel({ vm }) {
         date ? new Date(date).toLocaleString('vi-VN') : '—',
     },
     {
-      title: 'Thao tác',
+      title: t('draftsPanel.actionsColumn'),
       key: 'actions',
       width: 120,
       render: (_, record) => {
@@ -189,16 +195,21 @@ export default function AllDraftsPanel({ vm }) {
               }}
               style={{ padding: 0 }}
             >
-              Đăng bài
+              {t('draftsPanel.select')}
             </Button>
             <Popconfirm
-              title="Lưu trữ bản nháp"
-              description={`Bạn có chắc muốn lưu trữ "${record.title || 'bản nháp này'}"?`}
-              onConfirm={() => handleArchive(record.id, record.title || 'Bản nháp')}
-              okText="Lưu trữ"
-              cancelText="Hủy"
+              title={t('draftsPanel.archiveDraft')}
+              description={t('draftsPanel.archiveConfirm', {
+                title: record.title || t('draftsPanel.fallbackDraft'),
+              })}
+              onConfirm={() =>
+                handleArchive(record.id, record.title || t('draftsPanel.defaultDraftTitle'))
+              }
+              okText={t('draftsPanel.archive')}
+              cancelText={t('draftsPanel.cancel')}
               disabled={isArchiving}
             >
+
               <Button
                 type="text"
                 danger
@@ -221,7 +232,7 @@ export default function AllDraftsPanel({ vm }) {
   return (
     <Card
       className={styles.card}
-      title="Tất cả bản nháp"
+      title={t('draftsPanel.allDrafts')}
       extra={
         <Button
           type="text"
@@ -236,7 +247,7 @@ export default function AllDraftsPanel({ vm }) {
       {!isExpanded ? (
         <div className={styles.collapsedInfo}>
           <span className={styles.collapsedText}>
-            {allDrafts.length} bản nháp - Nhấn để xem tất cả
+            {t('draftsPanel.collapsedInfo', { count: allDrafts.length })}
           </span>
         </div>
       ) : (

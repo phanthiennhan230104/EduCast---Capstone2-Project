@@ -23,13 +23,14 @@ import { getInitials } from '../../utils/getInitials'
 import { showToast } from '../../utils/toast'
 import { updateUserProfile, updateUserSettings, changePassword, deleteAccount, exportUserData } from '../../utils/usersApi'
 import styles from '../../style/pages/SettingsPage/SettingsPage.module.css'
+import { useTranslation } from 'react-i18next'
 
 const TABS = [
-  { id: 'account', label: 'Tài khoản', icon: UserRound },
-  { id: 'notifications', label: 'Thông báo', icon: Bell },
-  { id: 'ai', label: 'AI & Nội dung', icon: BrainCircuit },
-  { id: 'privacy', label: 'Riêng tư', icon: Lock },
-  { id: 'other', label: 'Khác', icon: Settings },
+  { id: 'account', labelKey: 'settings.tabs.account', icon: UserRound },
+  { id: 'notifications', labelKey: 'settings.tabs.notifications', icon: Bell },
+  { id: 'ai', labelKey: 'settings.tabs.ai', icon: BrainCircuit },
+  { id: 'privacy', labelKey: 'settings.tabs.privacy', icon: Lock },
+  { id: 'other', labelKey: 'settings.tabs.other', icon: Settings },
 ]
 
 function Switch({ defaultChecked = false, onChange }) {
@@ -42,26 +43,17 @@ function Switch({ defaultChecked = false, onChange }) {
 }
 
 function AccountSummaryCard() {
-  return (
-    <div className={styles.accountCard}>
-      <div className={styles.accountTop}>
-        <div className={styles.accountBadge}>🔥</div>
-        <div className={styles.accountMeta}>
-          <h4>EduCast Pro</h4>
-          <p>Còn 18 ngày · Tự động gia hạn</p>
-        </div>
-      </div>
-      <button className={styles.premiumBtn}>Nâng cấp Premium</button>
-    </div>
-  )
+  const { t } = useTranslation()
+  
 }
 
 function SettingsRightPanel({ onLogout }) {
+  const { t } = useTranslation()
   return (
     <aside className={styles.sidePanel}>
       <div className={styles.sideTitle}>
         <Home size={13} />
-        <span>Tài khoản của bạn</span>
+        <span>{t('settings.rightPanel.accountTitle')}</span>
       </div>
 
       <AccountSummaryCard />
@@ -74,34 +66,22 @@ function SettingsRightPanel({ onLogout }) {
 
       <div className={styles.miniStats}>
         <div className={styles.miniCard}>
-          <span>Đã lưu</span>
+          <span>{t('settings.rightPanel.saved')}</span>
           <strong>18</strong>
-          <small>podcast</small>
+          <small>{t('settings.rightPanel.podcast')}</small>
         </div>
 
         <div className={styles.miniCard}>
-          <span>Bộ sưu tập</span>
+          <span>{t('settings.rightPanel.collections')}</span>
           <strong>4</strong>
-          <small>danh sách</small>
+          <small>{t('settings.rightPanel.lists')}</small>
         </div>
       </div>
 
-      <div className={styles.streakCard}>
-        <div className={styles.streakRow}>
-          <Flame size={14} />
-          <span>3 ngày liên tiếp</span>
-        </div>
-      </div>
-
-      <div className={styles.levelCard}>
-        <div className={styles.levelPill}>
-          <Star size={13} />
-          <span>Cấp 12</span>
-        </div>
-      </div>
+      
 
       <div className={styles.activityCard}>
-        <h4>Hoạt động gần đây</h4>
+        <h4>{t('settings.rightPanel.recentActivity')}</h4>
 
         <div className={styles.activityList}>
           <div className={styles.activityItem}>
@@ -140,13 +120,14 @@ function SettingsRightPanel({ onLogout }) {
 
       <button className={styles.logoutBtn} onClick={onLogout}>
         <LogOut size={17} />
-        Đăng xuất
+        {t('header.logout')}
       </button>
     </aside>
   )
 }
 
 function AccountSettings({ profile, onProfileUpdate }) {
+  const { t } = useTranslation()
   const [isEditing, setIsEditing] = useState(false)
   const [displayName, setDisplayName] = useState(profile.name)
   const [email, setEmail] = useState(profile.email)
@@ -203,10 +184,10 @@ function AccountSettings({ profile, onProfileUpdate }) {
         avatar_url: newAvatarUrl || avatarPreview,
       })
 
-      showToast('Ảnh đại diện đã được cập nhật thành công', 'success')
+      showToast(t('settings.account.avatarUpdated'), 'success')
     } catch (error) {
       setAvatarPreview(profile.avatar)
-      showToast(error?.message || 'Đổi ảnh thất bại', 'error')
+      showToast(error?.message || t('settings.account.avatarUpdateFailed'), 'error')
     } finally {
       setAvatar(null)
       setIsLoading(false)
@@ -226,7 +207,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
 
       const result = await updateUserProfile(formData)
       if (result) {
-        showToast('Thông tin cá nhân đã được cập nhật thành công', 'success')
+        showToast(t('settings.account.profileUpdated'), 'success')
         // Update avatar preview with new URL if upload succeeded
         if (result.data && result.data.avatar_url) {
           setAvatarPreview(result.data.avatar_url)
@@ -237,7 +218,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
       }
     } catch (error) {
       console.error('Save profile error:', error)
-      const errorMsg = error?.message || 'Cập nhật thất bại'
+      const errorMsg = error?.message || t('settings.account.updateFailed')
       showToast(errorMsg, 'error')
     } finally {
       setIsLoading(false)
@@ -246,11 +227,11 @@ function AccountSettings({ profile, onProfileUpdate }) {
 
   const handleChangePassword = async () => {
     if (newPassword !== confirmPassword) {
-      showToast('Mật khẩu xác nhận không khớp', 'error')
+      showToast(t('settings.account.passwordMismatch'), 'error')
       return
     }
     if (newPassword.length < 6) {
-      showToast('Mật khẩu phải có ít nhất 6 ký tự', 'error')
+      showToast(t('settings.account.passwordMin'), 'error')
       return
     }
 
@@ -258,14 +239,14 @@ function AccountSettings({ profile, onProfileUpdate }) {
     try {
       const result = await changePassword(oldPassword, newPassword)
       if (result) {
-        showToast('Mật khẩu đã được thay đổi thành công', 'success')
+        showToast(t('settings.account.passwordChanged'), 'success')
         setOldPassword('')
         setNewPassword('')
         setConfirmPassword('')
         setShowPasswordModal(false)
       }
     } catch (error) {
-      showToast('Thay đổi mật khẩu thất bại', 'error')
+      showToast(t('settings.account.passwordChangeFailed'), 'error')
     } finally {
       setIsLoading(false)
     }
@@ -278,7 +259,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
           <div className={styles.cardIcon}>
             <UserRound size={16} />
           </div>
-          <h3>Thông tin cá nhân</h3>
+          <h3>{t('settings.account.title')}</h3>
         </div>
 
         {isEditing ? (
@@ -295,7 +276,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
                 type="text"
                 value={displayName}
                 onChange={(e) => setDisplayName(e.target.value)}
-                placeholder="Tên hiển thị"
+                placeholder={t('settings.account.displayName')}
                 className={styles.input}
               />
               <input
@@ -308,7 +289,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
               <textarea
                 value={bio}
                 onChange={(e) => setBio(e.target.value)}
-                placeholder="Bio giới thiệu"
+                placeholder={t('settings.account.bio')}
                 className={styles.textarea}
               />
               <div className={styles.profileActions}>
@@ -321,14 +302,14 @@ function AccountSettings({ profile, onProfileUpdate }) {
                 />
                 <label htmlFor="avatar-upload" className={styles.inlineBtn} style={{ cursor: 'pointer', marginBottom: 0 }}>
                   <Camera size={12} />
-                  Đổi ảnh
+                  {t('settings.account.changeAvatar')}
                 </label>
                 <button
                   className={styles.inlineBtn}
                   onClick={handleSaveProfile}
                   disabled={isLoading}
                 >
-                  {isLoading ? <Loader size={12} className={styles.spin} /> : '✓'} Lưu
+                  {isLoading ? <Loader size={12} className={styles.spin} /> : '✓'} {t('settings.account.save')}
                 </button>
                 <button
                   className={styles.inlineBtn}
@@ -338,7 +319,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
                     setAvatarPreview(profile.avatar)
                   }}
                 >
-                  ✕ Hủy
+                  ✕ {t('settings.account.cancel')}
                 </button>
               </div>
             </div>
@@ -356,7 +337,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
               <h4>{displayName}</h4>
               <p>{email}</p>
               <div className={styles.profileActions}>
-                <button className={styles.inlineBtn} onClick={() => setIsEditing(true)}>✎ Chỉnh sửa</button>
+                <button className={styles.inlineBtn} onClick={() => setIsEditing(true)}>✎ {t('settings.account.edit')}</button>
                 <button
                   className={styles.inlineBtn}
                   onClick={() => document.getElementById('avatar-upload-view')?.click()}
@@ -378,7 +359,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
 
         <div className={styles.infoTable}>
           <div className={styles.infoRow}>
-            <span>Tên hiển thị</span>
+            <span>{t('settings.account.displayName')}</span>
             <strong>{displayName}</strong>
             <button className={styles.smallBtn} onClick={() => setIsEditing(true)}>Sửa</button>
           </div>
@@ -390,14 +371,14 @@ function AccountSettings({ profile, onProfileUpdate }) {
           </div>
 
           <div className={styles.infoRow}>
-            <span>Mật khẩu</span>
-            <strong>Đã thiết lập</strong>
+            <span>{t('settings.account.password')}</span>
+            <strong>{t('settings.account.passwordSet')}</strong>
             <button className={styles.smallBtn} onClick={() => setShowPasswordModal(true)}>Đổi</button>
           </div>
 
           <div className={styles.infoRow}>
-            <span>Bio giới thiệu</span>
-            <strong>{bio || 'Chưa cập nhật'}</strong>
+            <span>{t('settings.account.bio')}</span>
+            <strong>{bio || t('settings.account.notUpdated')}</strong>
             <button className={styles.smallBtn} onClick={() => setIsEditing(true)}>Sửa</button>
           </div>
         </div>
@@ -406,28 +387,29 @@ function AccountSettings({ profile, onProfileUpdate }) {
       {showPasswordModal && (
         <section className={`${styles.card} ${styles.modal}`}>
           <div className={styles.cardTitle}>
-            <h3>Đổi mật khẩu</h3>
+            <h3>{t('settings.account.changePassword')}</h3>
           </div>
           <div className={styles.infoTable}>
             <input
-              type="password"
-              value={oldPassword}
-              onChange={(e) => setOldPassword(e.target.value)}
-              placeholder="Mật khẩu hiện tại"
-              className={styles.input}
-            />
+  type="password"
+  value={newPassword}
+  onChange={(e) => setNewPassword(e.target.value)}
+  placeholder={t('settings.account.newPassword')}
+  className={styles.input}
+/>
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              placeholder="Mật khẩu mới"
+              placeholder={t('settings.account.newPassword')}
+placeholder={t('settings.account.newPassword')}
               className={styles.input}
             />
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder="Xác nhận mật khẩu mới"
+              placeholder={t('settings.account.confirmNewPassword')}  
               className={styles.input}
             />
             <div className={styles.profileActions}>
@@ -436,10 +418,10 @@ function AccountSettings({ profile, onProfileUpdate }) {
                 onClick={handleChangePassword}
                 disabled={isLoading}
               >
-                {isLoading ? <Loader size={12} className={styles.spin} /> : '✓'} Xác nhận
+                {isLoading ? <Loader size={12} className={styles.spin} /> : '✓'} {t('settings.account.confirm')}
               </button>
               <button className={styles.inlineBtn} onClick={() => setShowPasswordModal(false)}>
-                ✕ Hủy
+               ✕ {t('settings.account.cancel')}
               </button>
             </div>
           </div>
@@ -451,14 +433,14 @@ function AccountSettings({ profile, onProfileUpdate }) {
           <div className={styles.cardIcon}>
             <Link2 size={16} />
           </div>
-          <h3>Liên kết tài khoản</h3>
+          <h3>{t('settings.account.linkAccount')}</h3>
         </div>
 
         <div className={styles.infoTable}>
           <div className={styles.infoRow}>
             <span>Google</span>
-            <strong>Đã liên kết</strong>
-            <button className={styles.smallBtn}>Hủy liên kết</button>
+            <strong>{t('settings.account.linked')}</strong>
+            <button className={styles.smallBtn}>{t('settings.account.unlink')}</button>
           </div>
         </div>
       </section>
@@ -468,18 +450,18 @@ function AccountSettings({ profile, onProfileUpdate }) {
           <div className={`${styles.cardIcon} ${styles.dangerIcon}`}>
             <ShieldAlert size={16} />
           </div>
-          <h3>Vùng nguy hiểm</h3>
+          <h3>{t('settings.account.dangerZone')}</h3>
         </div>
 
         <div className={styles.infoTable}>
           <div className={styles.infoRow}>
-            <span>Xóa tài khoản</span>
-            <strong>Hành động này không thể hoàn tác</strong>
+           <span>{t('settings.account.deleteAccount')}</span>
+            <strong>{t('settings.account.deleteAccountWarning')}</strong>
             <button className={styles.deleteBtn} onClick={() => {
-              if (window.confirm('Bạn chắc chắn muốn xóa tài khoản? Hành động này không thể hoàn tác')) {
+              if (window.confirm(t('settings.account.deleteConfirm'))) {
                 deleteAccount('')
               }
-            }}>Xóa tài khoản</button>
+            }}>{t('settings.account.deleteAccount')}</button>
           </div>
         </div>
       </section>
@@ -488,6 +470,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
 }
 
 function NotificationSettings() {
+  const { t } = useTranslation()
   const [settings, setSettings] = useState({
     email_notifications: true,
     push_notifications: true,
@@ -503,11 +486,11 @@ function NotificationSettings() {
       const updateData = { [key]: newValue }
       const result = await updateUserSettings(updateData)
       if (result) {
-        showToast('Cấu hình thông báo đã được cập nhật', 'success')
+        showToast(t('settings.notifications.updated'), 'success')
       }
     } catch (error) {
       setSettings(prev => ({ ...prev, [key]: !newValue }))
-      showToast('Cập nhật thất bại', 'error')
+      showToast(t('settings.notifications.updateFailed'), 'error')
     } finally {
       setIsLoading(false)
     }
@@ -519,19 +502,27 @@ function NotificationSettings() {
         <div className={styles.cardIcon}>
           <Bell size={16} />
         </div>
-        <h3>Thông báo</h3>
+        <h3>{t('settings.notifications.title')}</h3>
       </div>
 
       <div className={styles.infoTable}>
         <div className={styles.infoRow}>
-          <span>Thông báo chung</span>
-          <strong>{settings.push_notifications ? 'Bật' : 'Tắt'}</strong>
+          <span>{t('settings.notifications.general')}</span>
+          <strong>
+  {settings.push_notifications
+    ? t('settings.notifications.on')
+    : t('settings.notifications.off')}
+</strong>
           <Switch defaultChecked={settings.push_notifications} onChange={() => handleSettingChange('push_notifications')} />
         </div>
 
         <div className={styles.infoRow}>
-          <span>Thông báo email</span>
-          <strong>{settings.email_notifications ? 'Bật' : 'Tắt'}</strong>
+          <span>{t('settings.notifications.email')}</span>
+          <strong>
+  {settings.email_notifications
+    ? t('settings.notifications.on')
+    : t('settings.notifications.off')}
+</strong>
           <Switch defaultChecked={settings.email_notifications} onChange={() => handleSettingChange('email_notifications')} />
         </div>
       </div>
@@ -541,6 +532,7 @@ function NotificationSettings() {
 
 
 function AISettings() {
+  const { t } = useTranslation()
   const [settings, setSettings] = useState({
     aiRecommendations: true,
     aiContentCreation: 'allow',
@@ -552,13 +544,13 @@ function AISettings() {
     const newValue = !settings.aiRecommendations
     setSettings(prev => ({ ...prev, aiRecommendations: newValue }))
     localStorage.setItem('aiRecommendations', JSON.stringify(newValue))
-    showToast('Cấu hình AI đã được cập nhật', 'success')
+    showToast(t('settings.ai.recommendationsUpdated'), 'success')
   }
 
   const handleAIContentChange = (value) => {
     setSettings(prev => ({ ...prev, aiContentCreation: value }))
     localStorage.setItem('aiContentCreation', JSON.stringify(value))
-    showToast('Cấu hình tạo nội dung AI đã được cập nhật', 'success')
+    showToast(t('settings.ai.contentCreationUpdated'), 'success')
   }
 
   return (
@@ -567,36 +559,38 @@ function AISettings() {
         <div className={styles.cardIcon}>
           <BrainCircuit size={16} />
         </div>
-        <h3>AI & Nội dung</h3>
+        <h3>{t('settings.ai.title')}</h3>
       </div>
 
       <div className={styles.infoTable}>
         <div className={styles.infoRow}>
-          <span>Khuyến nghị AI</span>
-          <strong>{settings.aiRecommendations ? 'Bật' : 'Tắt'}</strong>
+          <span>{t('settings.ai.recommendations')}</span>
+          <strong>
+  {settings.aiRecommendations ? t('settings.ai.on') : t('settings.ai.off')}
+</strong>
           <Switch defaultChecked={settings.aiRecommendations} onChange={handleAIRecommendationChange} />
         </div>
 
         <div className={styles.infoRow}>
-          <span>Tạo nội dung bằng AI</span>
+          <span>{t('settings.ai.contentCreation')}</span>
           <div className={styles.aiContentOptions}>
             <button
               className={settings.aiContentCreation === 'allow' ? styles.active : ''}
               onClick={() => handleAIContentChange('allow')}
             >
-              Cho phép
+              {t('settings.ai.allow')}
             </button>
             <button
               className={settings.aiContentCreation === 'review' ? styles.active : ''}
               onClick={() => handleAIContentChange('review')}
             >
-              Yêu cầu phê duyệt
+              {t('settings.ai.review')}
             </button>
             <button
               className={settings.aiContentCreation === 'deny' ? styles.active : ''}
               onClick={() => handleAIContentChange('deny')}
             >
-              Không cho phép
+              {t('settings.ai.deny')}
             </button>
           </div>
         </div>
@@ -606,15 +600,28 @@ function AISettings() {
 }
 
 function PrivacySettings() {
+  const { t } = useTranslation()
   const [settings, setSettings] = useState({
     profile_visibility: 'private',
   })
 
   const visibilityOptions = [
-    { value: 'public', label: 'Công khai', description: 'Bất kỳ ai cũng có thể xem hồ sơ của bạn' },
-    { value: 'followers_only', label: 'Chỉ những người theo dõi', description: 'Chỉ những người theo dõi mới có thể xem' },
-    { value: 'private', label: 'Riêng tư', description: 'Chỉ bạn có thể xem hồ sơ của mình' },
-  ]
+  {
+    value: 'public',
+    label: t('settings.privacy.options.public.label'),
+    description: t('settings.privacy.options.public.description'),
+  },
+  {
+    value: 'followers_only',
+    label: t('settings.privacy.options.followersOnly.label'),
+    description: t('settings.privacy.options.followersOnly.description'),
+  },
+  {
+    value: 'private',
+    label: t('settings.privacy.options.private.label'),
+    description: t('settings.privacy.options.private.description'),
+  },
+]
 
   const handleProfileVisibilityChange = async (newValue) => {
     setSettings(prev => ({ ...prev, profile_visibility: newValue }))
@@ -623,11 +630,11 @@ function PrivacySettings() {
         profile_visibility: newValue
       })
       if (result) {
-        showToast('Cấu hình riêng tư đã được cập nhật', 'success')
+        showToast(t('settings.privacy.visibilityUpdated'), 'success')
       }
     } catch (error) {
       setSettings(prev => ({ ...prev, profile_visibility: settings.profile_visibility }))
-      showToast('Cập nhật thất bại', 'error')
+      showToast(t('settings.privacy.updateFailed'), 'error')
     }
   }
 
@@ -637,7 +644,7 @@ function PrivacySettings() {
         <div className={styles.cardIcon}>
           <Lock size={16} />
         </div>
-        <h3>Riêng tư</h3>
+        <h3>{t('settings.privacy.title')}</h3>
       </div>
 
       <div className={styles.infoTable}>
@@ -667,18 +674,27 @@ function PrivacySettings() {
 }
 
 function OtherSettings() {
-  const [language, setLanguage] = useState('vi')
+  const { t, i18n } = useTranslation()
+  const [language, setLanguage] = useState(
+    (i18n.resolvedLanguage || i18n.language || 'vi').split('-')[0]
+  )
+
+  useEffect(() => {
+    setLanguage((i18n.resolvedLanguage || i18n.language || 'vi').split('-')[0])
+  }, [i18n.language])
 
   const handleLanguageChange = async (lang) => {
     setLanguage(lang)
+    await i18n.changeLanguage(lang)
+    localStorage.setItem('i18nextLng', lang)
+
     try {
       const result = await updateUserSettings({ language_code: lang })
       if (result) {
-        showToast('Ngôn ngữ đã được cập nhật', 'success')
-        // Could reload page or update app language here
+        showToast(t('settings.toast.languageUpdated'), 'success')
       }
     } catch (error) {
-      showToast('Cập nhật thất bại', 'error')
+      showToast(t('settings.toast.updateFailed'), 'error')
     }
   }
 
@@ -689,24 +705,25 @@ function OtherSettings() {
           <div className={styles.cardIcon}>
             <Settings size={16} />
           </div>
-          <h3>Khác</h3>
+          <h3>{t('settings.other.title')}</h3>
         </div>
 
         <div className={styles.infoTable}>
           <div className={styles.infoRow}>
-            <span>Ngôn ngữ</span>
+            <span>{t('settings.other.language')}</span>
             <div className={styles.languageOptions}>
               <button
                 className={language === 'vi' ? styles.active : ''}
                 onClick={() => handleLanguageChange('vi')}
               >
-                Tiếng Việt
+                {t('settings.language.vi')}
               </button>
+
               <button
                 className={language === 'en' ? styles.active : ''}
                 onClick={() => handleLanguageChange('en')}
               >
-                English
+                {t('settings.language.en')}
               </button>
             </div>
           </div>
@@ -718,18 +735,23 @@ function OtherSettings() {
           <div className={`${styles.cardIcon} ${styles.dangerIcon}`}>
             <ShieldAlert size={16} />
           </div>
-          <h3>Vùng nguy hiểm</h3>
+          <h3>{t('settings.other.dangerZone')}</h3>
         </div>
 
         <div className={styles.infoTable}>
           <div className={styles.infoRow}>
-            <span>Xóa tài khoản</span>
-            <strong>Hành động này không thể hoàn tác</strong>
-            <button className={styles.deleteBtn} onClick={() => {
-              if (window.confirm('Bạn chắc chắn muốn xóa tài khoản? Hành động này không thể hoàn tác')) {
-                deleteAccount('')
-              }
-            }}>Xóa tài khoản</button>
+            <span>{t('settings.other.deleteAccount')}</span>
+            <strong>{t('settings.other.deleteAccountWarning')}</strong>
+            <button
+              className={styles.deleteBtn}
+              onClick={() => {
+                if (window.confirm(t('settings.other.deleteConfirm'))) {
+                  deleteAccount('')
+                }
+              }}
+            >
+              {t('settings.other.deleteAccount')}
+            </button>
           </div>
         </div>
       </section>
@@ -739,6 +761,7 @@ function OtherSettings() {
 
 export default function SettingsPage() {
   const navigate = useNavigate()
+  const { t } = useTranslation()
   const { user, logout, checkAuth } = useAuth()
   const [activeTab, setActiveTab] = useState('account')
   const [profile, setProfile] = useState(null)
@@ -775,7 +798,7 @@ export default function SettingsPage() {
 
   const renderContent = () => {
     if (!profile) {
-      return <div className={styles.loading}>Đang tải...</div>
+      return <div className={styles.loading}>{t('common.loading')}</div>
     }
 
     switch (activeTab) {
@@ -800,7 +823,7 @@ export default function SettingsPage() {
         <div className={styles.headerLine}>
           <div className={styles.pageTitle}>
             <span className={styles.pageIcon}>⚙</span>
-            <h2>Cài đặt</h2>
+            <h2>{t('settings.pageTitle')}</h2>
           </div>
         </div>
 
@@ -813,7 +836,7 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab(tab.id)}
               >
                 <tab.icon size={14} />
-                {tab.label}
+                {t(tab.labelKey)}
               </button>
             ))}
           </div>

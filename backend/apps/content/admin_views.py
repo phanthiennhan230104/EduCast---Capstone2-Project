@@ -6,7 +6,8 @@ from django.db.models import Q
 from django.utils import timezone
 from .models import Post, PostAudioVersion
 from apps.users.permissions import IsAdminRole
-from apps.social.models import Report
+from apps.users.models import User
+from apps.social.models import Report, Notification
 
 
 class AdminPostsListView(APIView):
@@ -321,3 +322,223 @@ class AdminRejectReportView(APIView):
             {'message': 'Đã từ chối báo cáo và công khai bài viết.', 'post_status': post.status, 'visibility': post.visibility},
             status=status.HTTP_200_OK,
         )
+
+
+class AdminNotificationsListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        is_read_filter = request.query_params.get('is_read')
+        notification_type = request.query_params.get('type')
+        page = int(request.query_params.get('page', 1))
+        page_size = int(request.query_params.get('page_size', 20))
+
+        notifications_qs = Notification.objects.filter(
+            type='new_post'
+        ).select_related('actor_user', 'user')
+
+        if is_read_filter == 'true':
+            notifications_qs = notifications_qs.filter(is_read=True)
+        elif is_read_filter == 'false':
+            notifications_qs = notifications_qs.filter(is_read=False)
+
+        if notification_type:
+            notifications_qs = notifications_qs.filter(type=notification_type)
+
+        notifications_qs = notifications_qs.order_by('-created_at')
+
+        total_count = notifications_qs.count()
+
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        notifications_page = notifications_qs[start_idx:end_idx]
+
+        notifications_data = []
+
+        for notification in notifications_page:
+            notifications_data.append({
+                'id': notification.id,
+                'user_id': notification.user_id,
+                'actor_user_id': notification.actor_user_id,
+                'actor_username': notification.actor_user.username if notification.actor_user else 'Unknown',
+                'type': notification.type,
+                'title': notification.title,
+                'body': notification.body,
+                'reference_type': notification.reference_type,
+                'reference_id': notification.reference_id,
+                'is_read': notification.is_read,
+                'created_at': notification.created_at.isoformat() if notification.created_at else None,
+            })
+
+        return Response({
+            'notifications': notifications_data,
+            'pagination': {
+                'page': page,
+                'page_size': page_size,
+                'total': total_count,
+                'total_pages': (total_count + page_size - 1) // page_size,
+            }
+        }, status=status.HTTP_200_OK)
+
+class AdminNotificationDetailView(APIView):
+    """
+    Chi tiết một thông báo cụ thể
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request, notification_id):
+        try:
+            notification = Notification.objects.select_related('actor_user').get(
+            id=notification_id,
+            type='new_post',
+        )
+        except Notification.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy thông báo.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        notification_data = {
+            'id': notification.id,
+            'user_id': notification.user_id,
+            'actor_user_id': notification.actor_user_id,
+            'actor_username': notification.actor_user.username if notification.actor_user else 'Unknown',
+            'actor_avatar': notification.actor_user.profile.avatar_url if notification.actor_user and hasattr(notification.actor_user, 'profile') else None,
+            'type': notification.type,
+            'title': notification.title,
+            'body': notification.body,
+            'reference_type': notification.reference_type,
+            'reference_id': notification.reference_id,
+            'is_read': notification.is_read,
+            'created_at': notification.created_at.isoformat() if notification.created_at else None,
+        }
+
+        # Mark as read
+        if not notification.is_read:
+            notification.is_read = True
+            notification.save()
+            notification_data['is_read'] = True
+
+        return Response(notification_data, status=status.HTTP_200_OK)
+
+
+class AdminMarkNotificationAsReadView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, notification_id):
+        try:
+            notification = Notification.objects.get(
+                id=notification_id,
+                type='new_post',
+            )
+        except Notification.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy thông báo.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        notification.is_read = True
+        notification.save(update_fields=['is_read'])
+
+        return Response(
+            {'message': 'Đã đánh dấu thông báo đã đọc.', 'is_read': notification.is_read},
+            status=status.HTTP_200_OK,
+        )
+
+class AdminMarkAllNotificationsAsReadView(APIView):
+    """
+    Đánh dấu tất cả thông báo đã đọc cho admin này
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request):
+        # Mark all unread notifications as read for the current admin
+        notifications = Notification.objects.filter(
+        type='new_post',
+        is_read=False
+    )
+        
+        count = notifications.update(is_read=True)
+
+        return Response(
+            {'message': f'Đã đánh dấu {count} thông báo đã đọc.', 'count': count},
+            status=status.HTTP_200_OK,
+        )
+
+
+
+
+class AdminGetUnreadNotificationCountView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        unread_count = Notification.objects.filter(
+            type='new_post',
+            is_read=False
+        ).count()
+
+        return Response(
+            {'unread_count': unread_count},
+            status=status.HTTP_200_OK,
+        )
+    
+class AdminDeleteNotificationView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def delete(self, request, notification_id):
+        try:
+            notification = Notification.objects.get(
+                id=notification_id,
+                type='new_post',
+            )
+        except Notification.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy thông báo.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        notification.delete()
+
+        return Response(
+            {'message': 'Đã xóa thông báo.'},
+            status=status.HTTP_200_OK,
+        )
+class AdminDebugNotificationsView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        admin_user = request.user
+
+        latest_new_posts = list(
+            Notification.objects
+            .filter(type='new_post')
+            .order_by('-created_at')
+            .values(
+                'id',
+                'user_id',
+                'actor_user_id',
+                'type',
+                'title',
+                'body',
+                'is_read',
+                'created_at',
+            )[:10]
+        )
+
+        return Response({
+            'current_admin': {
+                'id': admin_user.id,
+                'username': admin_user.username,
+                'email': admin_user.email,
+                'role': getattr(admin_user, 'role', None),
+            },
+            'total_notifications_in_db': Notification.objects.count(),
+            'total_new_post_notifications': Notification.objects.filter(type='new_post').count(),
+            'total_unread_new_post_notifications': Notification.objects.filter(type='new_post', is_read=False).count(),
+            'latest_new_posts': latest_new_posts,
+            'all_admins': list(
+                User.objects
+                .filter(role__iexact='admin')
+                .values('id', 'username', 'email', 'role')
+            ),
+        }, status=status.HTTP_200_OK)

@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import styles from '../../style/library/NotesModal.module.css'
 import { getToken } from '../../utils/auth'
 
 export default function NotesModal({ isOpen, onClose, post, onSaveNote, onNoteLoaded }) {
+  const { t } = useTranslation()
   const [notes, setNotes] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
@@ -64,12 +66,14 @@ export default function NotesModal({ isOpen, onClose, post, onSaveNote, onNoteLo
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
-          <h2 className={styles.title}>Ghi chú cho "{post?.title}"</h2>
+          <h2 className={styles.title}>
+  {t('library.notes.title', { title: post?.title })}
+</h2>
           <button
             type="button"
             className={styles.closeBtn}
             onClick={onClose}
-            aria-label="Đóng"
+            aria-label={t('library.close')}
           >
             <X size={20} />
           </button>
@@ -77,12 +81,12 @@ export default function NotesModal({ isOpen, onClose, post, onSaveNote, onNoteLo
 
         <div className={styles.body}>
           {isLoading ? (
-            <div className={styles.loadingMessage}>Đang tải ghi chú...</div>
+            <div className={styles.loadingMessage}>{t('library.notes.loading')}</div>
           ) : (
             <>
               <textarea
                 className={styles.textarea}
-                placeholder="Nhập ghi chú của bạn..."
+                placeholder={t('library.notes.placeholder')}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 maxLength={2000}
@@ -102,7 +106,7 @@ export default function NotesModal({ isOpen, onClose, post, onSaveNote, onNoteLo
             onClick={onClose}
             disabled={isSaving || isLoading}
           >
-            Hủy
+            {t('library.notes.cancel')}
           </button>
           <button
             type="button"
@@ -110,7 +114,7 @@ export default function NotesModal({ isOpen, onClose, post, onSaveNote, onNoteLo
             onClick={handleSave}
             disabled={isSaving || isLoading}
           >
-            {isSaving ? 'Đang lưu...' : 'Lưu ghi chú'}
+            {isSaving ? t('library.notes.saving') : t('library.notes.saveNote')}
           </button>
         </div>
       </div>

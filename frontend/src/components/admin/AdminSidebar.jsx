@@ -1,5 +1,4 @@
 import {
-  ChevronLeft,
   LayoutDashboard,
   Users,
   ShieldCheck,
@@ -16,7 +15,6 @@ const menuItems = [
     label: "Tổng quan",
     icon: LayoutDashboard,
     path: "/admin",
-    
   },
   {
     label: "Quản lý người dùng",
@@ -24,7 +22,7 @@ const menuItems = [
     path: "/admin/users",
   },
   {
-    label: "Kiểm duyệt nội dung",
+    label: "Kiểm duyệt báo cáo",
     icon: ShieldCheck,
     path: "/admin/moderation",
   },
@@ -43,12 +41,14 @@ const menuItems = [
 export default function AdminSidebar() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { logout } = useAuth();
+  const { logout, user } = useAuth();
 
+  const displayName = user?.display_name || user?.username || user?.email || "Admin";
+  const avatarLetter = displayName.charAt(0).toUpperCase();
   const handleLogout = async () => {
     try {
       await logout();
-      navigate("/login", { replace: true });
+      navigate("/", { replace: true });
     } catch (error) {
       console.error("Logout failed:", error);
     }
@@ -57,7 +57,23 @@ export default function AdminSidebar() {
   return (
     <aside className="admin-sidebar">
       <div className="admin-logo-wrap">
-        <div className="admin-logo-circle">LOGO</div>
+        <div className="admin-logo">
+          <div className="admin-logo-icon">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+              <path
+                d="M9 19V6l12-3v13"
+                stroke="#fff"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <circle cx="6" cy="19" r="3" stroke="#fff" strokeWidth="2" />
+              <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="2" />
+            </svg>
+          </div>
+
+          <span className="admin-logo-text">EduCast</span>
+        </div>
       </div>
 
       <nav className="admin-nav">
@@ -69,30 +85,31 @@ export default function AdminSidebar() {
             <Link
               key={item.path}
               to={item.path}
-              className={`admin-nav-item ${isActive ? "admin-nav-item-active" : ""}`}
+              className={`admin-nav-item ${isActive ? "admin-nav-item-active" : ""
+                }`}
             >
-              <Icon size={16} />
-              <span>{item.label}</span>
+              <Icon className="admin-nav-icon" size={16} strokeWidth={2} />
+              <span className="admin-nav-label">{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
       <div className="admin-sidebar-footer">
-        <button 
-          className="admin-collapse-btn" 
+        <button
+          className="admin-collapse-btn"
           type="button"
           onClick={handleLogout}
         >
-          <LogOut size={16} />
+          <LogOut className="admin-nav-icon" size={16} strokeWidth={2} />
           <span>Đăng Xuất</span>
         </button>
 
         <div className="admin-profile">
-          <div className="admin-avatar">A</div>
+          <div className="admin-avatar">{avatarLetter}</div>
           <div>
             <div className="admin-name">Quản trị viên</div>
-            <div className="admin-role">Đạt Phạm</div>
+            <div className="admin-role">{displayName}</div>
           </div>
         </div>
       </div>

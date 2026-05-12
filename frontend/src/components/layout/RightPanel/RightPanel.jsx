@@ -4,6 +4,7 @@ import {
   Bot, Send, CheckCircle2
 } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { useTranslation } from 'react-i18next'
 import styles from '../../../style/layout/RightPanel.module.css'
 import { getToken } from '../../../utils/auth'
 
@@ -29,11 +30,12 @@ const SUGGESTIONS = [
 ]
 
 export default function RightPanel() {
+  const { t } = useTranslation()
   const [followed, setFollowed] = useState({})
   const [chatInput, setChatInput] = useState('')
   const [messages, setMessages] = useState([
-    { role: 'ai', text: 'Xin chào! Tôi có thể giúp bạn tìm kiếm podcast, giải thích khái niệm, hoặc lập lộ trình học tập. Bạn muốn học gì hôm nay?' }
-  ])
+  { role: 'ai', textKey: 'rightPanel.aiGreeting' }
+])
 
   // Load followed status from localStorage on mount
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function RightPanel() {
     setMessages(m => [
       ...m,
       { role: 'user', text: chatInput },
-      { role: 'ai',  text: 'Câu hỏi hay! Hãy để tôi tìm kiếm các podcast liên quan cho bạn...' }
+      { role: 'ai', textKey: 'rightPanel.aiReply' }
     ])
     setChatInput('')
   }
@@ -85,11 +87,14 @@ export default function RightPanel() {
       // Save to localStorage
       localStorage.setItem('rightPanelFollowed', JSON.stringify(updated))
       
-      const action = isCurrentlyFollowing ? 'Bỏ theo dõi' : 'Theo dõi'
-      toast.success(`${action} ${name} thành công`)
+      const action = isCurrentlyFollowing
+  ? t('buttons.unfollow')
+  : t('rightPanel.follow')
+
+toast.success(t('rightPanel.followSuccess', { action, name }))
     } catch (err) {
       console.error('Toggle follow failed:', err)
-      toast.error('Thao tác thất bại, vui lòng thử lại')
+      toast.error(t('rightPanel.actionFailed'))
     }
   }
 
@@ -100,7 +105,7 @@ export default function RightPanel() {
       <div className={styles.widget}>
         <h4 className={styles.widgetTitle}>
           <Target size={15} />
-          Lộ trình hôm nay
+          {t('rightPanel.roadmapTitle')}
         </h4>
         <p className={styles.roadmapSub}>Python for AI – Sprint 1/3</p>
         <div className={styles.roadmapList}>
@@ -120,12 +125,14 @@ export default function RightPanel() {
       <div className={styles.widget}>
         <h4 className={styles.widgetTitle}>
           <TrendingUp size={15} />
-          Xu hướng
+          {t('rightPanel.trendingTitle')}
         </h4>
         {TRENDING.map(({ tag, count }) => (
           <div key={tag} className={styles.trendItem}>
             <span className={styles.trendTag}>{tag}</span>
-            <span className={styles.trendCount}>{count}</span>
+            <span className={styles.trendCount}>
+  {t('rightPanel.posts', { count })}
+</span>
           </div>
         ))}
       </div>
@@ -134,20 +141,22 @@ export default function RightPanel() {
       <div className={styles.widget}>
         <h4 className={styles.widgetTitle}>
           <UserPlus size={15} />
-          Gợi ý theo dõi
+          {t('rightPanel.suggestionsTitle')}
         </h4>
         {SUGGESTIONS.map(({ name, followers, avatar }) => (
           <div key={name} className={styles.suggestion}>
             <img src={avatar} alt={name} className={styles.suggestionAvatar} />
             <div className={styles.suggestionInfo}>
               <span className={styles.suggestionName}>{name}</span>
-              <span className={styles.suggestionFollowers}>{followers} người theo dõi</span>
+              <span className={styles.suggestionFollowers}>
+  {t('rightPanel.followers', { count: followers })}
+</span>
             </div>
             <button
               className={`${styles.followBtn} ${followed[name] ? styles.following : ''}`}
               onClick={() => toggleFollow(name)}
             >
-              {followed[name] ? 'Đang theo dõi' : 'Theo dõi'}
+              {followed[name] ? t('rightPanel.following') : t('rightPanel.follow')}
             </button>
           </div>
         ))}
@@ -165,14 +174,14 @@ export default function RightPanel() {
               key={i}
               className={`${styles.msg} ${msg.role === 'user' ? styles.msgUser : styles.msgAi}`}
             >
-              {msg.text}
+              {msg.textKey ? t(msg.textKey) : msg.text}
             </div>
           ))}
         </div>
         <div className={styles.chatInput}>
           <input
             type="text"
-            placeholder="Hỏi AI về podcast..."
+            placeholder={t('rightPanel.aiPlaceholder')}
             value={chatInput}
             onChange={e => setChatInput(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && sendMessage()}

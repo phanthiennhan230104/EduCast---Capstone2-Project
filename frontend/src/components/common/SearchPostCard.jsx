@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import styles from '../../style/common/SearchPostCard.module.css'
 
+
 const DEFAULT_PLACEHOLDER = 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300"%3E%3Cdefs%3E%3ClinearGradient id="grad" x1="0%25" y1="0%25" x2="100%25" y2="100%25"%3E%3Cstop offset="0%25" style="stop-color:%23667eea;stop-opacity:1" /%3E%3Cstop offset="100%25" style="stop-color:%23764ba2;stop-opacity:1" /%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width="400" height="300" fill="url(%23grad)"%3E%3C/rect%3E%3Ccircle cx="200" cy="150" r="40" fill="rgba(255,255,255,0.3)" /%3E%3Cpath d="M185 130 L185 170 L220 150 Z" fill="rgba(255,255,255,0.8)" /%3E%3C/svg%3E'
 
 export default function SearchPostCard({ post, onClick }) {

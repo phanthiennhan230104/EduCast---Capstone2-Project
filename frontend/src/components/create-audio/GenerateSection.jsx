@@ -11,12 +11,14 @@ import { toast } from 'react-toastify'
 import styles from '../../style/create-audio/GenerateSection.module.css'
 import { formatDurationVi } from '../../utils/formatDuration'
 import { showCancelConfirm } from './CancelAudioConfirmModal'
+import { useTranslation } from 'react-i18next'
 
 
 const { Text, Title } = Typography
 const { TextArea } = Input
 
 export default function GenerateSection({ vm }) {
+  const { t } = useTranslation()
   const isPublishLocked = vm.activeDraftStatus === 'published'
 
   const handlePreview = () => {
@@ -26,7 +28,7 @@ export default function GenerateSection({ vm }) {
     }
 
     if (!vm.audioUrl) {
-      toast.info('Chưa có audio để nghe thử')
+      toast.info(t('createAudio.generate.preview.noAudio'))
       return
     }
 
@@ -40,7 +42,7 @@ export default function GenerateSection({ vm }) {
     }
 
     if (!vm.audioUrl) {
-      toast.info('Chưa có audio để tải')
+      toast.info(t('createAudio.generate.noAudioDownload'))
       return
     }
 
@@ -75,7 +77,9 @@ export default function GenerateSection({ vm }) {
         onClick={vm.startGenerate}
         className={styles.generateBtn}
       >
-        {vm.genState === 'processing' ? 'Đang xử lý...' : 'Tạo Podcast bằng AI'}
+        {vm.genState === 'processing'
+  ? t('createAudio.generate.processing')
+  : t('createAudio.generate.generateButton')}
       </Button>
 
       {vm.genState === 'processing' && (
@@ -83,7 +87,7 @@ export default function GenerateSection({ vm }) {
           <Space orientation="vertical" size={12} style={{ width: '100%' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <Title level={5} className={styles.title} style={{ margin: 0 }}>
-                AI đang xử lý...
+                {t('createAudio.generate.aiProcessing')}
               </Title>
 
               <Button
@@ -92,7 +96,7 @@ export default function GenerateSection({ vm }) {
                 icon={<CloseOutlined />}
                 size="small"
                 onClick={handleCancelProcess}
-                title="Dừng quá trình tạo audio"
+                title={t('createAudio.generate.stopAudioTitle')}
               />
             </div>
 
@@ -108,7 +112,7 @@ export default function GenerateSection({ vm }) {
           <Space orientation="vertical" size={16} style={{ width: '100%' }}>
             <div>
               <Title level={5} className={styles.title}>
-                Podcast đã tạo xong
+                {t('createAudio.generate.doneTitle')}
               </Title>
               <Text className={styles.successText}>{vm.resultDur}</Text>
             </div>
@@ -121,7 +125,7 @@ export default function GenerateSection({ vm }) {
                 onLoadedMetadata={handleAudioLoadedMetadata}
               >
                 <source src={vm.audioUrl} type="audio/mpeg" />
-                Trình duyệt không hỗ trợ phát audio.
+                {t('createAudio.generate.browserNotSupport')}
               </audio>
             )}
 
@@ -161,13 +165,13 @@ export default function GenerateSection({ vm }) {
                 onChange={(e) => vm.setDescription(e.target.value)}
                 rows={4}
                 maxLength={300}
-                placeholder="Mô tả ngắn cho podcast..."
+                placeholder={t('createAudio.generate.descriptionPlaceholder')}
                 style={{ marginTop: 12 }}
               />
 
               <div style={{ marginTop: 6, textAlign: 'right' }}>
                 <Text className={styles.subText}>
-                  {(vm.description || '').length}/300 ký tự
+                  {(vm.description || '').length}/300 {t('createAudio.generate.characters')}
                 </Text>
               </div>
             </div>
@@ -200,7 +204,7 @@ export default function GenerateSection({ vm }) {
               </Button>
 
               <Button icon={<SaveOutlined />} onClick={vm.saveCurrentDraft}>
-                Lưu nháp
+                {t('createAudio.generate.saveDraft')}
               </Button>
             </Space>
           </Space>

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from 'react-i18next'
 import {
   Avatar,
   Button,
@@ -68,6 +69,7 @@ const FILE_ACCEPT = [
 ].join(",");
 
 export default function ChatPage() {
+  const { t } = useTranslation()
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -115,7 +117,7 @@ export default function ChatPage() {
         return normalizedData.length > 0 ? normalizedData[0].id : null;
       });
     } catch (error) {
-      toast.error(error.message || "Không tải được conversations");
+      toast.error(error.message || t('chat.loadConversationsFailed'));
     } finally {
       setLoading(false);
     }
@@ -148,10 +150,10 @@ export default function ChatPage() {
         const data = await fetchMessages(roomId);
         setMessages(data.map((item) => normalizeMessageOwnership(item, user?.id)));
       } catch (error) {
-        toast.error(error.message || "Không tải được messages");
+        toast.error(error.message || t('chat.loadMessagesFailed'));
       }
     },
-    [user?.id]
+    [user?.id, t]
   );
 
   useEffect(() => {
@@ -293,13 +295,13 @@ export default function ChatPage() {
     if (!value) return;
 
     if (status !== "open") {
-      toast.error("Vui lòng chờ kết nối chat hoàn tất");
+      toast.error(t('chat.waitConnection'));
       return;
     }
 
     const ok = sendTextMessage(value);
     if (!ok) {
-      toast.error("WebSocket chưa kết nối");
+      toast.error(t('chat.websocketNotConnected'));
       return;
     }
 
@@ -328,7 +330,7 @@ export default function ChatPage() {
         toast.error("WebSocket chưa kết nối");
       }
     } catch (error) {
-      toast.error(error.message || "Upload thất bại");
+      toast.error(error.message || t('chat.uploadFailed'));
     } finally {
       setUploading(false);
     }
@@ -520,7 +522,7 @@ export default function ChatPage() {
             }}
           >
             <Title level={3} className="chat-sidebar-title">
-              Tin nhắn
+               {t('chat.title')}
             </Title>
 
             <Button
@@ -533,7 +535,7 @@ export default function ChatPage() {
 
           <div className="conversation-list">
             {conversations.length === 0 ? (
-              <Empty description="Chưa có cuộc trò chuyện" />
+             <Empty description={t('chat.noConversations')} />
             ) : (
               conversations.map((item) => (
                 <ConversationItem
@@ -559,7 +561,7 @@ export default function ChatPage() {
 
               <div className="chat-messages">
                 {messages.length === 0 ? (
-                  <Empty description="Chưa có tin nhắn" />
+                  <Empty description={t('chat.noMessages')} />
                 ) : (
                   <>
                     {messages.map((message) => (
@@ -642,10 +644,10 @@ export default function ChatPage() {
                   onChange={(e) => setDraft(e.target.value)}
                   autoSize={{ minRows: 1, maxRows: 3 }}
                   placeholder={
-                    status === "open"
-                      ? "Nhập tin nhắn..."
-                      : "Đang kết nối realtime..."
-                  }
+  status === "open"
+    ? t('chat.messagePlaceholder')
+    : t('chat.connectingRealtime')
+}
                   disabled={status !== "open"}
                   onPressEnter={(e) => {
                     if (!e.shiftKey) {
@@ -666,7 +668,7 @@ export default function ChatPage() {
             </>
           ) : (
             <div className="chat-empty">
-              <Empty description="Chọn một cuộc trò chuyện" />
+              <Empty description={t('chat.selectConversation')} />
             </div>
           )}
         </Card>
@@ -714,7 +716,7 @@ export default function ChatPage() {
               />
             </Space>
           ) : (
-            <Empty description="Không có thông tin" />
+            <Empty description={t('chat.noInfo')} />
           )}
         </Card>
       </div>

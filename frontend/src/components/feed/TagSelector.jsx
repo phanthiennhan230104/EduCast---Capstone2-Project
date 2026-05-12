@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import { X, Plus } from 'lucide-react'
 import styles from '../../style/feed/TagSelector.module.css'
 import { getToken } from '../../utils/auth'
@@ -11,6 +12,7 @@ import {
 } from '../../utils/tagApi'
 
 export default function TagSelector() {
+  const { t } = useTranslation()
   const [preferences, setPreferences] = useState([])
   const [availableTags, setAvailableTags] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
@@ -99,7 +101,7 @@ export default function TagSelector() {
   return (
     <div className={styles.selectorSection}>
       <div className={styles.selectorHeader}>
-        <h3 className={styles.selectorTitle}>Tags Yêu Thích</h3>
+        <h3 className={styles.selectorTitle}>{t('navigation.tags')}</h3>
         <button
           className={styles.addBtn}
           onClick={() => {
@@ -108,7 +110,7 @@ export default function TagSelector() {
           }}
           type="button"
           disabled={loading}
-          title="Thêm tag"
+          title={t('navigation.tags')}
         >
           <Plus size={16} />
         </button>
@@ -117,7 +119,7 @@ export default function TagSelector() {
       <div className={styles.tagsList}>
         {error && (
           <div style={{ color: '#ff6b6b', fontSize: '11px' }}>
-            ❌ Lỗi: {error}
+            ❌ {t('common.error')}: {error}
           </div>
         )}
 
@@ -137,7 +139,7 @@ export default function TagSelector() {
           </div>
         ) : (
           <p className={styles.emptyText}>
-            {loading ? 'Đang tải...' : 'Chưa có tag yêu thích'}
+            {loading ? t('common.loading') : t('navigation.noTags')}
           </p>
         )}
 
@@ -157,7 +159,7 @@ export default function TagSelector() {
               ))
             ) : (
               <p style={{ fontSize: '11px', color: '#aeb8da' }}>
-                Tất cả tags đã được chọn
+                {t('tags.allSelected')}
               </p>
             )}
           </div>
