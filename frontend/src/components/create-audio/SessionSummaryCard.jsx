@@ -46,11 +46,6 @@ export default function SessionSummaryCard({ vm }) {
               label: t('createAudio.sessionSummary.format'),
               children: vm?.format || '—',
             },
-            {
-              key: 'topics',
-              label: t('createAudio.sessionSummary.topics'),
-              children: vm?.topics?.length ? vm.topics.join(', ') : '—',
-            },
           ]}
         />
 

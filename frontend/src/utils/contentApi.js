@@ -15,6 +15,7 @@ export const previewAudio = async (payload, signal) => {
     method: 'POST',
     body: JSON.stringify(payload),
     signal,
+    timeoutMs: 120000,
   })
 }
 
@@ -67,11 +68,6 @@ export const uploadDocument = async (formData) => {
   })
 }
 
-// Lấy categories
-export const getCategories = async () => {
-  return await apiRequest('/content/categories/')
-}
-
 // Lấy topics
 export const getTopics = async () => {
   return await apiRequest('/content/topics/')
@@ -114,5 +110,36 @@ export const uploadAudioFile = async (file) => {
     audio_url: data.audio_url || data.secure_url || data.url,
     public_id: data.public_id,
     duration: data.duration,
+  }
+}
+
+// Upload thumbnail image to cloud
+export const uploadThumbnail = async (file) => {
+  if (!file) throw new Error('File is required')
+  
+  const formData = new FormData()
+  formData.append('thumbnail', file)
+  
+  const token = localStorage.getItem('educast_access')
+  
+  const res = await fetch('http://localhost:8000/api/content/upload-thumbnail/', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+    body: formData,
+  })
+
+  if (!res.ok) {
+    const error = await res.json()
+    throw new Error(error.error || 'Upload failed')
+  }
+
+  const data = await res.json()
+  
+  // Ensure we return the correct URL key
+  return {
+    thumbnail_url: data.thumbnail_url || data.secure_url || data.url,
+    public_id: data.public_id,
   }
 }

@@ -2,24 +2,19 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { Select } from 'antd'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import {
   createDraft,
-  getCategories,
   getTopics,
   publishPost,
   saveDraftWithAudio,
   updateDraft,
   uploadAudioFile,
+  uploadThumbnail,
 } from '../../utils/contentApi'
 import { getAudioDuration } from '../../utils/formatDuration'
 import styles from '../../style/pages/PublishPostPage/PublishPostPage.module.css'
-
-const AGE_GROUP_OPTIONS = [
-  { value: '16_22', label: '16 - 22' },
-  { value: '23_30', label: '23 - 30' },
-  { value: '31_40', label: '31 - 40' },
-]
 
 const VISIBILITY_OPTIONS = [
   { value: 'public', label: 'Công khai' },
@@ -70,18 +65,6 @@ function normalizeTopicList(raw) {
     .filter((item) => item.id && item.name)
 }
 
-function normalizeCategoryList(raw) {
-  const list = normalizeListResponse(raw)
-
-  return list
-    .map((item) => ({
-      id: item?.id ?? item?.category_id ?? '',
-      name: item?.name ?? item?.category_name ?? '',
-      slug: item?.slug ?? '',
-    }))
-    .filter((item) => item.id && item.name)
-}
-
 function toIntegerDuration(value) {
   const numberValue = Number(value)
   if (!Number.isFinite(numberValue) || numberValue <= 0) return 0
@@ -106,12 +89,12 @@ export default function PublishPostPage() {
         draftData?.audioUrl ||
         draftData?.audio_versions?.find((item) => item?.is_default)?.audio_url ||
         '',
+      thumbnailUrl: draftData?.thumbnail_url || '',
       durationSeconds:
         draftData?.duration_seconds ||
         draftData?.durationSeconds ||
         draftData?.audio_versions?.find((item) => item?.is_default)?.duration_seconds ||
         0,
-      categoryId: draftData?.category?.id || draftData?.category_id || '',
       topicIds: Array.isArray(draftData?.topics)
         ? draftData.topics
             .map((item) => item?.id ?? item?.topic_id ?? '')
@@ -122,7 +105,6 @@ export default function PublishPostPage() {
             .map((item) => (typeof item === 'string' ? item : item?.name || ''))
             .filter(Boolean)
         : [],
-      ageGroup: draftData?.age_group || '',
       learningField: draftData?.learning_field || '',
       visibility: draftData?.visibility || 'public',
     }),
@@ -131,17 +113,16 @@ export default function PublishPostPage() {
 
   const [form, setForm] = useState(initialForm)
   const [tagInput, setTagInput] = useState('')
-  const [newTopicInput, setNewTopicInput] = useState('')
-  const [newTopics, setNewTopics] = useState([])
-  const [categories, setCategories] = useState([])
   const [topics, setTopics] = useState([])
   const [loadingMeta, setLoadingMeta] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef(null)
+  const thumbnailInputRef = useRef(null)
   const [showDraftModal, setShowDraftModal] = useState(false)
   const [drafts, setDrafts] = useState([])
   const [loadingDrafts, setLoadingDrafts] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
 
   const hasDraftWork = useMemo(() => {
     return Boolean(
@@ -152,10 +133,9 @@ export default function PublishPostPage() {
         form.script.trim() ||
         form.tags.length ||
         form.topicIds.length ||
-        newTopics.length ||
         form.learningField.trim() ||
-        form.categoryId ||
-        form.ageGroup
+        form.ageGroup ||
+        form.thumbnailUrl
     )
   }, [
     form.audioUrl,
@@ -166,9 +146,8 @@ export default function PublishPostPage() {
     form.tags.length,
     form.topicIds.length,
     form.learningField,
-    form.categoryId,
     form.ageGroup,
-    newTopics.length,
+    form.thumbnailUrl,
   ])
   const updateField = (key, value) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -186,13 +165,6 @@ export default function PublishPostPage() {
     if (!cleaned) return null
     if (cleaned.length > 30) return null
 
-    return cleaned
-  }
-
-  const normalizeTopicName = (raw) => {
-    const cleaned = (raw || '').trim().replace(/\s+/g, ' ')
-    if (!cleaned) return null
-    if (cleaned.length > 100) return null
     return cleaned
   }
 
@@ -225,42 +197,6 @@ export default function PublishPostPage() {
     )
   }
 
-  
-  const addNewTopic = () => {
-    const normalized = normalizeTopicName(newTopicInput)
-
-    if (!normalized) {
-      if (newTopicInput.trim()) toast.info('Chủ đề mới không hợp lệ')
-      return
-    }
-
-    const existsInNewTopics = newTopics.some(
-      (item) => item.toLowerCase() === normalized.toLowerCase()
-    )
-
-    const existsInTopics = topics.some(
-      (item) => item?.name?.toLowerCase() === normalized.toLowerCase()
-    )
-
-    if (existsInNewTopics || existsInTopics) {
-      toast.info('Chủ đề này đã tồn tại')
-      setNewTopicInput('')
-      return
-    }
-
-    if (form.topicIds.length + newTopics.length >= MAX_TOPICS) {
-      toast.info(`Tối đa ${MAX_TOPICS} chủ đề`)
-      return
-    }
-
-    setNewTopics((prev) => [...prev, normalized])
-    setNewTopicInput('')
-  }
-
-  const removeNewTopic = (topicName) => {
-    setNewTopics((prev) => prev.filter((item) => item !== topicName))
-  }
-
   const toggleTopic = (topicId) => {
     const exists = form.topicIds.includes(topicId)
 
@@ -272,12 +208,20 @@ export default function PublishPostPage() {
       return
     }
 
-    if (form.topicIds.length + newTopics.length >= MAX_TOPICS) {
+    if (form.topicIds.length >= MAX_TOPICS) {
       toast.info(`Tối đa ${MAX_TOPICS} chủ đề`)
       return
     }
 
     updateField('topicIds', [...form.topicIds, topicId])
+  }
+
+  const handleTopicChange = (selectedIds) => {
+    if (selectedIds.length > MAX_TOPICS) {
+      toast.info(`Tối đa ${MAX_TOPICS} chủ đề`)
+      return
+    }
+    updateField('topicIds', selectedIds)
   }
 
   useEffect(() => {
@@ -286,19 +230,14 @@ export default function PublishPostPage() {
     const fetchMeta = async () => {
       try {
         setLoadingMeta(true)
-
-        const [categoryRes, topicRes] = await Promise.all([
-          getCategories(),
-          getTopics(),
-        ])
+        const topicRes = await getTopics()
 
         if (!mounted) return
 
-        setCategories(normalizeCategoryList(categoryRes))
         setTopics(normalizeTopicList(topicRes))
       } catch (error) {
         console.error(error)
-        toast.error('Không tải được category/topic')
+        toast.error('Không tải được danh sách chủ đề')
       } finally {
         if (mounted) setLoadingMeta(false)
       }
@@ -315,13 +254,6 @@ export default function PublishPostPage() {
     if (e.key === 'Enter' || e.key === ',') {
       e.preventDefault()
       addTag()
-    }
-  }
-
-  const handleNewTopicKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      addNewTopic()
     }
   }
 
@@ -388,11 +320,6 @@ export default function PublishPostPage() {
       return
     }
 
-    if (!form.ageGroup) {
-      toast.info('Vui lòng chọn nhóm tuổi')
-      return
-    }
-
     try {
       setSubmitting(true)
       const audioResult = await resolveAudioSource()
@@ -406,11 +333,9 @@ export default function PublishPostPage() {
         audio_url: audioResult.audioUrl,
         duration_seconds: toIntegerDuration(audioResult.durationSeconds) || null,
         public_id: audioResult.publicId || null,
-        category_id: form.categoryId || null,
+        thumbnail_url: form.thumbnailUrl || null,
         topic_ids: form.topicIds,
-        new_topics: newTopics,
         tags: form.tags,
-        age_group: form.ageGroup,
         learning_field: form.learningField.trim() || null,
         visibility: form.visibility,
         source_type: 'ai_generated',
@@ -549,7 +474,6 @@ export default function PublishPostPage() {
       originalText: draft.original_text || '',
       audioUrl: draft.audio_url || draft.audioUrl || '',
       durationSeconds: draft.duration_seconds || draft.durationSeconds || 0,
-      categoryId: draft?.category?.id || draft?.category_id || prev.categoryId,
       topicIds: Array.isArray(draft?.topics)
         ? draft.topics.map((t) => t?.id ?? t?.topic_id ?? '').filter(Boolean)
         : prev.topicIds,
@@ -591,6 +515,49 @@ export default function PublishPostPage() {
       if (form.audioUrl && form.audioUrl.startsWith('blob:')) URL.revokeObjectURL(form.audioUrl)
     } catch (e) {}
     setForm((prev) => ({ ...prev, audioUrl: '', durationSeconds: 0 }))
+  }
+
+  const handleThumbnailClick = () => {
+    thumbnailInputRef.current?.click()
+  }
+
+  const handleThumbnailSelect = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn tệp ảnh')
+      return
+    }
+
+    const maxSize = 5 * 1024 * 1024 // 5MB
+    if (file.size > maxSize) {
+      toast.error('Tệp quá lớn. Tối đa 5MB')
+      return
+    }
+
+    try {
+      setUploadingThumbnail(true)
+      toast.info('Đang tải ảnh lên...')
+      
+      const result = await uploadThumbnail(file)
+      
+      setForm((prev) => ({
+        ...prev,
+        thumbnailUrl: result.thumbnail_url,
+      }))
+      
+      toast.success('Tải ảnh thành công!')
+    } catch (error) {
+      console.error('Thumbnail upload error:', error)
+      toast.error(error?.message || 'Không thể tải ảnh lên')
+    } finally {
+      setUploadingThumbnail(false)
+    }
+  }
+
+  const handleRemoveThumbnail = () => {
+    setForm((prev) => ({ ...prev, thumbnailUrl: '' }))
   }
 
   return (
@@ -664,43 +631,8 @@ export default function PublishPostPage() {
                 <div>
                   <h2 className={styles.cardTitle}>Phân loại nội dung</h2>
                   <p className={styles.cardDesc}>
-                    Chọn category, topic, tag và nhóm tuổi để bài dễ được khám phá hơn.
+                    Chọn topic và tag để bài dễ được khám phá hơn.
                   </p>
-                </div>
-              </div>
-
-              <div className={styles.gridTwo}>
-                <div className={styles.field}>
-                  <label className={styles.label}>Danh mục</label>
-                  <select
-                    className={styles.select}
-                    value={form.categoryId}
-                    onChange={(e) => updateField('categoryId', e.target.value)}
-                    disabled={loadingMeta}
-                  >
-                    <option value="">Không chọn danh mục</option>
-                    {categories.map((item) => (
-                      <option key={`category-${item.id}`} value={item.id}>
-                        {item.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className={styles.field}>
-                  <label className={styles.label}>Nhóm tuổi</label>
-                  <select
-                    className={styles.select}
-                    value={form.ageGroup}
-                    onChange={(e) => updateField('ageGroup', e.target.value)}
-                  >
-                    <option value="">Chọn nhóm tuổi</option>
-                    {AGE_GROUP_OPTIONS.map((item) => (
-                      <option key={`age-${item.value}`} value={item.value}>
-                        {item.label}
-                      </option>
-                    ))}
-                  </select>
                 </div>
               </div>
 
@@ -720,62 +652,21 @@ export default function PublishPostPage() {
                   Chủ đề <span className={styles.helper}>Tối đa {MAX_TOPICS}</span>
                 </label>
 
-                <div className={styles.topicList}>
-                  {topics.map((topic) => {
-                    const active = form.topicIds.includes(topic.id)
-
-                    return (
-                      <button
-                        key={`topic-${topic.id}`}
-                        type="button"
-                        className={`${styles.topicChip} ${
-                          active ? styles.topicChipActive : ''
-                        }`}
-                        onClick={() => toggleTopic(topic.id)}
-                      >
-                        {topic.name}
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <div className={styles.newTopicComposer}>
-                  <input
-                    className={styles.tagInput}
-                    type="text"
-                    placeholder="Thêm chủ đề mới"
-                    value={newTopicInput}
-                    onChange={(e) => setNewTopicInput(e.target.value)}
-                    onKeyDown={handleNewTopicKeyDown}
-                  />
-                  <button
-                    type="button"
-                    className={styles.tagAddButton}
-                    onClick={addNewTopic}
-                  >
-                    Thêm chủ đề
-                  </button>
-                </div>
-
-                <div className={styles.tagList}>
-                  {newTopics.length === 0 ? (
-                    <span className={styles.emptyText}>Chưa có chủ đề mới</span>
-                  ) : (
-                    newTopics.map((topicName) => (
-                      <span key={`new-topic-${topicName}`} className={styles.tagChip}>
-                        {topicName}
-                        <button
-                          type="button"
-                          className={styles.tagRemove}
-                          onClick={() => removeNewTopic(topicName)}
-                          aria-label={`Xóa chủ đề ${topicName}`}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))
-                  )}
-                </div>
+                <Select
+                  className={styles.topicAntSelect}
+                  mode="multiple"
+                  allowClear
+                  showSearch={{ optionFilterProp: 'label' }}
+                  placeholder="Chọn chủ đề"
+                  value={form.topicIds}
+                  onChange={handleTopicChange}
+                  disabled={loadingMeta}
+                  style={{ width: '100%' }}
+                  options={topics.map((topic) => ({
+                    value: topic.id,
+                    label: topic.name,
+                  }))}
+                />
               </div>
 
               <div className={styles.field}>
@@ -1075,26 +966,59 @@ export default function PublishPostPage() {
                 )}
               </div>
 
+              <div className={styles.thumbnailBox}>
+                <div className={styles.thumbnailLabel}>Ảnh đại diện</div>
+                {form.thumbnailUrl ? (
+                  <div className={styles.thumbnailPreview}>
+                    <img 
+                      src={form.thumbnailUrl} 
+                      alt="Ảnh đại diện" 
+                      className={styles.thumbnailImage}
+                    />
+                    <div className={styles.thumbnailActions}>
+                      <button
+                        type="button"
+                        className={styles.thumbnailChangeBtn}
+                        onClick={handleThumbnailClick}
+                        disabled={uploadingThumbnail}
+                      >
+                        Thay đổi
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.thumbnailRemoveBtn}
+                        onClick={handleRemoveThumbnail}
+                        disabled={uploadingThumbnail}
+                      >
+                        Xóa
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    className={styles.thumbnailUploadBtn}
+                    onClick={handleThumbnailClick}
+                    disabled={uploadingThumbnail}
+                  >
+                    {uploadingThumbnail ? 'Đang tải...' : '+ Thêm ảnh đại diện'}
+                  </button>
+                )}
+              </div>
+
+              <input
+                ref={thumbnailInputRef}
+                type="file"
+                accept="image/*"
+                style={{ display: 'none' }}
+                onChange={handleThumbnailSelect}
+              />
+
               <div className={styles.previewMeta}>
-                <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>Danh mục</span>
-                  <span className={styles.metaValue}>
-                    {categories.find((item) => item.id === form.categoryId)?.name || '—'}
-                  </span>
-                </div>
-
-                <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>Nhóm tuổi</span>
-                  <span className={styles.metaValue}>
-                    {AGE_GROUP_OPTIONS.find((item) => item.value === form.ageGroup)
-                      ?.label || '—'}
-                  </span>
-                </div>
-
                 <div className={styles.metaRow}>
                   <span className={styles.metaLabel}>Chủ đề</span>
                   <div className={styles.metaTopicWrap}>
-                    {form.topicIds.length === 0 && newTopics.length === 0 ? (
+                    {form.topicIds.length === 0 ? (
                       <span className={styles.metaValue}>—</span>
                     ) : (
                       <>
@@ -1106,14 +1030,6 @@ export default function PublishPostPage() {
                             </span>
                           )
                         })}
-                        {newTopics.map((topicName) => (
-                          <span
-                            key={`new-topic-preview-${topicName}`}
-                            className={styles.metaTopicTag}
-                          >
-                            {topicName}
-                          </span>
-                        ))}
                       </>
                     )}
                   </div>

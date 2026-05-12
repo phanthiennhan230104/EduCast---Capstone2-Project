@@ -12,7 +12,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from apps.content.services.feed_service import FeedService
-from .models import Post, PostAudioVersion, PostDocument, Tag, PostTag, Category, Topic
+from .models import Post, PostAudioVersion, PostDocument, Tag, PostTag, Topic
 from apps.social.models import HiddenPost
 from apps.social.services import create_new_post_notifications_for_admins
 from .serializers import (
@@ -24,7 +24,6 @@ from .serializers import (
     UploadDocumentSerializer,
     FeedItemSerializer,
     PublishPostSerializer,
-    CategorySerializer,
     TopicSerializer,
 )
 from .services.cloudinary_service import (
@@ -84,7 +83,61 @@ class TestCloudinaryUploadView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
-from .services.text_processor import process_text_by_mode, generate_ai_description
+
+class ThumbnailUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            image_file = request.FILES.get('thumbnail')
+            if not image_file:
+                return Response(
+                    {'error': 'Không tìm thấy file ảnh'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Validate file type
+            if not image_file.content_type.startswith('image/'):
+                return Response(
+                    {'error': 'File phải là ảnh (PNG, JPG, WebP, v.v.)'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Validate file size (5MB max for images)
+            max_size = 5 * 1024 * 1024
+            if image_file.size > max_size:
+                return Response(
+                    {'error': 'File quá lớn. Tối đa 5MB'},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Upload to Cloudinary
+            result = upload_file_to_cloudinary(
+                image_file,
+                resource_type='image',
+                folder='educast/thumbnails',
+            )
+
+            return Response(
+                {
+                    'message': 'Upload ảnh thành công',
+                    'thumbnail_url': result.get('secure_url'),
+                    'public_id': result.get('public_id'),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        except Exception as e:
+            return Response(
+                {'error': str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+from .services.text_processor import (
+    process_text_by_mode,
+    generate_ai_description,
+    generate_ai_title,
+)
 from .services.tts_service import generate_audio_file
 from .services.slug_service import generate_unique_slug
 from .services.document_parser import extract_text_from_file
@@ -138,28 +191,8 @@ def handle_tags(post, tag_names):
             defaults={"created_at": timezone.now()},
         )
 
-def handle_topics(post, topic_ids, new_topic_names):
+def handle_topics(post, topic_ids):
     final_topic_ids = list(topic_ids or [])
-
-    for raw_name in new_topic_names or []:
-        topic_name = " ".join((raw_name or "").strip().split())
-        if not topic_name:
-            continue
-
-        slug = slugify(topic_name)
-
-        topic = Topic.objects.filter(slug=slug).first()
-        if not topic:
-            topic = Topic.objects.create(
-                id=str(ulid.new()),
-                name=topic_name,
-                slug=slug,
-                description=None,
-                created_at=timezone.now(),
-            )
-
-        if topic.id not in final_topic_ids:
-            final_topic_ids.append(topic.id)
 
     post.post_topics.all().delete()
 
@@ -186,7 +219,6 @@ class DraftCreateView(APIView):
             post = Post.objects.create(
                 id=str(ulid.new()),
                 user=request.user,
-                category_id=None,
                 title=title,
                 slug=slug,
                 description=(data.get("description") or "").strip(),
@@ -199,7 +231,6 @@ class DraftCreateView(APIView):
                 language_code="vi",
                 visibility=Post.VisibilityChoices.PRIVATE,
                 status=Post.StatusChoices.DRAFT,
-                age_group=None,
                 learning_field=None,
                 audio_url=None,
                 thumbnail_url=None,
@@ -258,14 +289,22 @@ class AudioPreviewView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
         try:
+            generated_title = generate_ai_title(processed_text)
+            generated_title = (generated_title or "").strip()
+        except Exception:
+            generated_title = ""
+
+        if not generated_title:
+            generated_title = processed_text[:80].rsplit(" ", 1)[0].strip() or "Bài audio"
+
+        try:
             generated_description = generate_ai_description(processed_text)
             generated_description = (generated_description or "").strip()
         except Exception:
             generated_description = ""
 
         if not generated_description:
-            generated_description = build_fallback_description(processed_text)
-
+            generated_description = build_fallback_description(processed_text, max_length=220)
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
             temp_audio_path = tmp.name
 
@@ -309,6 +348,8 @@ class AudioPreviewView(APIView):
                     "data": {
                         "mode": data["mode"],
                         "processed_text": processed_text,
+                        "generated_title": generated_title,
+                        "transcript_text": processed_text,  
                         "generated_description": generated_description,
                         "audio_url": audio_url,
                         "public_id": uploaded.get("public_id"),
@@ -359,9 +400,9 @@ class DraftSaveWithAudioView(APIView):
         
         now = timezone.now()
 
-        summary_text = processed_text if mode == "summary" else None
-        dialogue_script = processed_text if mode == "dialogue" else None
-        transcript_text = processed_text if mode in ["original", "translate"] else None
+        summary_text = data.get("summary_text") or (processed_text if mode == "summary" else None)
+        dialogue_script = data.get("dialogue_script") or (processed_text if mode == "dialogue" else None)
+        transcript_text = data.get("transcript_text") or processed_text
 
         final_description = (data.get("description") or "").strip()
         if not final_description:
@@ -373,7 +414,6 @@ class DraftSaveWithAudioView(APIView):
             post = Post.objects.create(
                 id=str(ulid.new()),
                 user=request.user,
-                category_id=None,
                 title=title,
                 slug=slug,
                 description=final_description,
@@ -383,10 +423,9 @@ class DraftSaveWithAudioView(APIView):
                 transcript_text=transcript_text,
                 source_type=data.get("source_type", Post.SourceTypeChoices.MANUAL),
                 is_ai_generated=(mode != "original"),
-                language_code="vi",
+                language_code="en" if mode == "translate" else "vi",
                 visibility=Post.VisibilityChoices.PRIVATE,
                 status=Post.StatusChoices.DRAFT,
-                age_group=None,
                 learning_field=None,
                 audio_url=data["audio_url"],
                 thumbnail_url=None,
@@ -414,6 +453,11 @@ class DraftSaveWithAudioView(APIView):
                 storage_path=data.get("public_id"),
                 is_default=True,
                 created_at=now,
+            )
+
+            handle_topics(
+                post=post,
+                topic_ids=data.get("topic_ids", []),
             )
 
             if data.get("source_type") == Post.SourceTypeChoices.UPLOADED_DOCUMENT:
@@ -1055,8 +1099,6 @@ class UserPostsAPIView(APIView):
             "view_count": post.view_count,
             "download_count": post.download_count,
             "duration_seconds": post.duration_seconds,
-            "category_id": post.category_id,
-            "age_group": post.age_group,
             "learning_field": post.learning_field,
             "language_code": post.language_code,
             "source_type": post.source_type,
@@ -1321,8 +1363,6 @@ class PostDetailView(APIView):
                 "view_count": post.view_count,
                 "download_count": post.download_count,
                 "duration_seconds": post.duration_seconds,
-                "category_id": post.category_id,
-                "age_group": post.age_group,
                 "learning_field": post.learning_field,
                 "language_code": post.language_code,
                 "source_type": post.source_type,
@@ -1405,6 +1445,7 @@ class PublishPostView(APIView):
             post.source_type = data.get("source_type", "ai_generated")
             post.is_ai_generated = data.get("is_ai_generated", True)
             post.audio_url = data["audio_url"]
+            post.thumbnail_url = data.get("thumbnail_url")
 
             fallback_text = (
                 data.get("summary_text")
@@ -1415,8 +1456,6 @@ class PublishPostView(APIView):
             )
             post.duration_seconds = self._resolve_duration_seconds(data, fallback_text)
             
-            post.category_id = data.get("category_id")
-            post.age_group = data.get("age_group")
             post.learning_field = data.get("learning_field")
             post.visibility = data.get("visibility", "public")
             post.status = Post.StatusChoices.PUBLISHED
@@ -1430,7 +1469,6 @@ class PublishPostView(APIView):
             handle_topics(
                 post=post,
                 topic_ids=data.get("topic_ids", []),
-                new_topic_names=data.get("new_topics", []),
             )
 
             # TAGS
@@ -1458,21 +1496,6 @@ class PublishPostView(APIView):
                 {"error": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
-
-class CategoryListView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def get(self, request):
-        categories = Category.objects.all().order_by("name")
-        serializer = CategorySerializer(categories, many=True)
-        return Response(
-            {
-                "message": "Lấy danh sách categories thành công",
-                "data": serializer.data,
-            },
-            status=status.HTTP_200_OK,
-        )
-
 
 class TopicListView(APIView):
     permission_classes = [IsAuthenticated]

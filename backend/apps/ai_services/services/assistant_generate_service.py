@@ -80,13 +80,14 @@ def build_search_result_payload(posts: list[dict[str, Any]], keyword: str) -> di
     return {
         "type": "search_result",
         "intent": "search_content",
-        "summary": f"Tìm thấy {len(posts)} bài viết phù hợp với: {keyword}",
+        "summary": f"Mình tìm thấy {len(posts)} podcast/bài viết có sẵn liên quan đến: {keyword}",
         "content": {
             "posts": posts,
         },
         "suggestions": [
-            "Viết bài mới theo chủ đề này",
-            "Gợi ý thêm nội dung liên quan",
+            "Tạo bài mới theo chủ đề này",
+            "Tìm thêm nội dung liên quan",
+            "Gợi ý bài học tiếp theo",
         ],
     }
 
@@ -154,6 +155,25 @@ def generate_educast_content(
 
     allow_search_tool = _should_allow_search_tool(intent, intent_data)
 
+    search_first_posts = []
+
+    if intent not in {"casual_chat", "summarize_content", "rewrite_content"}:
+        search_keyword = (
+            intent_data.get("search_keyword")
+            or user_message
+        )
+
+        search_first_posts = search_published_posts(
+            keyword=search_keyword,
+            limit=10,
+        )
+
+        if search_first_posts:
+            return build_search_result_payload(
+                posts=search_first_posts,
+                keyword=search_keyword,
+            )
+    
     messages: list[dict[str, Any]] = [
         {"role": "system", "content": build_system_prompt()},
         {

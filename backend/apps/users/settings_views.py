@@ -203,7 +203,6 @@ class ExportUserDataView(APIView):
             "profile": {
                 "display_name": profile.display_name if profile else None,
                 "bio": profile.bio if profile else None,
-                "age_group": profile.age_group if profile else None,
                 "learning_field": profile.learning_field if profile else None,
                 "interests": profile.interests if profile else None,
                 "headline": profile.headline if profile else None,

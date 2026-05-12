@@ -26,20 +26,23 @@ def _target_summary_guidance(text: str) -> str:
 
     if words < 120:
         return (
-            "Nội dung gốc khá ngắn, chỉ cần rút gọn nhẹ và giữ gần như đầy đủ ý chính. "
-            "Không được làm nội dung trở nên quá cụt."
+            "Nội dung gốc khá ngắn. Hãy chuyển hóa nó thành một thông điệp audio ngắn gọn, sắc nét, "
+            "như một viên nang kiến thức. Phải giữ trọn vẹn nội dung, không cắt xén."
         )
     if words < 300:
         return (
-            "Rút gọn ở mức vừa phải, giữ phần lớn ý chính và chỉ lược bỏ phần lặp, ví dụ phụ hoặc diễn giải dài."
+            "Nội dung ở mức vừa. Hãy tạo ra một kịch bản audio có nhịp điệu lôi cuốn. "
+            "Chỉ lược bỏ những từ ngữ lặp vòng vo, còn lại phải giữ nguyên các luận điểm và ví dụ quan trọng."
         )
     if words < 700:
         return (
-            "Tóm gọn rõ ràng, giữ đầy đủ các ý cốt lõi, có thể lược bớt ví dụ dài, chi tiết phụ và phần giải thích lặp."
+            "Nội dung khá chi tiết. Hãy biến đây thành một bài audio phân tích. "
+            "Sắp xếp cấu trúc logic chặt chẽ, dùng từ ngữ chuyển ý mượt mà."
         )
     return (
-        "Nội dung gốc khá dài, cần gom nhóm ý, giữ đầy đủ các luận điểm chính, "
-        "loại bỏ phần lặp và chi tiết thứ yếu nhưng không được làm mất mạch logic."
+        "Nội dung gốc rất dài. Không được tóm tắt qua loa hay gộp ý hời hợt. "
+        "Hãy thiết kế kịch bản như một tập podcast chuyên sâu, chia nhỏ các ý lớn, "
+        "giữ trọn vẹn kiến thức cốt lõi nhưng vẫn dễ nghe."
     )
 
 
@@ -47,14 +50,14 @@ def _target_dialogue_guidance(text: str) -> str:
     words = _word_count(text)
 
     if words < 120:
-        return "Tạo hội thoại ngắn gọn, khoảng 6 đến 8 lượt nói, nhưng vẫn phải đủ mở đầu, giải thích và kết lại."
+        return "Tạo một màn đối đáp nhanh gọn, khoảng 6 đến 8 lượt, đi thẳng vào trọng tâm."
     if words < 300:
-        return "Tạo hội thoại vừa phải, khoảng 8 đến 12 lượt nói, giữ đủ các ý chính."
+        return "Tạo hội thoại nhịp độ vừa, khoảng 8 đến 12 lượt, giải thích rõ các ý chính."
     if words < 700:
-        return "Tạo hội thoại có chiều sâu, khoảng 10 đến 16 lượt nói, triển khai lần lượt các ý quan trọng."
+        return "Tạo một buổi talkshow có chiều sâu, khoảng 12 đến 16 lượt, có hỏi đáp và tóm ý tự nhiên."
     return (
-        "Nội dung gốc dài, cho phép hội thoại dài hơn, khoảng 14 đến 22 lượt nói, "
-        "nhưng vẫn phải giữ nhịp tự nhiên và không lặp ý."
+        "Nội dung gốc rất dài. Hãy tạo cuộc trò chuyện chuyên sâu khoảng 16 đến 24 lượt thoại. "
+        "MC đặt câu hỏi đào sâu, khách mời phân tích từng khía cạnh rõ ràng."
     )
 
 
@@ -73,9 +76,9 @@ def _fallback_summary(text: str) -> str:
     else:
         keep_count = min(14, len(sentences))
 
-    intro = "Trong nội dung này, chúng ta sẽ cùng điểm qua những ý quan trọng nhất."
+    intro = "Chào bạn, trong nội dung này, chúng ta sẽ cùng điểm qua những ý quan trọng nhất."
     body = sentences[:keep_count]
-    outro = "Tóm lại, đây là những điểm cốt lõi bạn cần ghi nhớ."
+    outro = "Tóm lại, đây là những điểm cốt lõi bạn cần ghi nhớ. Cảm ơn bạn đã lắng nghe!"
 
     return " ".join([intro, *body, outro]).strip()
 
@@ -97,8 +100,8 @@ def _fallback_dialogue(text: str) -> str:
 
     chunks = sentences[:keep_count]
     lines = [
-        "MC: Hôm nay chúng ta sẽ cùng tìm hiểu nội dung chính của chủ đề này.",
-        "Khách mời: Mình sẽ tóm lược lại theo cách ngắn gọn và dễ hiểu nhất.",
+        "MC: Chào các bạn khán giả! Hôm nay chúng ta sẽ cùng tìm hiểu nội dung chính của chủ đề này.",
+        "Khách mời: Chào MC, mình sẽ tóm lược lại theo cách ngắn gọn và dễ hiểu nhất.",
     ]
 
     for idx, sentence in enumerate(chunks, start=1):
@@ -106,10 +109,10 @@ def _fallback_dialogue(text: str) -> str:
             lines.append("MC: Trước tiên, ý quan trọng nhất ở đây là gì?")
             lines.append("Khách mời: " + sentence)
         else:
-            lines.append(f"MC: Vậy còn ý số {idx} thì sao?")
+            lines.append("MC: Thật thú vị! Vậy còn khía cạnh tiếp theo thì sao?")
             lines.append("Khách mời: " + sentence)
 
-    lines.append("MC: Nếu phải chốt lại ngắn gọn thì sao?")
+    lines.append("MC: Nếu phải chốt lại ngắn gọn cho thính giả thì sao?")
     lines.append("Khách mời: Tóm lại, đây là nội dung nền tảng và rất đáng để ghi nhớ.")
 
     return "\n".join(lines)
@@ -128,9 +131,9 @@ def _fallback_translate(text: str) -> str:
     else:
         keep_count = min(8, len(sentences))
 
-    intro = "In this audio, we will quickly go through the most important ideas."
+    intro = "Hello there! In this audio, we will quickly go through the most important ideas."
     body = " ".join(sentences[:keep_count])
-    outro = "In short, these are the main points you should remember."
+    outro = "In short, these are the main points you should remember. Thanks for tuning in!"
 
     return f"{intro} {body} {outro}".strip()
 
@@ -146,13 +149,33 @@ def generate_short_description(text: str) -> str:
 
     first = sentences[0]
     first = re.sub(r"\s+", " ", first).strip()
+    first = re.sub(
+        r"^(Trong audio này|Trong bài này|Bài viết này|Nội dung này)\s*[:,.-]?\s*",
+        "",
+        first,
+        flags=re.IGNORECASE,
+    )
 
-    first = re.sub(r"^(Trong audio này|Trong bài này|Bài viết này|Nội dung này)\s*[:,.-]?\s*", "", first, flags=re.IGNORECASE)
-
-    if len(first) > 110:
-        first = first[:110].rsplit(" ", 1)[0].strip() + "..."
+    if len(first) > 220:
+        first = first[:220].rsplit(" ", 1)[0].strip() + "..."
 
     return first
+
+
+def generate_short_title(text: str) -> str:
+    text = _clean_text(text)
+    if not text:
+        return "Bài audio"
+
+    sentences = _split_sentences(text)
+    title = sentences[0] if sentences else text
+    title = re.sub(r"^(Hello there!|Chào bạn,?)\s*", "", title, flags=re.IGNORECASE)
+    title = title.strip('"').strip("'").strip()
+
+    if len(title) > 80:
+        title = title[:80].rsplit(" ", 1)[0].strip()
+
+    return title or "Bài audio"
 
 
 def _call_openai_compatible_api(
@@ -189,38 +212,30 @@ def _build_prompts(text: str, mode: str) -> tuple[str, str]:
     dialogue_guidance = _target_dialogue_guidance(text)
 
     system_prompt = (
-        "Bạn là biên tập viên nội dung cho podcast giáo dục. "
-        "Hãy viết lại nội dung sao cho khi chuyển thành giọng đọc AI, người nghe cảm thấy tự nhiên, rõ ràng và dễ tiếp thu. "
-        "Ưu tiên cấu trúc logic, câu văn ngắn vừa phải, chuyển ý mượt, giữ đúng các ý quan trọng. "
-        "Không cắt cụt ý. Không viết quá chung chung. Không nhồi nhét quá nhiều thông tin trong một câu. "
-        "Đầu ra phải nghe giống script audio đã được biên tập, không giống văn bản thô."
+        "Bạn là một biên tập viên podcast giáo dục. "
+        "Nhiệm vụ của bạn là biến văn bản thành nội dung audio tự nhiên, rõ ràng và dễ nghe. "
+        "Không dùng markdown, không bullet, không emoji, không ký tự trang trí. "
+        "Chỉ viết văn bản sạch, phù hợp để đưa vào hệ thống TTS."
     )
 
     if mode == "summary":
         user_prompt = f"""
-Hãy biên tập nội dung sau thành một bản tóm tắt dạng script podcast bằng tiếng Việt.
+Hãy chuyển nội dung dưới đây thành một kịch bản audio độc thoại bằng tiếng Việt.
 
 Mục tiêu:
-- Rút gọn nội dung nhưng vẫn giữ đầy đủ các ý quan trọng
-- Không phải tóm tắt cực ngắn kiểu chỉ còn vài câu
-- Phải đủ thông tin để người nghe hiểu được vấn đề cốt lõi mà không cần đọc bản gốc
+- Bắt buộc mở đầu bằng một lời chào thân thiện và giới thiệu chủ đề hấp dẫn.
+- Giữ đầy đủ các ý quan trọng, không tóm tắt quá hời hợt.
+- Diễn đạt theo ngôn ngữ nói (sử dụng các từ nối như: "Bạn biết không", "Thực tế là", "Để mình giải thích").
+- Có lời kết và chào tạm biệt ngắn gọn.
+
+Chiến lược xử lý theo độ dài:
+{summary_guidance}
 
 Yêu cầu:
-- Viết thành các đoạn văn tự nhiên, không bullet, không markdown
-- Có mở đầu ngắn để giới thiệu chủ đề
-- Trình bày lần lượt các ý chính theo logic dễ nghe
-- Có câu kết ngắn gọn để chốt lại nội dung
-- Văn phong giống người giải thích dễ hiểu trong podcast giáo dục
-- Loại bỏ chi tiết thừa, lặp ý, ví dụ quá dài hoặc phần diễn giải vòng vo
-- Giữ lại thuật ngữ quan trọng nếu cần, nhưng diễn đạt dễ hiểu
-- Không được cắt cụt nội dung
-- Không được sao chép nguyên văn quá nhiều từ đầu vào
-- Hướng dẫn theo độ dài nội dung: {summary_guidance}
-
-Đầu ra mong muốn:
-- Nghe như một đoạn trình bày ngắn gọn nhưng đầy đủ
-- Không khô cứng
-- Không quá ít ý
+- Không markdown
+- Không bullet
+- Không dùng dấu sao hoặc ký tự trang trí
+- Viết thành các đoạn văn ngắn
 
 Nội dung:
 {text}
@@ -229,28 +244,23 @@ Nội dung:
 
     if mode == "dialogue":
         user_prompt = f"""
-Hãy chuyển nội dung sau thành hội thoại podcast giữa MC và Khách mời bằng tiếng Việt.
+Hãy chuyển nội dung dưới đây thành kịch bản talkshow podcast giữa MC và Khách mời.
 
 Mục tiêu:
-- Giúp người nghe tiếp cận nội dung theo cách tự nhiên, sinh động, dễ hiểu
-- Vẫn giữ được chiều sâu thông tin, không biến thành đoạn hỏi đáp hời hợt
+- Bắt buộc mở đầu bằng lời chào từ MC để dẫn dắt vào chương trình.
+- Tự nhiên như một cuộc trò chuyện thật: Có sự tung hứng, đồng tình, ngạc nhiên.
+- MC đặt câu hỏi gợi mở hoặc thay mặt người nghe thắc mắc chỗ khó hiểu.
+- Khách mời giải thích rõ ràng, dùng ví dụ gần gũi.
+- Giữ đủ các ý quan trọng của nội dung gốc.
+
+Chiến lược xử lý theo độ dài:
+{dialogue_guidance}
 
 Yêu cầu:
-- Dùng đúng tiền tố "MC:" và "Khách mời:"
-- Có mở đầu để giới thiệu chủ đề
-- Phần thân triển khai lần lượt các ý chính
-- Có đoạn kết để tổng kết lại
-- Mỗi lượt nói nên ngắn gọn, tự nhiên, dễ nghe
-- Không để một nhân vật nói quá dài liên tục
-- Không lặp ý giữa các lượt thoại
-- Không sao chép nguyên văn quá nhiều từ đầu vào
-- Tổng thể phải nghe giống một cuộc trao đổi giải thích kiến thức, không phải đọc lại văn bản
-- Hướng dẫn theo độ dài nội dung: {dialogue_guidance}
-
-Đầu ra mong muốn:
-- Hội thoại mượt, có nhịp điệu
-- Có cảm giác như podcast giáo dục thật
-- Vừa dễ nghe vừa đủ thông tin
+- Mỗi lượt thoại dùng đúng format: MC: nội dung hoặc Khách mời: nội dung
+- Không markdown
+- Không bullet
+- Không để một lượt thoại quá dài
 
 Nội dung:
 {text}
@@ -259,23 +269,41 @@ Nội dung:
 
     if mode == "translate":
         user_prompt = f"""
-Rewrite the following content into a natural English podcast script.
+Transform the following content into a natural English solo podcast script.
 
 Goals:
-- Keep the important ideas
+- Translate and rewrite the content into fluent English
+- Keep the important ideas and meaning
 - Make it sound natural when read aloud
-- Do not make it too short unless the source is already short
-- Keep enough substance so listeners can understand the topic without reading the original text
+- Start with a short engaging opening
+- End with a brief friendly conclusion
+- Do not over-summarize the source
 
 Requirements:
-- Write in clear spoken English
-- Include a brief opening
-- Present the key ideas in a logical order
-- End with a short conclusion
-- Remove repetition and overly academic phrasing
-- Keep important terms when necessary
-- The output should feel like an educational audio script, not a raw translation
-- The output should be condensed, but not overly compressed
+- Output English only
+- Plain paragraphs only
+- No markdown
+- No bullet points
+- No decorative characters
+
+Original content:
+{text}
+""".strip()
+        return system_prompt, user_prompt
+
+    if mode == "title":
+        user_prompt = f"""
+Write a short title for this learning audio.
+
+Requirements:
+- Maximum 80 characters
+- If the content is English, the title must be English
+- If the content is Vietnamese, the title must be Vietnamese
+- Mention the main topic clearly
+- Natural, concise, and attractive
+- No quotation marks
+- No emoji
+- No markdown
 
 Content:
 {text}
@@ -284,27 +312,23 @@ Content:
 
     if mode == "description":
         user_prompt = f"""
-Viết mô tả thật ngắn để giới thiệu một audio học tập cho người dùng.
+Viết một đoạn mô tả audio ngắn, rõ ràng và hấp dẫn để người dùng hiểu nội dung và muốn bấm nghe.
 
 Mục tiêu:
-- Làm người đọc muốn bấm nghe audio
-- Chỉ nêu ý chính hấp dẫn nhất của nội dung
-- Không biến thành đoạn tóm tắt dài
+- Nêu đúng chủ đề chính của audio
+- Cho thấy lợi ích người nghe nhận được sau khi nghe
+- Kích thích trí tò mò nhưng không phóng đại
+- Viết tối đa 2 câu, khoảng 180 đến 220 ký tự
+- Nếu nội dung là tiếng Anh thì mô tả phải là tiếng Anh
+- Nếu nội dung là tiếng Việt thì mô tả phải là tiếng Việt
 
-Yêu cầu:
-- Chỉ 1 câu, tối đa 120 ký tự
-- Ngắn, gọn, tự nhiên, cuốn hút
-- Nêu đúng chủ đề chính hoặc lợi ích người nghe nhận được
-- Không markdown, không bullet, không emoji
-- Không mở đầu bằng các cụm như: "Trong audio này", "Bài viết này", "Nội dung này"
-- Không viết lan man
-- Không dùng dấu ngoặc kép
-- Ưu tiên văn phong kiểu teaser ngắn cho feed/audio card
-
-Ví dụ phong cách mong muốn:
-- Hiểu backpropagation theo cách ngắn gọn, dễ nhớ và dễ áp dụng.
-- Tóm nhanh tư duy cốt lõi giúp bạn nắm vấn đề mà không cần đọc cả tài liệu.
-- Nghe 1 lần để nắm ý chính về chủ đề này một cách rõ ràng hơn.
+Quy tắc:
+- Không dùng ngoặc kép
+- Không emoji
+- Không markdown
+- Không dùng câu rập khuôn như: Trong audio này, Bài viết này nói về
+- Không lan man, không viết quá chung chung
+- Văn phong tự nhiên, phù hợp cho audio học tập
 
 Nội dung:
 {text}
@@ -312,16 +336,18 @@ Nội dung:
         return system_prompt, user_prompt
 
     user_prompt = f"""
-Hãy viết lại nội dung sau thành phiên bản phù hợp để đọc audio bằng tiếng Việt.
+Hãy biên tập nội dung sau thành một bản script phù hợp cho giọng đọc AI.
+
+Mục tiêu:
+- Bắt buộc thêm một câu chào mừng ngắn ở đầu bài và câu tạm biệt ở cuối bài.
+- Giữ gần như 100% ý chính của nội dung nguyên thủy.
+- Làm mềm các câu văn thô cứng, chuyển cấu trúc câu phức tạp thành ngôn ngữ kể chuyện.
+- Ngắt nhỏ các câu quá dài để giọng đọc AI có nhịp nghỉ tự nhiên.
 
 Yêu cầu:
-- Giữ nguyên ý chính của nội dung
-- Chỉnh câu văn cho mượt và tự nhiên hơn khi đọc thành tiếng
-- Loại bỏ ký tự thừa, chỗ lặp, và những đoạn quá rối
-- Có thể tách lại câu để người nghe dễ theo dõi hơn
-- Không dùng bullet, không markdown
-- Không rút gọn quá mức
-- Kết quả phải nghe như một đoạn thuyết minh rõ ràng, mạch lạc
+- Không markdown
+- Không bullet
+- Viết thành các đoạn văn liền mạch
 
 Nội dung:
 {text}
@@ -376,6 +402,26 @@ def process_text_by_mode(text: str, mode: str) -> str:
         return text
 
 
+def generate_ai_title(text: str) -> str:
+    text = _clean_text(text)
+    if not text:
+        return ""
+
+    short_text = text[:2500]
+
+    try:
+        result = _generate_with_ai(short_text, "title")
+        result = _clean_text(result)
+        result = result.strip('"').strip("'").strip()
+
+        if len(result) > 80:
+            result = result[:80].rsplit(" ", 1)[0].strip()
+
+        return result or generate_short_title(text)
+    except Exception:
+        return generate_short_title(text)
+
+
 def generate_ai_description(text: str) -> str:
     text = _clean_text(text)
     if not text:
@@ -386,10 +432,11 @@ def generate_ai_description(text: str) -> str:
     try:
         result = _generate_with_ai(short_text, "description")
         result = _clean_text(result)
+        result = result.strip('"').strip("'").strip()
 
-        if len(result) > 120:
-            result = result[:120].rsplit(" ", 1)[0].strip() + "..."
+        if len(result) > 220:
+            result = result[:220].rsplit(" ", 1)[0].strip() + "..."
 
-        return result
+        return result or generate_short_description(text)
     except Exception:
         return generate_short_description(text)

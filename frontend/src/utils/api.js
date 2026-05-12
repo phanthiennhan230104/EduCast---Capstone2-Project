@@ -67,7 +67,7 @@ export async function apiRequest(path, options = {}) {
   const token = getToken()
   const isFormData = options.body instanceof FormData
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 10000)
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs || 120000)
 
   try {
     const doFetch = async (overrideToken) => {
@@ -82,7 +82,7 @@ export async function apiRequest(path, options = {}) {
         body: options.body,
         // Most endpoints use Bearer tokens (not cookies). Opt-in to cookies only when needed.
         credentials: options.credentials ?? 'omit',
-        signal: controller.signal,
+        signal: options.signal || controller.signal,
       })
     }
 

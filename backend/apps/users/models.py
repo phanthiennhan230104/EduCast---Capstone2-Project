@@ -78,12 +78,6 @@ class User(models.Model):
 # PROFILE CỦA USER
 # ==========================================
 class UserProfile(models.Model):
-    AGE_GROUP_CHOICES = (
-        ("16_22", "16_22"),
-        ("23_30", "23_30"),
-        ("31_40", "31_40"),
-    )
-
     id = models.CharField(primary_key=True, max_length=26, default=generate_id, editable=False)
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     display_name = models.CharField(max_length=150)
@@ -91,7 +85,6 @@ class UserProfile(models.Model):
     avatar_url = models.URLField(max_length=500, null=True, blank=True)
     cover_url = models.URLField(max_length=500, null=True, blank=True)
     headline = models.CharField(max_length=255, null=True, blank=True)
-    age_group = models.CharField(max_length=20, choices=AGE_GROUP_CHOICES, null=True, blank=True)
     learning_field = models.CharField(max_length=100, null=True, blank=True)
     interests = models.JSONField(null=True, blank=True)
     preferred_language = models.CharField(max_length=10, default="vi")
