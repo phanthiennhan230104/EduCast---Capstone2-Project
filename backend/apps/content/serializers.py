@@ -1,10 +1,8 @@
 from rest_framework import serializers
-from django.utils.text import slugify
 from .models import (
     Post,
     PostAudioVersion,
     PostDocument,
-    Category,
     Topic,
 )
 
@@ -54,6 +52,12 @@ class SaveDraftWithAudioSerializer(serializers.Serializer):
     description = serializers.CharField(required=False, allow_blank=True)
     original_text = serializers.CharField(required=False, allow_blank=True)
 
+    topic_ids = serializers.ListField(
+        child=serializers.CharField(),
+        required=False,
+        default=list
+    )
+
     source_type = serializers.ChoiceField(
         choices=[
             Post.SourceTypeChoices.MANUAL,
@@ -68,7 +72,9 @@ class SaveDraftWithAudioSerializer(serializers.Serializer):
         default="summary",
     )
     processed_text = serializers.CharField(required=False, allow_blank=True)
-
+    summary_text = serializers.CharField(required=False, allow_blank=True)
+    dialogue_script = serializers.CharField(required=False, allow_blank=True)
+    transcript_text = serializers.CharField(required=False, allow_blank=True)
     audio_url = serializers.CharField(required=True)
     public_id = serializers.CharField(required=False, allow_blank=True)
     voice_name = serializers.CharField(default="Minh Tuấn")
@@ -99,6 +105,25 @@ class SaveDraftWithAudioSerializer(serializers.Serializer):
                 })
 
         return attrs
+    
+    def validate_topic_ids(self, value):
+        deduped = []
+        for item in value:
+            item = (item or "").strip()
+            if item and item not in deduped:
+                deduped.append(item)
+
+        existing_ids = set(
+            Topic.objects.filter(id__in=deduped).values_list("id", flat=True)
+        )
+
+        invalid_ids = [item for item in deduped if item not in existing_ids]
+        if invalid_ids:
+            raise serializers.ValidationError(
+                f"Topic không tồn tại: {', '.join(invalid_ids)}"
+            )
+
+        return deduped[:5]
 
 
 class PostAudioVersionSerializer(serializers.ModelSerializer):
@@ -134,6 +159,7 @@ class PostDocumentSerializer(serializers.ModelSerializer):
 class DraftDetailSerializer(serializers.ModelSerializer):
     audio_versions = PostAudioVersionSerializer(many=True, read_only=True)
     documents = PostDocumentSerializer(many=True, read_only=True)
+    topics = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -151,7 +177,6 @@ class DraftDetailSerializer(serializers.ModelSerializer):
             "language_code",
             "visibility",
             "status",
-            "age_group",
             "learning_field",
             "audio_url",
             "thumbnail_url",
@@ -161,6 +186,13 @@ class DraftDetailSerializer(serializers.ModelSerializer):
             "updated_at",
             "audio_versions",
             "documents",
+            "topics",
+        ]
+
+    def get_topics(self, obj):
+        return [
+            {"id": pt.topic_id, "name": pt.topic.name}
+            for pt in obj.post_topics.all()
         ]
 
 
@@ -283,17 +315,10 @@ class PublishPostSerializer(serializers.Serializer):
     audio_url = serializers.URLField()
     duration_seconds = serializers.IntegerField(required=False, allow_null=True)
     public_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
-
-    category_id = serializers.CharField(required=False, allow_blank=True, allow_null=True)
+    thumbnail_url = serializers.URLField(required=False, allow_blank=True, allow_null=True)
 
     topic_ids = serializers.ListField(
         child=serializers.CharField(),
-        required=False,
-        default=list
-    )
-
-    new_topics = serializers.ListField(
-        child=serializers.CharField(max_length=100),
         required=False,
         default=list
     )
@@ -304,11 +329,6 @@ class PublishPostSerializer(serializers.Serializer):
         default=list
     )
 
-    age_group = serializers.ChoiceField(
-        choices=['16_22', '23_30', '31_40'],
-        required=False,
-        allow_null=True
-    )
     learning_field = serializers.CharField(
         max_length=100,
         required=False,
@@ -324,13 +344,6 @@ class PublishPostSerializer(serializers.Serializer):
         value = value.strip()
         if not value:
             raise serializers.ValidationError('Tiêu đề không được để trống')
-        return value
-
-    def validate_category_id(self, value):
-        if not value:
-            return None
-        if not Category.objects.filter(id=value).exists():
-            raise serializers.ValidationError("Category không tồn tại")
         return value
 
     def validate_topic_ids(self, value):
@@ -351,24 +364,6 @@ class PublishPostSerializer(serializers.Serializer):
 
         return deduped[:5]
 
-    def validate_new_topics(self, value):
-        cleaned = []
-        seen_slugs = set()
-
-        for item in value:
-            name = " ".join((item or "").strip().split())
-            if not name:
-                continue
-            if len(name) > 100:
-                continue
-
-            topic_slug = slugify(name)
-            if topic_slug and topic_slug not in seen_slugs:
-                seen_slugs.add(topic_slug)
-                cleaned.append(name)
-
-        return cleaned[:5]
-
     def validate_tags(self, value):
         cleaned = []
         for tag in value:
@@ -385,12 +380,6 @@ class PublishPostSerializer(serializers.Serializer):
 
         return cleaned[:5]
     
-class CategorySerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Category
-        fields = ["id", "name", "slug", "description"]
-
-
 class TopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topic

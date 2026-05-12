@@ -127,7 +127,7 @@ export default function CreatePostBar() {
               <input
                 type="text"
                 className={styles.input}
-                placeholder={`Tín gì nào, ${displayName}?`}
+                placeholder={`Có nội dung nào muốn kể lại không, ${displayName}?`}
                 readOnly
                 onClick={() => navigate('/publish-post')}
               />

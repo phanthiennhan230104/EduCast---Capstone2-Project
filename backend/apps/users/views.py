@@ -1,3 +1,4 @@
+from turtle import mode
 import uuid
 import requests 
 import logging
@@ -166,7 +167,7 @@ class VerifyOTPView(APIView):
                 allow_messages_from="everyone",
                 autoplay_audio=True,
                 theme_mode="dark",
-                language_code="vi",
+                language_code="en" if mode == "translate" else "vi",
             )
 
             logger.info(f"User account created for email: {email}")

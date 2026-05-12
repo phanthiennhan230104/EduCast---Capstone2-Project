@@ -109,6 +109,47 @@
   color: rgba(245, 240, 232, 0.58);
 }
 
+.topicButtons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+}
+
+.topicButton {
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.03);
+  color: #aeb2cf;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.topicButton:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.topicButtonActive {
+  background: rgba(240, 168, 76, 0.18);
+  color: #ffcb6e;
+  border-color: rgba(240, 168, 76, 0.4);
+}
+
+.topicButton:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.topicEmpty {
+  margin-top: 12px;
+  color: rgba(245, 240, 232, 0.45);
+  font-size: 12px;
+}
+
 .sliderBlock :global(.ant-slider-rail) {
   background: rgba(245, 240, 232, 0.09);
 }
@@ -120,3 +161,4 @@
 .sliderBlock :global(.ant-slider-handle::after) {
   box-shadow: 0 0 0 2px #f4a227;
 }
+

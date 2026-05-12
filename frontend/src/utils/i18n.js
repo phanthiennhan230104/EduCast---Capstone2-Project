@@ -546,8 +546,7 @@ const resources = {
           chooseVoice: 'Chọn giọng đọc',
           outputFormat: 'Định dạng xuất',
           topics: 'Chủ đề',
-          topicPlaceholder: 'Chọn chủ đề có sẵn hoặc chủ đề AI đề xuất',
-          aiSuggested: 'AI đề xuất',
+          selectTopics: 'Chọn chủ đề có sẵn',
         },
       },
       shareModal: {

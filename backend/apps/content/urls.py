@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView, UserPostsAPIView, PostDetailView
+from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView, UserPostsAPIView, PostDetailView, ThumbnailUploadView
 from .views import (
     DraftCreateView,
     AudioPreviewView,
@@ -10,7 +10,6 @@ from .views import (
     DraftDeleteView,
     UploadDocumentView,
     PublishPostView,
-    CategoryListView,
     TopicListView,
 )
 from .admin_views import (
@@ -34,6 +33,7 @@ from .admin_views import (
 urlpatterns = [
     path("upload-test/", TestCloudinaryUploadView.as_view(), name="upload-test"),
     path("upload-audio/", TestCloudinaryUploadView.as_view(), name="upload-audio"),
+    path("upload-thumbnail/", ThumbnailUploadView.as_view(), name="upload-thumbnail"),
     path("feed/", FeedAPIView.as_view(), name="feed"),
     path("search/", SearchAPIView.as_view(), name="search"),
     path("posts/publish/", PublishPostView.as_view(), name="publish-post"),
@@ -68,7 +68,6 @@ urlpatterns = [
     path("admin/notifications/<str:notification_id>/delete/", AdminDeleteNotificationView.as_view(), name="admin-notification-delete"),
     path("admin/notifications/<str:notification_id>/", AdminNotificationDetailView.as_view(), name="admin-notification-detail"),
     
-    path("categories/", CategoryListView.as_view(), name="category-list"),
     path("topics/", TopicListView.as_view(), name="topic-list"),
 
 ]

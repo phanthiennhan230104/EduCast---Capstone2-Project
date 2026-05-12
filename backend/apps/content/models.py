@@ -1,21 +1,6 @@
 from django.db import models
 
 
-class Category(models.Model):
-    id = models.CharField(max_length=26, primary_key=True)
-    name = models.CharField(max_length=100, unique=True)
-    slug = models.CharField(max_length=120, unique=True)
-    description = models.TextField(null=True, blank=True)
-    created_at = models.DateTimeField()
-
-    class Meta:
-        db_table = "categories"
-        managed = False
-
-    def __str__(self):
-        return self.name
-
-
 class Topic(models.Model):
     id = models.CharField(max_length=26, primary_key=True)
     name = models.CharField(max_length=100, unique=True)
@@ -71,14 +56,6 @@ class Post(models.Model):
         db_column="user_id",
         related_name="posts",
     )
-    category = models.ForeignKey(
-        "content.Category",
-        on_delete=models.SET_NULL,
-        db_column="category_id",
-        null=True,
-        blank=True,
-        related_name="posts",
-    )
     title = models.CharField(max_length=255)
     slug = models.CharField(max_length=255, unique=True)
     description = models.TextField(null=True, blank=True)
@@ -103,7 +80,6 @@ class Post(models.Model):
         choices=StatusChoices.choices,
         default=StatusChoices.DRAFT,
     )
-    age_group = models.CharField(max_length=20, null=True, blank=True)
     learning_field = models.CharField(max_length=100, null=True, blank=True)
     audio_url = models.CharField(max_length=500, null=True, blank=True)
     thumbnail_url = models.CharField(max_length=500, null=True, blank=True)
