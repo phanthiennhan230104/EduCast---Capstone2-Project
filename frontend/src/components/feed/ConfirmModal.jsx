@@ -1,8 +1,28 @@
 import { X } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
 import styles from '../../style/feed/ConfirmModal.module.css'
 
-
+/** Tránh crash khi caller nhầm truyền object (vd. author) thay vì chuỗi. */
+function toModalText(value, fallback = '') {
+  if (value == null || value === '') return fallback
+  if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+    return String(value)
+  }
+  if (typeof value === 'object') {
+    const label =
+      value.name ??
+      value.display_name ??
+      value.username ??
+      value.title ??
+      null
+    if (label != null && label !== '') return String(label)
+    try {
+      return JSON.stringify(value)
+    } catch {
+      return fallback
+    }
+  }
+  return String(value)
+}
 
 export default function ConfirmModal({
   isOpen,
@@ -13,17 +33,18 @@ export default function ConfirmModal({
   onCancel,
   inputValue = '',
   onInputChange,
-  confirmText,
-cancelText,
+  confirmText = 'Xác nhận',
+  cancelText = 'Hủy',
   isDangerous = false,
   isLoading = false,
   progress = 0,
 }) {
-  const { t } = useTranslation()
-const finalConfirmText = confirmText || t('feed.confirm.defaultConfirm')
-const finalCancelText = cancelText || t('feed.confirm.cancel') 
-  console.log('ConfirmModal render:', { isOpen, isLoading, progress })
   if (!isOpen) return null
+
+  const safeTitle = toModalText(title, 'Xác nhận')
+  const safeMessage = toModalText(message, '')
+  const safeConfirm = toModalText(confirmText, 'Xác nhận')
+  const safeCancel = toModalText(cancelText, 'Hủy')
 
   return (
     <div className={styles.overlay} onClick={onCancel}>
@@ -40,21 +61,21 @@ const finalCancelText = cancelText || t('feed.confirm.cancel')
           </div>
         )}
         <div className={styles.header}>
-          <h2 className={styles.title}>{title}</h2>
-          <button className={styles.closeBtn} onClick={onCancel} aria-label={t('feed.confirm.close')}>
+          <h2 className={styles.title}>{safeTitle}</h2>
+          <button className={styles.closeBtn} onClick={onCancel} aria-label="Đóng">
             <X size={20} />
           </button>
         </div>
 
         <div className={styles.body}>
-          <p className={styles.message}>{message}</p>
+          <p className={styles.message}>{safeMessage}</p>
           {type === 'prompt' && (
             <input
               type="text"
               className={styles.input}
               value={inputValue}
               onChange={(e) => onInputChange?.(e.target.value)}
-              placeholder={t('feed.confirm.inputPlaceholder')}
+              placeholder="Nhập nội dung..."
               autoFocus
             />
           )}
@@ -62,7 +83,7 @@ const finalCancelText = cancelText || t('feed.confirm.cancel')
 
         <div className={styles.footer}>
           <button className={styles.cancelBtn} onClick={onCancel} disabled={isLoading}>
-            {finalCancelText}
+            {safeCancel}
           </button>
           <button
             className={`${styles.confirmBtn} ${isDangerous ? styles.danger : ''}`}
@@ -75,7 +96,7 @@ const finalCancelText = cancelText || t('feed.confirm.cancel')
             }}
             disabled={isLoading}
           >
-            {finalConfirmText}
+            {safeConfirm}
           </button>
         </div>
       </div>

@@ -19,6 +19,27 @@
   margin-bottom: 10px;
 }
 
+.clearFilterBtn {
+  display: block;
+  width: 100%;
+  margin: 0 0 10px;
+  padding: 6px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #c8d0ff;
+  background: rgba(120, 138, 255, 0.12);
+  border: 1px solid rgba(127, 140, 255, 0.28);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.clearFilterBtn:hover {
+  background: rgba(120, 138, 255, 0.2);
+  border-color: rgba(160, 170, 255, 0.45);
+  color: #eef0ff;
+}
+
 .selectorTitle {
   font-size: 10px;
   font-weight: 700;
@@ -55,6 +76,32 @@
 .topicTag:hover {
   background: rgba(127, 140, 255, 0.18);
   border-color: rgba(127, 140, 255, 0.3);
+}
+
+.topicTagFilterActive {
+  background: rgba(127, 140, 255, 0.28);
+  border-color: rgba(180, 190, 255, 0.5);
+  box-shadow: 0 0 0 1px rgba(160, 170, 255, 0.2);
+}
+
+.topicTagLabelBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  font: inherit;
+  font-weight: inherit;
+  color: inherit;
+  text-align: left;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topicTagLabelBtn:hover {
+  color: #e4e8ff;
 }
 
 .removeIcon {

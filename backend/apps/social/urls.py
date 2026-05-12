@@ -34,6 +34,11 @@ urlpatterns = [
     path("posts/<str:post_id>/share-to-user/", views.share_post_to_user, name="share_post_to_user"),
     path("posts/<str:post_id>/sharers/", views.list_post_sharers, name="list_post_sharers"),
     path("posts/<str:post_id>/unshare/", views.delete_shared_post, name="delete_shared_post"),
+    path(
+        "posts/<str:post_id>/share-caption/",
+        views.update_share_caption,
+        name="update_share_caption",
+    ),
     path("posts/<str:post_id>/hide-from-profile/", views.hide_post_from_profile, name="hide_post_from_profile"),
 
     # Track listen

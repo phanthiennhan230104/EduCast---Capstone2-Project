@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import HomePage from './pages/HomePage/HomePage'
 import FeedPage from './pages/FeedPage/FeedPage'
 import ChatPage from "./pages/ChatPage/ChatPage";
@@ -39,14 +39,17 @@ function RootRedirect() {
   return <HomePage />;
 }
 
-function App() {
+/**
+ * Giữ route nền (feed, profile, …) khi mở /edit/... kèm state.background
+ * để backdrop-filter có nội dung thật phía sau — giống modal bình luận.
+ */
+function AppRoutes() {
+  const location = useLocation()
+  const background = location.state?.background
+
   return (
-    <AuthProvider>
-      <AudioPlayerProvider>
-        <PodcastProvider>
-          <TagFilterProvider>
-            <BrowserRouter>
-              <Routes>
+    <>
+      <Routes location={background || location}>
                 <Route path="/" element={<RootRedirect />} />
 
                 <Route
@@ -208,8 +211,34 @@ function App() {
 
 
                 <Route path="*" element={<Navigate to="/" replace />} />
-              </Routes>
-              <AssistantWidget />
+      </Routes>
+
+      {background ? (
+        <Routes>
+          <Route
+            path="/edit/:postId"
+            element={
+              <ProtectedRoute>
+                <EditAudioPage />
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      ) : null}
+
+      <AssistantWidget />
+    </>
+  )
+}
+
+function App() {
+  return (
+    <AuthProvider>
+      <AudioPlayerProvider>
+        <PodcastProvider>
+          <TagFilterProvider>
+            <BrowserRouter>
+              <AppRoutes />
             </BrowserRouter>
           </TagFilterProvider>
         </PodcastProvider>

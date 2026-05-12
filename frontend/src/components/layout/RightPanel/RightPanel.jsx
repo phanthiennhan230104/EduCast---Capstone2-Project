@@ -101,28 +101,8 @@ toast.success(t('rightPanel.followSuccess', { action, name }))
   return (
     <aside className={styles.panel}>
 
-      {/* Lộ trình hôm nay */}
-      <div className={styles.widget}>
-        <h4 className={styles.widgetTitle}>
-          <Target size={15} />
-          {t('rightPanel.roadmapTitle')}
-        </h4>
-        <p className={styles.roadmapSub}>Python for AI – Sprint 1/3</p>
-        <div className={styles.roadmapList}>
-          {ROADMAP.map(item => (
-            <div
-              key={item.label}
-              className={`${styles.roadmapItem} ${item.done ? styles.done : ''} ${item.active ? styles.active : ''}`}
-            >
-              <CheckCircle2 size={14} className={styles.check} />
-              <span>{item.label}</span>
-            </div>
-          ))}
-        </div>
-      </div>
-
       {/* Xu hướng */}
-      <div className={styles.widget}>
+      <div className={`${styles.widget} ${styles.trendingWidget}`}>
         <h4 className={styles.widgetTitle}>
           <TrendingUp size={15} />
           {t('rightPanel.trendingTitle')}
@@ -138,7 +118,7 @@ toast.success(t('rightPanel.followSuccess', { action, name }))
       </div>
 
       {/* Gợi ý theo dõi */}
-      <div className={styles.widget}>
+      <div className={`${styles.widget} ${styles.followSuggestionWidget}`}>
         <h4 className={styles.widgetTitle}>
           <UserPlus size={15} />
           {t('rightPanel.suggestionsTitle')}

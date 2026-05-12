@@ -2,6 +2,22 @@ import { X } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import styles from '../../style/library/AllPostsModal.module.css'
 
+function displayAuthor(author) {
+  if (author == null || author === '') return 'Người dùng'
+  if (typeof author === 'object') {
+    return author.name || author.username || author.display_name || 'Người dùng'
+  }
+  return String(author)
+}
+
+function displayTagLabel(tag) {
+  if (tag == null) return ''
+  if (typeof tag === 'object') {
+    return tag.name != null ? String(tag.name) : tag.slug != null ? String(tag.slug) : ''
+  }
+  return String(tag)
+}
+
 export default function AllPostsModal({ isOpen, onClose, posts, title, onSelectPost }) {
   const { t } = useTranslation()
   if (!isOpen) return null
@@ -41,12 +57,12 @@ export default function AllPostsModal({ isOpen, onClose, posts, title, onSelectP
                   )}
                   <div className={styles.postInfo}>
                     <h3 className={styles.postTitle}>{post.title}</h3>
-                    <p className={styles.postAuthor}>{post.author}</p>
+                    <p className={styles.postAuthor}>{displayAuthor(post.author)}</p>
                     {post.tags && post.tags.length > 0 && (
                       <div className={styles.tags}>
                         {post.tags.slice(0, 2).map((tag, idx) => (
                           <span key={idx} className={styles.tag}>
-                            {tag}
+                            {displayTagLabel(tag)}
                           </span>
                         ))}
                         {post.tags.length > 2 && (

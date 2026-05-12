@@ -1,11 +1,10 @@
 .card {
   position: relative;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02)),
-    var(--bg-card);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 22px;
-  padding: 14px 16px 12px;
+  /* Feed card: nền tối, bo góc vừa (khớp mock) */
+  background: var(--bg-card);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 16px 16px 14px;
   transition:
     transform 0.22s ease,
     border-color 0.22s ease,
@@ -16,31 +15,158 @@
 }
 
 .card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border-radius: 22px;
-  background:
-    radial-gradient(circle at top right, rgba(246,164,58,0.10), transparent 28%);
-  pointer-events: none;
+  display: none;
 }
 
 .card:hover {
   transform: translateY(-2px);
   border-color: rgba(132,146,255,0.18);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.025)),
-    var(--bg-card-hover);
+  background: var(--bg-card-hover);
   box-shadow: 0 18px 40px rgba(7, 12, 29, 0.42);
+}
+
+/* Bài gốc lồng: rộng hơn (lề ngang nhỏ hơn trước); padding/spacing theo tỷ lệ */
+.card.cardShareEmbed {
+  box-sizing: border-box;
+  width: calc(100% - 12px);
+  max-width: calc(100% - 12px);
+  margin-left: auto;
+  margin-right: auto;
+  padding: 16px 14px 15px;
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--bg-card) 80%, #02040c 20%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+}
+
+@supports not (background: color-mix(in srgb, #ffffff 50%, #000000 50%)) {
+  .card.cardShareEmbed {
+    background: #181d35;
+  }
+
+  .card.cardShareEmbed:hover {
+    background: #151a30;
+  }
+}
+
+.card.cardShareEmbed::before {
+  display: none;
+}
+
+.card.cardShareEmbed:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--bg-card) 76%, #02040c 24%);
+  border-color: rgba(132, 146, 255, 0.16);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+}
+
+.card.cardShareEmbed .cardHeader {
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.card.cardShareEmbed .authorAvatar {
+  width: 30px;
+  height: 30px;
+  font-size: 11px;
+  border-width: 1px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.16);
+}
+
+.card.cardShareEmbed .authorMetaRow {
+  margin-bottom: 2px;
+  gap: 4px;
+}
+
+.card.cardShareEmbed .authorName {
+  font-size: 14px;
+}
+
+.card.cardShareEmbed .authorMetaText,
+.card.cardShareEmbed .metaDot {
+  font-size: 11.5px;
+}
+
+.card.cardShareEmbed .body {
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.card.cardShareEmbed .title {
+  font-size: 15px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.card.cardShareEmbed .description {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.card.cardShareEmbed .cover {
+  width: 72px;
+  height: 72px;
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
+}
+
+.card.cardShareEmbed .player {
+  gap: 10px;
+  margin-bottom: 0;
+  padding: 9px 12px;
+  border-radius: 12px;
+}
+
+.card.cardShareEmbed .playBtn {
+  width: 36px;
+  height: 36px;
+}
+
+.card.cardShareEmbed .playBtn svg {
+  width: 15px;
+  height: 15px;
+}
+
+.card.cardShareEmbed .progressSection {
+  gap: 7px;
+}
+
+.card.cardShareEmbed .progressBar {
+  height: 6px;
+}
+
+.card.cardShareEmbed .time {
+  font-size: 11px;
+  width: 36px;
+}
+
+@media (max-width: 520px) {
+  .card.cardShareEmbed {
+    width: calc(100% - 8px);
+    max-width: calc(100% - 8px);
+    padding: 13px 11px 12px;
+    border-radius: 12px;
+  }
+
+  .card.cardShareEmbed .cover {
+    width: 60px;
+    height: 60px;
+  }
+
+  .card.cardShareEmbed .player {
+    padding: 7px 10px;
+  }
 }
 
 .cardHeader {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
   position: relative;
-  z-index: 1;
+  /* Cao hơn .body (z-index: 1) để popup menu không bị ảnh cover đè khi mở */
+  z-index: 10;
+  overflow: visible;
 }
 
 .authorAvatar {
@@ -50,7 +176,7 @@
   flex-shrink: 0;
   border: 2px solid rgba(102, 126, 234, 0.3);
   box-shadow: 0 4px 12px rgba(0,0,0,0.18);
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #5c6bc0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -94,16 +220,16 @@
 .tagRow {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: 5px;
 }
 
 .tag {
-  height: 28px;
-  padding: 0 12px;
+  height: 24px;
+  padding: 0 9px;
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  font-size: 11.5px;
+  font-size: 10.5px;
   font-weight: 600;
   background: rgba(255,255,255,0.05);
   color: #c6d0f1;
@@ -132,19 +258,24 @@
 }
 
 .menuBtn {
-  color: var(--text-muted);
-  padding: 6px;
-  border-radius: 12px;
-  transition: color 0.15s, background 0.15s;
-  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 8px;
   border: none;
   background: transparent;
+  color: var(--text-secondary);
   cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.15s ease, color 0.15s ease;
 }
 
 .menuBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
-  background: rgba(255,255,255,0.06);
 }
 
 .body {
@@ -178,14 +309,62 @@
   overflow: hidden;
 }
 
+.coverWrap {
+  position: relative;
+  flex-shrink: 0;
+  align-self: flex-start;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
 .cover {
+  display: block;
   width: 80px;
   height: 80px;
   border-radius: 16px;
   object-fit: cover;
-  flex-shrink: 0;
-  border: 1px solid rgba(255,255,255,0.08);
-  box-shadow: 0 8px 24px rgba(0,0,0,0.20);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  vertical-align: top;
+}
+
+/* Tag / badge AI chồng đáy ảnh, xanh giống avatar & nút play (#5c6bc0) */
+.tagRowOnCover {
+  position: absolute;
+  left: 5px;
+  right: 5px;
+  bottom: 5px;
+  z-index: 5;
+  margin: 0;
+  pointer-events: none;
+}
+
+.tagRowOnCover .tag,
+.tagRowOnCover .aiBadge {
+  pointer-events: auto;
+}
+
+.tagRowOnCover .tag {
+  background: rgba(92, 107, 192, 0.95);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.tagRowOnCover .tag:hover {
+  background: rgba(105, 118, 200, 0.98);
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+.tagRowOnCover .aiBadge {
+  background: rgba(92, 107, 192, 0.95);
+  color: #f4f6ff;
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.card.cardShareEmbed .coverWrap {
+  border-radius: 12px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.18);
 }
 
 .player {
@@ -196,10 +375,8 @@
   padding: 10px 13px;
   border: 1px solid rgba(255,255,255,0.08);
   border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02)),
-    rgba(255,255,255,0.02);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
   position: relative;
   z-index: 1;
 }
@@ -211,7 +388,7 @@
 .playBtn {
   width: 40px;
   height: 40px;
-  background: linear-gradient(135deg, #8f9cff 0%, #6f7cff 100%);
+  background: #5c6bc0;
   color: #f8fbff;
   border-radius: 50%;
   display: flex;
@@ -220,16 +397,16 @@
   flex-shrink: 0;
   transition:
     transform 0.16s ease,
-    box-shadow 0.2s ease,
-    filter 0.2s ease;
+    background-color 0.2s ease,
+    box-shadow 0.2s ease;
   border: none;
   cursor: pointer;
-  box-shadow: 0 10px 22px rgba(132,146,255,0.28);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .playBtn:hover {
   transform: scale(1.05);
-  filter: brightness(1.04);
+  background: #6b7bc9;
 }
 
 .playBtn.playing {
@@ -270,10 +447,9 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: linear-gradient(90deg, #8893ff, #b3bbff);
+  background: #7d86c9;
   border-radius: 999px;
   pointer-events: none;
-  box-shadow: 0 0 12px rgba(132,146,255,0.20);
 }
 
 .range {
@@ -423,6 +599,12 @@
 .card:hover,
 .card:focus-within {
   z-index: 100;
+}
+
+/* Bài lồng trong post share (Feed): không kéo z-index:100 — tránh đè menu 3 chấm / Chỉnh sửa phía trên */
+.card.cardShareEmbed:hover,
+.card.cardShareEmbed:focus-within {
+  z-index: 1;
 }
 
 /* ===== MenuPopover Styles ===== */
@@ -795,68 +977,94 @@
   cursor: not-allowed;
 }
 
-/* ===== Dropdown Menu Styles ===== */
+/* ===== Dropdown: khớp CommentModal .postDropdown / .postDropdownItem / .postDropdownItemDanger ===== */
 .menuWrap {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+  align-self: flex-start;
+  z-index: 1001;
 }
 
 .dropdown {
+  /* Portal ra document.body + tọa độ getBoundingClientRect — dùng fixed, căn phải nút giống .shareMenuDropdown */
   position: fixed;
-  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02)),
-    #0f1624;
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 12px;
-  box-shadow: 0 20px 44px rgba(7, 12, 29, 0.42),
-    0 0 0 1px rgba(132,146,255,0.12) inset;
-  min-width: 180px;
-  z-index: 1000;
-  animation: dropdownFadeIn 0.15s ease-in-out;
+  top: 0;
+  left: auto;
+  right: auto;
+  margin: 0;
+  min-width: 138px;
+  padding: 4px;
+  background: linear-gradient(180deg, rgba(20, 28, 55, 0.98), rgba(15, 20, 45, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  z-index: 1200;
+  white-space: nowrap;
   overflow: hidden;
+  transform: translateX(-100%);
+  animation: podcastPostMenuSlideDown 0.2s ease;
 }
 
-@keyframes dropdownFadeIn {
+@keyframes podcastPostMenuSlideDown {
   from {
     opacity: 0;
-    transform: translateY(-4px);
+    transform: translate(-100%, -8px);
   }
   to {
     opacity: 1;
-    transform: translateY(0);
+    transform: translate(-100%, 0);
   }
 }
 
 .dropdownItem {
+  min-height: 38px;
+  width: 100%;
   display: flex;
   align-items: center;
-  gap: 10px;
-  width: 100%;
-  padding: 12px 14px;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 8px;
   border: none;
   background: transparent;
-  color: #eef2ff;
-  font-size: 14px;
-  font-weight: 500;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
   text-align: left;
+  transition: all 0.12s ease;
+}
+
+.dropdownItem svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: inherit;
+  stroke: currentColor;
 }
 
 .dropdownItem:hover {
-  background: rgba(255,255,255,0.08);
-  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
 }
 
 .dropdownItem:active {
-  background: rgba(255,255,255,0.12);
+  background: rgba(255, 255, 255, 0.1);
 }
 
 .dropdownItem.danger {
-  color: #ff7b94;
+  color: #f87171;
 }
 
 .dropdownItem.danger:hover {
-  background: rgba(255, 123, 148, 0.12);
-  color: #ff9fb0;
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+}
+
+.dropdownItem.danger svg {
+  color: inherit;
+  stroke: currentColor;
 }
 
 .dropdownDivider {

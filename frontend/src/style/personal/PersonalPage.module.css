@@ -567,6 +567,22 @@
   transform: translateY(-2px);
 }
 
+/* Vùng chứa PodcastCard trong khung bài chia sẻ — chừa lề cho card con nhỏ hơn */
+.postCardInShare {
+  width: 100%;
+  padding: 6px 14px 12px;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.postCardInShare:hover {
+  opacity: 0.98;
+  transform: translateY(-1px);
+}
+
 .smallAvatar {
   width: 44px;
   height: 44px;

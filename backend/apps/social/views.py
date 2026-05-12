@@ -1,5 +1,5 @@
 import json
-from django.http import JsonResponse
+from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
@@ -20,6 +20,16 @@ from apps.chat.services import broadcast_room_snapshot
 from django.db import connection
 from django.db.models import F
 from django.db.models import Count, Q
+
+from apps.social.post_share_compat import (
+    post_share_qs,
+    post_shares_has_shared_from_share_id_column,
+)
+
+
+def _post_shares_has_shared_from_share_id_column():
+    """Alias — giữ tên cũ cho share_post / INSERT fallback."""
+    return post_shares_has_shared_from_share_id_column()
 
 # Tạo response thành công thống nhất.
 def _json_success(message, data=None, status=200):
@@ -119,11 +129,23 @@ def _post_counts(post_id, share_id=None):
         except Exception:
             comment_count = Comment.objects.filter(post_id=post_id).count()
 
+        # Share count cho "bài share": số lần bài share này được share lại (re-share).
+        if post_shares_has_shared_from_share_id_column():
+            try:
+                share_count = PostShare.objects.filter(
+                    shared_from_share_id=share_id,
+                    share_type="personal",
+                ).count()
+            except Exception:
+                share_count = 0
+        else:
+            share_count = 0
+
         return {
             "like_count": like_count,
             "comment_count": comment_count,
             "save_count": save_count,
-            "share_count": 0,  # Shares of shares don't make sense
+            "share_count": share_count,
         }
     else:
         # For original posts, return counts excluding shares
@@ -143,14 +165,24 @@ def _post_counts(post_id, share_id=None):
             # DB schema may not have saved_posts.share_id; count by post only.
             save_count = SavedPost.objects.filter(post_id=post_id).count()
 
+        # Share count cho bài gốc: chỉ tính share trực tiếp từ bài gốc (không tính re-share từ share khác).
+        if post_shares_has_shared_from_share_id_column():
+            share_count = PostShare.objects.filter(
+                post_id=post_id,
+                share_type="personal",
+                shared_from_share_id__isnull=True,
+            ).count()
+        else:
+            share_count = PostShare.objects.filter(
+                post_id=post_id,
+                share_type="personal",
+            ).count()
+
         return {
             "like_count": like_count,
             "comment_count": comment_count,
             "save_count": save_count,
-            "share_count": PostShare.objects.filter(
-                post_id=post_id,
-                share_type="personal"
-            ).count(),
+            "share_count": share_count,
         }
 
 # Chuyển comment thành dict, có thể include replies nếu cần.
@@ -263,23 +295,35 @@ def toggle_like_post(request, post_id):
         # Kiểm tra share tồn tại nếu là shared post
         share = None
         if share_id:
-            from apps.social.models import PostShare
-            share = PostShare.objects.filter(id=share_id).first()
+            share = post_share_qs().filter(id=share_id).first()
             if not share:
                 return _json_error(f"Share not found: {share_id}", 404)
 
-        # QUAN TRỌNG: DB constraint thực tế là UNIQUE(post_id, user_id) — không bao gồm share_id.
-        # Vì vậy phải check like theo post_id + user_id (bỏ qua share_id).
-        # Một user chỉ có thể like một post một lần, dù là bài gốc hay bài share.
-        existing_like = PostLike.objects.filter(
-            post_id=post.id,
-            user_id=user.id,
-        ).first()
+        # Like bài gốc: (post, user, share=NULL). Like trên một lần chia sẻ: (post, user, share=<PostShare>).
+        if share:
+            existing_like = PostLike.objects.filter(
+                post_id=post.id,
+                user_id=user.id,
+                share_id=share.id,
+            ).first()
+        else:
+            existing_like = PostLike.objects.filter(
+                post_id=post.id,
+                user_id=user.id,
+                share_id__isnull=True,
+            ).first()
 
         # Nếu đã like rồi thì unlike (xóa record), nếu chưa like thì tạo mới record like
         if existing_like:
             existing_like.delete()
-            like_count = PostLike.objects.filter(post_id=post.id).count()
+            if share:
+                like_count = PostLike.objects.filter(
+                    post_id=post.id, share_id=share.id
+                ).count()
+            else:
+                like_count = PostLike.objects.filter(
+                    post_id=post.id, share_id__isnull=True
+                ).count()
             return _json_success(
                 "Unliked post successfully",
                 {
@@ -287,18 +331,25 @@ def toggle_like_post(request, post_id):
                     "like_count": like_count,
                 }
             )
-        
-        # Tạo record like mới — không gán share_id vì DB constraint chỉ cho phép 1 like/user/post
+
         PostLike.objects.create(
             id=_generate_id("like"),
             post=post,
             user=user,
-            created_at=timezone.now()
+            share=share,
+            created_at=timezone.now(),
         )
 
-        like_count = PostLike.objects.filter(post_id=post.id).count()
+        if share:
+            like_count = PostLike.objects.filter(
+                post_id=post.id, share_id=share.id
+            ).count()
+        else:
+            like_count = PostLike.objects.filter(
+                post_id=post.id, share_id__isnull=True
+            ).count()
 
-        # Thông báo cho chủ post/share nếu actor không phải chủ post
+        # Thông báo: like trên bản share → người nhận là người đã chia sẻ; bài gốc → chủ bài
         notification_recipient = share.user_id if share else post.user_id
         _create_notification(
             recipient_id=notification_recipient,
@@ -360,25 +411,28 @@ def toggle_save_post(request, post_id):
         # Lấy collection_id nếu có
         collection_id = body.get("collection_id")
 
-        # Bảng saved_posts trong môi trường hiện tại có thể không có cột share_id,
-        # nên thao tác existence/insert/delete bằng SQL với các cột chắc chắn tồn tại.
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "SELECT id FROM saved_posts WHERE post_id = %s AND user_id = %s LIMIT 1",
-                [post.id, user.id],
-            )
-            row = cursor.fetchone()
-            existing_saved_id = row[0] if row else None
+        # Lưu bài gốc vs lưu một bản share là hai bản ghi khác (share_id NULL vs có giá trị).
+        if share:
+            existing_saved = SavedPost.objects.filter(
+                post_id=post.id,
+                user_id=user.id,
+                share_id=share.id,
+            ).first()
+        else:
+            existing_saved = SavedPost.objects.filter(
+                post_id=post.id,
+                user_id=user.id,
+                share_id__isnull=True,
+            ).first()
 
         # Nếu đã save rồi thì unsave (xóa record)
-        if existing_saved_id:
+        if existing_saved:
             CollectionPost.objects.filter(
                 post_id=post.id,
                 collection__user_id=user.id
             ).delete()
 
-            with connection.cursor() as cursor:
-                cursor.execute("DELETE FROM saved_posts WHERE id = %s", [existing_saved_id])
+            existing_saved.delete()
 
             return _json_success(
                 "Unsaved post successfully",
@@ -390,11 +444,13 @@ def toggle_save_post(request, post_id):
 
         # Tạo record saved mới (không save collection vào SavedPost)
         save_id = _generate_id("save")
-        with connection.cursor() as cursor:
-            cursor.execute(
-                "INSERT INTO saved_posts (id, post_id, user_id, created_at) VALUES (%s, %s, %s, %s)",
-                [save_id, post.id, user.id, timezone.now()],
-            )
+        SavedPost.objects.create(
+            id=save_id,
+            post=post,
+            user=user,
+            share=share,
+            created_at=timezone.now(),
+        )
 
         # Nếu có collection_id, thêm post vào collection_items
         if collection_id:
@@ -472,32 +528,55 @@ def list_post_comments(request, post_id):
         for comment in top_level_comments
     ]
 
+    counts = _post_counts(post.id, share_id)
+    viewer_is_liked = False
+    viewer_is_saved = False
+    if user:
+        if share_id:
+            viewer_is_liked = PostLike.objects.filter(
+                user_id=user.id, post_id=post.id, share_id=share_id
+            ).exists()
+            viewer_is_saved = SavedPost.objects.filter(
+                user_id=user.id, post_id=post.id, share_id=share_id
+            ).exists()
+        else:
+            viewer_is_liked = PostLike.objects.filter(
+                user_id=user.id, post_id=post.id, share_id__isnull=True
+            ).exists()
+            viewer_is_saved = SavedPost.objects.filter(
+                user_id=user.id, post_id=post.id, share_id__isnull=True
+            ).exists()
+
     return _json_success(
         "Comments fetched successfully",
         {
             "post_id": post.id,
             "comments": comments_data,
-            **_post_counts(post.id, share_id)
+            **counts,
+            "is_liked": viewer_is_liked,
+            "is_saved": viewer_is_saved,
         }
     )
 
 # List commmentors
 @require_http_methods(["GET"])
 def list_post_commenters(request, post_id):
-    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
     actual_post_id = post_id
+    share_id = None
     if post_id.startswith('share_'):
         parts = post_id.split('_')
         if len(parts) >= 3:
-            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
-    
+            share_id = parts[1]
+            actual_post_id = parts[-1]
+
     post = get_object_or_404(Post, id=actual_post_id)
 
-    comments = (
-        Comment.objects.filter(post_id=post.id)
-        .select_related("user")
-        .order_by("-created_at")
-    )
+    comment_qs = Comment.objects.filter(post_id=post.id)
+    if share_id:
+        comment_qs = comment_qs.filter(share_id=share_id)
+    else:
+        comment_qs = comment_qs.filter(share_id__isnull=True)
+    comments = comment_qs.select_related("user", "user__profile").order_by("-created_at")
 
     seen_user_ids = set()
     data = []
@@ -517,6 +596,11 @@ def list_post_commenters(request, post_id):
 
         if hasattr(comment.user, "username"):
             item["username"] = comment.user.username
+        profile = getattr(comment.user, "profile", None)
+        if profile is not None:
+            dn = getattr(profile, "display_name", None) or ""
+            if dn:
+                item["display_name"] = dn
 
         data.append(item)
 
@@ -525,7 +609,7 @@ def list_post_commenters(request, post_id):
         {
             "post_id": post.id,
             "commenters": data,
-            **_post_counts(post.id)
+            **_post_counts(post.id, share_id),
         }
     )
 
@@ -822,28 +906,36 @@ def delete_comment(request, comment_id):
 # Lấy danh sách user đã like post
 @require_http_methods(["GET"])
 def list_post_likers(request, post_id):
-    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+    # Composite share_xxx_yyy → like trên đúng instance chia sẻ; ngược lại chỉ like bài gốc (share_id NULL).
     actual_post_id = post_id
+    share_id = None
     if post_id.startswith('share_'):
         parts = post_id.split('_')
         if len(parts) >= 3:
-            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
-    
-    # Kiểm tra post tồn tại
+            share_id = parts[1]
+            actual_post_id = parts[-1]
+
     post = get_object_or_404(Post, id=actual_post_id)
 
-    # Lấy tất cả like
-    likes = PostLike.objects.filter(post_id=post.id).select_related("user").order_by("-created_at")
+    like_qs = PostLike.objects.filter(post_id=post.id)
+    if share_id:
+        like_qs = like_qs.filter(share_id=share_id)
+    else:
+        like_qs = like_qs.filter(share_id__isnull=True)
+    likes = like_qs.select_related("user", "user__profile").order_by("-created_at")
 
-    # Chuyển từng like thành dict
     data = []
     for like in likes:
         item = {
             "user_id": like.user_id,
         }
-        # Nếu bảng users có username thì dùng được. Nếu không có thì giữ user_id.
         if hasattr(like.user, "username"):
             item["username"] = like.user.username
+        profile = getattr(like.user, "profile", None)
+        if profile is not None:
+            dn = getattr(profile, "display_name", None) or ""
+            if dn:
+                item["display_name"] = dn
         data.append(item)
 
     return _json_success(
@@ -851,7 +943,7 @@ def list_post_likers(request, post_id):
         {
             "post_id": post.id,
             "likers": data,
-            **_post_counts(post.id)
+            **_post_counts(post.id, share_id),
         }
     )
 
@@ -1001,12 +1093,15 @@ def share_post(request, post_id):
         if not user:
             return _json_error("Authentication required", 401)
 
-        # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
+        # Nếu post_id là composite share ID (format: share_<shareId>_<postId>),
+        # extract cả post_id (bài gốc) và share_id (bài share đang được share lại).
         actual_post_id = post_id
+        shared_from_share_id = None
         if post_id.startswith('share_'):
             parts = post_id.split('_')
             if len(parts) >= 3:
                 actual_post_id = parts[-1]  # Lấy post ID từ composite ID
+                shared_from_share_id = parts[1]
 
         # Kiểm tra post tồn tại
         post = get_object_or_404(Post, id=actual_post_id)
@@ -1022,42 +1117,85 @@ def share_post(request, post_id):
         if caption:
             caption = caption.strip()
 
-        # Tạo record share mới (chỉ cho personal shares)
-        share = PostShare.objects.create(
-            id=_generate_id("shr"),
-            post=post,
-            user=user,
-            share_type="personal",
-            caption=caption,
-            created_at=timezone.now()
-        )
+        # Tạo record share mới (chỉ cho personal shares).
+        # Nếu DB chưa có cột `shared_from_share_id`, dùng INSERT thủ công để tránh 500.
+        share_id = _generate_id("shr")
+        share_created_at = timezone.now()
+        share_type = "personal"
+        can_store_origin = bool(shared_from_share_id) and _post_shares_has_shared_from_share_id_column()
 
-        # Thông báo cho chủ post
+        if can_store_origin:
+            share = PostShare.objects.create(
+                id=share_id,
+                post=post,
+                user=user,
+                share_type=share_type,
+                caption=caption,
+                created_at=share_created_at,
+                shared_from_share_id=shared_from_share_id,
+            )
+        else:
+            # Fallback insert: chỉ dùng các cột chắc chắn tồn tại.
+            # (id, post_id, user_id, share_type, caption, created_at)
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO post_shares (id, post_id, user_id, share_type, caption, created_at)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    """,
+                    [
+                        share_id,
+                        post.id,
+                        user.id,
+                        share_type,
+                        caption,
+                        share_created_at,
+                    ],
+                )
+            share = None
+
+        # Thông báo: share bài gốc -> notify chủ post; re-share bài share -> notify người đã share trước đó (nếu tìm thấy).
         notification_title = "Your post was shared"
         notification_body = f"{getattr(user, 'username', user.id)} shared your post to their profile"
+        notification_recipient_id = post.user_id
+        notification_reference_type = "post"
+        notification_reference_id = post.id
+
+        if shared_from_share_id:
+            try:
+                prev_share = post_share_qs().filter(id=shared_from_share_id).first()
+            except Exception:
+                prev_share = None
+            if prev_share is not None and getattr(prev_share, "user_id", None):
+                notification_title = "Your shared post was re-shared"
+                notification_body = f"{getattr(user, 'username', user.id)} re-shared your shared post"
+                notification_recipient_id = prev_share.user_id
+                notification_reference_type = "share"
+                notification_reference_id = prev_share.id
 
         _create_notification(
-            recipient_id=post.user_id,
+            recipient_id=notification_recipient_id,
             actor_user_id=user.id,
             notification_type="new_post",  
             title=notification_title,
             body=notification_body,
-            reference_type="post",
-            reference_id=post.id
+            reference_type=notification_reference_type,
+            reference_id=notification_reference_id
         )
 
         return _json_success(
             "Post shared successfully",
             {
                 "share": {
-                    "id": share.id,
-                    "post_id": share.post_id,
-                    "user_id": share.user_id,
-                    "share_type": share.share_type,
-                    "caption": share.caption,
-                    "created_at": share.created_at.isoformat() if share.created_at else None,
+                    "id": share_id,
+                    "post_id": post.id,
+                    "user_id": user.id,
+                    "share_type": share_type,
+                    "caption": caption,
+                    "created_at": share_created_at.isoformat() if share_created_at else None,
                 },
-                **_post_counts(post.id)
+                # Trả counts theo đúng đối tượng user vừa share (bài gốc hoặc bài share được share lại)
+                **(_post_counts(post.id, shared_from_share_id) if shared_from_share_id else _post_counts(post.id))
             },
             status=201
         )
@@ -1085,7 +1223,7 @@ def delete_shared_post(request, post_id):
     post = get_object_or_404(Post, id=post_id)
 
     # Kiểm tra xem user đã share post này chưa
-    existing_share = PostShare.objects.filter(
+    existing_share = post_share_qs().filter(
         post_id=post.id,
         user_id=user.id
     ).first()
@@ -1106,6 +1244,57 @@ def delete_shared_post(request, post_id):
             **_post_counts(post.id)
         }
     )
+
+
+@csrf_exempt
+@require_http_methods(["PATCH"])
+def update_share_caption(request, post_id):
+    """
+    Cập nhật mô tả (caption) của lần chia sẻ cá nhân — không sửa bài gốc.
+    `post_id` là id dòng composite: share_<shareId>_<origPostId>.
+    """
+    body = _parse_body(request)
+    if body is None:
+        body = {}
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    share_id = None
+    if isinstance(post_id, str) and post_id.startswith("share_"):
+        parts = post_id.split("_")
+        if len(parts) >= 3:
+            share_id = parts[1]
+
+    if not share_id:
+        return _json_error("Chỉ áp dụng cho bài chia sẻ (id dạng share_...)", 400)
+
+    share = post_share_qs().filter(id=share_id, user_id=user.id).first()
+    if not share:
+        return _json_error("Không tìm thấy bài chia sẻ", 404)
+
+    raw_cap = body.get("caption")
+    if raw_cap is None:
+        caption = ""
+    else:
+        caption = str(raw_cap).strip()
+
+    if len(caption) > 500:
+        return _json_error("Mô tả tối đa 500 ký tự", 400)
+
+    try:
+        post_share_qs().filter(id=share_id, user_id=user.id).update(
+            caption=caption or None
+        )
+    except Exception as e:
+        return _json_error(f"Không cập nhật được: {str(e)}", 500)
+
+    return _json_success(
+        "Đã cập nhật mô tả chia sẻ",
+        {"share_id": share_id, "caption": caption},
+    )
+
 
 # Hide post from profile (không ảnh hưởng đến Feed)
 @csrf_exempt
@@ -1150,44 +1339,89 @@ def hide_post_from_profile(request, post_id):
 # List share post 
 @require_http_methods(["GET"])
 def list_post_sharers(request, post_id):
-    # Nếu post_id là composite share ID (format: share_xxx_yyy), extract post ID
-    actual_post_id = post_id
-    if post_id.startswith('share_'):
-        parts = post_id.split('_')
+    post_id_str = str(post_id or "").strip()
+    actual_post_id = post_id_str
+    parent_share_id = None
+    if post_id_str.startswith("share_"):
+        parts = post_id_str.split("_")
         if len(parts) >= 3:
-            actual_post_id = parts[-1]  # Lấy post ID từ composite ID
-    
-    # Kiểm tra post tồn tại
-    post = get_object_or_404(Post, id=actual_post_id)
+            parent_share_id = parts[1]
+            actual_post_id = parts[-1]
 
-    # Lấy tất cả share
-    shares = PostShare.objects.filter(
-        post_id=post.id,
-        share_type="personal"
-    ).select_related("user").order_by("-created_at")
-    
-    # Chuyển từng share thành dict
-    data = []
-    for share in shares:
-        item = {
-            "share_id": share.id,
-            "user_id": share.user_id,
-            "share_type": share.share_type,
-            "created_at": share.created_at.isoformat() if share.created_at else None,
-        }
-        # Nếu bảng users có username thì dùng được. Nếu không có thì giữ user_id.
-        if hasattr(share.user, "username"):
-            item["username"] = share.user.username
-        data.append(item)
+    try:
+        post = get_object_or_404(Post, id=actual_post_id)
 
-    return _json_success(
-        "Post sharers fetched successfully",
-        {
-            "post_id": post.id,
-            "sharers": data,
-            **_post_counts(post.id)
-        }
-    )
+        if parent_share_id:
+            shares = (
+                post_share_qs()
+                .filter(
+                    shared_from_share_id=parent_share_id,
+                    share_type="personal",
+                )
+                .select_related("user", "user__profile")
+                .order_by("-created_at")
+            )
+        else:
+            qs = post_share_qs().filter(post_id=post.id, share_type="personal")
+            if post_shares_has_shared_from_share_id_column():
+                qs = qs.filter(shared_from_share_id__isnull=True)
+            shares = qs.select_related("user", "user__profile").order_by("-created_at")
+
+        data = []
+        for share in shares:
+            user = getattr(share, "user", None)
+            if user is None:
+                continue
+            item = {
+                "share_id": share.id,
+                "user_id": share.user_id,
+                "share_type": share.share_type,
+                "created_at": share.created_at.isoformat() if share.created_at else None,
+            }
+            if hasattr(user, "username"):
+                item["username"] = user.username
+            profile = getattr(user, "profile", None)
+            if profile is not None:
+                dn = getattr(profile, "display_name", None) or ""
+                if dn:
+                    item["display_name"] = dn
+            data.append(item)
+
+        extra_counts = {}
+        try:
+            extra_counts = (
+                _post_counts(post.id, parent_share_id)
+                if parent_share_id
+                else _post_counts(post.id)
+            )
+        except Exception as exc:
+            import logging
+            logging.getLogger(__name__).warning(
+                "list_post_sharers: _post_counts failed for post_id=%s: %s",
+                post.id,
+                exc,
+            )
+            extra_counts = {
+                "like_count": 0,
+                "comment_count": 0,
+                "save_count": 0,
+                "share_count": 0,
+            }
+
+        return _json_success(
+            "Post sharers fetched successfully",
+            {
+                "post_id": post.id,
+                "sharers": data,
+                **extra_counts,
+            },
+        )
+    except Http404:
+        raise
+    except Exception as exc:
+        import logging
+        logging.getLogger(__name__).exception("list_post_sharers failed: post_id=%s", post_id)
+        return _json_error(f"Failed to load sharers: {exc}", 500)
 
 # Lấy danh sách bài viết đã lưu của user hiện tại
 @require_http_methods(["GET"])
@@ -1229,14 +1463,18 @@ def get_saved_posts(request):
                 post_id=post.id
             ).exists()
 
+            # Chỉ like bài gốc (share_id NULL), khớp toggle_like_post / CommentModal
             is_liked = PostLike.objects.filter(
                 user_id=user.id,
-                post_id=post.id
+                post_id=post.id,
+                share_id__isnull=True,
             ).exists()
 
             from apps.content.models import PostTag
             post_tags = PostTag.objects.filter(post_id=post.id).select_related('tag').values_list('tag__name', flat=True)
             tags = list(post_tags) if post_tags else []
+
+            counts = _post_counts(post.id)
 
             item = {
                 "id": post.id,
@@ -1246,10 +1484,10 @@ def get_saved_posts(request):
                 "thumbnail_url": post.thumbnail_url,
                 "duration_seconds": post.duration_seconds,
                 "listen_count": post.listen_count,
-                "like_count": PostLike.objects.filter(post_id=post.id).count(),
-                "comment_count": Comment.objects.filter(post_id=post.id).count(),
-                "save_count": SavedPost.objects.filter(post_id=post.id).count(),
-                "share_count": PostShare.objects.filter(post_id=post.id, share_type="personal").count(),
+                "like_count": counts["like_count"],
+                "comment_count": counts["comment_count"],
+                "save_count": counts["save_count"],
+                "share_count": counts["share_count"],
                 "user_id": post.user_id,
                 "category_id": post.category_id,
                 "tags": tags,
@@ -1719,13 +1957,16 @@ def get_collection_posts(request, collection_id):
 
             is_liked = PostLike.objects.filter(
                 user_id=user.id,
-                post_id=post.id
+                post_id=post.id,
+                share_id__isnull=True,
             ).exists()
-            
+
             from apps.content.models import PostTag
             post_tags = PostTag.objects.filter(post_id=post.id).select_related('tag').values_list('tag__name', flat=True)
             tags = list(post_tags) if post_tags else []
-            
+
+            counts = _post_counts(post.id)
+
             item = {
                 "id": post.id,
                 "title": post.title,
@@ -1734,10 +1975,10 @@ def get_collection_posts(request, collection_id):
                 "thumbnail_url": post.thumbnail_url,
                 "duration_seconds": post.duration_seconds,
                 "listen_count": post.listen_count,
-                "like_count": PostLike.objects.filter(post_id=post.id).count(),
-                "comment_count": Comment.objects.filter(post_id=post.id).count(),
-                "save_count": SavedPost.objects.filter(post_id=post.id).count(),
-                "share_count": PostShare.objects.filter(post_id=post.id, share_type="personal").count(),
+                "like_count": counts["like_count"],
+                "comment_count": counts["comment_count"],
+                "save_count": counts["save_count"],
+                "share_count": counts["share_count"],
                 "user_id": post.user_id,
                 "category_id": post.category_id,
                 "tags": tags,
@@ -1912,7 +2153,14 @@ def share_post_to_user(request, post_id):
         if not user:
             return _json_error("Authentication required", 401)
 
-        post = get_object_or_404(Post, id=post_id)
+        post_id_str = str(post_id or "").strip()
+        resolved_post_id = post_id_str
+        if post_id_str.startswith("share_"):
+            parts = post_id_str.split("_")
+            if len(parts) >= 3:
+                resolved_post_id = parts[-1]
+
+        post = get_object_or_404(Post, id=resolved_post_id)
 
         target_user_id = body.get("target_user_id")
         target_user_ids = body.get("target_user_ids") or []
@@ -2010,7 +2258,7 @@ def share_post_to_user(request, post_id):
                     room=room,
                     sender=user,
                     content=message_content,
-                    message_type="podcast",
+                    message_type="text",
                 )
 
                 serialized_message = MessageSerializer(

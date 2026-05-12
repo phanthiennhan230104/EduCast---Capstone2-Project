@@ -20,6 +20,65 @@
   border-radius: 20px;
 }
 
+/* Làm bé riêng widget "Xu hướng" để không chiếm nhiều không gian */
+.trendingWidget {
+  padding: 12px 12px;
+  border-radius: 16px;
+}
+
+.trendingWidget .widgetTitle {
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.trendingWidget .trendItem {
+  padding: 6px 0;
+}
+
+.trendingWidget .trendTag {
+  font-size: 12px;
+}
+
+.trendingWidget .trendCount {
+  font-size: 10px;
+}
+
+/* Làm bé riêng widget "Gợi ý theo dõi" */
+.followSuggestionWidget {
+  padding: 12px 12px;
+  border-radius: 16px;
+}
+
+.followSuggestionWidget .widgetTitle {
+  margin-bottom: 10px;
+  font-size: 12px;
+}
+
+.followSuggestionWidget .suggestion {
+  padding: 8px 0;
+  gap: 6px;
+}
+
+.followSuggestionWidget .suggestionAvatar {
+  width: 34px;
+  height: 34px;
+}
+
+.followSuggestionWidget .suggestionName {
+  font-size: 11.5px;
+}
+
+.followSuggestionWidget .suggestionFollowers {
+  font-size: 10.5px;
+}
+
+.followSuggestionWidget .followBtn {
+  min-width: 18px;
+  height: 26px;
+  padding: 3px 6px;
+  font-size: 10px;
+}
+
 .widgetTitle {
   display: flex;
   align-items: center;

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useContext } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { toast } from 'react-toastify'
 import {
@@ -11,6 +11,10 @@ import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { PodcastContext } from '../contexts/PodcastContext'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { getInitials } from '../../utils/getInitials'
+import { API_BASE_URL } from '../../config/apiBase'
+import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
+import { saveScrollAndMarkReturnFromEdit } from '../../utils/feedScrollSession'
+import { publicDisplayName } from '../../utils/publicDisplayName'
 import CommentModal from './CommentModal'
 import ShareModal from './ShareModal'
 import ConfirmModal from './ConfirmModal'
@@ -23,6 +27,12 @@ function formatTime(seconds) {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
+function statsHoverEmptyLabel(kind) {
+  if (kind === 'likes') return 'Chưa có lượt thích'
+  if (kind === 'comments') return 'Chưa có bình luận'
+  return 'Chưa có lượt chia sẻ'
+}
+
 export default function PodcastCard({
   podcast,
   queue = [],
@@ -32,9 +42,11 @@ export default function PodcastCard({
   hideActions = false,
   onPlayClick = null,
   onSeek = null,
+  onEditPost = null,
 }) {
   const currentUser = getCurrentUser()
   const navigate = useNavigate()
+  const routerLocation = useLocation()
   const menuRef = useRef(null)
 
   const [liked, setLiked] = useState(podcast.liked ?? false)
@@ -197,16 +209,14 @@ export default function PodcastCard({
     }
 
     const handleScroll = () => {
-      if (menuOpen) {
-        setMenuOpen(false)
-      }
+      setMenuOpen(false)
     }
 
     if (menuOpen && menuRef.current) {
       const button = menuRef.current.querySelector('button')
       if (button) {
         const rect = button.getBoundingClientRect()
-        const gap = 2
+        const gap = 6
 
         setDropdownPos({
           top: rect.bottom + gap,
@@ -214,12 +224,22 @@ export default function PodcastCard({
         })
       }
 
+      const main = document.querySelector('main')
+
       document.addEventListener('mousedown', handleClickOutside)
-      document.querySelector('main')?.addEventListener('scroll', handleScroll)
+      document.addEventListener('pointerdown', handleClickOutside, true)
+      main?.addEventListener('scroll', handleScroll, { passive: true })
+      window.addEventListener('scroll', handleScroll, true)
+      document.addEventListener('wheel', handleScroll, { capture: true, passive: true })
+      document.addEventListener('touchmove', handleScroll, { capture: true, passive: true })
 
       return () => {
         document.removeEventListener('mousedown', handleClickOutside)
-        document.querySelector('main')?.removeEventListener('scroll', handleScroll)
+        document.removeEventListener('pointerdown', handleClickOutside, true)
+        main?.removeEventListener('scroll', handleScroll)
+        window.removeEventListener('scroll', handleScroll, true)
+        document.removeEventListener('wheel', handleScroll, true)
+        document.removeEventListener('touchmove', handleScroll, true)
       }
     }
   }, [menuOpen])
@@ -244,26 +264,23 @@ export default function PodcastCard({
   }
 
   const saveEditReturnState = () => {
-    const mainElement = document.querySelector('main')
-
-    sessionStorage.setItem(
-      'returnToAfterEdit',
-      window.location.pathname + window.location.search
-    )
-
-    sessionStorage.setItem(
-      'feedScrollPosition',
-      String(mainElement?.scrollTop || 0)
-    )
-
-    sessionStorage.setItem('editFocusPostId', String(podcast.id))
-    sessionStorage.setItem('returnFromEdit', 'true')
+    saveScrollAndMarkReturnFromEdit({ editFocusPostId: podcast.id })
   }
 
   const handleEdit = () => {
     setMenuOpen(false)
+    if (typeof onEditPost === 'function') {
+      onEditPost(podcast)
+      return
+    }
     saveEditReturnState()
-    navigate(`/edit/${podcast.id}`)
+    const editId =
+      getCanonicalPostIdForEngagement(podcast) ||
+      podcast.post_id ||
+      podcast.id
+    navigate(`/edit/${editId}`, {
+      state: { background: routerLocation },
+    })
   }
 
   const handleDelete = async () => {
@@ -603,14 +620,24 @@ export default function PodcastCard({
       setStatsPopupLoading(true)
 
       const token = getToken()
+      const rawId =
+        type === 'shares' &&
+        (podcast.type === 'shared' ||
+          String(podcast.id || '').startsWith('share_'))
+          ? String(podcast.id || '').trim()
+          : getCanonicalPostIdForEngagement(podcast) ??
+            String(podcast.post_id ?? podcast.id ?? '').trim()
+      const postIdEnc = encodeURIComponent(String(rawId ?? '').trim())
+      if (!postIdEnc) return
+
       let endpoint = ''
 
       if (type === 'likes') {
-        endpoint = `http://localhost:8000/api/social/posts/${podcast.id}/likers/`
+        endpoint = `${API_BASE_URL}/social/posts/${postIdEnc}/likers/`
       } else if (type === 'comments') {
-        endpoint = `http://localhost:8000/api/social/posts/${podcast.id}/commenters/`
+        endpoint = `${API_BASE_URL}/social/posts/${postIdEnc}/commenters/`
       } else if (type === 'shares') {
-        endpoint = `http://localhost:8000/api/social/posts/${podcast.id}/sharers/`
+        endpoint = `${API_BASE_URL}/social/posts/${postIdEnc}/sharers/`
       } else {
         return
       }
@@ -621,6 +648,11 @@ export default function PodcastCard({
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
       })
+
+      const ct = res.headers.get('content-type') || ''
+      if (!ct.includes('application/json')) {
+        throw new Error(`Phản hồi không phải JSON (HTTP ${res.status})`)
+      }
 
       const data = await res.json()
 
@@ -685,6 +717,13 @@ export default function PodcastCard({
     }, 120)
   }
 
+  const handleStatsPopupMouseEnter = () => {
+    if (hoverTimerRef.current) {
+      clearTimeout(hoverTimerRef.current)
+      hoverTimerRef.current = null
+    }
+  }
+
   const statRefs = useRef({
     likes: null,
     comments: null,
@@ -721,6 +760,7 @@ export default function PodcastCard({
       if (typeof d.likeCount === 'number') setLikeCount(d.likeCount)
       if (typeof d.saved === 'boolean') setSaved(d.saved)
       if (typeof d.saveCount === 'number') setSaveCount(d.saveCount)
+      if (typeof d.shareCount === 'number') setShareCount(d.shareCount)
     }
 
     window.addEventListener(POST_SYNC_EVENT, handlePostSync)
@@ -825,7 +865,7 @@ export default function PodcastCard({
                 onClick={() => setMenuOpen(!menuOpen)}
                 aria-label="Tùy chọn"
               >
-                <MoreHorizontal size={18} />
+                <MoreHorizontal size={20} />
               </button>
 
               {menuOpen &&
@@ -840,22 +880,22 @@ export default function PodcastCard({
                     {isOwner ? (
                       <>
                         <button className={styles.dropdownItem} onClick={handleEdit}>
-                          <Edit size={16} />
+                          <Edit size={14} />
                           <span>Chỉnh sửa</span>
                         </button>
                         <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleDelete}>
-                          <Trash2 size={16} />
+                          <Trash2 size={14} />
                           <span>Xóa</span>
                         </button>
                       </>
                     ) : (
                       <>
                         <button className={styles.dropdownItem} onClick={handleHide}>
-                          <EyeOff size={16} />
+                          <EyeOff size={14} />
                           <span>Ẩn bài viết</span>
                         </button>
                         <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleReport}>
-                          <Flag size={16} />
+                          <Flag size={14} />
                           <span>Báo cáo</span>
                         </button>
                       </>
@@ -941,6 +981,27 @@ export default function PodcastCard({
                   {likeCount}
                 </span>
               </button>
+              {statsHoverType === 'likes' && (
+                <div
+                  className={`${styles.statsPopup} ${
+                    statsPopupDirection === 'up' ? styles.statsPopupUp : styles.statsPopupDown
+                  }`}
+                  onMouseEnter={handleStatsPopupMouseEnter}
+                  onMouseLeave={handleStatsMouseLeave}
+                >
+                  {statsPopupLoading ? (
+                    <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                  ) : statsPopupData.likes.length > 0 ? (
+                    statsPopupData.likes.map((user) => (
+                      <div key={user.user_id || user.username} className={styles.statsPopupItem}>
+                        <span className={styles.statsPopupName}>{publicDisplayName(user)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.statsPopupEmpty}>{statsHoverEmptyLabel('likes')}</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div
@@ -961,6 +1022,27 @@ export default function PodcastCard({
                   {commentCount} Bình luận
                 </span>
               </button>
+              {statsHoverType === 'comments' && (
+                <div
+                  className={`${styles.statsPopup} ${
+                    statsPopupDirection === 'up' ? styles.statsPopupUp : styles.statsPopupDown
+                  }`}
+                  onMouseEnter={handleStatsPopupMouseEnter}
+                  onMouseLeave={handleStatsMouseLeave}
+                >
+                  {statsPopupLoading ? (
+                    <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                  ) : statsPopupData.comments.length > 0 ? (
+                    statsPopupData.comments.map((user) => (
+                      <div key={user.user_id || user.username} className={styles.statsPopupItem}>
+                        <span className={styles.statsPopupName}>{publicDisplayName(user)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.statsPopupEmpty}>{statsHoverEmptyLabel('comments')}</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div
@@ -982,6 +1064,27 @@ export default function PodcastCard({
                   {shareCount} Chia sẻ
                 </span>
               </button>
+              {statsHoverType === 'shares' && (
+                <div
+                  className={`${styles.statsPopup} ${
+                    statsPopupDirection === 'up' ? styles.statsPopupUp : styles.statsPopupDown
+                  }`}
+                  onMouseEnter={handleStatsPopupMouseEnter}
+                  onMouseLeave={handleStatsMouseLeave}
+                >
+                  {statsPopupLoading ? (
+                    <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                  ) : statsPopupData.shares.length > 0 ? (
+                    statsPopupData.shares.map((user) => (
+                      <div key={user.user_id || user.username} className={styles.statsPopupItem}>
+                        <span className={styles.statsPopupName}>{publicDisplayName(user)}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className={styles.statsPopupEmpty}>{statsHoverEmptyLabel('shares')}</div>
+                  )}
+                </div>
+              )}
             </div>
 
             <button

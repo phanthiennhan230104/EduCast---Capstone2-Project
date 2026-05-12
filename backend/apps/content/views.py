@@ -2,6 +2,7 @@ import os
 import tempfile
 import ulid
 from apps.social.models import HiddenPost, PostLike, SavedPost, Comment, PostShare
+from apps.social.post_share_compat import post_share_qs, post_shares_has_shared_from_share_id_column
 
 from django.db import transaction, models
 from django.utils import timezone
@@ -739,7 +740,12 @@ class FeedAPIView(APIView):
 
     def get(self, request):
         try:
-            limit = int(request.query_params.get("limit", 20))
+            try:
+                limit = int(request.query_params.get("limit", 20))
+            except (TypeError, ValueError):
+                limit = 20
+            # Trần hợp lý: client có thể xin nhiều dòng khi không lọc tag (feed đầy đủ).
+            limit = max(1, min(limit, 150))
             feed_type = request.query_params.get("tab", "for_you")
             
             tag_ids_param = request.query_params.get("tags", "")
@@ -764,9 +770,12 @@ class FeedAPIView(APIView):
                 ).values_list("post_id", flat=True)
             )
 
+            # Ẩn theo id bài gốc: cả dòng original và shared (composite id) đều có post_id.
             items = [
-                item for item in items
-                if str(item.get("id", "")).strip() not in hidden_ids
+                item
+                for item in items
+                if str(item.get("post_id") or item.get("id") or "").strip()
+                not in hidden_ids
             ]
 
             for item in items:
@@ -827,6 +836,7 @@ class SearchAPIView(APIView):
 
         # Search Posts (Podcasts) - bao gồm posts với tag + posts của authors
         if search_type in ["all", "posts"]:
+            from apps.social.views import _post_counts
             from apps.content.models import Tag, PostTag
             from apps.users.models import User
             
@@ -888,14 +898,19 @@ class SearchAPIView(APIView):
                 if hasattr(post.user, 'profile') and post.user.profile:
                     author_name = post.user.profile.display_name or post.user.username
 
+                # Cùng logic feed / modal / likers: chỉ bài gốc (share_id NULL),
+                # không gộp like-comment-save của từng lần chia sẻ vào cùng post_id.
+                counts = _post_counts(post.id)
                 is_liked = PostLike.objects.filter(
                     user_id=request.user.id,
-                    post_id=post.id
+                    post_id=post.id,
+                    share_id__isnull=True,
                 ).exists()
 
                 is_saved = SavedPost.objects.filter(
                     user_id=request.user.id,
-                    post_id=post.id
+                    post_id=post.id,
+                    share_id__isnull=True,
                 ).exists()
 
                 posts_data.append({
@@ -909,13 +924,10 @@ class SearchAPIView(APIView):
                     "duration_seconds": post.duration_seconds,
                     "created_at": post.created_at.isoformat(),
 
-                    "like_count": PostLike.objects.filter(post_id=post.id).count(),
-                    "comment_count": Comment.objects.filter(post_id=post.id).count(),
-                    "save_count": SavedPost.objects.filter(post_id=post.id).count(),
-                    "share_count": PostShare.objects.filter(
-                        post_id=post.id,
-                        share_type="personal"
-                    ).count(),
+                    "like_count": counts["like_count"],
+                    "comment_count": counts["comment_count"],
+                    "save_count": counts["save_count"],
+                    "share_count": counts["share_count"],
 
                     "is_liked": is_liked,
                     "is_saved": is_saved,
@@ -964,8 +976,6 @@ class UserPostsAPIView(APIView):
     
     def _build_post_data(self, post, request_user_id, share_info=None):
         """Helper to build complete post data"""
-        from apps.social.models import PostShare
-        
         author_name = post.user.username
         author_username = post.user.username  # Always include username
         if hasattr(post.user, 'profile') and post.user.profile:
@@ -975,44 +985,57 @@ class UserPostsAPIView(APIView):
         if hasattr(post.user, 'profile') and post.user.profile:
             author_avatar = post.user.profile.avatar_url
         
-        is_liked = PostLike.objects.filter(
-            user_id=request_user_id,
-            post_id=post.id
-        ).exists() if request_user_id else False
-        
-        print(f"🔍 _build_post_data: post_id={post.id}, user_id={request_user_id}, is_liked={is_liked}, share_info={share_info}")
-        
-        is_saved = SavedPost.objects.filter(
-            user_id=request_user_id,
-            post_id=post.id
-        ).exists() if request_user_id else False
-        
-        # For shared posts, get counts for the share itself; for original posts, use post counts
+        # Bài share trên profile: đếm / trạng thái like-lưu theo đúng instance chia sẻ.
         if share_info and share_info.get("share_id"):
-            # Shared post: get counts for this specific share
             share_id = share_info.get("share_id")
-            # Check if user liked/saved this share specifically
             is_liked = PostLike.objects.filter(
                 user_id=request_user_id,
-                share_id=share_id
+                share_id=share_id,
             ).exists() if request_user_id else False
-            
             is_saved = SavedPost.objects.filter(
                 user_id=request_user_id,
-                share_id=share_id
+                share_id=share_id,
             ).exists() if request_user_id else False
-            
-            # Get counts for this share
             like_count = PostLike.objects.filter(share_id=share_id).count()
             comment_count = Comment.objects.filter(share_id=share_id).count()
             save_count = SavedPost.objects.filter(share_id=share_id).count()
-            share_count = 0  # Shares of shares don't make sense
+            # Share count cho "bài share": re-share (cần cột shared_from_share_id).
+            if post_shares_has_shared_from_share_id_column():
+                try:
+                    share_count = PostShare.objects.filter(
+                        shared_from_share_id=share_id,
+                        share_type="personal",
+                    ).count()
+                except Exception:
+                    share_count = 0
+            else:
+                share_count = 0
         else:
-            # Original post: get counts from the post itself
+            is_liked = PostLike.objects.filter(
+                user_id=request_user_id,
+                post_id=post.id,
+                share_id__isnull=True,
+            ).exists() if request_user_id else False
+            is_saved = SavedPost.objects.filter(
+                user_id=request_user_id,
+                post_id=post.id,
+                share_id__isnull=True,
+            ).exists() if request_user_id else False
             like_count = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
             comment_count = Comment.objects.filter(post_id=post.id, share_id__isnull=True).count()
             save_count = SavedPost.objects.filter(post_id=post.id, share_id__isnull=True).count()
-            share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
+            # Share count cho bài gốc: chỉ share trực tiếp khi DB có cột re-share.
+            if post_shares_has_shared_from_share_id_column():
+                share_count = PostShare.objects.filter(
+                    post_id=post.id,
+                    share_type="personal",
+                    shared_from_share_id__isnull=True,
+                ).count()
+            else:
+                share_count = PostShare.objects.filter(
+                    post_id=post.id,
+                    share_type="personal",
+                ).count()
         
         post_data = {
             "id": post.id,
@@ -1100,10 +1123,10 @@ class UserPostsAPIView(APIView):
                 posts_data.append(post_data)
             
             # Get user's shared posts (exclude hidden posts)
-            from apps.social.models import PostShare
+            # Include personal + message shares (DM/friends); both are "đã chia sẻ" trên trang cá nhân
             shared_posts_qs = (
-                PostShare.objects
-                .filter(user_id=target_user_id, share_type="personal")
+                post_share_qs()
+                .filter(user_id=target_user_id)
                 .exclude(post_id__in=hidden_post_ids)
                 .select_related("post", "post__user", "post__user__profile")
                 .order_by("-created_at")
@@ -1164,8 +1187,8 @@ class UserSharedPostsAPIView(APIView):
             
             # Lấy danh sách shared posts (thông qua PostShare model)
             shared_posts_qs = (
-                PostShare.objects
-                .filter(user_id=target_user_id, share_type="personal")
+                post_share_qs()
+                .filter(user_id=target_user_id)
                 .select_related("post", "post__user", "post__user__profile")
                 .order_by("-created_at")
             )
@@ -1189,6 +1212,18 @@ class UserSharedPostsAPIView(APIView):
                     user_id=request.user.id,
                     post_id=post.id
                 ).exists()
+
+                # Share count cho "bài share" trên profile: re-share (cần cột shared_from_share_id).
+                if post_shares_has_shared_from_share_id_column():
+                    try:
+                        reshare_count = PostShare.objects.filter(
+                            shared_from_share_id=share.id,
+                            share_type="personal",
+                        ).count()
+                    except Exception:
+                        reshare_count = 0
+                else:
+                    reshare_count = 0
                 
                 posts_data.append({
                     "id": post.id,
@@ -1205,7 +1240,7 @@ class UserSharedPostsAPIView(APIView):
                     "like_count": PostLike.objects.filter(post_id=post.id).count(),
                     "comment_count": Comment.objects.filter(post_id=post.id).count(),
                     "save_count": SavedPost.objects.filter(post_id=post.id).count(),
-                    "share_count": PostShare.objects.filter(post_id=post.id, share_type="personal").count(),
+                    "share_count": reshare_count,
                     "is_liked": is_liked,
                     "is_saved": is_saved,
                 })
@@ -1256,7 +1291,18 @@ class PostDetailView(APIView):
             like_count = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
             comment_count = Comment.objects.filter(post_id=post.id, share_id__isnull=True).count()
             save_count = SavedPost.objects.filter(post_id=post.id, share_id__isnull=True).count()
-            share_count = PostShare.objects.filter(post_id=post.id, share_type="personal").count()
+            # Share count cho bài gốc: chỉ share trực tiếp khi DB có cột re-share.
+            if post_shares_has_shared_from_share_id_column():
+                share_count = PostShare.objects.filter(
+                    post_id=post.id,
+                    share_type="personal",
+                    shared_from_share_id__isnull=True,
+                ).count()
+            else:
+                share_count = PostShare.objects.filter(
+                    post_id=post.id,
+                    share_type="personal",
+                ).count()
             
             post_data = {
                 "id": post.id,

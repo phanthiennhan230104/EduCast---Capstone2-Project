@@ -1,6 +1,7 @@
+import { API_BASE_URL } from '../config/apiBase'
 import { getToken } from './auth'
 
-const API_BASE = 'http://127.0.0.1:8000/api/social'
+const API_BASE = `${API_BASE_URL}/social`
 
 export async function getNotifications() {
   const token = getToken()
@@ -18,8 +19,8 @@ export async function getNotifications() {
       return result
     }
     return { data: { notifications: [], unread_count: 0 } }
-  } catch (err) {
-    console.error('Fetch notifications error:', err)
+  } catch {
+    /* Backend không chạy / mất mạng — trả rỗng, không spam console */
     return { data: { notifications: [], unread_count: 0 } }
   }
 }
@@ -38,8 +39,7 @@ export async function markAllNotificationsAsRead() {
     })
 
     return response.ok
-  } catch (err) {
-    console.error('Mark notifications as read error:', err)
+  } catch {
     return false
   }
 }

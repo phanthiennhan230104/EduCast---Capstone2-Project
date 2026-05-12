@@ -1,13 +1,12 @@
+from django.conf import settings
 from django.http import HttpResponse
 
-class SimpleCORSMiddleware:
-    ALLOWED_ORIGINS = {
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-    }
 
+class SimpleCORSMiddleware:
     def __init__(self, get_response):
         self.get_response = get_response
+        origins = getattr(settings, "CORS_ALLOWED_ORIGINS", None) or ()
+        self.allowed_origins = frozenset(origins)
 
     def __call__(self, request):
         origin = request.headers.get("Origin")
@@ -19,7 +18,7 @@ class SimpleCORSMiddleware:
 
         # CORS: Only echo explicit allowed origins.
         # Never return "*" for browser CORS, especially when credentials are involved.
-        if origin and origin in self.ALLOWED_ORIGINS:
+        if origin and origin in self.allowed_origins:
             response["Access-Control-Allow-Origin"] = origin
             response["Access-Control-Allow-Credentials"] = "true"
             response["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Requested-With"

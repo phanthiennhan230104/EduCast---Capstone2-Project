@@ -362,22 +362,22 @@
 .playBtn {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, #8f9cff 0%, #6f7cff 100%);
+  background: #5c6bc0;
   color: #f8fbff;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 0.16s ease, box-shadow 0.2s ease, filter 0.2s ease;
+  transition: transform 0.16s ease, background-color 0.2s ease, box-shadow 0.2s ease;
   border: none;
   cursor: pointer;
-  box-shadow: 0 8px 18px rgba(132,146,255,0.24);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.22);
 }
 
 .playBtn:hover {
   transform: scale(1.05);
-  filter: brightness(1.04);
+  background: #6b7bc9;
 }
 
 .playBtn:disabled {

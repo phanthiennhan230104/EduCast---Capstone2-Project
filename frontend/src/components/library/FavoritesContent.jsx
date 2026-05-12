@@ -48,6 +48,7 @@ function formatTime(seconds) {
 }
 
 function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail }) {
+  const {t} = useTranslation()
   const {
     playTrack,
     currentTrack,
@@ -293,7 +294,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
                 <PlayCircle size={14} />
               )}
 
-              <span>{getListenLabel(item.listenedPercent)}</span>
+              <span>{getListenLabel(item.listenedPercent, t)}</span>
             </button>
 
             <button

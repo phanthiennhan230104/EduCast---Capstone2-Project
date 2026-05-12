@@ -1,3 +1,4 @@
+import { API_BASE_URL } from '../config/apiBase'
 import { apiRequest } from '../utils/api'
 
 // Tạo nháp chưa có audio
@@ -93,7 +94,7 @@ export const uploadAudioFile = async (file) => {
   
   const token = localStorage.getItem('educast_access')
   
-  const res = await fetch('http://localhost:8000/api/content/upload-audio/', {
+  const res = await fetch(`${API_BASE_URL}/content/upload-audio/`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,

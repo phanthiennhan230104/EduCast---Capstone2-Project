@@ -1,4 +1,4 @@
-import { useEffect, useState, useContext } from 'react'
+import { useEffect, useState, useContext, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
@@ -10,6 +10,44 @@ import { getToken, getCurrentUser } from '../../utils/auth'
 import { PodcastContext } from '../../components/contexts/PodcastContext'
 import CommentModal from '../../components/feed/CommentModal'
 import styles from '../../style/pages/SearchResultPage/SearchResults.module.css'
+
+function mapSearchPostToDetail(post, currentUser) {
+  let sync = {}
+  try {
+    sync = JSON.parse(localStorage.getItem(`post-sync-${post.id}`) || '{}')
+  } catch {
+    sync = {}
+  }
+
+  return {
+    id: post.id,
+    postId: post.id,
+    title: post.title,
+    description: post.description,
+    author: post.author,
+    authorUsername: post.author_username || post.username || '',
+    authorId: post.author_id,
+    user_id: post.author_id,
+    userId: post.author_id,
+    isOwner: String(currentUser?.id) === String(post.author_id),
+    cover: post.thumbnail_url || '',
+    thumbnail_url: post.thumbnail_url || '',
+    audio_url: post.audio_url || post.audio?.audio_url || '',
+    audioUrl: post.audio_url || post.audio?.audio_url || '',
+    audioId: post.audio_id || post.audio?.id || '',
+    duration: post.duration_seconds || post.audio?.duration_seconds || 0,
+    duration_seconds: post.duration_seconds || post.audio?.duration_seconds || 0,
+    durationSeconds: post.duration_seconds || post.audio?.duration_seconds || 0,
+    like_count: post.like_count ?? sync.likeCount ?? 0,
+    comment_count: post.comment_count || 0,
+    share_count: post.share_count || 0,
+    save_count: post.save_count ?? sync.saveCount ?? 0,
+    is_liked: post.is_liked ?? sync.liked ?? false,
+    is_saved: post.is_saved ?? sync.saved ?? false,
+    created_at: post.created_at,
+    timeAgo: post.timeAgo,
+  }
+}
 
 export default function SearchResultsPage() {
   const { t } = useTranslation()
@@ -216,14 +254,73 @@ export default function SearchResultsPage() {
     }
   }
 
-  const handleOpenPostDetail = (post) => {
+  const handleOpenPostDetail = useCallback((post) => {
     setSelectedPostDetail(post)
     setLikeCount(post.like_count || 0)
     setCommentCount(post.comment_count || 0)
     setLiked(post.is_liked || false)
     setSaved(post.is_saved || false)
     setShowPostDetail(true)
-  }
+  }, [])
+
+  useEffect(() => {
+    const handleOpenPostDetailFromPlayer = async (event) => {
+      const postId = event.detail?.postId
+      if (!postId) return
+      if (String(postId).startsWith('share_')) return
+
+      let post = results.posts.find((p) => String(p.id) === String(postId))
+
+      if (!post) {
+        try {
+          const token = getToken()
+          const res = await fetch(
+            `http://127.0.0.1:8000/api/content/posts/${encodeURIComponent(postId)}/`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            }
+          )
+          const json = await res.json()
+          const raw = json.data
+          if (!res.ok || !raw?.id) return
+          post = {
+            id: raw.id,
+            title: raw.title,
+            description: raw.description,
+            author: raw.author,
+            author_username: raw.author_username,
+            author_id: raw.author_id,
+            thumbnail_url: raw.thumbnail_url,
+            audio_url: raw.audio_url,
+            duration_seconds: raw.duration_seconds,
+            like_count: raw.like_count,
+            comment_count: raw.comment_count,
+            share_count: raw.share_count,
+            save_count: raw.save_count,
+            is_liked: raw.is_liked,
+            is_saved: raw.is_saved,
+            created_at: raw.created_at,
+            timeAgo: undefined,
+          }
+        } catch (err) {
+          console.error('SearchResultsPage: load post from player click failed', err)
+          return
+        }
+      }
+
+      if (!post) return
+
+      handleOpenPostDetail(mapSearchPostToDetail(post, currentUser))
+    }
+
+    window.addEventListener('open-post-detail', handleOpenPostDetailFromPlayer)
+    return () => {
+      window.removeEventListener('open-post-detail', handleOpenPostDetailFromPlayer)
+    }
+  }, [results.posts, currentUser, handleOpenPostDetail])
 
   useEffect(() => {
     if (loading || results.posts.length === 0) return
@@ -235,39 +332,13 @@ export default function SearchResultsPage() {
     const post = results.posts.find(p => String(p.id) === String(openPostId))
     if (!post) return
 
-    handleOpenPostDetail({
-      id: post.id,
-      postId: post.id,
-      title: post.title,
-      description: post.description,
-      author: post.author,
-      authorUsername: post.author_username || post.username || '',
-      authorId: post.author_id,
-      user_id: post.author_id,
-      userId: post.author_id,
-      isOwner: String(currentUser?.id) === String(post.author_id),
-      cover: post.thumbnail_url || '',
-      thumbnail_url: post.thumbnail_url || '',
-      duration: post.duration_seconds || post.audio?.duration_seconds || 0,
-      duration_seconds: post.duration_seconds || post.audio?.duration_seconds || 0,
-      durationSeconds: post.duration_seconds || post.audio?.duration_seconds || 0,
-      like_count: post.like_count || 0,
-      comment_count: post.comment_count || 0,
-      share_count: post.share_count || 0,
-      save_count: post.save_count || 0,
-      is_liked: post.is_liked || false,
-      is_saved: post.is_saved || false,
-      audio_url: post.audio_url || post.audio?.audio_url || '',
-      audioUrl: post.audio_url || post.audio?.audio_url || '',
-      created_at: post.created_at,
-      timeAgo: post.timeAgo,
-    })
+    handleOpenPostDetail(mapSearchPostToDetail(post, currentUser))
 
     sessionStorage.removeItem('returnFromEdit')
     sessionStorage.removeItem('returnToAfterEdit')
     sessionStorage.removeItem('openPostDetailId')
     sessionStorage.removeItem('openPostDetailNoScroll')
- }, [loading, results.posts, currentUser?.id])
+  }, [loading, results.posts, currentUser, handleOpenPostDetail])
 
   const handleToggleLike = async () => {
     if (!selectedPostDetail?.id) return
@@ -524,42 +595,9 @@ export default function SearchResultsPage() {
                           timeAgo: post.timeAgo,
                         }}
 
-                        onClick={() => handleOpenPostDetail({
-                          id: post.id,
-                          postId: post.id,
-
-                          title: post.title,
-                          description: post.description,
-
-                          author: post.author,
-                          authorUsername: post.author_username || post.username || '',
-                          authorId: post.author_id,
-                          user_id: post.author_id,
-                          userId: post.author_id,
-
-                          isOwner: String(currentUser?.id) === String(post.author_id),
-
-                          cover: post.thumbnail_url || '',
-                          thumbnail_url: post.thumbnail_url || '',
-
-                          audio_url: post.audio_url || post.audio?.audio_url || '',
-                          audioUrl: post.audio_url || post.audio?.audio_url || '',
-                          audioId: post.audio_id || post.audio?.id || '',
-
-                          duration: post.duration_seconds || post.audio?.duration_seconds || 0,
-                          duration_seconds: post.duration_seconds || post.audio?.duration_seconds || 0,
-                          durationSeconds: post.duration_seconds || post.audio?.duration_seconds || 0,
-
-                          like_count: post.like_count || 0,
-                          comment_count: post.comment_count || 0,
-                          share_count: post.share_count || 0,
-
-                          is_liked: post.is_liked || false,
-                          is_saved: post.is_saved || false,
-
-                          created_at: post.created_at,
-                          timeAgo: post.timeAgo,
-                        })}
+                        onClick={() =>
+                          handleOpenPostDetail(mapSearchPostToDetail(post, currentUser))
+                        }
                       />
                     ))}
                   </div>

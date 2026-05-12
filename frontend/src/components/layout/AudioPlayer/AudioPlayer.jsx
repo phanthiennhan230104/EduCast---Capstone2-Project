@@ -8,7 +8,27 @@ import {
 import styles from '../../../style/layout/AudioPlayer.module.css'
 import { useAudioPlayer } from "../../contexts/AudioPlayerContext";
 import { getToken, getCurrentUser } from '../../../utils/auth'
+import { getCanonicalPostIdForEngagement } from '../../../utils/canonicalPostId'
 import { useNavigate, useLocation } from 'react-router-dom'
+
+/** Feed truyền `author` là object { id, username, name, avatar_url } — không render trực tiếp trong React. */
+function formatTrackAuthorLabel(track) {
+  if (!track) return ''
+  const a = track.author
+  if (typeof a === 'string' && a.trim()) return a.trim()
+  if (a && typeof a === 'object') {
+    const pick = [a.name, a.username, a.display_name].find(
+      (x) => typeof x === 'string' && String(x).trim()
+    )
+    if (pick) return String(pick).trim()
+  }
+  return (
+    track.authorUsername ||
+    track.author_name ||
+    track.authorDisplayName ||
+    ''
+  )
+}
 
 
 export default function AudioPlayer() {
@@ -65,14 +85,16 @@ export default function AudioPlayer() {
   } = useAudioPlayer()
 
   useEffect(() => {
-    const postId = currentTrack?.postId || currentTrack?.id
+    const syncId = getCanonicalPostIdForEngagement(currentTrack)
 
-    if (!postId) {
+    if (!syncId) {
       setLiked(false)
       return
     }
 
-    const cached = JSON.parse(localStorage.getItem(`post-sync-${postId}`) || '{}')
+    const cached = JSON.parse(
+      localStorage.getItem(`post-sync-${syncId}`) || '{}'
+    )
 
     if (typeof cached.liked === 'boolean') {
       setLiked(cached.liked)
@@ -80,16 +102,49 @@ export default function AudioPlayer() {
     }
 
     setLiked(Boolean(currentTrack?.liked))
-  }, [currentTrack?.id, currentTrack?.postId])
+
+    // Card share: trạng thái like trên feed là theo share; cần trạng thái bài gốc giống CommentModal.
+    const fromSharedRow = String(currentTrack?.id || '').startsWith('share_')
+    if (!fromSharedRow) return
+
+    let cancelled = false
+    ;(async () => {
+      try {
+        const token = getToken()
+        const user = getCurrentUser()
+        const res = await fetch(
+          `http://localhost:8000/api/social/posts/${syncId}/comments/?user_id=${encodeURIComponent(
+            user?.id || ''
+          )}`,
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          }
+        )
+        const data = await res.json()
+        if (cancelled || !res.ok || !data.success) return
+        setLiked(Boolean(data.data?.is_liked))
+      } catch (e) {
+        console.error('Player like state fetch failed:', e)
+      }
+    })()
+
+    return () => {
+      cancelled = true
+    }
+  }, [currentTrack?.id, currentTrack?.post_id, currentTrack?.postId])
 
   const handleOpenPost = () => {
-    const postId = currentTrack?.postId || currentTrack?.id
-    if (!postId) return
+    // Feed tìm dòng theo id dòng (composite với bài share), không dùng canonical.
+    const rowId = currentTrack?.id
+    if (!rowId) return
 
     window.dispatchEvent(
       new CustomEvent('open-post-detail', {
         detail: {
-          postId,
+          postId: rowId,
           disableAutoScroll: true,
         },
       })
@@ -99,9 +154,9 @@ export default function AudioPlayer() {
   useEffect(() => {
     const handleTrackLikeUpdated = (event) => {
       const { postId, liked } = event.detail || {}
-      const currentPostId = currentTrack?.postId || currentTrack?.id
+      const syncId = getCanonicalPostIdForEngagement(currentTrack)
 
-      if (String(postId) !== String(currentPostId)) return
+      if (!syncId || String(postId) !== String(syncId)) return
       if (typeof liked !== 'boolean') return
 
       setLiked(liked)
@@ -112,13 +167,16 @@ export default function AudioPlayer() {
     return () => {
       window.removeEventListener('post-sync-updated', handleTrackLikeUpdated)
     }
-  }, [currentTrack?.id, currentTrack?.postId])
+  }, [currentTrack])
 
   const handleToggleLike = async (e) => {
     e.preventDefault()
     e.stopPropagation()
 
     if (loadingLike || !currentTrack?.id) return
+
+    const likePostId = getCanonicalPostIdForEngagement(currentTrack)
+    if (!likePostId) return
 
     try {
       setLoadingLike(true)
@@ -127,7 +185,7 @@ export default function AudioPlayer() {
       const currentUser = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${currentTrack.id}/like/`,
+        `http://localhost:8000/api/social/posts/${likePostId}/like/`,
         {
           method: 'POST',
           headers: {
@@ -148,7 +206,7 @@ export default function AudioPlayer() {
 
       setLiked(Boolean(data.data?.liked))
       dispatchPostSync({
-        postId: currentTrack.postId || currentTrack.id,
+        postId: likePostId,
         liked: Boolean(data.data?.liked),
         likeCount: Number(data.data?.like_count || 0),
       })
@@ -195,7 +253,7 @@ export default function AudioPlayer() {
 
         <div className={styles.meta}>
           <span className={styles.title}>{currentTrack.title}</span>
-          <span className={styles.author}>{currentTrack.author}</span>
+          <span className={styles.author}>{formatTrackAuthorLabel(currentTrack)}</span>
         </div>
 
         <button

@@ -96,7 +96,7 @@ export default function EditAudioPage() {
           body: JSON.stringify({
             title: form.title.trim(),
             description: form.description.trim(),
-          }),
+}),
         }
       )
 
@@ -198,7 +198,7 @@ export default function EditAudioPage() {
             </button>
 
             <button
-              className={styles.backBtn}
+className={styles.backBtn}
               onClick={goBack}
               aria-label="Quay lại"
             >

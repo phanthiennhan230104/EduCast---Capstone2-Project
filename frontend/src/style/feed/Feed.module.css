@@ -68,23 +68,29 @@
   gap: 0;
   padding: 0;
   border-radius: 18px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02)),
-    var(--bg-card);
+  background: var(--bg-card);
   border: 1px solid rgba(255,255,255,0.08);
   overflow: hidden;
 }
 
 .postShareInfo {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px;
+  /* Cùng lề ngang với PodcastCard .card (padding 16px) — avt + tên thẳng hàng với Tínnnn */
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  box-sizing: border-box;
+  padding: 10px 16px 16px;
   background: transparent;
   border: none;
   border-radius: 0;
   position: relative;
+  /* Cao hơn .postShareCard (z-auto) và .postShareActions (40) — menu 3 chấm không bị card lồng đè, click Chỉnh sửa hoạt động */
+  z-index: 60;
 }
 
 /* ==================== SHARE MENU (3 CHẤM) ==================== */
@@ -112,47 +118,71 @@
   color: var(--text-primary);
 }
 
+/* Share row menu — khớp CommentModal .postDropdown / .postDropdownItem */
 .shareMenuDropdown {
   position: absolute;
   top: calc(100% + 6px);
   right: 0;
-  min-width: 160px;
-  background: var(--bg-card, #1e1e2e);
+  min-width: 138px;
+  padding: 4px;
+  background: linear-gradient(180deg, rgba(20, 28, 55, 0.98), rgba(15, 20, 45, 0.95));
   border: 1px solid rgba(255, 255, 255, 0.08);
-  border-radius: 12px;
-  padding: 6px 0;
-  z-index: 100;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  border-radius: 10px;
+  z-index: 1200;
+  box-shadow: 0 20px 44px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  white-space: nowrap;
+  animation: feedShareMenuSlideDown 0.2s ease;
+}
+
+@keyframes feedShareMenuSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .shareMenuOption {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   width: 100%;
-  padding: 10px 14px;
+  min-height: 38px;
+  padding: 8px 12px;
   border: none;
+  border-radius: 8px;
   background: transparent;
-  color: var(--text-secondary);
+  color: #ffffff;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease;
+  transition: all 0.12s ease;
   text-align: left;
 }
 
 .shareMenuOption:hover {
-  background: rgba(255, 255, 255, 0.06);
-  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.shareMenuOption svg {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+  color: inherit;
+  stroke: currentColor;
 }
 
 .shareMenuOptionDanger {
-  color: #ff7b94;
+  color: #f87171;
 }
 
 .shareMenuOptionDanger:hover {
-  background: rgba(255, 84, 112, 0.08);
-  color: #ff4d6d;
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
 }
 
 .postShareAuthor {
@@ -162,17 +192,30 @@
   min-width: 0;
 }
 
+.postShareAuthorInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.postShareAuthorMetaRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-bottom: 0;
+}
+
 .postShareAvatarWrapper {
-  width: 36px;
-  height: 36px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #5c6bc0;
   border: 2px solid rgba(102, 126, 234, 0.3);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.18);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   overflow: hidden;
 }
 
@@ -189,7 +232,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, rgba(132,146,255,0.9), rgba(83,115,255,0.8));
+  background: #5c6bc0;
   color: #fff;
   font-size: 12px;
   font-weight: 700;
@@ -197,22 +240,35 @@
 
 .postShareAuthorName {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
   color: var(--text-primary);
+  line-height: 1.2;
 }
 
-.postShareTime {
-  margin: 2px 0 0;
-  font-size: 11px;
+.postShareMetaDot {
+  font-size: 12px;
+  color: var(--text-muted);
+  opacity: 0.7;
+}
+
+.postShareMetaText {
+  font-size: 12px;
   color: var(--text-secondary);
+  line-height: 1.3;
 }
 
 .shareCaption {
-  padding: 0 16px 12px 16px;
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  box-sizing: border-box;
+  /* Cùng mép trái với avatar (padding ngang = postShareInfo) — nội dung nằm dưới avt, thẳng cột avt */
+  padding: 0 16px 12px;
   color: var(--text-primary);
   font-size: 14px;
-  line-height: 1.5;
+  line-height: 1.45;
   word-wrap: break-word;
   white-space: pre-wrap;
 }
@@ -221,78 +277,26 @@
   margin: 0;
 }
 
-/* ==================== SHARE MENU ==================== */
-.shareMenuWrap {
-  position: relative;
-  display: inline-flex;
-}
-
-.shareMenuBtn {
-  padding: 4px;
-  border-radius: 6px;
-  border: none;
-  background: transparent;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: all 0.2s ease;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.shareMenuBtn:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
-}
-
-.shareMenuDropdown {
-  position: absolute;
-  top: calc(100% + 4px);
-  right: 0;
-  min-width: 130px;
-  background: linear-gradient(180deg, rgba(20,28,55,0.98), rgba(15,20,45,0.95));
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  padding: 6px;
-  box-shadow: 0 20px 44px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06);
-  z-index: 1000;
-  white-space: nowrap;
-}
-
-.shareMenuOption {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: none;
-  background: transparent;
-  color: var(--text-primary);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.12s ease;
-  text-align: left;
-}
-
-.shareMenuOption:hover {
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-}
-
-.shareMenuOptionDanger {
-  color: #ff7b7b;
-}
-
-.shareMenuOptionDanger:hover {
-  background: rgba(255, 123, 123, 0.12);
-  color: #ff9999;
-}
-
 .postShareCard {
   width: 100%;
   position: relative;
+  /* Cô lập stacking của PodcastCard .card (hover z-index 100) — không đè .postShareInfo + menu */
+  isolation: isolate;
+  z-index: 0;
+  /* Mép trái khớp avatar; mép phải 16px như card */
+  padding: 2px 16px 14px 16px;
+  box-sizing: border-box;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.postShareCard:hover {
+  border-color: transparent;
+  opacity: 0.95;
+  transform: translateY(-1px);
 }
 
 .postShareCardLoading {
@@ -321,14 +325,20 @@
 }
 
 /* ==================== POST SHARE ACTIONS ==================== */
+/* Giống PodcastCard .actions / .actionBtn: full width card + padding ngang 16px như .card */
 .postShareActions {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 12px 16px;
+  width: 100%;
+  max-width: none;
+  margin-left: 0;
+  margin-right: 0;
+  box-sizing: border-box;
+  padding: 12px 16px 12px;
   background: transparent;
   border: none;
-  border-top: 1px solid rgba(255,255,255,0.06);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
   border-radius: 0;
   transition: all 0.2s ease;
   flex-wrap: wrap;
@@ -370,6 +380,52 @@
   margin-left: auto;
 }
 
+.shareStatWrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Popup like/comment/share trên bài share — compact, ôm sát nội dung (như card gốc) */
+.shareSharerPopup {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 6px);
+  z-index: 40;
+  width: max-content;
+  max-width: min(220px, 88vw);
+  max-height: 200px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 0;
+  border-radius: 10px;
+  background: rgba(20, 28, 48, 0.98);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.38);
+  font-size: 12px;
+  font-weight: 600;
+  color: #f0f2ff;
+}
+
+.shareSharerRow {
+  padding: 4px 10px;
+  line-height: 1.25;
+  white-space: nowrap;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.shareSharerRow:last-child {
+  border-bottom: none;
+}
+
+.shareSharerEmpty {
+  padding: 4px 10px;
+  color: rgba(180, 190, 210, 0.9);
+  font-weight: 500;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
 .feedState,
 .feedError {
   margin-top: 6px;
@@ -389,19 +445,4 @@
   color: #ffd3d9;
   background: rgba(255, 84, 112, 0.08);
   border: 1px solid rgba(255, 84, 112, 0.16);
-}
-.postShareCard {
-  width: 100%;
-  background: transparent;
-  border: none;
-  border-radius: 0;
-  padding: 0;
-  transition: all 0.2s ease;
-  cursor: pointer;
-}
-
-.postShareCard:hover {
-  border-color: transparent;
-  opacity: 0.95;
-  transform: translateY(-2px);
 }

@@ -1,7 +1,6 @@
 import React, { useState, useContext, useRef } from 'react'
-import { useParams } from 'react-router-dom'
+import { useParams, useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { PodcastContext } from '../contexts/PodcastContext'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
@@ -9,9 +8,12 @@ import { apiRequest } from '../../utils/api'
 import { getInitials } from '../../utils/getInitials'
 import { toast } from 'react-toastify'
 import { getToken, getCurrentUser } from '../../utils/auth'
+import { EDUCAST_PERSONAL_SHARE_SUCCESS } from '../../utils/appEvents'
 import PodcastCard from '../feed/PodcastCard'
 import CommentModal from '../feed/CommentModal'
 import ShareModal from '../feed/ShareModal'
+import EditShareCaptionModal from '../feed/EditShareCaptionModal'
+import EditPostModal from '../feed/EditPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
 import {
   CheckCircle2,
@@ -31,6 +33,12 @@ import {
 } from 'lucide-react'
 import styles from '../../style/personal/PersonalPage.module.css'
 
+function engagementPostIdProfile(post) {
+  if (!post) return null
+  if (post.post_id != null && post.post_id !== '') return post.post_id
+  return post.id
+}
+
 const TABS = ['Bài đăng', 'Bạn bè']
 
 export default function PersonalPage() {
@@ -44,6 +52,8 @@ export default function PersonalPage() {
   const [postStates, setPostStates] = useState({}) // Track like, save, comment, share states
   const [showCommentModal, setShowCommentModal] = useState(false)
   const [showShareModal, setShowShareModal] = useState(false)
+  const [editShareCaptionPost, setEditShareCaptionPost] = useState(null)
+  const [editPostModalPost, setEditPostModalPost] = useState(null)
   const [selectedPost, setSelectedPost] = useState(null)
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const saveBookmarkRef = useRef(null)
@@ -114,25 +124,53 @@ export default function PersonalPage() {
         nextSync.saveCount = d.saveCount
       }
 
+      if (typeof d.commentCount === 'number') {
+        nextSync.commentCount = d.commentCount
+      }
+
+      if (typeof d.shareCount === 'number') {
+        nextSync.shareCount = d.shareCount
+      }
+
       localStorage.setItem(`post-sync-${d.postId}`, JSON.stringify(nextSync))
 
-      // Update posts array
-      setPosts(prev =>
-        prev.map(p =>
-          String(p.id) === String(d.postId)
-            ? {
-              ...p,
-              liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
-              likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
-              saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
-              saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
-            }
-            : p
-        )
+      const mergePostFields = (p) => ({
+        ...p,
+        liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
+        likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
+        saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+        saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+        comments:
+          typeof d.commentCount === 'number' ? d.commentCount : p.comments,
+        shares: typeof d.shareCount === 'number' ? d.shareCount : p.shares,
+        title: typeof d.title === 'string' ? d.title : p.title,
+        description:
+          typeof d.description === 'string' ? d.description : p.description,
+      })
+
+      const textUpdate =
+        typeof d.title === 'string' || typeof d.description === 'string'
+
+      setPosts((prev) =>
+        prev.map((p) => {
+          if (String(p.id) === String(d.postId)) return mergePostFields(p)
+          if (
+            p.type === 'shared' &&
+            textUpdate &&
+            p.post_id != null &&
+            String(p.post_id) === String(d.postId)
+          ) {
+            return mergePostFields(p)
+          }
+          if (p.type === 'shared') return p
+          if (p.post_id != null && String(p.post_id) === String(d.postId))
+            return mergePostFields(p)
+          return p
+        })
       )
 
       // Update postStates
-      setPostStates(prev => ({
+      setPostStates((prev) => ({
         ...prev,
         [d.postId]: {
           ...prev[d.postId],
@@ -140,13 +178,51 @@ export default function PersonalPage() {
           ...(typeof d.likeCount === 'number' ? { likeCount: d.likeCount } : {}),
           ...(typeof d.saved === 'boolean' ? { saved: d.saved } : {}),
           ...(typeof d.saveCount === 'number' ? { saveCount: d.saveCount } : {}),
-        }
+          ...(typeof d.commentCount === 'number'
+            ? { commentCount: d.commentCount }
+            : {}),
+          ...(typeof d.shareCount === 'number' ? { shareCount: d.shareCount } : {}),
+        },
       }))
     }
 
     window.addEventListener(POST_SYNC_EVENT, handlePostSync)
     return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
   }, [])
+
+  React.useEffect(() => {
+    if (!openMenuPostId) return
+
+    const close = () => setOpenMenuPostId(null)
+
+    const isInsideMenu = (target) => {
+      if (!target || typeof target.closest !== 'function') return false
+      return Boolean(target.closest('[data-profile-share-menu]'))
+    }
+
+    const onPointerDown = (e) => {
+      if (!isInsideMenu(e.target)) close()
+    }
+
+    const onScroll = () => close()
+    const onWheel = () => close()
+    const onTouchMove = () => close()
+
+    document.addEventListener('pointerdown', onPointerDown, true)
+    window.addEventListener('scroll', onScroll, true)
+    document.addEventListener('wheel', onWheel, { capture: true, passive: true })
+    document.addEventListener('touchmove', onTouchMove, { capture: true, passive: true })
+    const main = document.querySelector('main')
+    main?.addEventListener('scroll', onScroll, { passive: true })
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      window.removeEventListener('scroll', onScroll, true)
+      document.removeEventListener('wheel', onWheel, true)
+      document.removeEventListener('touchmove', onTouchMove, true)
+      main?.removeEventListener('scroll', onScroll)
+    }
+  }, [openMenuPostId])
 
   const fetchUserProfile = async () => {
     try {
@@ -178,7 +254,10 @@ export default function PersonalPage() {
         // Combine local sync caches (post.id and post.post_id if it's a shared post)
         const cachedSync = JSON.parse(localStorage.getItem(`post-sync-${post.id}`) || 'null')
         const originalCachedSync = post.post_id ? JSON.parse(localStorage.getItem(`post-sync-${post.post_id}`) || 'null') : null
-        const syncState = cachedSync || originalCachedSync || {}
+        const syncState =
+          post.type === 'shared'
+            ? cachedSync || {}
+            : cachedSync || originalCachedSync || {}
 
         const isLiked = syncState.liked ?? (post.is_liked || false)
         const finalLikeCount = syncState.likeCount ?? (post.like_count || 0)
@@ -270,6 +349,19 @@ export default function PersonalPage() {
       setPosts([])
     }
   }
+
+  const fetchUserPostsRef = React.useRef(fetchUserPosts)
+  fetchUserPostsRef.current = fetchUserPosts
+
+  React.useEffect(() => {
+    if (!user?.id) return
+    const onPersonalShare = () => {
+      void fetchUserPostsRef.current?.()
+    }
+    window.addEventListener(EDUCAST_PERSONAL_SHARE_SUCCESS, onPersonalShare)
+    return () =>
+      window.removeEventListener(EDUCAST_PERSONAL_SHARE_SUCCESS, onPersonalShare)
+  }, [user?.id])
 
   const fetchUserPodcasts = async () => {
     try {
@@ -373,26 +465,17 @@ export default function PersonalPage() {
       const token = getToken()
       const currentUser = getCurrentUser()
 
-      // Get the post to find the actual post ID
-      const post = posts.find(p => p.id === postId)
+      const post = posts.find((p) => p.id === postId)
       if (!post) {
         console.error('❤️ Post not found:', postId)
         return
       }
 
-      console.log('❤️ Like clicked on post:', {
-        postId,
-        type: post.type,
-        post_id: post.post_id,
-        share_id: post.share_id,
-        currentLiked: postStates[postId]?.liked
-      })
-
-      // Use the composite ID (share_xxx_yyy) if it's a shared post, otherwise use post ID
-      const likeEndpointId = postId
+      const apiLikeId =
+        post.type === 'shared' ? postId : engagementPostIdProfile(post)
 
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${likeEndpointId}/like/`,
+        `http://localhost:8000/api/social/posts/${apiLikeId}/like/`,
         {
           method: 'POST',
           headers: {
@@ -414,38 +497,23 @@ export default function PersonalPage() {
       const nextLiked = Boolean(data.data?.liked)
       const nextLikeCount = Number(data.data?.like_count || 0)
 
-      console.log('❤️ Like response:', {
-        postId,
-        nextLiked,
-        nextLikeCount,
-        currentPostState: postStates[postId]
-      })
-
-      // IMPORTANT: Only update the specific post that was clicked
-      // Do NOT update other posts even if they share the same original post
-      setPostStates(prev => {
-        const updated = {
-          ...prev,
-          [postId]: {
-            ...prev[postId],
-            liked: nextLiked,
-            likeCount: nextLikeCount,
-          }
-        }
-        console.log('❤️ Updated postStates for', postId, ':', updated[postId])
-        return updated
-      })
-
-      // Update posts array - only update the specific post
-      setPosts(prev => prev.map(p => {
-        if (p.id === postId) {
-          console.log('❤️ Updating post in array:', { id: p.id, oldLiked: p.liked, newLiked: nextLiked })
-          return { ...p, liked: nextLiked, likes: nextLikeCount }
-        }
-        return p
+      setPostStates((prev) => ({
+        ...prev,
+        [postId]: {
+          ...prev[postId],
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        },
       }))
 
-      // Dispatch sync event to notify Feed page
+      setPosts((prev) =>
+        prev.map((p) =>
+          p.id === postId
+            ? { ...p, liked: nextLiked, likes: nextLikeCount }
+            : p
+        )
+      )
+
       dispatchPostSync({
         postId,
         liked: nextLiked,
@@ -462,17 +530,18 @@ export default function PersonalPage() {
       const currentState = postStates[postId]
       const isSaved = currentState?.saved || false
 
-      // Use the composite ID (share_xxx_yyy) if it's a shared post, otherwise use post ID
-      const saveEndpointId = postId
+      const post = posts.find((p) => p.id === postId)
+      if (!post) return
 
+      const apiSaveId =
+        post.type === 'shared' ? postId : engagementPostIdProfile(post)
 
       if (isSaved) {
-        // Unsave
         const token = getToken()
         const currentUser = getCurrentUser()
 
         const res = await fetch(
-          `http://localhost:8000/api/social/posts/${saveEndpointId}/save/`,
+          `http://localhost:8000/api/social/posts/${apiSaveId}/save/`,
           {
             method: 'POST',
             headers: {
@@ -493,32 +562,32 @@ export default function PersonalPage() {
 
         const nextSaveCount = Number(data.data?.save_count || 0)
 
-        setPostStates(prev => ({
+        setPostStates((prev) => ({
           ...prev,
           [postId]: {
             ...prev[postId],
             saved: false,
             saveCount: nextSaveCount,
-          }
+          },
         }))
 
-        removeSavedPost(postId)
+        removeSavedPost(apiSaveId)
 
-        setPosts(prev => prev.map(p =>
-          p.id === postId
-            ? { ...p, saved: false, saveCount: nextSaveCount }
-            : p
-        ))
+        setPosts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? { ...p, saved: false, saveCount: nextSaveCount }
+              : p
+          )
+        )
 
-        // Dispatch sync event to notify Feed page
         dispatchPostSync({
           postId,
           saved: false,
           saveCount: nextSaveCount,
         })
       } else {
-        // Show collection modal
-        setSelectedPost(posts.find(p => p.id === postId))
+        setSelectedPost(posts.find((p) => p.id === postId))
         setShowCollectionModal(true)
       }
     } catch (err) {
@@ -527,28 +596,34 @@ export default function PersonalPage() {
     }
   }
 
-  const handleCollectionModalSave = (postId) => {
-    const newSaveCount = (postStates[postId]?.saveCount || 0) + 1
+  const handleCollectionModalSave = () => {
+    const post = selectedPost
+    if (!post) return
 
-    setPostStates(prev => ({
+    const rowId = post.id
+    const apiId =
+      post.type === 'shared' ? post.id : engagementPostIdProfile(post)
+
+    const newSaveCount = (postStates[rowId]?.saveCount || 0) + 1
+
+    setPostStates((prev) => ({
       ...prev,
-      [postId]: {
-        ...prev[postId],
+      [rowId]: {
+        ...prev[rowId],
         saved: true,
         saveCount: newSaveCount,
-      }
+      },
     }))
 
-    addSavedPost(postId)
-    setPosts(prev => prev.map(p =>
-      p.id === postId
-        ? { ...p, saved: true, saveCount: newSaveCount }
-        : p
-    ))
+    addSavedPost(apiId)
+    setPosts((prev) =>
+      prev.map((p) =>
+        p.id === rowId ? { ...p, saved: true, saveCount: newSaveCount } : p
+      )
+    )
 
-    // Dispatch sync event to notify Feed page
     dispatchPostSync({
-      postId,
+      postId: rowId,
       saved: true,
       saveCount: newSaveCount,
     })
@@ -593,57 +668,68 @@ export default function PersonalPage() {
     // when comments are added/removed via CommentModal
   }
 
-  const handleShareSuccess = (postId, data) => {
-    console.log('📤 Share success - postId:', postId)
-    console.log('📤 Share success - data:', data)
+  const handleShareSuccess = (sourcePost, data) => {
+    const canonicalId = engagementPostIdProfile(sourcePost)
 
-    // Backend trả về like_count, comment_count, save_count, share_count
     const newShareCount = Number(data?.share_count || 0)
     const newLikeCount = Number(data?.like_count)
     const newCommentCount = Number(data?.comment_count)
     const newSaveCount = Number(data?.save_count)
 
-    console.log('📤 Parsed counts:', { newShareCount, newLikeCount, newCommentCount, newSaveCount })
-
-    setPostStates(prev => {
-      const updated = {
-        ...prev,
-        [postId]: {
-          ...prev[postId],
-          shareCount: newShareCount,
-          // Giữ nguyên các giá trị khác nếu backend không trả về
-          ...(typeof newLikeCount === 'number' && !isNaN(newLikeCount) ? { likeCount: newLikeCount } : {}),
-          ...(typeof newCommentCount === 'number' && !isNaN(newCommentCount) ? { commentCount: newCommentCount } : {}),
-          ...(typeof newSaveCount === 'number' && !isNaN(newSaveCount) ? { saveCount: newSaveCount } : {}),
-        }
-      }
-      console.log('📤 Updated postStates:', updated[postId])
-      return updated
-    })
-
-    setPosts(prev => prev.map(p => {
-      if (p.id === postId) {
-        const updated = {
-          ...p,
-          shares: newShareCount,
-          // Giữ nguyên các giá trị khác nếu backend không trả về
-          ...(typeof newLikeCount === 'number' && !isNaN(newLikeCount) ? { likes: newLikeCount } : {}),
-          ...(typeof newCommentCount === 'number' && !isNaN(newCommentCount) ? { comments: newCommentCount } : {}),
-          ...(typeof newSaveCount === 'number' && !isNaN(newSaveCount) ? { saveCount: newSaveCount } : {}),
-        }
-        console.log('📤 Updated post:', updated)
-        return updated
-      }
-      return p
+    setPostStates((prev) => ({
+      ...prev,
+      [sourcePost.id]: {
+        ...prev[sourcePost.id],
+        shareCount: newShareCount,
+        ...(typeof newLikeCount === 'number' && !Number.isNaN(newLikeCount)
+          ? { likeCount: newLikeCount }
+          : {}),
+        ...(typeof newCommentCount === 'number' && !Number.isNaN(newCommentCount)
+          ? { commentCount: newCommentCount }
+          : {}),
+        ...(typeof newSaveCount === 'number' && !Number.isNaN(newSaveCount)
+          ? { saveCount: newSaveCount }
+          : {}),
+      },
     }))
 
-    // Dispatch sync event to notify Feed page about all updated counts
+    setPosts((prev) =>
+      prev.map((p) => {
+        if (String(p.id) !== String(sourcePost.id)) return p
+        return {
+          ...p,
+          shares: newShareCount,
+          ...(typeof newLikeCount === 'number' && !Number.isNaN(newLikeCount)
+            ? { likes: newLikeCount }
+            : {}),
+          ...(typeof newCommentCount === 'number' && !Number.isNaN(newCommentCount)
+            ? { comments: newCommentCount }
+            : {}),
+          ...(typeof newSaveCount === 'number' && !Number.isNaN(newSaveCount)
+            ? { saveCount: newSaveCount }
+            : {}),
+        }
+      })
+    )
+
     dispatchPostSync({
-      postId,
-      ...(typeof newLikeCount === 'number' && !isNaN(newLikeCount) ? { likeCount: newLikeCount } : {}),
-      ...(typeof newCommentCount === 'number' && !isNaN(newCommentCount) ? { commentCount: newCommentCount } : {}),
-      ...(typeof newSaveCount === 'number' && !isNaN(newSaveCount) ? { saveCount: newSaveCount } : {}),
+      postId: canonicalId,
+      ...(typeof newShareCount === 'number' && !Number.isNaN(newShareCount)
+        ? { shareCount: newShareCount }
+        : {}),
+      ...(typeof newLikeCount === 'number' && !Number.isNaN(newLikeCount)
+        ? { likeCount: newLikeCount }
+        : {}),
+      ...(typeof newCommentCount === 'number' && !Number.isNaN(newCommentCount)
+        ? { commentCount: newCommentCount }
+        : {}),
+      ...(typeof newSaveCount === 'number' && !Number.isNaN(newSaveCount)
+        ? { saveCount: newSaveCount }
+        : {}),
     })
+
+    void fetchUserPostsRef.current?.()
+    navigate('/feed')
   }
 
   const handleDeletePost = async (postId) => {
@@ -689,7 +775,6 @@ export default function PersonalPage() {
         return filtered
       })
       deletePost(postId)
-      toast.success('Đã xóa bài đăng khỏi trang cá nhân')
     } catch (err) {
       console.error('Delete failed:', err)
       toast.error('Lỗi khi xóa bài viết: ' + err.message)
@@ -828,6 +913,9 @@ export default function PersonalPage() {
                               onHide={handleHidePost}
                               hideMenu={false}
                               hideActions={false}
+                              onEditPost={
+                                isOwnProfile ? () => setEditPostModalPost(post) : null
+                              }
                             />
                           </div>
                         )
@@ -872,8 +960,9 @@ export default function PersonalPage() {
                                   </p>
                                 </div>
                               </div>
-                              <div className={styles.postMenuWrap}>
-                                <button
+                              {isOwnProfile && (
+                              <div className={styles.postMenuWrap} data-profile-share-menu>
+                                <button 
                                   className={styles.postShareMenuBtn}
                                   onClick={() => setOpenMenuPostId(openMenuPostId === post.id ? null : post.id)}
                                 >
@@ -885,7 +974,7 @@ export default function PersonalPage() {
                                       className={styles.postMenuOption}
                                       onClick={() => {
                                         setOpenMenuPostId(null)
-                                        toast.info('Chức năng chỉnh sửa bài chia sẻ đang phát triển')
+                                        setEditShareCaptionPost(post)
                                       }}
                                     >
                                       <Edit size={16} />
@@ -901,6 +990,7 @@ export default function PersonalPage() {
                                   </div>
                                 )}
                               </div>
+                              )}
                             </div>
 
                             {/* Share Caption - Hiển thị nội dung chia sẻ */}
@@ -911,8 +1001,8 @@ export default function PersonalPage() {
                             )}
 
                             {/* Shared Post Content - Hiển thị bài đăng gốc */}
-                            <div
-                              className={styles.postCard}
+                            <div 
+                              className={styles.postCardInShare}
                               onClick={() => handleOpenOriginalPost(post)}
                               style={{ cursor: 'pointer' }}
                               title="Click để xem bài đăng gốc"
@@ -924,6 +1014,7 @@ export default function PersonalPage() {
                                 onHide={handleHidePost}
                                 hideMenu={true}
                                 hideActions={true}
+                                embedInShare={true}
                               />
                             </div>
 
@@ -1039,15 +1130,68 @@ export default function PersonalPage() {
         <ShareModal
           podcast={selectedPost}
           onClose={() => setShowShareModal(false)}
-          onShareSuccess={(data) => handleShareSuccess(selectedPost.id, data)}
+          onShareSuccess={(data) =>
+            handleShareSuccess(selectedPost, data)
+          }
         />
       )}
+
+      <EditShareCaptionModal
+        isOpen={Boolean(editShareCaptionPost)}
+        compositeRowId={editShareCaptionPost?.id}
+        initialCaption={editShareCaptionPost?.share_caption ?? ''}
+        onClose={() => setEditShareCaptionPost(null)}
+        onSaved={(caption) => {
+          const row = editShareCaptionPost
+          if (!row) return
+          setPosts((prev) =>
+            prev.map((p) =>
+              String(p.id) === String(row.id)
+                ? { ...p, share_caption: caption }
+                : p
+            )
+          )
+          dispatchPostSync({
+            postId: row.id,
+            shareCaption: caption,
+          })
+        }}
+      />
+
+      <EditPostModal
+        isOpen={Boolean(editPostModalPost)}
+        postId={
+          editPostModalPost
+            ? engagementPostIdProfile(editPostModalPost)
+            : null
+        }
+        onClose={() => setEditPostModalPost(null)}
+        onSaved={({ title, description }) => {
+          const row = editPostModalPost
+          if (!row) return
+          const pid = engagementPostIdProfile(row)
+          setPosts((prev) =>
+            prev.map((p) => {
+              const same =
+                String(p.id) === String(pid) ||
+                (p.post_id != null && String(p.post_id) === String(pid))
+              if (!same) return p
+              return { ...p, title, description }
+            })
+          )
+          dispatchPostSync({ postId: pid, title, description })
+        }}
+      />
 
       <SaveCollectionModal
         isOpen={showCollectionModal}
         onClose={() => setShowCollectionModal(false)}
-        postId={selectedPost?.id}
-        onSave={() => handleCollectionModalSave(selectedPost?.id)}
+        postId={
+          selectedPost?.type === 'shared'
+            ? selectedPost.id
+            : engagementPostIdProfile(selectedPost)
+        }
+        onSave={handleCollectionModalSave}
         triggerRef={saveBookmarkRef}
         isPopup={false}
       />

@@ -103,7 +103,11 @@ export default function Header({ hideGlobalProgress = false }) {
       <div className={styles.actions}>
         <NotificationPanel />
 
-        <button className={styles.createBtn} type="button">
+        <button
+          className={styles.createBtn}
+          type="button"
+          onClick={() => navigate('/create-audio')}
+        >
           <Plus size={16} />
           {t('header.create_podcast')}
         </button>

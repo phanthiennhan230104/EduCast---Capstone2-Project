@@ -144,6 +144,9 @@ class PostShare(models.Model):
     post = models.ForeignKey('content.Post', on_delete=models.CASCADE, related_name='shares')
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='shared_posts')
     share_type = models.CharField(max_length=20, choices=TYPE_CHOICES, default="personal")
+    # Nếu user share lại một bài share (share_of_share), lưu id của share gốc để đếm share theo "bài share".
+    # Lưu ý: model managed=False nên field này chỉ hoạt động nếu DB có cột tương ứng.
+    shared_from_share_id = models.CharField(max_length=26, null=True, blank=True)
     caption = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
 

@@ -68,6 +68,16 @@ export function AuthProvider({ children }) {
     )
   }
 
+  const isBackendUnreachable = (error) => {
+    const msg = String(error?.message || '')
+    return (
+      error?.name === 'TypeError' ||
+      msg.includes('Failed to fetch') ||
+      msg.includes('NetworkError') ||
+      msg.includes('Load failed')
+    )
+  }
+
   const checkAuth = async ({ silent = false } = {}) => {
     const token = getToken()
 
@@ -86,6 +96,11 @@ export function AuthProvider({ children }) {
       setUser(data.user)
       setIsAuthenticated(true)
     } catch (error) {
+      if (isBackendUnreachable(error)) {
+        // Backend chưa chạy — giữ token local; chạy: npm run backend (từ thư mục frontend)
+        return
+      }
+
       // Nếu token hết hạn/không hợp lệ thì đừng giữ "local session state" nữa.
       // Tránh trường hợp UI nghĩ là còn login và cứ poll ra 403 liên tục.
       if (isAuthError(error)) {

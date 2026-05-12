@@ -11,6 +11,11 @@ import { AuthContext } from './AuthContext'
 
 const AudioPlayerContext = createContext(null)
 
+function sameTrackId(a, b) {
+  if (a == null || b == null) return false
+  return String(a) === String(b)
+}
+
 function formatTime(seconds) {
   const total = Math.floor(Number(seconds || 0))
   const mins = Math.floor(total / 60)
@@ -117,10 +122,8 @@ export function AudioPlayerProvider({ children }) {
   const playTrack = useCallback((track, trackQueue = []) => {
     if (!track?.audioUrl) return
 
-    const audio = audioRef.current
-    if (!audio) {
+    if (!audioRef.current) {
       console.warn('Audio element not found in DOM')
-      return
     }
 
     trackedListenRef.current[track.id] = false
@@ -136,25 +139,7 @@ export function AudioPlayerProvider({ children }) {
     setCurrentTime(resumeTime)
     setDuration(nextDuration)
     setPlaying(true)
-
-    if (audio) {
-      if (Math.abs(audio.currentTime - resumeTime) > 0.3) {
-        audio.currentTime = resumeTime
-      }
-      
-      // Add a small delay to ensure audio element is ready
-      setTimeout(() => {
-        if (audioRef.current) {
-          audioRef.current.play().catch((err) => {
-            if (err.name === 'AbortError') {
-              console.warn('Play interrupted - audio element may have been removed from DOM')
-            } else {
-              console.error('Play failed:', err)
-            }
-          })
-        }
-      }, 50)
-    }
+    // Gán src + play() trong useEffect bên dưới — tránh play() khi src còn là bài cũ/rỗng.
   }, [getSavedProgress])
 
   const togglePlay = useCallback(() => {
@@ -270,7 +255,9 @@ export function AudioPlayerProvider({ children }) {
   const playNext = useCallback(() => {
     if (!currentTrack || queue.length === 0) return
 
-    const currentIndex = queue.findIndex((item) => item.id === currentTrack.id)
+    const currentIndex = queue.findIndex((item) =>
+      sameTrackId(item.id, currentTrack.id)
+    )
     if (currentIndex === -1) return
 
     const nextTrack = queue[currentIndex + 1]
@@ -294,7 +281,9 @@ export function AudioPlayerProvider({ children }) {
     }
 
     
-    const currentIndex = queue.findIndex((item) => item.id === currentTrack.id)
+    const currentIndex = queue.findIndex((item) =>
+      sameTrackId(item.id, currentTrack.id)
+    )
     if (currentIndex <= 0) return
 
     const prevTrack = queue[currentIndex - 1]
@@ -421,7 +410,9 @@ export function AudioPlayerProvider({ children }) {
         })
       }
 
-      const currentIndex = queue.findIndex((item) => item.id === currentTrack?.id)
+      const currentIndex = queue.findIndex((item) =>
+        sameTrackId(item.id, currentTrack?.id)
+      )
       const nextTrack = currentIndex >= 0 ? queue[currentIndex + 1] : null
 
       if (nextTrack) {
@@ -464,9 +455,9 @@ export function AudioPlayerProvider({ children }) {
 
   useEffect(() => {
     const audio = audioRef.current
-    if (!audio || !currentTrack?.audioUrl) return
+    if (!audio || !currentTrack?.audioUrl || currentTrack?.id == null) return
 
-    const savedProgress = getSavedProgress(currentTrack)
+    const savedProgress = getSavedProgress({ id: currentTrack.id })
     const resumeTime = Number(savedProgress?.currentTime || 0)
 
     audio.src = currentTrack.audioUrl
@@ -477,16 +468,14 @@ export function AudioPlayerProvider({ children }) {
         audio.currentTime = resumeTime
       }
 
-      if (playing) {
-        audio.play().catch((err) => {
-          if (err.name === 'AbortError') {
-            console.warn('Autoplay interrupted - audio element may have been removed from DOM')
-          } else {
-            console.error('Autoplay failed:', err)
-          }
-          setPlaying(false)
-        })
-      }
+      audio.play().catch((err) => {
+        if (err.name === 'AbortError') {
+          console.warn('Autoplay interrupted - audio element may have been removed from DOM')
+        } else {
+          console.error('Autoplay failed:', err)
+        }
+        setPlaying(false)
+      })
     }
 
     audio.addEventListener('loadedmetadata', handleLoaded, { once: true })
@@ -494,7 +483,7 @@ export function AudioPlayerProvider({ children }) {
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoaded)
     }
-  }, [currentTrack, playing, getSavedProgress])
+  }, [currentTrack?.id, currentTrack?.audioUrl, getSavedProgress])
 
   const progressPercent = duration
     ? Math.min(100, (currentTime / duration) * 100)
@@ -522,7 +511,7 @@ export function AudioPlayerProvider({ children }) {
     seekToTime,
     playNext,
     playPrev,
-    isCurrentTrack: (id) => currentTrack?.id === id,
+    isCurrentTrack: (id) => sameTrackId(currentTrack?.id, id),
   }), [
     queue,
     currentTrack,

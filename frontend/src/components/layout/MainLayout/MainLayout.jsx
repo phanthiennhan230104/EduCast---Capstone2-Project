@@ -30,11 +30,13 @@ export default function MainLayout({
       sessionStorage.setItem(scrollStorageKey, String(main.scrollTop || 0))
     }
 
-    saveScrollPosition()
+    // Không gọi save ngay khi mount: lúc đó scroll thường vẫn 0 và sẽ ghi đè
+    // giá trị đã lưu (ví dụ quay lại từ /favorites) trước khi Feed khôi phục scroll.
     main.addEventListener('scroll', saveScrollPosition, { passive: true })
 
     return () => {
-      sessionStorage.setItem(scrollStorageKey, String(main.scrollTop || 0))
+      // Không ghi scroll khi unmount: con (Feed, Favorites, …) đã unmount trước,
+      // `main` thường trống / scrollTop = 0 và sẽ ghi đè giá trị đúng vừa lưu.
       main.removeEventListener('scroll', saveScrollPosition)
     }
   }, [scrollStorageKey])

@@ -1,14 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'react-toastify'
-import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import styles from '../../style/feed/ShareModal.module.css'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { getInitials } from '../../utils/getInitials'
+import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
+import { API_BASE_URL } from '../../config/apiBase'
+import {
+  EDUCAST_PERSONAL_SHARE_SUCCESS,
+  markPersonalSharePendingFeedRefresh,
+} from '../../utils/appEvents'
 
 export default function ShareModal({ podcast, onClose, onShareSuccess }) {
-  const { t } = useTranslation()
   const [caption, setCaption] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [friends, setFriends] = useState([])
@@ -16,8 +20,17 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
   const [loadingFriends, setLoadingFriends] = useState(false)
 
   const currentUser = getCurrentUser()
+
+  const rowId = String(podcast?.id ?? '').trim()
+  const isFeedShareRow =
+    podcast?.type === 'shared' || rowId.startsWith('share_')
+
+  const shareTargetPostId =
+    isFeedShareRow && rowId
+      ? rowId
+      : getCanonicalPostIdForEngagement(podcast) ?? podcast.post_id ?? podcast.id
+
   const inputRef = useRef(null)
-  console.log('SHARE PODCAST', podcast)
 
   const authorName =
     typeof podcast.author === 'object'
@@ -56,7 +69,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
       setLoadingFriends(true)
 
       const token = getToken()
-      const res = await fetch('http://localhost:8000/api/social/friends/', {
+      const res = await fetch(`${API_BASE_URL}/social/friends/`, {
         headers: {
           'Content-Type': 'application/json',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -72,7 +85,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
       setFriends(data.data?.friends || [])
     } catch (err) {
       console.error('Fetch friends failed:', err)
-      toast.error(t('shareModal.fetchFriendsError'))
+      toast.error('Lỗi khi tải danh sách bạn bè')
     } finally {
       setLoadingFriends(false)
     }
@@ -114,7 +127,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
       const token = getToken()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${podcast.id}/share-to-user/`,
+        `${API_BASE_URL}/social/posts/${encodeURIComponent(shareTargetPostId)}/share-to-user/`,
         {
           method: 'POST',
           headers: {
@@ -184,7 +197,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
 
       const token = getToken()
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${podcast.id}/share/`,
+        `${API_BASE_URL}/social/posts/${encodeURIComponent(shareTargetPostId)}/share/`,
         {
           method: 'POST',
           headers: {
@@ -205,10 +218,29 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
         throw new Error(data.message || `HTTP ${res.status}`)
       }
 
-      toast.success('Chia sẻ bài viết về trang cá nhân thành công!')
+      const wasOnFeed =
+        typeof window !== 'undefined' &&
+        (window.location.pathname === '/feed' ||
+          window.location.pathname.startsWith('/feed/'))
+
+      // Feed chưa mount (vd. đang ở /profile): không dispatch — listener không tồn tại; dùng session + bootstrap Feed.
+      if (!wasOnFeed) {
+        markPersonalSharePendingFeedRefresh({ scrollToTop: true })
+      }
+
       setCaption('')
-      onClose()
       onShareSuccess?.(data.data)
+      onClose()
+      // Chỉ khi đang ở /feed: refetch qua listener (tránh double bump với session bootstrap).
+      queueMicrotask(() => {
+        if (wasOnFeed) {
+          window.dispatchEvent(
+            new CustomEvent(EDUCAST_PERSONAL_SHARE_SUCCESS, {
+              detail: { postId: shareTargetPostId },
+            })
+          )
+        }
+      })
     } catch (err) {
       console.error('Share failed:', err)
       toast.error(err.message || 'Chia sẻ bài viết thất bại')
@@ -221,7 +253,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.topBar}>
-          <h2 className={styles.modalTitle}>{t('shareModal.title')}</h2>
+          <h2 className={styles.modalTitle}>Chia sẻ</h2>
           <button className={styles.closeBtn} type="button" onClick={onClose}>
             <X size={20} />
           </button>
@@ -280,7 +312,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                   ref={inputRef}
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  placeholder={t('shareModal.captionPlaceholder')}
+                  placeholder="Hãy nói gì đó về nội dung này..."
                   className={styles.textarea}
                   maxLength={500}
                 />
@@ -290,14 +322,14 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
             <div className={styles.charCount}>{caption.length}/500</div>
 
             <div className={styles.friendsSection}>
-              <div className={styles.friendsTitle}>{t('shareModal.chooseRecipients')}</div>
+              <div className={styles.friendsTitle}>Chọn người nhận</div>
 
               {loadingFriends ? (
                 <div className={styles.loadingText}>
                   Đang tải danh sách bạn bè...
                 </div>
               ) : friends.length === 0 ? (
-                <div className={styles.emptyText}>{t('shareModal.noFriends')}</div>
+                <div className={styles.emptyText}>Bạn chưa có bạn bè</div>
               ) : (
                 <div className={styles.friendsCarousel}>
                   {friends.map((friend) => {
