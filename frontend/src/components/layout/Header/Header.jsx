@@ -6,6 +6,7 @@ import styles from '../../../style/layout/Header.module.css'
 import { useAuth } from '../../contexts/AuthContext'
 import { getInitials } from '../../../utils/getInitials'
 import NotificationPanel from '../NotificationPanel/NotificationPanel'
+import logoImage from '../../../assets/images/educast-logo.png'
 
 export default function Header({ hideGlobalProgress = false }) {
   const navigate = useNavigate()
@@ -71,21 +72,12 @@ export default function Header({ hideGlobalProgress = false }) {
 
   return (
     <header className={styles.header}>
-      <div className={styles.logo}>
-        <div className={styles.logoIcon}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-            <path
-              d="M9 19V6l12-3v13"
-              stroke="#fff"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <circle cx="6" cy="19" r="3" stroke="#fff" strokeWidth="2" />
-            <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="2" />
-          </svg>
-        </div>
-        <span className={styles.logoText}>EduCast</span>
+      <div className={styles.logo} onClick={() => navigate('/')}>
+        <img
+          src={logoImage}
+          alt="EduCast Logo"
+          className={styles.logoImage}
+        />
       </div>
 
       <div className={styles.searchWrap}>

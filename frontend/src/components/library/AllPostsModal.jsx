@@ -57,7 +57,11 @@ export default function AllPostsModal({ isOpen, onClose, posts, title, onSelectP
                   )}
                   <div className={styles.postInfo}>
                     <h3 className={styles.postTitle}>{post.title}</h3>
-                    <p className={styles.postAuthor}>{displayAuthor(post.author)}</p>
+                    <p className={styles.postAuthor}>
+                      {typeof post.author === 'object'
+                        ? post.author?.name || post.author?.username || 'Người dùng'
+                        : post.author}
+                    </p>
                     {post.tags && post.tags.length > 0 && (
                       <div className={styles.tags}>
                         {post.tags.slice(0, 2).map((tag, idx) => (

@@ -21,9 +21,16 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: 10px;
-  flex-shrink: 0;
-  min-width: var(--sidebar-width);
+  min-width: 220px;
+  padding-left: 12px;
+  cursor: pointer;
+}
+
+.logoImage {
+  height: 58px;
+  width: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .logoIcon {

@@ -610,9 +610,9 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   min-width: 0;
-  padding: 12px 16px;
+  padding: 14px 18px 24px 18px;
   border-top: 1px solid rgba(148, 163, 184, 0.12);
   background: rgba(8, 18, 36, 0.88);
   backdrop-filter: blur(10px);
@@ -621,79 +621,131 @@
 .chat-composer-actions {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   flex: 0 0 auto;
 }
 
 .chat-composer .ant-input-textarea {
   flex: 1 1 auto;
   min-width: 0;
-}
-.chat-composer .ant-input-textarea textarea {
-  min-height: 48px !important;
-  max-height: 120px !important;
-  border-radius: 16px !important;
-  background: rgba(15, 23, 42, 0.96) !important;
-  border: 1px solid rgba(148, 163, 184, 0.12) !important;
-  color: #f8fafc !important;
-  padding: 12px 16px !important;
-  line-height: 1.45 !important;
-  box-shadow: none !important;
-  resize: none !important;
-  overflow-y: auto !important;
-}
-.chat-composer .ant-input-textarea textarea::placeholder {
-  color: #6b7c98;
-  line-height: 1.35 !important;
+  height: 52px;
+  display: flex;
+  align-items: center;
 }
 
+.chat-composer .composer-textarea {
+  height: 52px;
+  min-height: 52px;
+  max-height: 52px;
+  padding: 0 18px;
+  border-radius: 18px;
+  background: rgba(15, 23, 42, 0.96);
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  color: #f8fafc;
+  line-height: 52px;
+  box-shadow: none;
+  resize: none;
+  overflow: hidden;
+}
+
+.chat-composer .composer-textarea::placeholder {
+  color: #6b7c98;
+}
+
+.chat-composer .composer-textarea:hover,
+.chat-composer .composer-textarea:focus {
+  border-color: rgba(96, 165, 250, 0.42);
+  box-shadow: none;
+}
 
 .chat-composer .ant-input-textarea textarea:focus,
 .chat-composer .ant-input-textarea textarea:hover {
-  border-color: rgba(96, 165, 250, 0.42) !important;
+  border-color: rgba(96, 165, 250, 0.42);
 }
 
-.composer-icon-btn.ant-btn {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  flex: 0 0 44px;
-  border-radius: 14px;
-  padding: 0 !important;
+.composer-icon-btn.ant-btn,
+.composer-send-btn.ant-btn {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  flex: 0 0 52px;
+  padding: 0;
+  border-radius: 18px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+}
+
+.composer-icon-btn.ant-btn {
   background: rgba(15, 23, 42, 0.88);
   color: #dbeafe;
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  border: 1px solid rgba(148, 163, 184, 0.14);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 
 .composer-icon-btn.ant-btn:hover,
 .composer-icon-btn.ant-btn:focus {
-  background: rgba(30, 41, 59, 0.98) !important;
-  color: #ffffff !important;
-  border-color: rgba(96, 165, 250, 0.4) !important;
+  background: rgba(30, 41, 59, 0.98);
+  color: #ffffff;
+  border-color: rgba(96, 165, 250, 0.4);
 }
 
-.composer-send-btn.ant-btn {
-  width: 44px;
-  height: 44px;
-  min-width: 44px;
-  flex: 0 0 44px;
-  padding: 0 !important;
-  border-radius: 14px;
-  border: none;
+.record-control {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+  flex: 0 0 52px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  overflow: visible;
+}
+
+.record-control .composer-icon-btn.ant-btn {
+  width: 52px;
+  height: 52px;
+  min-width: 52px;
+}
+
+.record-timer-under-icon {
+  position: absolute;
+  left: 50%;
+  top: 100%;
+  margin-top: 6px;
+  transform: translateX(-50%);
+  color: #fecaca;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 10;
+}
+
+.recording-mic-btn.ant-btn.is-recording {
+  color: #ffffff !important;
+  background: rgba(239, 68, 68, 0.94) !important;
+  border-color: rgba(248, 113, 113, 0.9) !important;
+  animation: recordingPulse 1s ease-in-out infinite;
+}
+
+.recording-mic-btn.ant-btn.is-recording:hover,
+.recording-mic-btn.ant-btn.is-recording:focus {
+  color: #ffffff !important;
+  background: rgba(220, 38, 38, 0.96) !important;
+  border-color: rgba(252, 165, 165, 0.95) !important;
+}
+
+.composer-send-btn.ant-btn {
+  border: none;
   background: linear-gradient(135deg, #f59e0b, #f97316);
   box-shadow: 0 10px 18px rgba(245, 158, 11, 0.22);
   transition: transform 0.2s ease, box-shadow 0.2s ease, filter 0.2s ease;
 }
 
 .composer-send-btn.ant-btn .anticon {
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .composer-send-btn.ant-btn:hover,
@@ -701,6 +753,23 @@
   background: linear-gradient(135deg, #fbbf24, #f97316) !important;
   transform: translateY(-1px);
   box-shadow: 0 16px 30px rgba(245, 158, 11, 0.32);
+}
+
+@keyframes recordingPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.58);
+    transform: scale(1);
+  }
+
+  70% {
+    box-shadow: 0 0 0 9px rgba(239, 68, 68, 0);
+    transform: scale(1.04);
+  }
+
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+    transform: scale(1);
+  }
 }
 
 .chat-empty {

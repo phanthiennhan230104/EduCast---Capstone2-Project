@@ -595,12 +595,17 @@ export default function ChatPage() {
                     />
                   </Upload>
 
-                  <Button
-                    className="composer-icon-btn"
-                    icon={<AudioOutlined />}
-                    disabled={status !== "open" || uploading}
-                    onClick={recording ? handleStopRecording : handleStartRecording}
-                  />
+                  <div className="record-control">
+                    <Button
+                      className={`composer-icon-btn recording-mic-btn ${recording ? "is-recording" : ""}`}
+                      icon={<AudioOutlined />}
+                      disabled={status !== "open" || uploading}
+                      onClick={recording ? handleStopRecording : handleStartRecording}
+                    />
+                    {recording && (
+                      <span className="record-timer-under-icon">{recordSeconds}s</span>
+                    )}
+                  </div>
 
                   <Upload
                     accept={FILE_ACCEPT}
@@ -616,18 +621,6 @@ export default function ChatPage() {
                     />
                   </Upload>
                 </div>
-                {recording && (
-                  <div className="recording-box">
-                    <span>Đang ghi âm: {recordSeconds}s</span>
-                    <Button size="small" onClick={handleStopRecording}>
-                      Dừng
-                    </Button>
-                    <Button size="small" danger onClick={handleCancelRecording}>
-                      Huỷ
-                    </Button>
-                  </div>
-                )}
-
                 {recordedAudio && !recording && (
                   <div className="recording-box">
                     <audio controls src={URL.createObjectURL(recordedAudio)} />
@@ -640,6 +633,7 @@ export default function ChatPage() {
                   </div>
                 )}
                 <TextArea
+                  className="composer-textarea"
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
                   autoSize={{ minRows: 1, maxRows: 3 }}
@@ -649,6 +643,7 @@ export default function ChatPage() {
     : t('chat.connectingRealtime')
 }
                   disabled={status !== "open"}
+                  autoSize={false}
                   onPressEnter={(e) => {
                     if (!e.shiftKey) {
                       e.preventDefault();

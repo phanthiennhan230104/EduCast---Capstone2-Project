@@ -101,7 +101,11 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
           {/* Title and Author */}
           <div className={styles.titleSection}>
             <h1 className={styles.title}>{post.title}</h1>
-            <p className={styles.author}>{post.author}</p>
+            <p className={styles.author}>
+              {typeof post.author === 'object'
+                ? post.author?.name || post.author?.username || 'Người dùng'
+                : post.author}
+            </p>
           </div>
 
           {/* Tags */}
