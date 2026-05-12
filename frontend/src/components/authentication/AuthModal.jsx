@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom'
 import { X, Music, User, AtSign, Mail, Lock, Eye, Chrome } from 'lucide-react'
 import styles from '../../style/authentication/AuthModal.module.css'
 import { apiRequest } from '../../utils/api'
-import { saveAuth } from '../../utils/auth'
 import notify from '../../utils/toast'
 import { useAuth } from '../contexts/AuthContext'
 import ForgotPasswordModal from './ForgotPassword'
@@ -118,8 +117,8 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         }),
       })
 
-      saveAuth(data, loginData.rememberMe)
-      login(data.user)
+      
+      login(data, loginData.rememberMe)
 
       notify.success('Đăng nhập thành công.')
       onClose()
@@ -238,8 +237,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         }),
       })
 
-      saveAuth(data, loginData.rememberMe)
-      login(data.user)
+      login(data)
 
       notify.success('Xác thực OTP thành công. Tài khoản đã được tạo.')
       setShowOtpPopup(false)
@@ -277,8 +275,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         }),
       })
 
-      saveAuth(data, true)
-      login(data.user)
+      login(data, true)
 
       notify.success('Đăng nhập Google thành công.')
       onClose()

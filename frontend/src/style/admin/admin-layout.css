@@ -1,7 +1,7 @@
 .admin-layout {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 260px minmax(0, 1fr);
   background:
     radial-gradient(circle at top left, rgba(73, 88, 180, 0.15), transparent 28%),
     linear-gradient(180deg, #1a2047 0%, #1b2148 100%);
@@ -14,16 +14,18 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
+  overflow: hidden;
 }
 
 .admin-layout-main {
   padding: 16px 28px 28px;
+  min-width: 0;
+  overflow: auto;
 }
 
 @media (max-width: 860px) {
   .admin-layout {
-    grid-template-columns: 1fr;
-    
+    grid-template-columns: 260px minmax(0, 1fr);
   }
 
   .admin-layout-main {

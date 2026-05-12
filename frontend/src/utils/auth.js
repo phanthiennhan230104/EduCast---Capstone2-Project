@@ -1,35 +1,45 @@
 export const EDUCAST_ACCESS = 'educast_access'
 export const EDUCAST_REFRESH = 'educast_refresh'
 export const EDUCAST_USER = 'educast_user'
+export const EDUCAST_REMEMBER_ME = 'educast_remember_me'
 
 export const AUTH_FORCE_LOGOUT_EVENT = 'educast_force_logout'
 export const LOGIN_PATH = '/'
 
-export function saveAuth(data) {
-  // Backend DRF + SimpleJWT trả access/refresh
+function getItemFromBothStorage(key) {
+  return localStorage.getItem(key) || sessionStorage.getItem(key)
+}
+
+export function saveAuth(data, rememberMe = false) {
+  clearAuth()
+
+  const storage = rememberMe ? localStorage : sessionStorage
+
   if (data?.access) {
-    localStorage.setItem(EDUCAST_ACCESS, data.access)
+    storage.setItem(EDUCAST_ACCESS, data.access)
   }
 
   if (data?.refresh) {
-    localStorage.setItem(EDUCAST_REFRESH, data.refresh)
+    storage.setItem(EDUCAST_REFRESH, data.refresh)
   }
 
   if (data?.user) {
-    localStorage.setItem(EDUCAST_USER, JSON.stringify(data.user))
+    storage.setItem(EDUCAST_USER, JSON.stringify(data.user))
   }
+
+  localStorage.setItem(EDUCAST_REMEMBER_ME, rememberMe ? 'true' : 'false')
 }
 
 export function getToken() {
-  return localStorage.getItem(EDUCAST_ACCESS)
+  return getItemFromBothStorage(EDUCAST_ACCESS)
 }
 
 export function getRefreshToken() {
-  return localStorage.getItem(EDUCAST_REFRESH)
+  return getItemFromBothStorage(EDUCAST_REFRESH)
 }
 
 export function getCurrentUser() {
-  const raw = localStorage.getItem(EDUCAST_USER)
+  const raw = getItemFromBothStorage(EDUCAST_USER)
 
   if (!raw) return null
 
@@ -44,16 +54,17 @@ export function clearAuth() {
   localStorage.removeItem(EDUCAST_ACCESS)
   localStorage.removeItem(EDUCAST_REFRESH)
   localStorage.removeItem(EDUCAST_USER)
+  localStorage.removeItem(EDUCAST_REMEMBER_ME)
+
+  sessionStorage.removeItem(EDUCAST_ACCESS)
+  sessionStorage.removeItem(EDUCAST_REFRESH)
+  sessionStorage.removeItem(EDUCAST_USER)
 }
 
 export function isLoggedIn() {
   return Boolean(getToken())
 }
 
-/**
- * Dùng khi backend báo token hết hạn / tài khoản bị khóa.
- * Hàm này xóa token local và bắn event để AuthContext cập nhật UI.
- */
 export function forceLogoutToLogin(reason = 'Phiên đăng nhập đã kết thúc.') {
   clearAuth()
 

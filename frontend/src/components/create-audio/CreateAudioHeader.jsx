@@ -1,15 +1,17 @@
 import { Badge, Card, Space, Steps, Typography } from 'antd'
 import { RobotOutlined } from '@ant-design/icons'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/create-audio/CreateAudioHeader.module.css'
 
 const { Title, Text } = Typography
 
 export default function CreateAudioHeader({ step }) {
+  const { t } = useTranslation()
   const stepItems = [
-    { title: 'Nhập nội dung' },
-    { title: 'Cấu hình giọng' },
-    { title: 'Tạo & xuất bản' },
-  ]
+  { title: t('createAudio.header.stepContent') },
+  { title: t('createAudio.header.stepVoice') },
+  { title: t('createAudio.header.stepPublish') },
+]
 
   return (
     <Card className={styles.wrapper} variant="borderless">
@@ -18,19 +20,19 @@ export default function CreateAudioHeader({ step }) {
         <div>
           <Space wrap>
             <Title level={3} className={styles.title}>
-              Studio Tạo Audio AI
+              {t('createAudio.header.title')}
             </Title>
             <Badge
               className={styles.badge}
               count={
                 <Space size={4} style={{ color: '#faad14', fontWeight: 1000 }}>
-                  AI sẵn sàng
+                  {t('createAudio.header.aiReady')}
                 </Space>
               }
             />
           </Space>
           <Text className={styles.desc}>
-            Chuyển văn bản hoặc tài liệu thành podcast trong vài giây
+            {t('createAudio.header.description')}
           </Text>
         </div>
 

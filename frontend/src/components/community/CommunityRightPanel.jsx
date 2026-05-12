@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Target, UserPlus, Bell } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/community/CommunityRightPanel.module.css'
 
 const INITIAL_FOLLOWING = [
@@ -22,6 +23,7 @@ const ACTIVITIES = [
 ]
 
 export default function CommunityRightPanel() {
+  const { t } = useTranslation()
   const [followingList, setFollowingList] = useState(INITIAL_FOLLOWING)
   const [suggestions, setSuggestions] = useState(INITIAL_SUGGESTIONS)
 
@@ -46,7 +48,7 @@ export default function CommunityRightPanel() {
       <div className={styles.card}>
         <h3 className={styles.cardTitle}>
           <Target size={16} />
-          <span>Đang theo dõi</span>
+          <span>{t('communityRightPanel.followingTitle')}</span>
           <span className={styles.count}>12</span>
         </h3>
 
@@ -57,28 +59,31 @@ export default function CommunityRightPanel() {
 
               <div className={styles.userInfo}>
                 <div className={styles.name}>{item.name}</div>
-                <div className={styles.meta}>{item.count}</div>
+                <div className={styles.meta}>{item.count}{t('communityRightPanel.followers')}</div>
               </div>
 
               <button
                 className={`${styles.followBtn} ${item.following ? styles.following : ''}`}
                 onClick={() => toggleFollowing(item.id)}
               >
-                {item.following ? 'Đang theo dõi' : 'Theo dõi'}
+                {item.following
+  ? t('communityRightPanel.following')
+  : t('communityRightPanel.follow')}
               </button>
             </div>
           ))}
         </div>
 
         <button type="button" className={styles.viewMore}>
-          Xem tất cả 12 người <span aria-hidden="true">→</span>
+          {t('communityRightPanel.viewAllPeople', { count: 12 })}{' '}
+<span aria-hidden="true">→</span>
         </button>
       </div>
 
       <div className={styles.card}>
         <h3 className={styles.cardTitle}>
           <UserPlus size={16} />
-          <span>Gợi ý theo dõi</span>
+          <span>{t('communityRightPanel.suggestionsTitle')}</span>
         </h3>
 
         <div className={styles.userList}>
@@ -105,7 +110,7 @@ export default function CommunityRightPanel() {
       <div className={styles.card}>
         <h3 className={styles.cardTitle}>
           <Bell size={16} />
-          <span>Hoạt động gần đây</span>
+          <span>{t('communityRightPanel.recentActivities')}</span>
         </h3>
 
         <div className={styles.activityList}>

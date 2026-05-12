@@ -53,14 +53,14 @@ export default function PersonalPage() {
   const { deletedPostIds, deletedPostsVersion, hiddenPostIds, hiddenPostsVersion, deletePost, hidePost, addSavedPost, removeSavedPost } = useContext(PodcastContext)
   const { pauseTrackIfDeleted } = useAudioPlayer()
 
-const profileUserId = routeUserId || user?.id
-const isOwnProfile = String(profileUserId) === String(user?.id)
-const profileAvatar =
-  userProfile?.avatar_url ||
-  userProfile?.avatar ||
-  userProfile?.profile_image ||
-  userProfile?.image ||
-  ''
+  const profileUserId = routeUserId || user?.id
+  const isOwnProfile = String(profileUserId) === String(user?.id)
+  const profileAvatar =
+    userProfile?.avatar_url ||
+    userProfile?.avatar ||
+    userProfile?.profile_image ||
+    userProfile?.image ||
+    ''
 
   React.useEffect(() => {
     if (!profileUserId) return
@@ -72,14 +72,13 @@ const profileAvatar =
   }, [profileUserId])
 
   React.useEffect(() => {
-    setPosts(prev => 
+    setPosts(prev =>
       prev.filter(p => !deletedPostIds.has(String(p.id)) && !hiddenPostIds.has(String(p.id)))
     )
   }, [deletedPostsVersion, hiddenPostsVersion])
 
   // Sync event for Feed and Profile page communication
   const POST_SYNC_EVENT = 'post-sync-updated'
-
   const dispatchPostSync = (payload) => {
     window.dispatchEvent(new CustomEvent(POST_SYNC_EVENT, { detail: payload }))
   }
@@ -89,7 +88,7 @@ const profileAvatar =
       const d = event.detail || {}
 
       if (!d.postId) return
-      
+
       // Update localStorage cache (same as Feed does)
       const oldSync = JSON.parse(
         localStorage.getItem(`post-sync-${d.postId}`) || '{}'
@@ -122,12 +121,12 @@ const profileAvatar =
         prev.map(p =>
           String(p.id) === String(d.postId)
             ? {
-                ...p,
-                liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
-                likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
-                saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
-                saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
-              }
+              ...p,
+              liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
+              likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
+              saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+              saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+            }
             : p
         )
       )
@@ -144,7 +143,7 @@ const profileAvatar =
         }
       }))
     }
-    
+
     window.addEventListener(POST_SYNC_EVENT, handlePostSync)
     return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
   }, [])
@@ -163,16 +162,15 @@ const profileAvatar =
     try {
       const data = await apiRequest(`/content/users/${profileUserId}/posts/?limit=100`)
       const posts = data.data?.posts || []
-      
+
       console.log('📌 Fetched posts:', posts.map(p => ({ id: p.id, type: p.type, is_liked: p.is_liked, like_count: p.like_count, title: p.title })))
-      
+
       // Load local overrides from localStorage
       const localCommentCountOverrides = JSON.parse(localStorage.getItem('personalPageCommentCountOverrides') || '{}')
       const profileHiddenPosts = JSON.parse(localStorage.getItem('profileHiddenPosts') || '[]')
-      
       console.log('📌 Local comment count overrides:', localCommentCountOverrides)
       console.log('📌 Profile hidden posts:', profileHiddenPosts)
-      
+
       const mappedPosts = posts.map((post) => {
         // Use backend field names directly (cả bài gốc và bài share đều dùng counts từ backend)
         const shareCount = post.share_count || 0
@@ -185,14 +183,14 @@ const profileAvatar =
         const isLiked = syncState.liked ?? (post.is_liked || false)
         const finalLikeCount = syncState.likeCount ?? (post.like_count || 0)
         const isSaved = syncState.saved ?? (post.is_saved || false)
-        
+
         const hasLocalCommentOverride = post.id in localCommentCountOverrides
         const commentCount = hasLocalCommentOverride ? localCommentCountOverrides[post.id] : (post.comment_count || 0)
-        
-        console.log('📌 Post state:', { 
+
+        console.log('📌 Post state:', {
           id: post.id,
           type: post.type,
-          backendLiked: post.is_liked, 
+          backendLiked: post.is_liked,
           finalLiked: isLiked,
           backendLikeCount: post.like_count,
           finalLikeCount: finalLikeCount,
@@ -200,7 +198,7 @@ const profileAvatar =
           localCommentOverride: hasLocalCommentOverride ? localCommentCountOverrides[post.id] : 'none',
           finalCommentCount: commentCount
         })
-        
+
         return {
           ...post, // Keep original data for fallback
           id: post.id,
@@ -234,11 +232,11 @@ const profileAvatar =
           saved: isSaved,
         }
       })
-      
+
       const newPostStates = {}
       mappedPosts.forEach(post => {
-        console.log('📌 Initializing post state:', { 
-          id: post.id, 
+        console.log('📌 Initializing post state:', {
+          id: post.id,
           type: post.type,
           post_id: post.post_id,
           share_id: post.share_id,
@@ -246,26 +244,26 @@ const profileAvatar =
           liked: post.liked,
           likes: post.likes,
           comments: post.comments,
-          title: post.title 
+          title: post.title
         })
         newPostStates[post.id] = {
-          liked: post.liked,  
+          liked: post.liked,
           likeCount: post.likes,
           saved: post.saved,
           saveCount: post.saveCount,
-          commentCount: post.comments,  
+          commentCount: post.comments,
           shareCount: post.shares,
         }
       })
       console.log('📌 postStates initialized:', newPostStates)
       setPostStates(newPostStates)
-      
-      const filteredPosts = mappedPosts.filter(p => 
-        !deletedPostIds.has(String(p.id)) && 
+
+      const filteredPosts = mappedPosts.filter(p =>
+        !deletedPostIds.has(String(p.id)) &&
         !hiddenPostIds.has(String(p.id)) &&
         !profileHiddenPosts.includes(p.id)
       )
-      
+
       setPosts(filteredPosts)
     } catch (err) {
       console.error('Failed to fetch posts:', err)
@@ -284,34 +282,34 @@ const profileAvatar =
   }
 
   const fetchUserFriends = async () => {
-  try {
-    const data = await apiRequest(`/social/friends/?user_id=${profileUserId}`)
-    setFriends(data.data?.friends || [])
+    try {
+      const data = await apiRequest(`/social/friends/?user_id=${profileUserId}`)
+      setFriends(data.data?.friends || [])
 
-    const following =
-      data.data?.following ||
-      data.data?.friends ||
-      data.data?.results ||
-      []
+      const following =
+        data.data?.following ||
+        data.data?.friends ||
+        data.data?.results ||
+        []
 
-    setFriends(following)
-  } catch (err) {
-    console.error('Failed to fetch friends:', err)
-    setFriends([])
+      setFriends(following)
+    } catch (err) {
+      console.error('Failed to fetch friends:', err)
+      setFriends([])
+    }
   }
-}
 
   const handleOpenOriginalPost = async (post) => {
     if (!post.post_id) return
-    
+
     try {
       // Fetch the original post with its original stats
       const data = await apiRequest(`/content/posts/${post.post_id}/`)
       console.log('📌 Original post data:', data)
-      
+
       if (data && data.data) {
         const origPost = data.data
-        
+
         // Map to match PodcastCard format
         const mappedPost = {
           ...origPost,
@@ -336,7 +334,7 @@ const profileAvatar =
           liked: origPost.is_liked || false,
           saved: origPost.is_saved || false,
         }
-        
+
         // Use CommentModal to display original post (same as viewing comments)
         setSelectedPost(mappedPost)
         setShowCommentModal(true)
@@ -382,8 +380,8 @@ const profileAvatar =
         return
       }
 
-      console.log('❤️ Like clicked on post:', { 
-        postId, 
+      console.log('❤️ Like clicked on post:', {
+        postId,
         type: post.type,
         post_id: post.post_id,
         share_id: post.share_id,
@@ -416,9 +414,9 @@ const profileAvatar =
       const nextLiked = Boolean(data.data?.liked)
       const nextLikeCount = Number(data.data?.like_count || 0)
 
-      console.log('❤️ Like response:', { 
+      console.log('❤️ Like response:', {
         postId,
-        nextLiked, 
+        nextLiked,
         nextLikeCount,
         currentPostState: postStates[postId]
       })
@@ -467,7 +465,7 @@ const profileAvatar =
       // Use the composite ID (share_xxx_yyy) if it's a shared post, otherwise use post ID
       const saveEndpointId = postId
 
-      
+
       if (isSaved) {
         // Unsave
         const token = getToken()
@@ -506,8 +504,8 @@ const profileAvatar =
 
         removeSavedPost(postId)
 
-        setPosts(prev => prev.map(p => 
-          p.id === postId 
+        setPosts(prev => prev.map(p =>
+          p.id === postId
             ? { ...p, saved: false, saveCount: nextSaveCount }
             : p
         ))
@@ -542,8 +540,8 @@ const profileAvatar =
     }))
 
     addSavedPost(postId)
-    setPosts(prev => prev.map(p => 
-      p.id === postId 
+    setPosts(prev => prev.map(p =>
+      p.id === postId
         ? { ...p, saved: true, saveCount: newSaveCount }
         : p
     ))
@@ -570,13 +568,13 @@ const profileAvatar =
 
   const handleCommentCountChange = (postId, newCount) => {
     console.log('💬 Comment count changed:', { postId, newCount })
-    
+
     // Save local override to localStorage
     const localCommentCountOverrides = JSON.parse(localStorage.getItem('personalPageCommentCountOverrides') || '{}')
     localCommentCountOverrides[postId] = newCount
     localStorage.setItem('personalPageCommentCountOverrides', JSON.stringify(localCommentCountOverrides))
     console.log('💬 Saved local comment count override:', { postId, count: newCount })
-    
+
     setPostStates(prev => ({
       ...prev,
       [postId]: {
@@ -585,8 +583,8 @@ const profileAvatar =
       }
     }))
 
-    setPosts(prev => prev.map(p => 
-      p.id === postId 
+    setPosts(prev => prev.map(p =>
+      p.id === postId
         ? { ...p, comments: newCount }
         : p
     ))
@@ -598,15 +596,15 @@ const profileAvatar =
   const handleShareSuccess = (postId, data) => {
     console.log('📤 Share success - postId:', postId)
     console.log('📤 Share success - data:', data)
-    
+
     // Backend trả về like_count, comment_count, save_count, share_count
     const newShareCount = Number(data?.share_count || 0)
     const newLikeCount = Number(data?.like_count)
     const newCommentCount = Number(data?.comment_count)
     const newSaveCount = Number(data?.save_count)
-    
+
     console.log('📤 Parsed counts:', { newShareCount, newLikeCount, newCommentCount, newSaveCount })
-    
+
     setPostStates(prev => {
       const updated = {
         ...prev,
@@ -625,8 +623,8 @@ const profileAvatar =
 
     setPosts(prev => prev.map(p => {
       if (p.id === postId) {
-        const updated = { 
-          ...p, 
+        const updated = {
+          ...p,
           shares: newShareCount,
           // Giữ nguyên các giá trị khác nếu backend không trả về
           ...(typeof newLikeCount === 'number' && !isNaN(newLikeCount) ? { likes: newLikeCount } : {}),
@@ -845,7 +843,7 @@ const profileAvatar =
                               <div className={styles.postShareAuthor}>
                                 {profileAvatar && !failedAvatarUrls.has('postShare') ? (
                                   <div className={styles.postShareAvatarWrapper}>
-                                    <img 
+                                    <img
                                       src={profileAvatar}
                                       alt={userProfile?.username || userProfile?.display_name || 'Avatar'}
                                       className={styles.postShareAvatar}
@@ -875,7 +873,7 @@ const profileAvatar =
                                 </div>
                               </div>
                               <div className={styles.postMenuWrap}>
-                                <button 
+                                <button
                                   className={styles.postShareMenuBtn}
                                   onClick={() => setOpenMenuPostId(openMenuPostId === post.id ? null : post.id)}
                                 >
@@ -883,7 +881,7 @@ const profileAvatar =
                                 </button>
                                 {openMenuPostId === post.id && (
                                   <div className={styles.postMenu}>
-                                    <button 
+                                    <button
                                       className={styles.postMenuOption}
                                       onClick={() => {
                                         setOpenMenuPostId(null)
@@ -893,7 +891,7 @@ const profileAvatar =
                                       <Edit size={16} />
                                       <span>Chỉnh sửa</span>
                                     </button>
-                                    <button 
+                                    <button
                                       className={`${styles.postMenuOption} ${styles.danger}`}
                                       onClick={() => handleDeletePost(post.id)}
                                     >
@@ -913,7 +911,7 @@ const profileAvatar =
                             )}
 
                             {/* Shared Post Content - Hiển thị bài đăng gốc */}
-                            <div 
+                            <div
                               className={styles.postCard}
                               onClick={() => handleOpenOriginalPost(post)}
                               style={{ cursor: 'pointer' }}
@@ -931,28 +929,28 @@ const profileAvatar =
 
                             {/* Share Actions - Hiển thị like, comment, share, lưu */}
                             <div className={styles.postShareActions}>
-                              <button 
+                              <button
                                 className={`${styles.shareActionBtn} ${postStates[post.id]?.liked ? styles.liked : ''}`}
                                 onClick={() => handleToggleLike(post.id)}
                               >
                                 <Heart size={16} fill={postStates[post.id]?.liked ? 'currentColor' : 'none'} />
                                 <span>{postStates[post.id]?.likeCount ?? post.likes ?? 0}</span>
                               </button>
-                              <button 
+                              <button
                                 className={styles.shareActionBtn}
                                 onClick={() => handleOpenCommentModal(post)}
                               >
                                 <MessageCircle size={16} />
                                 <span>{postStates[post.id]?.commentCount ?? post.comments ?? 0} Bình luận</span>
                               </button>
-                              <button 
+                              <button
                                 className={styles.shareActionBtn}
                                 onClick={() => handleOpenShareModal(post)}
                               >
                                 <Share2 size={16} />
                                 <span>{postStates[post.id]?.shareCount ?? post.shares ?? 0} Chia sẻ</span>
                               </button>
-                              <button 
+                              <button
                                 ref={saveBookmarkRef}
                                 className={`${styles.shareActionBtn} ${postStates[post.id]?.saved ? styles.saved : ''}`}
                                 onClick={() => handleToggleSave(post.id)}
@@ -986,10 +984,10 @@ const profileAvatar =
                     friends.map((friend) => (
                       <div key={friend.name || friend.username} className={styles.friendCard}>
                         {(friend.avatar_url || friend.avatar) && !failedAvatarUrls.has(`friend-${friend.id || friend.username}`) ? (
-                          <img 
-                            src={friend.avatar_url || friend.avatar} 
-                            alt={friend.name || friend.username} 
-                            className={styles.friendAvatar} 
+                          <img
+                            src={friend.avatar_url || friend.avatar}
+                            alt={friend.name || friend.username}
+                            className={styles.friendAvatar}
                             onError={() => setFailedAvatarUrls(prev => new Set([...prev, `friend-${friend.id || friend.username}`]))}
                           />
                         ) : (

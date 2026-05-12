@@ -1,4 +1,5 @@
 import { Headphones, StickyNote, Bookmark, Plus } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/library/FavoritesRightPanel.module.css'
 
 const RECENT_LISTENS = [
@@ -39,10 +40,13 @@ function TitleWithIcon({ icon, children }) {
 }
 
 export default function LibraryRightPanel() {
+  const { t } = useTranslation()
   return (
     <aside className={styles.panel}>
       <div className={styles.widget}>
-        <TitleWithIcon icon={<Headphones size={15} />}>Nghe gần đây</TitleWithIcon>
+        <TitleWithIcon icon={<Headphones size={15} />}>
+          {t('library.rightPanel.recentListens')}
+        </TitleWithIcon>
 
         <div className={styles.list}>
           {RECENT_LISTENS.map((item) => (
@@ -65,7 +69,9 @@ export default function LibraryRightPanel() {
       </div>
 
       <div className={styles.widget}>
-        <TitleWithIcon icon={<StickyNote size={15} />}>Ghi chú nổi bật</TitleWithIcon>
+        <TitleWithIcon icon={<StickyNote size={15} />}>
+          {t('library.rightPanel.highlightNotes')}
+        </TitleWithIcon>
 
         <div className={styles.noteList}>
           {HIGHLIGHT_NOTES.map((item) => (
@@ -80,7 +86,9 @@ export default function LibraryRightPanel() {
       </div>
 
       <div className={styles.widget}>
-        <TitleWithIcon icon={<Bookmark size={15} />}>Gợi ý thêm vào thư viện</TitleWithIcon>
+        <TitleWithIcon icon={<Bookmark size={15} />}>
+          {t('library.rightPanel.suggestedLibrary')}
+        </TitleWithIcon>
 
         <div className={styles.list}>
           {SUGGESTED_LIBRARY.map((item) => (
@@ -94,7 +102,7 @@ export default function LibraryRightPanel() {
                 <div className={styles.itemSub}>{item.sub}</div>
               </div>
 
-              <button type="button" className={styles.addBtn} aria-label={`Thêm ${item.title} vào thư viện`}>
+              <button type="button" className={styles.addBtn} aria-label={t('library.rightPanel.addToLibrary', { title: item.title })}>
                 <Plus size={14} />
               </button>
             </div>

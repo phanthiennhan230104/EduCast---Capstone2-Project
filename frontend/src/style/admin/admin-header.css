@@ -5,6 +5,8 @@
   align-items: center;
   justify-content: space-between;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  position: relative;
+  z-index: 20;
 }
 
 .admin-title {
@@ -20,7 +22,6 @@
   margin: 8px 0 0;
   color: #7f8bc0;
   font-size: 11px;
-  
 }
 
 .admin-header-right {
@@ -54,8 +55,25 @@
   place-items: center;
   cursor: pointer;
   position: relative;
+  transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
 }
 
+.admin-icon-btn:hover,
+.admin-lang-btn:hover {
+  background: rgba(31, 41, 85, 0.95);
+  border-color: rgba(68, 231, 214, 0.45);
+}
+
+.admin-icon-btn:active,
+.admin-lang-btn:active {
+  transform: scale(0.96);
+}
+
+.admin-notification-wrap {
+  position: relative;
+}
+
+/* Chấm nhỏ chỉ hiện khi JSX render unreadCount > 0 */
 .admin-notification-dot {
   position: absolute;
   top: 8px;
@@ -67,12 +85,152 @@
   box-shadow: 0 0 0 2px #12193d;
 }
 
+/* Badge số lượng thông báo */
+.admin-notification-count {
+  position: absolute;
+  top: -7px;
+  right: -7px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 18px;
+  text-align: center;
+  box-shadow: 0 0 0 2px #12193d;
+}
+
+/* Dropdown thông báo */
+.admin-notification-dropdown {
+  position: absolute;
+  top: calc(100% + 12px);
+  right: 0;
+  width: 370px;
+  max-height: 430px;
+  overflow-y: auto;
+  background: #171f49;
+  border: 1px solid rgba(120, 138, 210, 0.35);
+  border-radius: 16px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
+  z-index: 9999;
+}
+
+/* Mũi tên nhỏ trên dropdown */
+.admin-notification-dropdown::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  right: 14px;
+  width: 12px;
+  height: 12px;
+  background: #171f49;
+  border-left: 1px solid rgba(120, 138, 210, 0.35);
+  border-top: 1px solid rgba(120, 138, 210, 0.35);
+  transform: rotate(45deg);
+}
+
+.admin-notification-dropdown-header {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #171f49;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px 16px 0 0;
+}
+
+.admin-notification-dropdown-header strong {
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.admin-notification-dropdown-header span {
+  color: #44e7d6;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.admin-notification-empty {
+  padding: 22px 16px;
+  color: #8e9ad1;
+  font-size: 13px;
+  text-align: center;
+}
+
+.admin-notification-item {
+  width: 100%;
+  display: block;
+  padding: 14px 16px;
+  border: 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.admin-notification-item:hover {
+  background: rgba(68, 231, 214, 0.08);
+}
+
+.admin-notification-item.unread {
+  background: rgba(255, 184, 0, 0.09);
+}
+
+.admin-notification-item.unread:hover {
+  background: rgba(255, 184, 0, 0.14);
+}
+
+.admin-notification-item-title {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 5px;
+}
+
+.admin-notification-item-body {
+  color: #b6c1ef;
+  font-size: 12px;
+  line-height: 1.45;
+  margin-bottom: 7px;
+}
+
+.admin-notification-item-time {
+  color: #7f8bc0;
+  font-size: 11px;
+}
+
 .admin-flag-box {
   width: 18px;
   height: 18px;
   display: grid;
   place-items: center;
   font-size: 15px;
+}
+
+/* Scrollbar dropdown */
+.admin-notification-dropdown::-webkit-scrollbar {
+  width: 6px;
+}
+
+.admin-notification-dropdown::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.admin-notification-dropdown::-webkit-scrollbar-thumb {
+  background: rgba(127, 139, 192, 0.45);
+  border-radius: 999px;
+}
+
+.admin-notification-dropdown::-webkit-scrollbar-thumb:hover {
+  background: rgba(127, 139, 192, 0.75);
 }
 
 @media (max-width: 860px) {
@@ -82,5 +240,15 @@
     flex-direction: column;
     align-items: flex-start;
     gap: 14px;
+  }
+
+  .admin-header-right {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .admin-notification-dropdown {
+    right: -4px;
+    width: min(370px, calc(100vw - 32px));
   }
 }

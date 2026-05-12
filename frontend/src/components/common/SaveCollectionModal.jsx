@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { X, Plus, Folder } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { toast } from 'react-toastify'
 import { getToken } from '../../utils/auth'
 import styles from '../../style/common/SaveCollectionModal.module.css'
@@ -13,6 +14,7 @@ export default function SaveCollectionModal({
   triggerRef, 
   isPopup = true 
 }) {
+  const { t } = useTranslation()
   const [collections, setCollections] = useState([])
   const [selectedCollectionId, setSelectedCollectionId] = useState(null)
   const [showCreateForm, setShowCreateForm] = useState(false)
@@ -107,7 +109,7 @@ export default function SaveCollectionModal({
 
   const handleCreateCollection = async () => {
     if (!newCollectionName.trim()) {
-      toast.error('Vui lòng nhập tên bộ sưu tập')
+      toast.error(t('collection.enterCollectionName'))
       return
     }
 
@@ -143,7 +145,7 @@ export default function SaveCollectionModal({
       }
     } catch (err) {
       console.error('❌ Error creating collection:', err)
-      toast.error('Lỗi: ' + err.message)
+      toast.error(t('collection.errorPrefix') + err.message)
     } finally {
       setCreatingCollection(false)
     }
@@ -212,7 +214,7 @@ export default function SaveCollectionModal({
       >
         {!isPopup && (
           <div className={styles.header}>
-            <h2>Lưu bài viết</h2>
+            <h3>{t('collection.savePost')}</h3>
             <button className={styles.closeBtn} onClick={onClose}>
               <X size={20} />
             </button>
@@ -232,13 +234,13 @@ export default function SaveCollectionModal({
           {loading && !loadError ? (
             <div className={styles.emptyState}>
               <div className={styles.spinner} />
-              <p>Đang tải bộ sưu tập...</p>
+              <p>{t('collection.loadingCollections')}</p>
             </div>
           ) : loadError ? (
             <div className={styles.emptyState}>
               <Folder size={32} />
-              <p style={{ color: '#ff6b6b' }}>Không thể tải từ server</p>
-              <p style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>Bạn vẫn có thể tạo bộ sưu tập mới</p>
+              <p style={{ color: '#ff6b6b' }}>{t('collection.cannotLoadServer')}</p>
+              <p style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>{t('collection.canCreateNew')}</p>
             </div>
           ) : sortedCollections.length > 0 ? (
             <div className={styles.section}>
@@ -252,7 +254,7 @@ export default function SaveCollectionModal({
                     <Folder size={16} />
                     <div className={styles.collectionInfo}>
                       <div className={styles.collectionName}>{collection.name}</div>
-                      <div className={styles.postCount}>{collection.post_count} bài</div>
+                      <div className={styles.postCount}>{collection.post_count} {t('collection.posts')}</div>
                     </div>
                   </div>
                 ))}
@@ -261,8 +263,8 @@ export default function SaveCollectionModal({
           ) : (
             <div className={styles.emptyState}>
               <Folder size={32} />
-              <p>Chưa có bộ sưu tập</p>
-              <p style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>Tạo bộ sưu tập mới để bắt đầu</p>
+              <p>{t('collection.noCollections')}</p>
+              <p style={{ fontSize: '11px', color: '#888', marginTop: '8px' }}>{t('collection.createToStart')}</p>
             </div>
           )}
 
@@ -270,7 +272,7 @@ export default function SaveCollectionModal({
             <div className={styles.createForm}>
               <input
                 type="text"
-                placeholder="Tên bộ sưu tập..."
+                placeholder={t('collection.collectionNamePlaceholder')}
                 value={newCollectionName}
                 onChange={e => setNewCollectionName(e.target.value)}
                 onKeyPress={e => e.key === 'Enter' && handleCreateCollection()}
@@ -283,7 +285,7 @@ export default function SaveCollectionModal({
                   onClick={handleCreateCollection}
                   disabled={creatingCollection}
                 >
-                  {creatingCollection ? '...' : 'Tạo'}
+                  {creatingCollection ? '...' : t('collection.create')}
                 </button>
                 <button
                   className={styles.cancelBtn}
@@ -293,7 +295,7 @@ export default function SaveCollectionModal({
                   }}
                   disabled={creatingCollection}
                 >
-                  Hủy
+                  {t('collection.cancel')}
                 </button>
               </div>
             </div>
@@ -304,7 +306,7 @@ export default function SaveCollectionModal({
               disabled={loadError ? false : false}
             >
               <Plus size={14} />
-              {loadError ? 'Tạo bộ sưu tập' : 'Bộ sưu tập mới'}
+              {loadError ? t('collection.createToStart') : t('collection.newCollection')}
             </button>
           )}
         </div>
@@ -312,7 +314,7 @@ export default function SaveCollectionModal({
         <div className={styles.footer}>
           {!isPopup && (
             <button className={styles.cancelMainBtn} onClick={onClose}>
-              Hủy
+              {t('collection.cancel')}
             </button>
           )}
           <button 
@@ -321,7 +323,7 @@ export default function SaveCollectionModal({
             disabled={loading}
             style={isPopup ? { flex: 1 } : {}}
           >
-            {loading ? '...' : 'Lưu'}
+            {loading ? '...' : t('collection.save')}
           </button>
         </div>
       </div>

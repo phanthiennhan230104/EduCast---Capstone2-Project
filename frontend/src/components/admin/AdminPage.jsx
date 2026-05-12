@@ -19,20 +19,7 @@ function formatSubtitle() {
   return `EduCast · ${dayName}, ${date} tháng ${month}, ${year}`;
 }
 
-function MiniTrend({ tone = "green" }) {
-  return (
-    <div className={`admin-mini-trend ${tone === "red" ? "admin-red" : "admin-green"}`}>
-      <span style={{ height: 14 }} />
-      <span style={{ height: 11 }} />
-      <span style={{ height: 24 }} />
-      <span style={{ height: 19 }} />
-      <span style={{ height: 37 }} />
-      <span style={{ height: 35 }} />
-      <span style={{ height: 49 }} />
-      <span style={{ height: 54 }} />
-    </div>
-  );
-}
+
 
 function DonutChart({ data }) {
   const total = Object.values(data || {}).reduce((sum, val) => sum + val, 0);
@@ -118,54 +105,58 @@ export default function AdminPage() {
     {
       title: "TỔNG NGƯỜI DÙNG",
       value: (data.users?.total_users || 0).toLocaleString('vi-VN'),
-      change: "0%",
-      note: "tổng người dùng",
-      tone: "green",
       icon: Users,
     },
     {
       title: "PODCASTS ĐÃ TẠO",
       value: (data.posts?.total_posts || 0).toLocaleString('vi-VN'),
-      change: "0%",
-      note: "tổng nội dung",
       tone: "green",
       icon: Mic,
     },
     {
       title: "TẠO BẰNG AI",
       value: (data.posts?.ai_generated_posts || 0).toLocaleString('vi-VN'),
-      change: "0%",
-      note: "AI-generated",
       tone: "green",
       icon: Sparkles,
     },
     {
       title: "BÁO CÁO CHỜ DUYỆT",
       value: (data.moderation?.pending_reports || 0).toLocaleString('vi-VN'),
-      change: "0%",
-      note: "cần xử lý",
       tone: data.moderation?.pending_reports > 0 ? "red" : "green",
       icon: Flag,
     },
   ];
+  const newPosts7d = data.charts?.new_posts_7d || []
+
+  const totalNewPosts7d = newPosts7d.reduce(
+    (sum, item) => sum + (item.count || 0),
+    0
+  )
 
   const getWeeklyBars = () => {
-    const days = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+    const weekdayLabels = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
+
     const maxValue = Math.max(
-      ...(data.charts?.new_posts_7d || []).map(d => d.count),
+      ...newPosts7d.map((item) => item.count || 0),
       1
-    );
-    
-    return (data.charts?.new_posts_7d || []).map((item, idx) => {
-      const height = maxValue > 0 ? (item.count / maxValue) * 100 : 0;
+    )
+
+    return newPosts7d.map((item, idx) => {
+      const date = new Date(item.date)
+      const label = Number.isNaN(date.getTime())
+        ? `Ngày ${idx + 1}`
+        : weekdayLabels[date.getDay()]
+
+      const height = maxValue > 0 ? ((item.count || 0) / maxValue) * 100 : 0
+
       return {
-        label: days[idx],
-        height: Math.max(height, 10),
-        active: idx === (data.charts?.new_posts_7d || []).length - 1,
-        count: item.count,
-      };
-    });
-  };
+        label,
+        height: item.count ? Math.max(height, 10) : 6,
+        active: idx === newPosts7d.length - 1,
+        count: item.count || 0,
+      }
+    })
+  }
 
   const weeklyBars = getWeeklyBars();
 
@@ -174,7 +165,7 @@ export default function AdminPage() {
     slug: post.slug,
     author: `Podcast #${idx + 1} • ${post.listen_count} lượt nghe`,
     tags: [
-      { label: `👁️ ${post.view_count}`, type: "info" },
+
       { label: `❤️ ${post.like_count}`, type: "warning" },
       { label: `💬 ${post.comment_count}`, type: "dangerOutline" },
     ],
@@ -184,6 +175,7 @@ export default function AdminPage() {
     <AdminLayout
       title="TỔNG QUAN"
       subtitle={formatSubtitle()}
+      onlineUsers={data.users?.active_users || 0}
     >
       <section className="admin-stats-grid">
         {statCards.map((card) => {
@@ -197,27 +189,7 @@ export default function AdminPage() {
 
               <div className="admin-stat-value">{card.value}</div>
 
-              <div className="admin-stat-bottom">
-                <div className="admin-stat-change-block">
-                  <span
-                    className={`admin-stat-arrow ${
-                      card.tone === "red" ? "admin-red-text" : "admin-green-text"
-                    }`}
-                  >
-                    ↑
-                  </span>
-                  <span
-                    className={`admin-stat-change ${
-                      card.tone === "red" ? "admin-red-text" : "admin-green-text"
-                    }`}
-                  >
-                    {card.change}
-                  </span>
-                  <span className="admin-stat-note">{card.note}</span>
-                </div>
-
-                <MiniTrend tone={card.tone} />
-              </div>
+              <div className="admin-stat-bottom" />
             </article>
           );
         })}
@@ -229,7 +201,7 @@ export default function AdminPage() {
             <div>
               <div className="admin-panel-title">PODCAST MỚI TRONG TUẦN</div>
               <div className="admin-panel-big-number">
-                {(data.posts?.new_posts_30d || 0).toLocaleString('vi-VN')} <span>↑ {((data.posts?.new_posts_30d / (data.posts?.total_posts || 1)) * 100).toFixed(1)}%</span>
+                {totalNewPosts7d.toLocaleString("vi-VN")}
               </div>
             </div>
             <div className="admin-panel-date">7 ngày gần đây</div>

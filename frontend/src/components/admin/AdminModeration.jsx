@@ -2,8 +2,16 @@ import { Search, Mic, AlertCircle, Lock, X, Volume2, Unlock } from "lucide-react
 import { useMemo, useState, useEffect } from "react";
 import AdminLayout from "./AdminLayout";
 import "../../style/admin/admin-moderation-page.css";
-import { getAdminPosts, lockPostWithReport, rejectReportWithPublish, updateReportStatus, openPost } from "../../utils/adminApi";
+import {
+  getAdminReports,
+  getAdminOverview,
+  lockPostWithReport,
+  rejectReportWithPublish,
+  updateReportStatus,
+  openPost,
+} from "../../utils/adminApi";
 import notify from "../../utils/toast";
+
 
 function formatSubtitle() {
   const today = new Date();
@@ -38,13 +46,15 @@ function getReportStatusBadge(status) {
 }
 
 export default function AdminContentModerationPage() {
-  const [posts, setPosts] = useState([]);
-  const [filteredPosts, setFilteredPosts] = useState([]);
+  const [onlineUsers, setOnlineUsers] = useState(0);
+  const [reports, setReports] = useState([]);
+  const [reportCounts, setReportCounts] = useState({});
+  const [filteredReports, setFilteredReports] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("all");
   const [keyword, setKeyword] = useState("");
-  const [selectedPostId, setSelectedPostId] = useState(null);
+  const [selectedReportId, setSelectedReportId] = useState(null);
   const [updatingReportId, setUpdatingReportId] = useState(null);
   const [audioTime, setAudioTime] = useState({});
   const [selectedAudioVersion, setSelectedAudioVersion] = useState({});
@@ -52,79 +62,102 @@ export default function AdminContentModerationPage() {
   const itemsPerPage = 6;
   const audioRefs = {};
 
-  // Fetch posts on component mount
+  // Fetch reports on component mount
   useEffect(() => {
-    fetchPosts();
+    fetchReports();
   }, []);
 
-  const fetchPosts = async () => {
+  const fetchReports = async () => {
     try {
       setLoading(true);
-      const response = await getAdminPosts({
-        page_size: 50,
-      });
-      // Filter only posts that have reports
-      const postsWithReports = (response.posts || []).filter(post => post.report_count > 0);
-      setPosts(postsWithReports);
-      if (postsWithReports.length > 0) {
-        setSelectedPostId(postsWithReports[0].id);
+
+      const [reportsResponse, overviewResponse] = await Promise.all([
+        getAdminReports({ page_size: 100 }),
+        getAdminOverview(),
+      ]);
+
+      const overview = overviewResponse?.overview || overviewResponse?.data?.overview;
+      setOnlineUsers(overview?.users?.active_users || 0);
+
+      const reportsData = reportsResponse.reports || [];
+      setReports(reportsData);
+      setReportCounts(reportsResponse.counts || {});
+
+      if (reportsData.length > 0) {
+        setSelectedReportId(reportsData[0].id);
       }
+
       setError(null);
     } catch (err) {
-      setError(err.message || 'Lỗi khi tải dữ liệu');
-      console.error('Error fetching posts:', err);
+      setError(err.message || "Lỗi khi tải dữ liệu");
+      console.error("Error fetching reports:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  // Filter posts based on tab and search
+  // Filter reports based on tab and search
   useEffect(() => {
-    let filtered = posts;
+    let filtered = reports;
 
     // Filter by report status tab
     if (activeTab === 'pending') {
-      filtered = filtered.filter(post => post.pending_reports > 0);
+      filtered = filtered.filter(report => report.status === 'pending');
     } else if (activeTab === 'resolved') {
-      filtered = filtered.filter(post => post.pending_reports === 0);
+      filtered = filtered.filter(report =>
+        report.status === 'resolved' || report.status === 'rejected'
+      );
     }
 
     // Filter by keyword
     if (keyword) {
-      filtered = filtered.filter(post =>
-        post.title.toLowerCase().includes(keyword.toLowerCase()) ||
-        post.username.toLowerCase().includes(keyword.toLowerCase())
-      );
+      filtered = filtered.filter(report => {
+        const postTitle = report.post?.title || '';
+        const postAuthor = report.post?.author_username || '';
+        const reportReason = report.reason || '';
+        const reporterName = report.reporter_username || '';
+
+        return (
+          postTitle.toLowerCase().includes(keyword.toLowerCase()) ||
+          postAuthor.toLowerCase().includes(keyword.toLowerCase()) ||
+          reportReason.toLowerCase().includes(keyword.toLowerCase()) ||
+          reporterName.toLowerCase().includes(keyword.toLowerCase())
+        );
+      });
     }
 
-    // Sort: In "all" tab, show pending reports first
-    if (activeTab === 'all') {
-      filtered = filtered.sort((a, b) => b.pending_reports - a.pending_reports);
-    }
+    // Sort: pending first, then by created_at descending
+    filtered = filtered.sort((a, b) => {
+      const aPending = a.status === 'pending' ? 0 : 1;
+      const bPending = b.status === 'pending' ? 0 : 1;
+      if (aPending !== bPending) return aPending - bPending;
+      return new Date(b.created_at) - new Date(a.created_at);
+    });
 
-    setFilteredPosts(filtered);
+    setFilteredReports(filtered);
     setCurrentPage(1); // Reset to page 1 when filter changes
-  }, [posts, activeTab, keyword]);
+  }, [reports, activeTab, keyword]);
 
-  // Paginate filtered posts
-  const totalPages = Math.ceil(filteredPosts.length / itemsPerPage);
+  // Paginate filtered reports
+  const totalPages = Math.ceil(filteredReports.length / itemsPerPage);
   const startIdx = (currentPage - 1) * itemsPerPage;
   const endIdx = startIdx + itemsPerPage;
-  const paginatedPosts = filteredPosts.slice(startIdx, endIdx);
+  const paginatedReports = filteredReports.slice(startIdx, endIdx);
 
   const tabs = [
-    { key: "all", label: `Tất cả (${posts.length})` },
-    { key: "pending", label: `Chờ duyệt (${posts.filter(p => p.pending_reports > 0).length})` },
-    { key: "resolved", label: `Đã xử lý (${posts.filter(p => p.pending_reports === 0).length})` },
+    { key: "all", label: `Tất cả (${reportCounts.total || 0})` },
+    { key: "pending", label: `Chờ duyệt (${reportCounts.pending || 0})` },
+    { key: "resolved", label: `Đã xử lý (${(reportCounts.resolved || 0) + (reportCounts.rejected || 0)})` },
   ];
 
-  const selectedPost = filteredPosts.find(item => item.id === selectedPostId) || filteredPosts[0];
+  const selectedReport = filteredReports.find(item => item.id === selectedReportId) || filteredReports[0];
+  const selectedPost = selectedReport?.post;
 
   const handleUpdateReportStatus = async (reportId, newStatus, postId) => {
-    if (!selectedPost) return;
+    if (!selectedReport) return;
     try {
       setUpdatingReportId(reportId);
-      
+
       let actionMessage = '';
       if (newStatus === 'resolved') {
         // Lock post and resolve report
@@ -139,8 +172,8 @@ export default function AdminContentModerationPage() {
         await updateReportStatus(reportId, newStatus);
         actionMessage = 'Đã cập nhật báo cáo thành công!';
       }
-      
-      await fetchPosts();
+
+      await fetchReports();
       notify.success(actionMessage);
     } catch (err) {
       console.error('Error updating report status:', err);
@@ -154,7 +187,7 @@ export default function AdminContentModerationPage() {
     try {
       setUpdatingReportId(postId);
       await openPost(postId);
-      await fetchPosts();
+      await fetchReports();
       notify.success('Đã mở bài đăng thành công!');
     } catch (err) {
       console.error('Error opening post:', err);
@@ -173,7 +206,7 @@ export default function AdminContentModerationPage() {
 
   if (loading) {
     return (
-      <AdminLayout title="KIỂM DUYỆT NỘI DUNG" subtitle={formatSubtitle()}>
+      <AdminLayout title="KIỂM DUYỆT BÁO CÁO" subtitle={formatSubtitle()}>
         <div style={{ padding: '40px', textAlign: 'center' }}>
           Đang tải dữ liệu...
         </div>
@@ -183,7 +216,7 @@ export default function AdminContentModerationPage() {
 
   if (error) {
     return (
-      <AdminLayout title="KIỂM DUYỆT NỘI DUNG" subtitle={formatSubtitle()}>
+      <AdminLayout title="KIỂM DUYỆT BÁO CÁO" subtitle={formatSubtitle()}>
         <div style={{ padding: '40px', textAlign: 'center', color: '#e74c3c' }}>
           {error}
         </div>
@@ -193,8 +226,9 @@ export default function AdminContentModerationPage() {
 
   return (
     <AdminLayout
-      title="KIỂM DUYỆT NỘI DUNG"
+      title="KIỂM DUYỆT BÁO CÁO"
       subtitle={formatSubtitle()}
+      onlineUsers={onlineUsers}
     >
       <div className="admin-moderation-page">
         <div className="admin-moderation-toolbar">
@@ -224,61 +258,65 @@ export default function AdminContentModerationPage() {
 
         <div className="admin-moderation-content">
           <section className="admin-moderation-list">
-            {paginatedPosts.length === 0 && filteredPosts.length === 0 ? (
+            {paginatedReports.length === 0 && filteredReports.length === 0 ? (
               <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-                Không có bài viết nào
+                Không có báo cáo nào
               </div>
             ) : (
               <>
-                {paginatedPosts.map((post) => {
-                const createdDate = new Date(post.created_at);
-                const now = new Date();
-                const diffMs = now - createdDate;
-                const diffMins = Math.floor(diffMs / 60000);
-                const diffHours = Math.floor(diffMs / 3600000);
-                const diffDays = Math.floor(diffMs / 86400000);
-                
-                let timeStr;
-                if (diffMins < 60) {
-                  timeStr = `${diffMins} phút trước`;
-                } else if (diffHours < 24) {
-                  timeStr = `${diffHours} giờ trước`;
-                } else {
-                  timeStr = `${diffDays} ngày trước`;
-                }
+                {paginatedReports.map((report) => {
+                  const createdDate = new Date(report.created_at);
+                  const now = new Date();
+                  const diffMs = now - createdDate;
+                  const diffMins = Math.floor(diffMs / 60000);
+                  const diffHours = Math.floor(diffMs / 3600000);
+                  const diffDays = Math.floor(diffMs / 86400000);
 
-                return (
-                  <button
-                    key={post.id}
-                    type="button"
-                    className={`admin-moderation-item ${selectedPost?.id === post.id ? "is-selected" : ""}`}
-                    onClick={() => setSelectedPostId(post.id)}
-                  >
-                    <div className="admin-moderation-item-left">
-                      <div className="admin-moderation-item-icon">
-                        <Mic size={15} />
-                      </div>
+                  let timeStr;
+                  if (diffMins < 60) {
+                    timeStr = `${diffMins} phút trước`;
+                  } else if (diffHours < 24) {
+                    timeStr = `${diffHours} giờ trước`;
+                  } else {
+                    timeStr = `${diffDays} ngày trước`;
+                  }
 
-                      <div className="admin-moderation-item-body">
-                        <div className="admin-moderation-item-title">{post.title}</div>
-                        <div className="admin-moderation-item-meta">
-                          bởi {post.username} · {post.age_group || 'N/A'} · {timeStr}
+                  const postTitle = report.post?.title || 'Bài đăng không tồn tại';
+                  const postAuthor = report.post?.author_username || 'Unknown';
+                  const statusBadge = getReportStatusBadge(report.status);
+
+                  return (
+                    <button
+                      key={report.id}
+                      type="button"
+                      className={`admin-moderation-item ${selectedReport?.id === report.id ? "is-selected" : ""}`}
+                      onClick={() => setSelectedReportId(report.id)}
+                    >
+                      <div className="admin-moderation-item-left">
+                        <div className="admin-moderation-item-icon">
+                          <AlertCircle size={15} />
+                        </div>
+
+                        <div className="admin-moderation-item-body">
+                          <div className="admin-moderation-item-title">{postTitle}</div>
+                          <div className="admin-moderation-item-meta">
+                            {getReasonLabel(report.reason)} · bởi {postAuthor} · {timeStr}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="admin-moderation-item-right">
-                      <div className="admin-report-count">
-                        <AlertCircle size={14} />
-                        {post.report_count} báo cáo
+                      <div className="admin-moderation-item-right">
+                        <div className="admin-report-count">
+                          <AlertCircle size={14} />
+                          {getReasonLabel(report.reason)}
+                        </div>
+                        <div className={`admin-pending-badge ${statusBadge.className}`}>
+                          {statusBadge.label}
+                        </div>
                       </div>
-                      <div className={`admin-pending-badge ${post.pending_reports === 0 ? 'resolved' : 'pending'}`}>
-                        {post.pending_reports > 0 ? `${post.pending_reports} chờ duyệt` : 'Đã xử lý'}
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
+                    </button>
+                  );
+                })}
 
                 {totalPages > 1 && (
                   <div className="admin-moderation-pagination">
@@ -300,195 +338,134 @@ export default function AdminContentModerationPage() {
           <aside className="admin-moderation-detail">
             <div className="admin-moderation-detail-title">CHI TIẾT BÀI VIẾT & BÁO CÁO</div>
 
-            {selectedPost ? (
+            {selectedReport ? (
               <div className="admin-moderation-detail-card">
-                <h3>{selectedPost.title}</h3>
+                {selectedPost ? (
+                  <>
+                    <h3>{selectedPost.title}</h3>
 
-                <div className="admin-moderation-detail-grid">
-                  <span>Tác giả</span>
-                  <strong>{selectedPost.username}</strong>
+                    <div className="admin-moderation-detail-grid">
+                      <span>Tác giả</span>
+                      <strong>{selectedPost.author_username}</strong>
 
-                  <span>Nhóm Tuổi</span>
-                  <strong>{selectedPost.age_group || 'N/A'}</strong>
+                      <span>Trạng thái</span>
+                      <strong>{selectedPost.status}</strong>
 
-                  <span>Lượt Nghe</span>
-                  <strong>{selectedPost.listen_count}</strong>
-
-                  <span>Mô Tả</span>
-                  <strong>{selectedPost.description || 'Không có'}</strong>
-                </div>
-
-                {selectedPost.audio_versions && selectedPost.audio_versions.length > 0 && (
-                  <div className="admin-moderation-audio-player">
-                    <div className="admin-moderation-audio-header">
-                      <Volume2 size={16} />
-                      <span>Nghe audio</span>
+                      <span>Mô Tả</span>
+                      <strong>{selectedPost.description || 'Không có'}</strong>
                     </div>
 
-                    {selectedPost.audio_versions.length > 1 && (
-                      <div className="admin-moderation-audio-versions">
-                        {selectedPost.audio_versions.map((audioVersion) => (
-                          <button
-                            key={audioVersion.id}
-                            className={`admin-moderation-audio-version-btn ${
-                              (selectedAudioVersion[selectedPost.id] === audioVersion.id || 
-                               (audioVersion.is_default && !selectedAudioVersion[selectedPost.id])) 
-                                ? 'is-active' 
-                                : ''
-                            }`}
-                            onClick={() => setSelectedAudioVersion(prev => ({
+                    {selectedPost.audio_url && (
+                      <div className="admin-moderation-audio-player">
+                        <div className="admin-moderation-audio-header">
+                          <Volume2 size={16} />
+                          <span>Nghe audio</span>
+                        </div>
+
+                        <audio
+                          ref={(el) => { audioRefs[selectedPost.id] = el; }}
+                          className="admin-moderation-audio-control"
+                          controls
+                          key={selectedPost.id}
+                          onTimeUpdate={(e) => {
+                            setAudioTime(prev => ({
                               ...prev,
-                              [selectedPost.id]: audioVersion.id
-                            }))}
-                          >
-                            <span className="version-name">{audioVersion.voice_name}</span>
-                            <span className="version-format">{audioVersion.format?.toUpperCase()}</span>
-                            {audioVersion.is_default && <span className="version-default">Mặc định</span>}
-                          </button>
-                        ))}
+                              [selectedPost.id]: e.target.currentTime
+                            }));
+                          }}
+                        >
+                          <source src={selectedPost.audio_url} type="audio/mpeg" />
+                          Trình duyệt của bạn không hỗ trợ audio tag.
+                        </audio>
+                        <div className="admin-moderation-audio-time">
+                          <span>{formatTime(audioTime[selectedPost.id] || 0)}</span>
+                        </div>
                       </div>
                     )}
-
-                    {(() => {
-                      const currentAudioId = selectedAudioVersion[selectedPost.id];
-                      const currentAudio = selectedPost.audio_versions.find(a => 
-                        currentAudioId ? a.id === currentAudioId : a.is_default
-                      ) || selectedPost.audio_versions[0];
-                      
-                      return (
-                        <>
-                          <audio
-                            ref={(el) => { audioRefs[selectedPost.id] = el; }}
-                            className="admin-moderation-audio-control"
-                            controls
-                            key={currentAudio.id}
-                            onTimeUpdate={(e) => {
-                              setAudioTime(prev => ({
-                                ...prev,
-                                [selectedPost.id]: e.target.currentTime
-                              }));
-                            }}
-                          >
-                            <source src={currentAudio.audio_url} type={`audio/${currentAudio.format}`} />
-                            Trình duyệt của bạn không hỗ trợ audio tag.
-                          </audio>
-                          <div className="admin-moderation-audio-time">
-                            <span>{formatTime(audioTime[selectedPost.id] || 0)}</span>
-                            <span className="audio-separator">/</span>
-                            <span>{formatTime(currentAudio.duration_seconds || 0)}</span>
-                          </div>
-                        </>
-                      );
-                    })()}
+                  </>
+                ) : (
+                  <div style={{ padding: '12px', color: '#999' }}>
+                    Bài đăng không tồn tại hoặc đã bị xóa
                   </div>
                 )}
 
                 <div className="admin-moderation-reports-section">
-                  <h4>Báo cáo ({selectedPost.reports?.length || 0})</h4>
-                  
-                  {selectedPost.reports && selectedPost.reports.length > 0 ? (
-                    <div className="admin-moderation-reports-list">
-                      {selectedPost.reports.map((report) => {
-                        const reportStatusMeta = getReportStatusBadge(report.status);
-                        const reportDate = new Date(report.created_at);
-                        const now = new Date();
-                        const reportDiffMs = now - reportDate;
-                        const reportDiffMins = Math.floor(reportDiffMs / 60000);
-                        const reportDiffHours = Math.floor(reportDiffMs / 3600000);
-                        const reportDiffDays = Math.floor(reportDiffMs / 86400000);
-                        
-                        let reportTimeStr;
-                        if (reportDiffMins < 60) {
-                          reportTimeStr = `${reportDiffMins} phút trước`;
-                        } else if (reportDiffHours < 24) {
-                          reportTimeStr = `${reportDiffHours} giờ trước`;
-                        } else {
-                          reportTimeStr = `${reportDiffDays} ngày trước`;
-                        }
+                  <h4>Báo cáo</h4>
 
-                        return (
-                          <div key={report.id} className="admin-moderation-report-item">
-                            <div className="admin-moderation-report-header">
-                              <div className="admin-moderation-report-info">
-                                <div className="admin-moderation-report-reason">
-                                  {getReasonLabel(report.reason)}
-                                </div>
-                                <div className="admin-moderation-report-reporter">
-                                  Báo cáo bởi {report.reporter_username} · {reportTimeStr}
-                                </div>
-                              </div>
-                              <div className={`admin-moderation-report-status ${reportStatusMeta.className}`}>
-                                {reportStatusMeta.label}
-                              </div>
-                            </div>
-                            
-                            {report.description && (
-                              <div className="admin-moderation-report-description">
-                                {report.description}
-                              </div>
-                            )}
+                  <div className="admin-moderation-report-item">
+                    <div className="admin-moderation-report-header">
+                      <div className="admin-moderation-report-info">
+                        <div className="admin-moderation-report-reason">
+                          {getReasonLabel(selectedReport.reason)}
+                        </div>
+                        <div className="admin-moderation-report-reporter">
+                          Báo cáo bởi {selectedReport.reporter_username}
+                        </div>
+                      </div>
+                      <div className={`admin-moderation-report-status ${getReportStatusBadge(selectedReport.status).className}`}>
+                        {getReportStatusBadge(selectedReport.status).label}
+                      </div>
+                    </div>
 
-                            <div className="admin-moderation-report-actions">
-                              {(report.status === 'resolved' || report.status === 'rejected') ? (
-                                selectedPost.status === 'published' ? (
-                                  <>
-                                    <div className="admin-moderation-status-note">
-                                       Bài đăng đã mở và đang hiển thị
-                                    </div>
-                                    <button
-                                      className="admin-moderation-action-btn admin-moderation-action-approve"
-                                      onClick={() => handleUpdateReportStatus(report.id, 'resolved', selectedPost.id)}
-                                      disabled={updatingReportId === report.id}
-                                    >
-                                      <Lock size={14} />
-                                      Khóa bài đăng
-                                    </button>
-                                  </>
-                                ) : (
-                                  <button
-                                    className="admin-moderation-action-btn admin-moderation-action-open"
-                                    onClick={() => handleOpenPost(selectedPost.id)}
-                                    disabled={updatingReportId === selectedPost.id}
-                                  >
-                                    <Unlock size={14} />
-                                    Mở bài đăng
-                                  </button>
-                                )
-                              ) : (
-                                <>
-                                  <button
-                                    className="admin-moderation-action-btn admin-moderation-action-approve"
-                                    onClick={() => handleUpdateReportStatus(report.id, 'resolved', selectedPost.id)}
-                                    disabled={updatingReportId === report.id}
-                                  >
-                                    <Lock size={14} />
-                                    Khóa bài đăng
-                                  </button>
-                                  <button
-                                    className="admin-moderation-action-btn admin-moderation-action-reject"
-                                    onClick={() => handleUpdateReportStatus(report.id, 'rejected', selectedPost.id)}
-                                    disabled={updatingReportId === report.id}
-                                  >
-                                    <X size={14} />
-                                    Từ chối
-                                  </button>
-                                </>
-                              )}
+                    {selectedReport.description && (
+                      <div className="admin-moderation-report-description">
+                        {selectedReport.description}
+                      </div>
+                    )}
+
+                    <div className="admin-moderation-report-actions">
+                      {(selectedReport.status === 'resolved' || selectedReport.status === 'rejected') ? (
+                        selectedPost && selectedPost.status === 'published' ? (
+                          <>
+                            <div className="admin-moderation-status-note">
+                              Bài đăng đã mở và đang hiển thị
                             </div>
-                          </div>
-                        );
-                      })}
+                            <button
+                              className="admin-moderation-action-btn admin-moderation-action-approve"
+                              onClick={() => handleUpdateReportStatus(selectedReport.id, 'resolved', selectedPost.id)}
+                              disabled={updatingReportId === selectedReport.id}
+                            >
+                              <Lock size={14} />
+                              Khóa bài đăng
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            className="admin-moderation-action-btn admin-moderation-action-open"
+                            onClick={() => handleOpenPost(selectedPost.id)}
+                            disabled={updatingReportId === selectedPost.id}
+                          >
+                            <Unlock size={14} />
+                            Mở bài đăng
+                          </button>
+                        )
+                      ) : (
+                        <>
+                          <button
+                            className="admin-moderation-action-btn admin-moderation-action-approve"
+                            onClick={() => handleUpdateReportStatus(selectedReport.id, 'resolved', selectedPost.id)}
+                            disabled={updatingReportId === selectedReport.id}
+                          >
+                            <Lock size={14} />
+                            Khóa bài đăng
+                          </button>
+                          <button
+                            className="admin-moderation-action-btn admin-moderation-action-reject"
+                            onClick={() => handleUpdateReportStatus(selectedReport.id, 'rejected', selectedPost.id)}
+                            disabled={updatingReportId === selectedReport.id}
+                          >
+                            <X size={14} />
+                            Từ chối
+                          </button>
+                        </>
+                      )}
                     </div>
-                  ) : (
-                    <div style={{ padding: '12px', color: '#999', textAlign: 'center' }}>
-                      Không có báo cáo nào cho bài viết này
-                    </div>
-                  )}
+                  </div>
                 </div>
               </div>
             ) : (
               <div style={{ padding: '20px', textAlign: 'center', color: '#999' }}>
-                Chọn một bài viết để xem chi tiết
+                Chọn một báo cáo để xem chi tiết
               </div>
             )}
           </aside>

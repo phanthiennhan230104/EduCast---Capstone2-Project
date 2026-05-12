@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { ToastContainer, toast } from 'react-toastify'
+import { useTranslation } from 'react-i18next'
 import 'react-toastify/dist/ReactToastify.css'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import { getDraftDetail, saveDraftWithAudio } from '../../utils/contentApi'
@@ -9,6 +10,7 @@ import styles from '../../style/pages/EditAudioPage/EditAudioPage.module.css'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
 
 export default function EditAudioPage() {
+  const { t } = useTranslation()
   const { postId } = useParams()
   const navigate = useNavigate()
   const goBack = () => {
@@ -45,7 +47,7 @@ export default function EditAudioPage() {
         setOriginalForm(initialForm)
       } catch (err) {
         console.error('Failed to load post:', err)
-        toast.error('Không thể tải bài viết')
+        toast.error(t('editAudio.loadPostFailed'))
         navigate(`/feed?focusPostId=${postId}`)
       } finally {
         setLoading(false)
@@ -69,7 +71,7 @@ export default function EditAudioPage() {
   const validate = () => {
     const newErrors = {}
     if (!form.title.trim()) {
-      newErrors.title = 'Tiêu đề không được để trống'
+      newErrors.title = t('editAudio.titleRequired')
     }
     setErrors(newErrors)
     return Object.keys(newErrors).length === 0
@@ -100,10 +102,10 @@ export default function EditAudioPage() {
 
       if (!res.ok) {
         const data = await res.json()
-        throw new Error(data.error || 'Cập nhật thất bại')
+        throw new Error(data.error || t('editAudio.updateFailed'))
       }
 
-      toast.success('Cập nhật bài viết thành công!')
+      toast.success(t('editAudio.updateSuccess'))
 
       setTimeout(() => {
         setSaving(false)
@@ -112,7 +114,7 @@ export default function EditAudioPage() {
     } catch (err) {
       console.error('Save failed:', err)
       setSaving(false)
-      toast.error(err.message || 'Cập nhật thất bại')
+      toast.error(err.message || t('editAudio.updateFailed'))
     }
   }
 
@@ -127,7 +129,7 @@ export default function EditAudioPage() {
         <div className={styles.container}>
           <div className={styles.loadingState}>
             <div className={styles.spinner}></div>
-            <p>Đang tải bài viết...</p>
+            <p>{t('editAudio.loadingPost')}</p>
           </div>
         </div>
       </MainLayout>
@@ -142,16 +144,16 @@ export default function EditAudioPage() {
           <button
             className={styles.backBtn}
             onClick={goBack}
-            aria-label="Quay lại"
+            aria-label={t('editAudio.back')}
           >
             <ArrowLeft size={20} />
           </button>
-          <h1 className={styles.title}>Chỉnh sửa bài viết</h1>
+          <h1 className={styles.title}>{t('editAudio.pageTitle')}</h1>
         </div>
 
         <div className={styles.content}>
           <div className={styles.formGroup}>
-            <label className={styles.label}>Tiêu đề</label>
+            <label className={styles.label}>{t('editAudio.titleLabel')}</label>
             <textarea
               className={`${styles.input} ${styles.autoTextarea} ${errors.title ? styles.error : ''}`}
               value={form.title}
@@ -165,7 +167,7 @@ export default function EditAudioPage() {
           </div>
 
           <div className={styles.formGroup}>
-            <label className={styles.label}>Mô tả</label>
+            <label className={styles.label}>{t('editAudio.descriptionLabel')}</label>
             <textarea
               className={`${styles.textarea} ${styles.autoTextarea}`}
               value={form.description}
@@ -184,7 +186,7 @@ export default function EditAudioPage() {
               onClick={goBack}
               disabled={saving}
             >
-              Hủy
+              {t('editAudio.cancel')}
             </button>
 
             <button
@@ -192,7 +194,7 @@ export default function EditAudioPage() {
               onClick={handleSave}
               disabled={saving || !hasChanges()}
             >
-              {saving ? 'Đang lưu...' : 'Lưu thay đổi'}
+              {saving ? t('editAudio.saving') : t('editAudio.saveChanges')}
             </button>
 
             <button

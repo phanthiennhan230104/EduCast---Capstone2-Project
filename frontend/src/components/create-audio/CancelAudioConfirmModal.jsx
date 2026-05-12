@@ -1,11 +1,14 @@
 import { Modal } from 'antd'
+import { useTranslation } from 'react-i18next'
 
 export function showCancelConfirm(onConfirm) {
+  const t = i18n.t.bind(i18n)
+
   Modal.confirm({
-    title: 'Dừng tạo Podcast',
-    content: 'Bạn có chắc chắn muốn dừng quá trình tạo Podcast không? Tiến độ sẽ bị mất.',
-    okText: 'Có, dừng',
-    cancelText: 'Không, tiếp tục',
+    title: t('createAudio.cancelConfirm.title'),
+    content: t('createAudio.cancelConfirm.content'),
+    okText: t('createAudio.cancelConfirm.okText'),
+    cancelText: t('createAudio.cancelConfirm.cancelText'),
     okButtonProps: { danger: true },
     onOk() {
       onConfirm?.()

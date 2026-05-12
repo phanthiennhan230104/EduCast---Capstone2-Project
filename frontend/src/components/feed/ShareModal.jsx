@@ -1,12 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { toast } from 'react-toastify'
+import { useTranslation } from 'react-i18next'
 import { createPortal } from 'react-dom'
 import styles from '../../style/feed/ShareModal.module.css'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { getInitials } from '../../utils/getInitials'
 
 export default function ShareModal({ podcast, onClose, onShareSuccess }) {
+  const { t } = useTranslation()
   const [caption, setCaption] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [friends, setFriends] = useState([])
@@ -70,7 +72,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
       setFriends(data.data?.friends || [])
     } catch (err) {
       console.error('Fetch friends failed:', err)
-      toast.error('Lỗi khi tải danh sách bạn bè')
+      toast.error(t('shareModal.fetchFriendsError'))
     } finally {
       setLoadingFriends(false)
     }
@@ -219,7 +221,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.topBar}>
-          <h2 className={styles.modalTitle}>Chia sẻ</h2>
+          <h2 className={styles.modalTitle}>{t('shareModal.title')}</h2>
           <button className={styles.closeBtn} type="button" onClick={onClose}>
             <X size={20} />
           </button>
@@ -278,7 +280,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                   ref={inputRef}
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  placeholder="Hãy nói gì đó về nội dung này..."
+                  placeholder={t('shareModal.captionPlaceholder')}
                   className={styles.textarea}
                   maxLength={500}
                 />
@@ -288,14 +290,14 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
             <div className={styles.charCount}>{caption.length}/500</div>
 
             <div className={styles.friendsSection}>
-              <div className={styles.friendsTitle}>Chọn người nhận</div>
+              <div className={styles.friendsTitle}>{t('shareModal.chooseRecipients')}</div>
 
               {loadingFriends ? (
                 <div className={styles.loadingText}>
                   Đang tải danh sách bạn bè...
                 </div>
               ) : friends.length === 0 ? (
-                <div className={styles.emptyText}>Bạn chưa có bạn bè</div>
+                <div className={styles.emptyText}>{t('shareModal.noFriends')}</div>
               ) : (
                 <div className={styles.friendsCarousel}>
                   {friends.map((friend) => {

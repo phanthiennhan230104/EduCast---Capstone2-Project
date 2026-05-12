@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   Play, Pause, SkipBack, SkipForward,
   Volume2, ListMusic, Heart,
@@ -11,6 +12,7 @@ import { useNavigate, useLocation } from 'react-router-dom'
 
 
 export default function AudioPlayer() {
+  const { t } = useTranslation()
   const [liked, setLiked] = useState(false)
   const [loadingLike, setLoadingLike] = useState(false)
   const [collapsed, setCollapsed] = useState(false)
@@ -160,7 +162,7 @@ export default function AudioPlayer() {
       }
     } catch (err) {
       console.error('Like failed:', err)
-      alert(err.message || 'Like thất bại')
+      alert(err.message || t('audioPlayer.likeFailed'))
     } finally {
       setLoadingLike(false)
     }
@@ -171,8 +173,8 @@ export default function AudioPlayer() {
       <footer className={`${styles.player} ${styles.idle}`}>
         <div className={styles.trackInfo}>
           <div className={styles.meta}>
-            <span className={styles.title}>Chưa có audio đang phát</span>
-            <span className={styles.author}>Hãy chọn một podcast từ feed</span>
+            <span className={styles.title}>{t('audioPlayer.noAudioPlaying')}</span>
+<span className={styles.author}>{t('audioPlayer.choosePodcast')}</span>
           </div>
         </div>
       </footer>
@@ -201,7 +203,7 @@ export default function AudioPlayer() {
           className={`${styles.iconBtn} ${liked ? styles.liked : ''}`}
           onClick={handleToggleLike}
           disabled={loadingLike}
-          aria-label="Yêu thích"
+          aria-label={t('audioPlayer.favorite')}
         >
           <Heart size={16} fill={liked ? 'currentColor' : 'none'} />
         </button>
@@ -212,7 +214,7 @@ export default function AudioPlayer() {
           <button
             type="button"
             className={styles.iconBtn}
-            aria-label="Trước"
+            aria-label={t('audioPlayer.previous')}
             onClick={(e) => {
               e.stopPropagation()
               playPrev()
@@ -228,7 +230,7 @@ export default function AudioPlayer() {
               e.stopPropagation()
               togglePlay()
             }}
-            aria-label={playing ? 'Tạm dừng' : 'Phát'}
+            aria-label={playing ? t('buttons.pause') : t('buttons.play')}
           >
             {playing ? <Pause size={18} /> : <Play size={18} />}
           </button>
@@ -236,7 +238,7 @@ export default function AudioPlayer() {
           <button
             type="button"
             className={styles.iconBtn}
-            aria-label="Tiếp theo"
+            aria-label={t('audioPlayer.next')}
             onClick={(e) => {
               e.stopPropagation()
               playNext()
@@ -272,7 +274,7 @@ export default function AudioPlayer() {
         <button
           type="button"
           className={styles.iconBtn}
-          aria-label="Danh sách phát"
+          aria-label={t('audioPlayer.playlist')}
           onClick={(e) => e.stopPropagation()}
         >
           <ListMusic size={17} />
@@ -303,8 +305,8 @@ export default function AudioPlayer() {
             e.stopPropagation()
             setCollapsed(prev => !prev)
           }}
-          aria-label={collapsed ? 'Mở rộng trình phát' : 'Thu gọn trình phát'}
-          title={collapsed ? 'Mở rộng' : 'Thu gọn'}
+          aria-label={collapsed ? t('audioPlayer.expandPlayer') : t('audioPlayer.collapsePlayer')}
+title={collapsed ? t('audioPlayer.expand') : t('audioPlayer.collapse')}
         >
           {collapsed ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </button>

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Search, Plus, ChevronDown, Settings, LogOut } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import styles from '../../../style/layout/Header.module.css'
 import { useAuth } from '../../contexts/AuthContext'
 import { getInitials } from '../../../utils/getInitials'
@@ -9,14 +10,20 @@ import NotificationPanel from '../NotificationPanel/NotificationPanel'
 export default function Header({ hideGlobalProgress = false }) {
   const navigate = useNavigate()
   const { user, logout } = useAuth()
+  const { i18n, t } = useTranslation()
   const [query, setQuery] = useState('')
   const [openMenu, setOpenMenu] = useState(false)
+  const [openLangMenu, setOpenLangMenu] = useState(false)
   const menuRef = useRef(null)
+  const langMenuRef = useRef(null)
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (menuRef.current && !menuRef.current.contains(event.target)) {
         setOpenMenu(false)
+      }
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target)) {
+        setOpenLangMenu(false)
       }
     }
 
@@ -25,7 +32,7 @@ export default function Header({ hideGlobalProgress = false }) {
   }, [])
 
   const displayName = useMemo(
-    () => user?.full_name || user?.name || user?.display_name || user?.username || 'Người dùng',
+    () => user?.full_name || user?.name || user?.display_name || user?.username || t('feed.comment.user'),
     [user]
   )
 
@@ -56,6 +63,12 @@ export default function Header({ hideGlobalProgress = false }) {
     }
   }
 
+  const handleLanguageChange = (lang) => {
+    i18n.changeLanguage(lang)
+    localStorage.setItem('i18nextLng', lang)
+    setOpenLangMenu(false)
+  }
+
   return (
     <header className={styles.header}>
       <div className={styles.logo}>
@@ -80,7 +93,7 @@ export default function Header({ hideGlobalProgress = false }) {
         <input
           className={styles.searchInput}
           type="text"
-          placeholder="Tìm kiếm Podcast, chủ đề, người tạo..."
+          placeholder={t('header.placeholder')}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleSearch}
@@ -92,17 +105,45 @@ export default function Header({ hideGlobalProgress = false }) {
 
         <button className={styles.createBtn} type="button">
           <Plus size={16} />
-          Tạo Podcast
+          {t('header.create_podcast')}
         </button>
 
-        <button className={styles.langBtn} type="button">
-          <span className={styles.flag}>🇻🇳</span>
-        </button>
+        <div className={styles.langMenuWrap} ref={langMenuRef}>
+          <button 
+            className={styles.langBtn} 
+            type="button"
+            onClick={() => setOpenLangMenu((prev) => !prev)}
+            aria-label={t('header.chooseLanguage')}
+          >
+            <span className={styles.flag}>
+              {i18n.language === 'en' ? '🇬🇧' : '🇻🇳'}
+            </span>
+          </button>
+
+          <div className={`${styles.langDropdown} ${openLangMenu ? styles.langDropdownOpen : ''}`}>
+            <button 
+              type="button" 
+              className={`${styles.langOption} ${i18n.language === 'vi' ? styles.langOptionActive : ''}`}
+              onClick={() => handleLanguageChange('vi')}
+            >
+              <span>🇻🇳</span>
+              <span>Tiếng Việt</span>
+            </button>
+            <button 
+              type="button" 
+              className={`${styles.langOption} ${i18n.language === 'en' ? styles.langOptionActive : ''}`}
+              onClick={() => handleLanguageChange('en')}
+            >
+              <span>EN</span>
+              <span>English</span>
+            </button>
+          </div>
+        </div>
 
         <div className={styles.userMenuWrap} ref={menuRef}>
           <button
             className={styles.userTrigger}
-            aria-label="Mở menu người dùng"
+            aria-label={t('header.openUserMenu')}
             onClick={() => setOpenMenu((prev) => !prev)}
             type="button"
           >
@@ -130,13 +171,13 @@ export default function Header({ hideGlobalProgress = false }) {
               </div>
               <div className={styles.dropdownMeta}>
                 <strong>{displayName}</strong>
-                <span>{user?.email || 'Tài khoản EduCast'}</span>
+                <span>{user?.email || t('header.educastAccount')}</span>
               </div>
             </div>
 
             <button type="button" className={styles.dropdownItem} onClick={handleGoSettings}>
               <Settings size={16} />
-              <span>Cài đặt</span>
+              <span>{t('header.settings')}</span>
             </button>
 
             <button
@@ -145,7 +186,7 @@ export default function Header({ hideGlobalProgress = false }) {
               onClick={handleLogout}
             >
               <LogOut size={16} />
-              <span>Đăng xuất</span>
+              <span>{t('header.logout')}</span>
             </button>
           </div>
         </div>

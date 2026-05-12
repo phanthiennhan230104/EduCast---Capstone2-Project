@@ -13,6 +13,7 @@ from rest_framework.permissions import IsAuthenticated
 from apps.content.services.feed_service import FeedService
 from .models import Post, PostAudioVersion, PostDocument, Tag, PostTag, Category, Topic
 from apps.social.models import HiddenPost
+from apps.social.services import create_new_post_notifications_for_admins
 from .serializers import (
     DraftCreateSerializer,
     AudioPreviewSerializer,
@@ -1389,6 +1390,9 @@ class PublishPostView(APIView):
             # TAGS
             post.post_tags.all().delete()
             handle_tags(post, data.get("tags", []))
+
+            # CREATE NOTIFICATIONS FOR ADMINS
+            create_new_post_notifications_for_admins(post, request.user)
 
             return Response(
                 {

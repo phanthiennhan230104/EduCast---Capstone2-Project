@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { BarChart3, Clock3, Sparkles, TrendingUp } from "lucide-react"
 import AdminLayout from "./AdminLayout"
-import { getAdminOverview } from "../../utils/usersApi"
+import { getAdminOverview } from "../../utils/adminApi"
 import { toast } from "react-toastify"
 import "../../style/admin/admin-stats-page.css"
 
@@ -41,7 +41,7 @@ const mockData = {
       change: 0,
     },
   ],
-  topic_distribution: [],
+  post_distribution: [],
   daily_growth: {
     title: "TĂNG TRƯỞNG - NGƯỜI DÙNG HOẠT ĐỘNG MỚI NGÀY",
     week_range: "Đang tải...",
@@ -83,82 +83,123 @@ export default function AdminStatsPage() {
   const fetchAdminStats = async () => {
     try {
       setLoading(true)
+
       const response = await getAdminOverview()
-      
-      if (response && response.data && response.data.overview) {
-        const overview = response.data.overview
-        
-        // Transform API data to component format
-        const totalPosts = overview.posts.total_posts || 0
-        const aiPosts = overview.posts.ai_generated_posts || 0
-        const totalListens = overview.engagement.total_listens || 0
-        const totalViews = overview.engagement.total_views || 0
-        
-        // Calculate metrics
-        const avgCompletion = totalListens > 0 ? ((totalListens / Math.max(totalViews, 1)) * 100).toFixed(1) : 0
-        const aiContentRate = totalPosts > 0 ? ((aiPosts / totalPosts) * 100).toFixed(1) : 0
-        
-        // Prepare overview cards
-        const overviewCards = [
-          {
-            key: "total_posts",
-            title: "TỔNG PODCAST",
-            display_value: totalPosts.toLocaleString("vi-VN"),
-            change: ((overview.posts.new_posts_30d || 0) / Math.max(totalPosts, 1) * 100).toFixed(1),
-          },
-          {
-            key: "completion_rate",
-            title: "TỈ LỆ NGHE HẾT",
-            display_value: `${avgCompletion}%`,
-            change: 0,
-          },
-          {
-            key: "ai_content_rate",
-            title: "TỈ LỆ AI TẠO",
-            display_value: `${aiContentRate}%`,
-            change: 0,
-          },
-        ]
-        
-        // Prepare daily growth data (7 days)
-        const newUsers7d = overview.charts.new_users_7d || []
-        const dayLabels = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"]
-        const bars = newUsers7d.map((item, index) => ({
-          label: dayLabels[index],
-          value: item.count || 0,
-          is_today: index === 6,
-        }))
-        
-        const totalNewUsers = bars.reduce((sum, b) => sum + b.value, 0)
-        
-        // Get date range
-        const today = new Date()
-        const sevenDaysAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000)
-        const dateRange = `${sevenDaysAgo.getDate()} - ${today.getDate()} tháng ${today.getMonth() + 1}, ${today.getFullYear()}`
-        
-        setData({
-          header: {
-            title: "THỐNG KÊ",
-            subtitle: formatSubtitle(),
-            online_users: overview.users.active_users || 0,
-          },
-          overview: overviewCards,
-          topic_distribution: [
-            { label: "Công Khai", percent: Math.round((overview.posts.public_posts / Math.max(totalPosts, 1)) * 100) },
-            { label: "Riêng Tư", percent: Math.round((overview.posts.private_posts / Math.max(totalPosts, 1)) * 100) },
-            { label: "Không Liệt Kê", percent: Math.round((overview.posts.unlisted_posts / Math.max(totalPosts, 1)) * 100) },
-            { label: "Xuất Bản", percent: Math.round((overview.posts.published_posts / Math.max(totalPosts, 1)) * 100) },
-            { label: "Nháp", percent: Math.round((overview.posts.draft_posts / Math.max(totalPosts, 1)) * 100) },
-          ],
-          daily_growth: {
-            title: "TĂNG TRƯỞNG - NGƯỜI DÙNG MỚI TRONG TUẦN",
-            week_range: dateRange,
-            total: totalNewUsers,
-            growth_percent: 0,
-            bars: bars,
-          },
-        })
+      const overview = response?.overview || response?.data?.overview
+
+      if (!overview) {
+        throw new Error("Dữ liệu thống kê không hợp lệ")
       }
+
+      const totalPosts = overview.posts?.total_posts || 0
+      const aiPosts = overview.posts?.ai_generated_posts || 0
+      const totalListens = overview.engagement?.total_listens || 0
+      const totalViews = overview.engagement?.total_views || 0
+
+      const avgCompletion =
+        totalViews > 0 ? ((totalListens / totalViews) * 100).toFixed(1) : 0
+
+      const aiContentRate =
+        totalPosts > 0 ? ((aiPosts / totalPosts) * 100).toFixed(1) : 0
+
+      const overviewCards = [
+        {
+          key: "total_posts",
+          title: "TỔNG PODCAST",
+          display_value: totalPosts.toLocaleString("vi-VN"),
+          change: (
+            ((overview.posts?.new_posts_30d || 0) / Math.max(totalPosts, 1)) *
+            100
+          ).toFixed(1),
+        },
+        {
+          key: "completion_rate",
+          title: "TỈ LỆ NGHE / XEM",
+          display_value: `${avgCompletion}%`,
+          change: 0,
+        },
+        {
+          key: "ai_content_rate",
+          title: "TỈ LỆ AI TẠO",
+          display_value: `${aiContentRate}%`,
+          change: 0,
+        },
+      ]
+
+      const newUsers7d = overview.charts?.new_users_7d || []
+
+      const weekdayLabels = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
+
+      const bars = newUsers7d.map((item, index) => {
+        const date = new Date(item.date)
+        const label = Number.isNaN(date.getTime())
+          ? `Ngày ${index + 1}`
+          : weekdayLabels[date.getDay()]
+
+        return {
+          label,
+          value: item.count || 0,
+          is_today: index === newUsers7d.length - 1,
+        }
+      })
+
+      const totalNewUsers = bars.reduce((sum, item) => sum + item.value, 0)
+
+      const firstDate = newUsers7d[0]?.date ? new Date(newUsers7d[0].date) : new Date()
+      const lastDate = newUsers7d[newUsers7d.length - 1]?.date
+        ? new Date(newUsers7d[newUsers7d.length - 1].date)
+        : new Date()
+
+      const dateRange = `${firstDate.getDate()} - ${lastDate.getDate()} tháng ${lastDate.getMonth() + 1
+        }, ${lastDate.getFullYear()}`
+
+      setData({
+        header: {
+          title: "THỐNG KÊ",
+          subtitle: formatSubtitle(),
+          online_users: overview.users?.active_users || 0,
+        },
+        overview: overviewCards,
+        post_distribution: [
+          {
+            label: "Công Khai",
+            percent: Math.round(
+              ((overview.posts?.public_posts || 0) / Math.max(totalPosts, 1)) * 100
+            ),
+          },
+          {
+            label: "Riêng Tư",
+            percent: Math.round(
+              ((overview.posts?.private_posts || 0) / Math.max(totalPosts, 1)) * 100
+            ),
+          },
+          {
+            label: "Không Liệt Kê",
+            percent: Math.round(
+              ((overview.posts?.unlisted_posts || 0) / Math.max(totalPosts, 1)) * 100
+            ),
+          },
+          {
+            label: "Xuất Bản",
+            percent: Math.round(
+              ((overview.posts?.published_posts || 0) / Math.max(totalPosts, 1)) * 100
+            ),
+          },
+          {
+            label: "Nháp",
+            percent: Math.round(
+              ((overview.posts?.draft_posts || 0) / Math.max(totalPosts, 1)) * 100
+            ),
+          },
+        ],
+        daily_growth: {
+          title: "TĂNG TRƯỞNG - NGƯỜI DÙNG MỚI TRONG TUẦN",
+          week_range: dateRange,
+          total: totalNewUsers,
+          growth_percent: 0,
+          bars,
+        },
+      })
     } catch (error) {
       console.error("Failed to fetch admin stats:", error)
       toast.error("Lỗi tải dữ liệu thống kê", { position: "top-center" })
@@ -184,7 +225,7 @@ export default function AdminStatsPage() {
   }
 
   const overview = data.overview || []
-  const topicDistribution = data.topic_distribution || []
+  const postDistribution = data.post_distribution || []
   const dailyGrowth = data.daily_growth || { bars: [] }
   const maxBarValue = Math.max(
     ...(dailyGrowth.bars || []).map((item) => item.value || 0),
@@ -215,11 +256,11 @@ export default function AdminStatsPage() {
 
         <section className="admin-stats-panel">
           <div className="admin-stats-panel-heading">
-            PODCAST TẠO TRONG TUẦN THEO CHỦ ĐỀ
+            PHÂN BỐ PODCAST THEO TRẠNG THÁI
           </div>
 
           <div className="admin-topic-list">
-            {topicDistribution.map((item, index) => (
+            {postDistribution.map((item, index) => (
               <div key={`${item.label}-${index}`} className="admin-topic-row">
                 <div className="admin-topic-label">{item.label}</div>
                 <div className="admin-topic-track">

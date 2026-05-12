@@ -4,12 +4,13 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import transaction
 
-from django.db.models import Count, Sum
+from django.db.models import Count, Sum, Q, OuterRef, Subquery, IntegerField, Value
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 from datetime import timedelta
 from .permissions import IsAdminRole
 from .models import UserSettings
+
 
 from .models import User, UserLockLog
 from apps.content.models import Post
@@ -20,11 +21,12 @@ from apps.social.models import (
     PostShare,
     PlaybackHistory,
     Report,
+    PostLike,
 )
 from apps.chat.models import ChatRoom, Message
 
-from .models import User
-from .permissions import IsAdminRole
+
+
 from .serializers import (
     AdminLockUserSerializer,
     AdminUnlockUserSerializer,
@@ -41,41 +43,41 @@ from .utils import (
 )
 
 
-class AdminUsersListView(APIView):
-    permission_classes = [IsAuthenticated, IsAdminRole]
+# class AdminUsersListView(APIView):
+#     permission_classes = [IsAuthenticated, IsAdminRole]
 
-    def get(self, request):
-        unlock_expired_locks()
+#     def get(self, request):
+#         unlock_expired_locks()
 
-        users = (
-            User.objects.select_related("profile")
-            .prefetch_related("lock_logs")
-            .filter(role="user")
-            .order_by("-created_at")
-        )
+#         users = (
+#             User.objects.select_related("profile")
+#             .prefetch_related("lock_logs")
+#             .filter(role="user")
+#             .order_by("-created_at")
+#         )
 
-        for user in users:
-            sync_user_lock_status(user)
+#         for user in users:
+#             sync_user_lock_status(user)
 
-        serializer = AdminUserListSerializer(users, many=True)
+#         serializer = AdminUserListSerializer(users, many=True)
 
-        total_users = users.count()
-        total_admins = User.objects.filter(role="admin").count()
-        total_active = User.objects.filter(role="user", status="active").count()
-        total_locked = User.objects.filter(role="user", status="locked").count()
+#         total_users = users.count()
+#         total_admins = User.objects.filter(role="admin").count()
+#         total_active = User.objects.filter(role="user", status="active").count()
+#         total_locked = User.objects.filter(role="user", status="locked").count()
 
-        return Response(
-            {
-                "stats": {
-                    "total_users": total_users,
-                    "total_admins": total_admins,
-                    "total_active": total_active,
-                    "total_locked": total_locked,
-                },
-                "users": serializer.data,
-            },
-            status=status.HTTP_200_OK,
-        )
+#         return Response(
+#             {
+#                 "stats": {
+#                     "total_users": total_users,
+#                     "total_admins": total_admins,
+#                     "total_active": total_active,
+#                     "total_locked": total_locked,
+#                 },
+#                 "users": serializer.data,
+#             },
+#             status=status.HTTP_200_OK,
+#         )
 
 
 class AdminUserLockView(APIView):
@@ -167,6 +169,99 @@ class AdminUserUnlockView(APIView):
             status=status.HTTP_200_OK,
         )
 
+class AdminReportsListView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def get(self, request):
+        status_filter = request.query_params.get("status")
+        search_query = request.query_params.get("search")
+        page = int(request.query_params.get("page", 1))
+        page_size = int(request.query_params.get("page_size", 20))
+
+        reports_qs = (
+            Report.objects
+            .filter(target_type="post")
+            .select_related("user")
+            .order_by("-created_at")
+        )
+
+        if status_filter and status_filter not in ["all", ""]:
+            reports_qs = reports_qs.filter(status=status_filter)
+
+        if search_query:
+            reports_qs = reports_qs.filter(
+                Q(reason__icontains=search_query) |
+                Q(description__icontains=search_query) |
+                Q(user__username__icontains=search_query) |
+                Q(target_id__icontains=search_query)
+            )
+
+        total_count = reports_qs.count()
+
+        counts_base = Report.objects.filter(target_type="post")
+        counts = {
+            "total": counts_base.count(),
+            "pending": counts_base.filter(status="pending").count(),
+            "resolved": counts_base.filter(status="resolved").count(),
+            "reviewed": counts_base.filter(status="reviewed").count(),
+            "rejected": counts_base.filter(status="rejected").count(),
+        }
+
+        start_idx = (page - 1) * page_size
+        end_idx = start_idx + page_size
+        reports_page = list(reports_qs[start_idx:end_idx])
+
+        post_ids = [report.target_id for report in reports_page]
+
+        posts_map = {
+            post.id: post
+            for post in Post.objects.filter(id__in=post_ids).select_related("user")
+        }
+
+        reports_data = []
+
+        for report in reports_page:
+            post = posts_map.get(report.target_id)
+
+            reports_data.append({
+                "id": report.id,
+                "reason": report.reason,
+                "description": report.description,
+                "status": report.status,
+                "target_type": report.target_type,
+                "target_id": report.target_id,
+                "created_at": report.created_at.isoformat() if report.created_at else None,
+                "updated_at": report.updated_at.isoformat() if report.updated_at else None,
+
+                "reporter_id": report.user_id,
+                "reporter_username": report.user.username if report.user else "Unknown",
+
+                "post_exists": bool(post),
+                "post": {
+                    "id": post.id,
+                    "title": post.title,
+                    "slug": post.slug,
+                    "status": post.status,
+                    "visibility": post.visibility,
+                    "description": post.description,
+                    "thumbnail_url": post.thumbnail_url,
+                    "audio_url": post.audio_url,
+                    "created_at": post.created_at.isoformat() if post.created_at else None,
+                    "author_id": post.user_id,
+                    "author_username": post.user.username if post.user else "Unknown",
+                } if post else None,
+            })
+
+        return Response({
+            "reports": reports_data,
+            "counts": counts,
+            "pagination": {
+                "page": page,
+                "page_size": page_size,
+                "total": total_count,
+                "total_pages": (total_count + page_size - 1) // page_size,
+            },
+        }, status=status.HTTP_200_OK)
 
 class AdminOverviewView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
@@ -212,12 +307,13 @@ class AdminOverviewView(APIView):
         engagement_data = posts_qs.aggregate(
             total_views=Coalesce(Sum("view_count"), 0),
             total_listens=Coalesce(Sum("listen_count"), 0),
-            total_post_likes=Coalesce(Sum("like_count"), 0),
-            total_post_comments=Coalesce(Sum("comment_count"), 0),
             total_post_saves=Coalesce(Sum("save_count"), 0),
             total_post_shares=Coalesce(Sum("share_count"), 0),
             total_downloads=Coalesce(Sum("download_count"), 0),
         )
+
+        engagement_data["total_post_likes"] = PostLike.objects.count()
+        engagement_data["total_post_comments"] = Comment.objects.filter(status="active").count()
 
         shares_data = {
             "total_shares": PostShare.objects.count(),
@@ -256,20 +352,50 @@ class AdminOverviewView(APIView):
             ).count(),
         }
 
+        like_count_subquery = (
+            PostLike.objects
+            .filter(post_id=OuterRef("pk"))
+            .values("post_id")
+            .annotate(total=Count("id"))
+            .values("total")
+        )
+
+        comment_count_subquery = (
+            Comment.objects
+            .filter(post_id=OuterRef("pk"), status="active")
+            .values("post_id")
+            .annotate(total=Count("id"))
+            .values("total")
+        )
+
         top_posts = list(
-            Post.objects.filter(status="published")
+            Post.objects.filter(status="published",visibility="public",)
+            .annotate(
+                db_like_count=Coalesce(
+                    Subquery(like_count_subquery, output_field=IntegerField()),
+                    Value(0),
+                ),
+                db_comment_count=Coalesce(
+                    Subquery(comment_count_subquery, output_field=IntegerField()),
+                    Value(0),
+                ),
+            )
             .values(
                 "id",
                 "title",
                 "slug",
                 "view_count",
                 "listen_count",
-                "like_count",
-                "comment_count",
                 "share_count",
+                "db_like_count",
+                "db_comment_count",
             )
             .order_by("-listen_count", "-view_count")[:5]
         )
+
+        for post in top_posts:
+            post["like_count"] = post.pop("db_like_count", 0)
+            post["comment_count"] = post.pop("db_comment_count", 0)
 
         def fill_daily_series(rows):
             mapped = {str(row["day"]): row["count"] for row in rows}
@@ -285,12 +411,16 @@ class AdminOverviewView(APIView):
             return result
 
         new_users_7d = fill_daily_series(
-            User.objects.filter(role="user", created_at__date__gte=seven_days_ago)
-            .annotate(day=TruncDate("created_at"))
-            .values("day")
-            .annotate(count=Count("id"))
-            .order_by("day")
+        User.objects.filter(
+            role="user",
+            status="active",
+            created_at__date__gte=seven_days_ago,
         )
+        .annotate(day=TruncDate("created_at"))
+        .values("day")
+        .annotate(count=Count("id"))
+        .order_by("day")
+)
 
         new_posts_7d = fill_daily_series(
             Post.objects.filter(created_at__date__gte=seven_days_ago)
@@ -341,13 +471,24 @@ class AdminUsersListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):
-        users = User.objects.select_related("profile").filter(role="user").order_by("-created_at")
+        unlock_expired_locks()
+
+        users = (
+            User.objects.select_related("profile")
+            .prefetch_related("lock_logs")
+            .filter(role="user")
+            .order_by("-created_at")
+        )
+
+        for user in users:
+            sync_user_lock_status(user)
+
         serializer = AdminUserListSerializer(users, many=True)
 
         total_users = users.count()
-        total_admins = users.filter(role="admin").count()
-        total_active = users.filter(status="active").count()
-        total_locked = users.filter(status__in=["suspended", "banned"]).count()
+        total_admins = User.objects.filter(role="admin").count()
+        total_active = User.objects.filter(role="user", status="active").count()
+        total_locked = User.objects.filter(role="user", status="locked").count()
 
         return Response(
             {
@@ -360,8 +501,7 @@ class AdminUsersListView(APIView):
                 "users": serializer.data,
             },
             status=status.HTTP_200_OK,
-        )
-    
+        )  
 class AdminSystemNotificationSettingsView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 

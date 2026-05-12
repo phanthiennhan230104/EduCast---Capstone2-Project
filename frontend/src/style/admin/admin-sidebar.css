@@ -1,31 +1,51 @@
 .admin-sidebar {
+  width: 260px;
+  min-width: 260px;
+  max-width: 260px;
+  height: 100vh;
+  min-height: 100vh;
   background: rgba(21, 27, 61, 0.92);
   border-right: 1px solid rgba(255, 255, 255, 0.1);
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  overflow: hidden;
+  box-sizing: border-box;
+  font-family: Arial, "Segoe UI", Tahoma, sans-serif;
 }
 
 .admin-logo-wrap {
-  height: 88px;
+  padding: 20px 18px 18px;
+  flex-shrink: 0;
+}
+
+.admin-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.admin-logo-icon {
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  background: linear-gradient(135deg, #7f8cff, #6674f6);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
+  box-shadow: 0 8px 16px rgba(102, 116, 246, 0.18);
 }
 
-.admin-logo-circle {
-  width: 76px;
-  height: 76px;
-  border-radius: 50%;
-  background: #d9d9d9;
-  color: #111827;
-  display: grid;
-  place-items: center;
-  font-weight: 800;
-  font-size: 12px;
-  letter-spacing: 0.4px;
-  
+.admin-logo-text {
+  font-size: 18px;
+  font-weight: 700;
+  color: #f4f6ff;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .admin-nav {
@@ -33,21 +53,61 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .admin-nav-item {
-  height: 44px;
   width: 100%;
-  background: transparent;
-  color: #f6dba5;
+  height: 44px;
+  box-sizing: border-box;
+
   display: flex;
   align-items: center;
-  gap: 10px;
+  justify-content: flex-start;
+  gap: 12px;
+
   padding: 0 14px;
   border-radius: 8px;
-  font-size: 14px;
+
+  background: transparent;
+  color: #f6dba5;
   text-decoration: none;
-  transition: 0.2s ease;
+
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 44px;
+  letter-spacing: 0;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-transform: none;
+  word-break: normal;
+
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.admin-nav-icon {
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  flex: 0 0 16px;
+  display: block;
+}
+
+.admin-nav-label {
+  display: block;
+  flex: 1 1 auto;
+  min-width: 0;
+
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  color: inherit;
+  font: inherit;
+  line-height: 44px;
+  text-transform: none;
+  word-break: normal;
 }
 
 .admin-nav-item:hover {
@@ -75,21 +135,27 @@
   margin-top: auto;
   padding: 14px 10px 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.08);
+  flex-shrink: 0;
 }
 
 .admin-collapse-btn {
   width: 100%;
   height: 36px;
+  box-sizing: border-box;
   border-radius: 8px;
   border: 1px solid rgba(210, 218, 255, 0.18);
   background: transparent;
   color: #f4f7ff;
+
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
+
   cursor: pointer;
   font-size: 13px;
+  font-family: Arial, "Segoe UI", Tahoma, sans-serif;
+  white-space: nowrap;
 }
 
 .admin-profile {
@@ -102,6 +168,7 @@
 .admin-avatar {
   width: 28px;
   height: 28px;
+  min-width: 28px;
   border-radius: 8px;
   display: grid;
   place-items: center;
@@ -115,16 +182,21 @@
   font-size: 12px;
   color: #f8fbff;
   line-height: 1.2;
+  white-space: nowrap;
 }
 
 .admin-role {
   font-size: 10px;
   color: #93a0d6;
   margin-top: 2px;
+  white-space: nowrap;
 }
 
 @media (max-width: 860px) {
   .admin-sidebar {
-    min-height: auto;
+    width: 260px;
+    min-width: 260px;
+    max-width: 260px;
+    min-height: 100vh;
   }
 }

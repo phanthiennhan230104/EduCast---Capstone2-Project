@@ -114,7 +114,13 @@ class Notification(models.Model):
     ]
     id = models.CharField(max_length=26, primary_key=True)
     user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='notifications')
-    actor_user = models.ForeignKey('users.User', on_delete=models.CASCADE, related_name='sent_notifications', null=True, blank=True)
+    actor_user = models.ForeignKey(
+    'users.User',
+    on_delete=models.SET_NULL,
+    related_name='sent_notifications',
+    null=True,
+    blank=True
+)
     type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     title = models.CharField(max_length=255)
     body = models.TextField(null=True, blank=True)
