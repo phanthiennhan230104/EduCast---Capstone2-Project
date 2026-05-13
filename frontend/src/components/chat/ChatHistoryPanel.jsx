@@ -15,6 +15,7 @@ import {
   getFileExtension,
   getFileNameFromUrl,
 } from "../../utils/chat/chatHelpers";
+import { useTranslation } from "react-i18next";
 
 const { Text } = Typography;
 
@@ -25,11 +26,11 @@ function FileTypeIcon({ ext }) {
   return <FileOutlined />;
 }
 
-function HistoryList({ type, items, onJumpToMessage, onPreviewImage }) {
+function HistoryList({ type, items, onJumpToMessage, onPreviewImage, t }) {
   if (!items.length) {
     return (
       <Empty
-        description="Chưa có dữ liệu"
+        description={t("chatHistory.noData")}
         image={Empty.PRESENTED_IMAGE_SIMPLE}
       />
     );
@@ -87,6 +88,7 @@ function HistoryList({ type, items, onJumpToMessage, onPreviewImage }) {
 }
 
 export default function ChatHistoryPanel({ messages, onJumpToMessage }) {
+  const { t } = useTranslation();
   const [previewImage, setPreviewImage] = useState(null);
   const [expanded, setExpanded] = useState(true);
 
@@ -123,10 +125,10 @@ export default function ChatHistoryPanel({ messages, onJumpToMessage }) {
         <div className="chat-history-header chat-history-header-collapsible">
           <div>
             <Text strong className="chat-history-title">
-              Lịch sử chia sẻ
+              {t("chatHistory.title")}
             </Text>
             <Text className="chat-history-subtitle">
-              Ảnh, audio và file trong cuộc trò chuyện này
+              {t("chatHistory.subtitle")}
             </Text>
           </div>
 
@@ -136,7 +138,9 @@ export default function ChatHistoryPanel({ messages, onJumpToMessage }) {
             className="chat-history-toggle-btn"
             icon={expanded ? <DownOutlined /> : <RightOutlined />}
             onClick={() => setExpanded((prev) => !prev)}
-            aria-label={expanded ? "Ẩn lịch sử chia sẻ" : "Hiện lịch sử chia sẻ"}
+            aria-label={
+  expanded ? t("chatHistory.hideHistory") : t("chatHistory.showHistory")
+}
           />
         </div>
 
@@ -147,13 +151,14 @@ export default function ChatHistoryPanel({ messages, onJumpToMessage }) {
             items={[
               {
                 key: "images",
-                label: "Ảnh",
+                label: t("chatHistory.tabs.images"),
                 children: (
                   <HistoryList
                     type="image"
                     items={imageItems}
                     onJumpToMessage={onJumpToMessage}
                     onPreviewImage={setPreviewImage}
+                    t={t}
                   />
                 ),
               },
@@ -166,6 +171,7 @@ export default function ChatHistoryPanel({ messages, onJumpToMessage }) {
                     items={audioItems}
                     onJumpToMessage={onJumpToMessage}
                     onPreviewImage={setPreviewImage}
+                    t={t}
                   />
                 ),
               },
@@ -178,6 +184,7 @@ export default function ChatHistoryPanel({ messages, onJumpToMessage }) {
                     items={fileItems}
                     onJumpToMessage={onJumpToMessage}
                     onPreviewImage={setPreviewImage}
+                    t={t}
                   />
                 ),
               },

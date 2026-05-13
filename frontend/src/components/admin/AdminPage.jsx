@@ -52,6 +52,7 @@ export default function AdminPage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [topPostsPage, setTopPostsPage] = useState(1);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -171,6 +172,14 @@ export default function AdminPage() {
     ],
   }));
 
+  const TOP_POSTS_PER_PAGE = 5;
+  const totalTopPostsPages = Math.ceil(topPosts.length / TOP_POSTS_PER_PAGE);
+
+  const paginatedTopPosts = topPosts.slice(
+    (topPostsPage - 1) * TOP_POSTS_PER_PAGE,
+    topPostsPage * TOP_POSTS_PER_PAGE
+  );
+
   return (
     <AdminLayout
       title="TỔNG QUAN"
@@ -230,7 +239,7 @@ export default function AdminPage() {
         <div className="admin-panel-title">TOP PODCASTS</div>
 
         <div className="admin-report-list">
-          {topPosts.map((item) => (
+          {paginatedTopPosts.map((item) => (
             <div key={item.slug} className="admin-report-row">
               <div className="admin-report-left">
                 <div className="admin-report-icon">
@@ -253,6 +262,26 @@ export default function AdminPage() {
             </div>
           ))}
         </div>
+
+
+        <div className="admin-pagination">
+          {Array.from({ length: Math.max(totalTopPostsPages, 1) }, (_, index) => {
+            const page = index + 1;
+
+            return (
+              <button
+                key={page}
+                type="button"
+                className={`admin-page-btn ${topPostsPage === page ? "admin-page-btn-active" : ""
+                  }`}
+                onClick={() => setTopPostsPage(page)}
+              >
+                {page}
+              </button>
+            );
+          })}
+        </div>
+
       </section>
     </AdminLayout>
   );

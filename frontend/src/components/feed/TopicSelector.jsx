@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { X, Plus } from 'lucide-react'
 import styles from '../../style/feed/TopicSelector.module.css'
 import { useTagFilter } from '../contexts/TagFilterContext'
+import { useState, useEffect } from 'react'
+import { useTranslation } from 'react-i18next'
 import {
   fetchUserTagPreferences,
   addTagPreference,
@@ -10,6 +12,7 @@ import {
 } from '../../utils/tagApi'
 
 export default function TopicSelector() {
+  const { t } = useTranslation()
   const [preferences, setPreferences] = useState([])
   const [availableTags, setAvailableTags] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
@@ -38,7 +41,7 @@ export default function TopicSelector() {
       setAvailableTags(tags)
     } catch (err) {
       // Fail silently: nếu backend lỗi/timeout thì chỉ hiển thị trạng thái rỗng
-      setError(err?.message || 'Failed to load tags')
+      setError(err?.message || t('tags.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -87,7 +90,7 @@ export default function TopicSelector() {
   return (
     <div className={styles.selectorSection}>
       <div className={styles.selectorHeader}>
-        <h3 className={styles.selectorTitle}>Tags Yêu Thích</h3>
+        <h3 className={styles.selectorTitle}>{t('navigation.tags')}</h3>
         <button
           className={styles.addBtn}
           onClick={() => {
@@ -96,7 +99,7 @@ export default function TopicSelector() {
           }}
           type="button"
           disabled={loading}
-          title="Thêm tag"
+          title={t('tags.addTag')}
         >
           <Plus size={16} />
         </button>
@@ -108,7 +111,7 @@ export default function TopicSelector() {
           className={styles.clearFilterBtn}
           onClick={() => clearSelectedTags()}
         >
-          Hiện tất cả bài viết
+          {t('tags.showAllPosts')}
         </button>
       )}
 
@@ -128,9 +131,9 @@ export default function TopicSelector() {
                     type="button"
                     className={styles.topicTagLabelBtn}
                     onClick={() => handleToggleFeedFilter(pref.tag_id)}
-                    title="Lọc feed theo tag của bài gốc (bấm lại để bỏ lọc)"
+                    title={t('tags.filterByOriginalTag')}
                   >
-                    {pref.tag_name || pref.tag?.name || 'N/A'}
+                    {pref.tag_name || pref.tag?.name || t('tags.unknown')}
                   </button>
                   <X
                     size={12}
@@ -147,7 +150,7 @@ export default function TopicSelector() {
           </div>
         ) : (
           <p className={styles.emptyText}>
-            {loading ? 'Đang tải...' : 'Chưa có tag yêu thích'}
+            {loading ? t('common.loading') : t('navigation.noTags')}
           </p>
         )}
 
@@ -167,7 +170,7 @@ export default function TopicSelector() {
               ))
             ) : (
               <p style={{ fontSize: '11px', color: '#aeb8da' }}>
-                Tất cả tags đã được chọn
+                {t('tags.allSelected')}
               </p>
             )}
           </div>

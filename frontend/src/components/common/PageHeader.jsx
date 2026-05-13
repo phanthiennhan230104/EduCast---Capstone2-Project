@@ -16,19 +16,19 @@ export default function PageHeader({ onOpenLogin, onOpenSignup }) {
       </Link>
 
       <nav className={styles.nav}>
-        <a href="#explore" className={styles.navLink}>{t('landingHeader.explore')}</a>
-        <a href="#topics" className={styles.navLink}>{t('landingHeader.topics')}</a>
-        <a href="#community" className={styles.navLink}>{t('landingHeader.community')}</a>
-        <a href="#ranking" className={styles.navLink}>{t('landingHeader.ranking')}</a>
+        <a href="#explore" className={styles.navLink}>Khám Phá</a>
+        <a href="#topics" className={styles.navLink}>Chủ Đề</a>
+        <a href="#community" className={styles.navLink}>Cộng Đồng</a>
+        <a href="#ranking" className={styles.navLink}>Xếp Hạng</a>
       </nav>
 
       <div className={styles.actions}>
         <button type="button" className={styles.loginBtn} onClick={onOpenLogin}>
-          {t('landingHeader.login')}
+          Đăng Nhập
         </button>
 
         <button type="button" className={styles.freeBtn} onClick={onOpenSignup}>
-          {t('landingHeader.signupFree')}
+          Dùng miễn phí
         </button>
       </div>
     </header>

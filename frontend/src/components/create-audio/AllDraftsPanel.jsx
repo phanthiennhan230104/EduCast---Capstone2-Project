@@ -178,12 +178,12 @@ export default function AllDraftsPanel({ vm }) {
               disabled={isDisabled || isPublished}
               onClick={async () => {
                 if (isPublished) {
-                  toast.info('Bài này đã được đăng rồi, không thể đăng lại')
+                  toast.info(t('draftsPanel.alreadyPublished'))
                   return
                 }
 
                 if (vm.genState === 'processing') {
-                  toast.info('Vui lòng hoàn tất tạo audio trước khi load draft khác')
+                  toast.info(t('draftsPanel.finishProcessingBeforeLoad'))
                   return
                 }
 

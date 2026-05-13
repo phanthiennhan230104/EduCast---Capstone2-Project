@@ -1,5 +1,6 @@
 import { apiRequest } from "./api";
 import { getToken } from "./auth";
+import i18n from "./i18n";
 
 const API_BASE = "http://127.0.0.1:8000";
 const WS_BASE = "ws://127.0.0.1:8000";
@@ -48,7 +49,7 @@ export async function uploadChatAttachment(file) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data?.detail || data?.file?.[0] || "Upload file thất bại");
+    throw new Error(data?.detail || data?.file?.[0] || i18n.t("chatApi.uploadFailed"));
   }
 
   return data;

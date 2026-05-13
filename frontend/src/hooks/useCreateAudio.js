@@ -28,30 +28,29 @@ const VOICE_ID_BY_NAME = {
 export function useCreateAudio() {
   const { t } = useTranslation()
 
-  const demoText = `Kỹ năng mềm là tập hợp những khả năng giúp con người tương tác, làm việc và thích nghi hiệu quả trong môi trường sống và làm việc. Một trong những kỹ năng quan trọng nhất là kỹ năng giao tiếp, bởi nó giúp bạn truyền đạt ý tưởng rõ ràng, lắng nghe người khác và xây dựng mối quan hệ tích cực. Bên cạnh đó, kỹ năng quản lý thời gian giúp bạn sắp xếp công việc hợp lý, tránh căng thẳng và nâng cao hiệu suất. Ngoài ra, kỹ năng làm việc nhóm cũng rất cần thiết, vì trong hầu hết các môi trường, thành công thường đến từ sự hợp tác. Việc rèn luyện kỹ năng mềm không chỉ giúp bạn phát triển bản thân mà còn mở ra nhiều cơ hội trong học tập và sự nghiệp.`
-
+  const demoText = t('createAudio.hook.demoText')
   const voices = [
-    {
-      id: 'vi-hoai-my',
-      name: t('createAudio.hook.voices.hoaiMy.name', { defaultValue: 'Hoài My' }),
-      tag: t('createAudio.hook.voices.hoaiMy.tag', { defaultValue: 'Nữ · Việt Nam · Kể chuyện tự nhiên' }),
-    },
-    {
-      id: 'vi-nam-minh',
-      name: t('createAudio.hook.voices.namMinh.name', { defaultValue: 'Nam Minh' }),
-      tag: t('createAudio.hook.voices.namMinh.tag', { defaultValue: 'Nam · Việt Nam · Rõ ràng học thuật' }),
-    },
-    {
-      id: 'en-andrew',
-      name: t('createAudio.hook.voices.andrew.name', { defaultValue: 'Andrew' }),
-      tag: t('createAudio.hook.voices.andrew.tag', { defaultValue: 'Male · English US · Storytelling' }),
-    },
-    {
-      id: 'en-ava',
-      name: t('createAudio.hook.voices.ava.name', { defaultValue: 'Ava' }),
-      tag: t('createAudio.hook.voices.ava.tag', { defaultValue: 'Female · English US · Instructional' }),
-    },
-  ]
+  {
+    id: 'vi-hoai-my',
+    name: t('createAudio.hook.voices.hoaiMy.name'),
+    tag: t('createAudio.hook.voices.hoaiMy.tag'),
+  },
+  {
+    id: 'vi-nam-minh',
+    name: t('createAudio.hook.voices.namMinh.name'),
+    tag: t('createAudio.hook.voices.namMinh.tag'),
+  },
+  {
+    id: 'en-andrew',
+    name: t('createAudio.hook.voices.andrew.name'),
+    tag: t('createAudio.hook.voices.andrew.tag'),
+  },
+  {
+    id: 'en-ava',
+    name: t('createAudio.hook.voices.ava.name'),
+    tag: t('createAudio.hook.voices.ava.tag'),
+  },
+]
 
   const formats = ['MP3', 'WAV', 'OGG', 'AAC']
 
@@ -187,10 +186,10 @@ export function useCreateAudio() {
       const res = await getMyDrafts()
       setRecentDrafts(Array.isArray(res?.data) ? res.data : [])
     } catch (error) {
-      console.error('Load drafts error:', error)
+      console.error(t('createAudio.hook.loadDraftsError'), error)
       setRecentDrafts([])
     }
-  }, [])
+  }, [t])
 
   useEffect(() => {
     loadRecentDrafts()

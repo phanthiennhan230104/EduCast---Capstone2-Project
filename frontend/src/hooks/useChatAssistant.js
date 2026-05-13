@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState } from 'react'
 import { sendAssistantMessage } from '../utils/aiServicesApi'
+import { useTranslation } from 'react-i18next'
 
 const INITIAL_ASSISTANT_MESSAGE = {
   id: 'assistant-welcome',

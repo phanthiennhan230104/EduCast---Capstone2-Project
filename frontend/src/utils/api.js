@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../config/apiBase'
 import { getRefreshToken, getToken, saveAuth, forceLogoutToLogin } from './auth'
+import i18n from "./i18n";
 
 export { API_BASE_URL }
 
@@ -10,7 +11,7 @@ function getFirstError(data) {
     data.error ||
     Object.values(data)[0]?.[0] ||
     Object.values(data)[0] ||
-    'Request failed.'
+    i18n.t('api.requestFailed')
   )
 }
 
@@ -104,7 +105,7 @@ export async function apiRequest(path, options = {}) {
         } catch (refreshError) {
           // Refresh fail → coi như phiên đăng nhập hết hạn
           forceLogoutToLogin(
-            refreshError?.message || 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.'
+            refreshError?.message || i18n.t('api.sessionExpiredLoginAgain')
           )
           throw refreshError
         }
@@ -112,8 +113,8 @@ export async function apiRequest(path, options = {}) {
         if (!response.ok) {
           const retriedError = getFirstError(data)
           // Tài khoản bị khóa / inactive / token vẫn lỗi → logout để UI về login
-          forceLogoutToLogin(retriedError || 'Phiên đăng nhập đã kết thúc.')
-          throw new Error(retriedError || 'Request failed.')
+          forceLogoutToLogin(retriedError || i18n.t('api.sessionEnded'))
+          throw new Error(retriedError || i18n.t('api.requestFailed'))
         }
       } else {
         throw new Error(firstError)
@@ -127,7 +128,7 @@ export async function apiRequest(path, options = {}) {
         throw error
       }
 
-      throw new Error('Request timed out. Please check your backend connection.')
+      throw new Error(i18n.t('api.requestTimeout'))
     }
 
     throw error

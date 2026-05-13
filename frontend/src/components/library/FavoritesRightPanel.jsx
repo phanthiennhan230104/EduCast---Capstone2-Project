@@ -2,32 +2,60 @@ import { Headphones, StickyNote, Bookmark, Plus } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import styles from '../../style/library/FavoritesRightPanel.module.css'
 
+// Thành:
 const RECENT_LISTENS = [
-  { title: 'Neural Network từ A–Z', sub: 'Lê Thị Thanh Trâm', time: '3:05' },
-  { title: 'Hiệu ứng Dunning–Kruger', sub: 'Phát Triển Bản Thân', time: '4:05' },
-  { title: 'IELTS Speaking Part 2', sub: 'Bách Thiên', time: '3:20' },
-  { title: 'Quy tắc 50-30-20', sub: 'Đức Minh Finance', time: '3:14' },
+  {
+    titleKey: 'library.rightPanel.recentListensItems.neuralNetwork.title',
+    subKey: 'library.rightPanel.recentListensItems.neuralNetwork.sub',
+    time: '3:05',
+  },
+  {
+    titleKey: 'library.rightPanel.recentListensItems.dunningKruger.title',
+    subKey: 'library.rightPanel.recentListensItems.dunningKruger.sub',
+    time: '4:05',
+  },
+  {
+    titleKey: 'library.rightPanel.recentListensItems.ieltsSpeaking.title',
+    subKey: 'library.rightPanel.recentListensItems.ieltsSpeaking.sub',
+    time: '3:20',
+  },
+  {
+    titleKey: 'library.rightPanel.recentListensItems.budgetRule.title',
+    subKey: 'library.rightPanel.recentListensItems.budgetRule.sub',
+    time: '3:14',
+  },
 ]
 
+// Thành:
 const HIGHLIGHT_NOTES = [
   {
-    tag: 'NEURAL NETWORK',
-    text: '“Backpropagation là quá trình tính gradient ngược từ output về input...”',
+    tagKey: 'library.rightPanel.highlightNotesItems.neuralNetwork.tag',
+    textKey: 'library.rightPanel.highlightNotesItems.neuralNetwork.text',
   },
   {
-    tag: 'TÂM LÝ HỌC',
-    text: '“Giữ thói quen nhìn lại giả định cũ để giảm tự tin ảo...”',
+    tagKey: 'library.rightPanel.highlightNotesItems.psychology.tag',
+    textKey: 'library.rightPanel.highlightNotesItems.psychology.text',
   },
   {
-    tag: 'TÀI CHÍNH',
-    text: '“50% nhu cầu thiết yếu, 30% mong muốn, 20% tiết kiệm...”',
+    tagKey: 'library.rightPanel.highlightNotesItems.finance.tag',
+    textKey: 'library.rightPanel.highlightNotesItems.finance.text',
   },
 ]
 
+// Thành:
 const SUGGESTED_LIBRARY = [
-  { title: 'Habit Stacking: Xây thói quen bền vững', sub: '2:15 • Tâm lý học' },
-  { title: 'Django REST Framework', sub: '2:30 • Lập trình' },
-  { title: 'Lean Startup', sub: '3:15 • Startup' },
+  {
+    titleKey: 'library.rightPanel.suggestedItems.habitStacking.title',
+    subKey: 'library.rightPanel.suggestedItems.habitStacking.sub',
+  },
+  {
+    titleKey: 'library.rightPanel.suggestedItems.djangoRest.title',
+    subKey: 'library.rightPanel.suggestedItems.djangoRest.sub',
+  },
+  {
+    titleKey: 'library.rightPanel.suggestedItems.leanStartup.title',
+    subKey: 'library.rightPanel.suggestedItems.leanStartup.sub',
+  },
 ]
 
 function TitleWithIcon({ icon, children }) {
@@ -50,15 +78,16 @@ export default function LibraryRightPanel() {
 
         <div className={styles.list}>
           {RECENT_LISTENS.map((item) => (
-            <button key={item.title} type="button" className={styles.itemButton}>
+            <button key={item.titleKey} type="button" className={styles.itemButton}>
               <div className={styles.item}>
                 <div className={styles.thumb}>
                   <Headphones size={14} />
                 </div>
 
                 <div className={styles.info}>
-                  <div className={styles.itemTitle}>{item.title}</div>
-                  <div className={styles.itemSub}>{item.sub}</div>
+
+                  <div className={styles.itemTitle}>{t(item.titleKey)}</div>
+                  <div className={styles.itemSub}>{t(item.subKey)}</div>
                 </div>
 
                 <span className={styles.time}>{item.time}</span>
@@ -75,10 +104,11 @@ export default function LibraryRightPanel() {
 
         <div className={styles.noteList}>
           {HIGHLIGHT_NOTES.map((item) => (
-            <button key={item.tag} type="button" className={styles.noteButton}>
+
+            <button key={item.tagKey} type="button" className={styles.noteButton}>
               <div className={styles.noteCard}>
-                <span className={styles.noteTag}>{item.tag}</span>
-                <p className={styles.noteText}>{item.text}</p>
+                <span className={styles.noteTag}>{t(item.tagKey)}</span>
+                <p className={styles.noteText}>{t(item.textKey)}</p>
               </div>
             </button>
           ))}
@@ -92,17 +122,18 @@ export default function LibraryRightPanel() {
 
         <div className={styles.list}>
           {SUGGESTED_LIBRARY.map((item) => (
-            <div key={item.title} className={styles.item}>
+            <div key={item.titleKey} className={styles.item}>
               <div className={styles.thumbAlt}>
                 <Bookmark size={13} />
               </div>
 
               <div className={styles.info}>
-                <div className={styles.itemTitle}>{item.title}</div>
-                <div className={styles.itemSub}>{item.sub}</div>
+                <div className={styles.itemTitle}>{t(item.titleKey)}</div>
+                <div className={styles.itemSub}>{t(item.subKey)}</div>
               </div>
 
-              <button type="button" className={styles.addBtn} aria-label={t('library.rightPanel.addToLibrary', { title: item.title })}>
+              <button type="button" className={styles.addBtn}
+                aria-label={t('library.rightPanel.addToLibrary', { title: t(item.titleKey) })}>
                 <Plus size={14} />
               </button>
             </div>

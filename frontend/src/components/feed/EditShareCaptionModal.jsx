@@ -5,6 +5,7 @@ import { toast } from 'react-toastify'
 import styles from '../../style/feed/ShareModal.module.css'
 import { API_BASE_URL } from '../../config/apiBase'
 import { getToken } from '../../utils/auth'
+import { useTranslation } from 'react-i18next'
 
 const MAX = 500
 
@@ -15,6 +16,7 @@ export default function EditShareCaptionModal({
   onClose,
   onSaved,
 }) {
+  const { t } = useTranslation()
   const [caption, setCaption] = useState(initialCaption || '')
   const [submitting, setSubmitting] = useState(false)
 
@@ -39,7 +41,7 @@ export default function EditShareCaptionModal({
     e.preventDefault()
     const trimmed = caption.trim()
     if (trimmed.length > MAX) {
-      toast.error(`Mô tả tối đa ${MAX} ký tự`)
+      toast.error(t('editShareCaption.maxLength', { max: MAX }))
       return
     }
 
@@ -71,7 +73,7 @@ export default function EditShareCaptionModal({
       onClose?.()
     } catch (err) {
       console.error(err)
-      toast.error(err.message || 'Không lưu được mô tả chia sẻ')
+      toast.error(err.message || t('editShareCaption.saveFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -81,12 +83,12 @@ export default function EditShareCaptionModal({
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(ev) => ev.stopPropagation()}>
         <div className={styles.topBar}>
-          <h2 className={styles.modalTitle}>Mô tả khi chia sẻ</h2>
+          <h2 className={styles.modalTitle}>{t('editShareCaption.title')}</h2>
           <button
             type="button"
             className={styles.closeBtn}
             onClick={onClose}
-            aria-label="Đóng"
+            aria-label={t('library.close')}
           >
             <X size={20} />
           </button>
@@ -101,7 +103,7 @@ export default function EditShareCaptionModal({
               lineHeight: 1.45,
             }}
           >
-            Chỉnh sửa lời nhắn hiển thị trên bài chia sẻ của bạn.
+            {t('editShareCaption.description')}
           </p>
 
           <div
@@ -112,7 +114,7 @@ export default function EditShareCaptionModal({
               marginBottom: 6,
             }}
           >
-            Nội dung
+           {t('editShareCaption.contentLabel')}
           </div>
 
           <div className={styles.textareaWrapper}>
@@ -120,7 +122,7 @@ export default function EditShareCaptionModal({
               <textarea
                 value={caption}
                 onChange={(e) => setCaption(e.target.value)}
-                placeholder="Viết vài dòng về bài này…"
+                placeholder={t('editShareCaption.placeholder')}
                 className={styles.textarea}
                 maxLength={MAX}
                 rows={5}
@@ -141,10 +143,10 @@ export default function EditShareCaptionModal({
               onClick={onClose}
               disabled={submitting}
             >
-              Hủy
+              {t('common.cancel')}
             </button>
             <button type="submit" className={styles.shareBtn} disabled={submitting}>
-              {submitting ? 'Đang lưu…' : 'Lưu'}
+              {submitting ? t('editShareCaption.saving') : t('common.save')}
             </button>
           </div>
         </form>

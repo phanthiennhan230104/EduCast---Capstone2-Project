@@ -40,7 +40,7 @@ export default function NotesModal({ isOpen, onClose, post, onSaveNote, onNoteLo
         }
       }
     } catch (err) {
-      console.error('Failed to fetch note:', err)
+      console.error(t('library.notes.fetchNoteFailed'), err)
       setNotes('')
       if (onNoteLoaded) onNoteLoaded(postId, false)
     } finally {
@@ -67,8 +67,8 @@ export default function NotesModal({ isOpen, onClose, post, onSaveNote, onNoteLo
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.header}>
           <h2 className={styles.title}>
-  {t('library.notes.title', { title: post?.title })}
-</h2>
+            {t('library.notes.title', { title: post?.title })}
+          </h2>
           <button
             type="button"
             className={styles.closeBtn}

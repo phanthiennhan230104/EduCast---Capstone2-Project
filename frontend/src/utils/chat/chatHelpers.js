@@ -1,4 +1,5 @@
 import dayjs from "dayjs";
+import i18n from "../i18n";
 
 export function formatChatTime(dateString) {
   if (!dateString) return "";
@@ -10,18 +11,19 @@ export function formatChatTime(dateString) {
   const time = date.format("HH:mm");
 
   if (diffDays === 0) return time;
-  if (diffDays === 1) return `Hôm qua ${time}`;
-  if (diffDays >= 2 && diffDays <= 7) return `${diffDays} ngày trước ${time}`;
-
+  if (diffDays === 1) return `${i18n.t("chatUtils.yesterday")} ${time}`;
+  if (diffDays >= 2 && diffDays <= 7) {
+    return `${i18n.t("chatUtils.daysAgo", { count: diffDays })} ${time}`;
+  }
   return date.format("DD/MM/YYYY");
 }
 
 export function getMessagePreview(message) {
-  if (!message) return "Chưa có tin nhắn";
-  if (message.message_type === "image") return "Đã gửi một hình ảnh";
-  if (message.message_type === "audio") return "Đã gửi một audio";
+  if (!message) return i18n.t("chatUtils.noMessages");
+  if (message.message_type === "image") return i18n.t("chatUtils.sentImage");
+  if (message.message_type === "audio") return i18n.t("chatUtils.sentAudio");
   if (message.message_type === "file") {
-    return message.original_filename || "Đã gửi một file";
+    return message.original_filename || i18n.t("chatUtils.sentFile");
   }
   
   // If content is a JSON string from a shared post/podcast, try to parse and show a friendly preview
@@ -36,8 +38,8 @@ export function getMessagePreview(message) {
           const title = obj.title || obj.name || obj.caption || obj.post_title;
           if (title) return title;
           // fallback to a generic shared label
-          if (obj.type === "podcast") return "Đã chia sẻ một podcast";
-          if (obj.post_id || obj.type) return "Đã chia sẻ một bài viết";
+          if (obj.type === "podcast") return i18n.t("chatUtils.sharedPodcast");
+          if (obj.post_id || obj.type) return i18n.t("chatUtils.sharedPost");
         }
       } catch (e) {
         // Not JSON, fall through
@@ -45,7 +47,7 @@ export function getMessagePreview(message) {
     }
   }
 
-  return content || "Tin nhắn";
+  return content || i18n.t("chatUtils.message");
 }
 
 export function getFileNameFromUrl(url = "") {

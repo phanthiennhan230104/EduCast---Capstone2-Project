@@ -2525,19 +2525,7 @@ def share_profile_to_user(request, profile_user_id):
 @csrf_exempt
 @require_http_methods(["POST"])
 def create_report(request):
-    """
-    Tạo một báo cáo cho bài viết, bình luận, hoặc người dùng.
-    Người dùng không thể báo cáo chính bài viết/bình luận của mình.
     
-    Request body:
-    {
-        "user_id": "user_id_của_người_báo_cáo",
-        "target_type": "post|comment|user|message",
-        "target_id": "id_của_bài_viết/bình_luận/người_dùng",
-        "reason": "spam|inappropriate_content|harassment|misinformation|copyright|other",
-        "description": "Mô tả chi tiết về báo cáo (tùy chọn)"
-    }
-    """
     body = _parse_body(request)
     
     if not body:

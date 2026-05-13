@@ -18,34 +18,19 @@
   flex-shrink: 0;
 }
 
-.admin-logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
-}
-
-.admin-logo-icon {
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  background: linear-gradient(135deg, #7f8cff, #6674f6);
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.admin-logo-wrap {
+  padding: 16px 18px 14px;
   flex-shrink: 0;
-  box-shadow: 0 8px 16px rgba(102, 116, 246, 0.18);
+  display: flex;
+  align-items: center;
 }
 
-.admin-logo-text {
-  font-size: 18px;
-  font-weight: 700;
-  color: #f4f6ff;
-  letter-spacing: -0.3px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+.admin-sidebar-logo-image {
+  width: 160px;
+  height: auto;
+  object-fit: contain;
+  cursor: pointer;
+  display: block;
 }
 
 .admin-nav {

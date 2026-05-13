@@ -17,6 +17,7 @@ import { createPortal } from 'react-dom'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { PodcastContext } from '../contexts/PodcastContext'
 import { useNavigate, useLocation } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 
 function Avatar({ src, name, username, className, imageClassName }) {
   const displayName = name || username || 'Người dùng'
@@ -76,6 +77,7 @@ function CommentNode({
   handleDeleteComment,
   hiddenCommentIds,
   hideCommentLocally,
+  t,
 }) {
   const own = isOwnComment(item)
   const isMenuOpen = openMenuId === item.id
@@ -126,6 +128,7 @@ function CommentNode({
                       value={editingInput}
                       onChange={(e) => setEditingInput(e.target.value)}
                       className={styles.editInput}
+                      placeholder={t('feed.comment.editPlaceholder')}
                       placeholder="Nhập nội dung mới..."
                       autoComplete="off"
                       autoCorrect="off"
@@ -141,7 +144,7 @@ function CommentNode({
                         onClick={() => handleUpdateComment(item.id)}
                         disabled={editingSubmitting || !editingInput.trim() || editingInput === item.content}
                       >
-                        Lưu
+                        {t('feed.comment.save')}
                       </button>
 
                       <button
@@ -150,7 +153,7 @@ function CommentNode({
                         onClick={cancelEditComment}
                         disabled={editingSubmitting}
                       >
-                        Hủy
+                        {t('feed.comment.cancel')}
                       </button>
                     </div>
                   </div>
@@ -178,7 +181,7 @@ function CommentNode({
             <button
               type="button"
               className={styles.commentMoreBtn}
-              aria-label="Tùy chọn bình luận"
+              aria-label={t('feed.comment.commentOptions')}
               onClick={(e) => {
                 e.stopPropagation()
                 setOpenMenuId(isMenuOpen ? null : item.id)
@@ -213,7 +216,7 @@ function CommentNode({
                     className={styles.commentDropdownItem}
                     onClick={() => hideCommentLocally(item.id)}
                   >
-                    Ẩn
+                    {t('feed.comment.hide')}
                   </button>
                 )}
               </div>
@@ -229,7 +232,7 @@ function CommentNode({
             className={`${styles.commentMetaBtn} ${item.is_liked ? styles.commentMetaBtnActive : ''}`}
             onClick={() => handleToggleCommentLike(item.id)}
           >
-            Thích
+            {t('feed.comment.like')}
           </button>
 
           <button
@@ -237,7 +240,7 @@ function CommentNode({
             className={styles.commentMetaBtn}
             onClick={() => openReplyBox(item)}
           >
-            Trả lời
+            {t('feed.comment.reply')}
           </button>
 
           {((item.like_count || 0) > 0 || item.is_liked) && (
@@ -264,7 +267,7 @@ function CommentNode({
 
             <div className={styles.replyInputWrap}>
               <div className={styles.replyTagLine}>
-                <span className={styles.replyTagLabel}>Trả lời</span>
+                <span className={styles.replyTagLabel}>{t('feed.comment.replyTo')}</span>
                 <span className={styles.replyMention}>
                   @{getDisplayName(replyingTarget)}
                 </span>
@@ -276,7 +279,9 @@ function CommentNode({
                   type="text"
                   value={replyInput}
                   onChange={(e) => setReplyInput(e.target.value)}
-                  placeholder={`Viết phản hồi cho ${getDisplayName(replyingTarget)}...`}
+                  placeholder={t('feed.comment.replyPlaceholder', {
+                    name: getDisplayName(replyingTarget),
+                  })}
                   className={styles.replyInput}
                   autoComplete="off"
                   autoCorrect="off"
@@ -289,7 +294,7 @@ function CommentNode({
                   className={styles.replySendBtn}
                   disabled={replySubmitting || !replyInput.trim()}
                 >
-                  Gửi
+                  {t('feed.comment.send')}
                 </button>
               </div>
             </div>
@@ -299,7 +304,7 @@ function CommentNode({
               className={styles.replyCancelBtn}
               onClick={closeReplyBox}
             >
-              Hủy
+              {t('feed.comment.cancel')}
             </button>
           </form>
         )}
@@ -309,40 +314,41 @@ function CommentNode({
             {item.replies
               .filter((child) => !hiddenCommentIds.includes(child.id))
               .map((child) => (
-              <CommentNode
-                key={child.id}
-                item={child}
-                level={level + 1}
-                currentUser={currentUser}
-                podcast={podcast}
-                navigate={navigate}
-                openMenuId={openMenuId}
-                setOpenMenuId={setOpenMenuId}
-                menuRefs={menuRefs}
-                isOwnComment={isOwnComment}
-                formatCommentTime={formatCommentTime}
-                handleToggleCommentLike={handleToggleCommentLike}
-                openReplyBox={openReplyBox}
-                closeReplyBox={closeReplyBox}
-                replyingTarget={replyingTarget}
-                replyInput={replyInput}
-                setReplyInput={setReplyInput}
-                replyInputRef={replyInputRef}
-                replySubmitting={replySubmitting}
-                handleSubmitReply={handleSubmitReply}
-                getDisplayName={getDisplayName}
-                editingCommentId={editingCommentId}
-                editingInput={editingInput}
-                setEditingInput={setEditingInput}
-                editingSubmitting={editingSubmitting}
-                openEditComment={openEditComment}
-                cancelEditComment={cancelEditComment}
-                handleUpdateComment={handleUpdateComment}
-                handleDeleteComment={handleDeleteComment}
-                hiddenCommentIds={hiddenCommentIds}
-                hideCommentLocally={hideCommentLocally}
-              />
-            ))}
+                <CommentNode
+                  key={child.id}
+                  item={child}
+                  level={level + 1}
+                  currentUser={currentUser}
+                  podcast={podcast}
+                  navigate={navigate}
+                  openMenuId={openMenuId}
+                  setOpenMenuId={setOpenMenuId}
+                  menuRefs={menuRefs}
+                  isOwnComment={isOwnComment}
+                  formatCommentTime={formatCommentTime}
+                  handleToggleCommentLike={handleToggleCommentLike}
+                  openReplyBox={openReplyBox}
+                  closeReplyBox={closeReplyBox}
+                  replyingTarget={replyingTarget}
+                  replyInput={replyInput}
+                  setReplyInput={setReplyInput}
+                  replyInputRef={replyInputRef}
+                  replySubmitting={replySubmitting}
+                  handleSubmitReply={handleSubmitReply}
+                  getDisplayName={getDisplayName}
+                  editingCommentId={editingCommentId}
+                  editingInput={editingInput}
+                  setEditingInput={setEditingInput}
+                  editingSubmitting={editingSubmitting}
+                  openEditComment={openEditComment}
+                  cancelEditComment={cancelEditComment}
+                  handleUpdateComment={handleUpdateComment}
+                  handleDeleteComment={handleDeleteComment}
+                  hiddenCommentIds={hiddenCommentIds}
+                  hideCommentLocally={hideCommentLocally}
+                  t={t}
+                />
+              ))}
           </div>
         )}
       </div>
@@ -350,27 +356,27 @@ function CommentNode({
   )
 }
 
-function formatTimeAgo(date) {
-  if (!date) return 'Vừa đăng'
+function formatTimeAgo(date, t) {
+  if (!date) return t('feed.comment.justPosted')
 
   const created = new Date(date)
   const now = new Date()
   const diffMs = now - created
   const diffMinutes = Math.floor(diffMs / 60000)
 
-  if (diffMinutes < 1) return 'Vừa đăng'
-  if (diffMinutes < 60) return `${diffMinutes} phút trước`
+  if (diffMinutes < 1) return t('feed.comment.justPosted')
+  if (diffMinutes < 60) return t('feed.comment.minutesAgo', { count: diffMinutes })
 
   const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) return `${diffHours} giờ trước`
+  if (diffHours < 24) return t('feed.comment.hoursAgo', { count: diffHours })
 
   const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 30) return `${diffDays} ngày trước`
+  if (diffDays < 30) return t('feed.comment.daysAgo', { count: diffDays })
 
   const months = Math.floor(diffDays / 30)
-  if (months < 12) return `${months} tháng trước`
+  if (months < 12) return t('feed.comment.monthsAgo', { count: months })
 
-  return `${Math.floor(months / 12)} năm trước`
+  return t('feed.comment.yearsAgo', { count: Math.floor(months / 12) })
 }
 
 export default function CommentModal({
@@ -389,6 +395,7 @@ export default function CommentModal({
   onPostDeleted,
   disableAutoScroll = false,
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { playTrack, currentTrack, playing, togglePlay, currentTime, formattedCurrentTime, trackProgressMap, seekToPercent, isSeeking } = useAudioPlayer()
@@ -404,7 +411,7 @@ export default function CommentModal({
   const progressBarRef = useRef(null)
 
   const [originalEngagement, setOriginalEngagement] = useState(null)
-  
+
   const [comments, setComments] = useState([])
   const [commentInput, setCommentInput] = useState('')
   const [loadingComments, setLoadingComments] = useState(true)
@@ -419,7 +426,7 @@ export default function CommentModal({
   const [deleteModalOpen, setDeleteModalOpen] = useState(false)
   const [commentToDelete, setCommentToDelete] = useState(null)
   const [showShareModal, setShowShareModal] = useState(false)
-  
+
   const [postMenuOpen, setPostMenuOpen] = useState(false)
   const [deletePostModalOpen, setDeletePostModalOpen] = useState(false)
   const [hidePostModalOpen, setHidePostModalOpen] = useState(false)
@@ -493,7 +500,7 @@ export default function CommentModal({
       scrollPositionRef.current = main.scrollTop
       console.log('💾 [CommentModal] Saved scroll position:', scrollPositionRef.current)
     }
-    
+
     document.body.style.overflow = 'hidden'
     return () => {
       document.body.style.overflow = ''
@@ -763,7 +770,7 @@ export default function CommentModal({
     })
 
     if (!finalAudioUrl) {
-      alert('Bài này chưa có file audio')
+      alert(t('feed.comment.noAudioAlert'))
       return
     }
 
@@ -799,13 +806,13 @@ export default function CommentModal({
       podcast.type === 'shared' && originalEngagement
         ? originalEngagement.saved
         : saved
-    
+
     const barRect = progressBarRef.current?.getBoundingClientRect()
     if (!barRect) return
-    
+
     const clickX = e.clientX - barRect.left
     const percentage = Math.max(0, Math.min(100, (clickX / barRect.width) * 100))
-    
+
     if (currentTrack?.id === podcast.id) {
       seekToPercent(percentage)
     } else {
@@ -830,13 +837,13 @@ export default function CommentModal({
   const isCurrentTrack = currentTrack?.id === podcast.id
   const isCurrentPlaying = isCurrentTrack && playing
   const savedProgress = trackProgressMap?.[podcast.id]
-  
+
   const audioUrl = podcast.audio_url || podcast.audio?.audio_url || podcast.audioUrl || podcast.audio?.audioUrl
   const durationSeconds = podcast.duration_seconds || podcast.audio?.duration_seconds || podcast.durationSeconds || podcast.audio?.durationSeconds
   const displayDuration = durationSeconds || 0
-  
+
   const displayTime = currentTrack?.id === podcast.id ? currentTime : (savedProgress?.currentTime || 0)
-  const displayProgress = currentTrack?.id === podcast.id 
+  const displayProgress = currentTrack?.id === podcast.id
     ? (displayDuration ? (currentTime / displayDuration) * 100 : 0)
     : (savedProgress?.progressPercent || 0)
 
@@ -853,40 +860,41 @@ export default function CommentModal({
       display_name: comment?.display_name,
       username: comment?.username,
       user_id: comment?.user_id,
-    }) || 'Người dùng'
+    }) || t('feed.comment.user')
 
   const formatCommentTime = (comment) => {
-    if (comment.time_ago && typeof comment.time_ago === 'string') {
-      return comment.time_ago
-    }
-
-    const raw = comment.created_at
-    if (!raw) return 'Vừa xong'
-
-    const created = new Date(raw)
-    if (Number.isNaN(created.getTime())) return 'Vừa xong'
-
-    const diffMs = Date.now() - created.getTime()
-    const diffMinutes = Math.floor(diffMs / 60000)
-
-    if (diffMinutes < 1) return 'Vừa xong'
-    if (diffMinutes < 60) return `${diffMinutes} phút trước`
-
-    const diffHours = Math.floor(diffMinutes / 60)
-    if (diffHours < 24) return `${diffHours} giờ trước`
-
-    const diffDays = Math.floor(diffHours / 24)
-    if (diffDays < 7) return `${diffDays} ngày trước`
-
-    const diffWeeks = Math.floor(diffDays / 7)
-    if (diffWeeks < 5) return `${diffWeeks} tuần trước`
-
-    const diffMonths = Math.floor(diffDays / 30)
-    if (diffMonths < 12) return `${diffMonths} tháng trước`
-
-    const diffYears = Math.floor(diffDays / 365)
-    return `${diffYears} năm trước`
+  if (comment.time_ago && typeof comment.time_ago === 'string') {
+    return comment.time_ago
   }
+
+  const raw = comment.created_at
+  if (!raw) return t('feed.comment.justNow')
+
+  const created = new Date(raw)
+  if (Number.isNaN(created.getTime())) return t('feed.comment.justNow')
+
+  const now = new Date()
+  const diffMs = now - created
+  const diffMinutes = Math.floor(diffMs / 60000)
+
+  if (diffMinutes < 1) return t('feed.comment.justNow')
+  if (diffMinutes < 60) return t('feed.comment.minutesAgo', { count: diffMinutes })
+
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return t('feed.comment.hoursAgo', { count: diffHours })
+
+  const diffDays = Math.floor(diffHours / 24)
+  if (diffDays < 7) return t('feed.comment.daysAgo', { count: diffDays })
+
+  const diffWeeks = Math.floor(diffDays / 7)
+  if (diffWeeks < 5) return t('feed.comment.weeksAgo', { count: diffWeeks })
+
+  const diffMonths = Math.floor(diffDays / 30)
+  if (diffMonths < 12) return t('feed.comment.monthsAgo', { count: diffMonths })
+
+  const diffYears = Math.floor(diffDays / 365)
+  return t('feed.comment.yearsAgo', { count: diffYears })
+}
 
   const updateCommentTree = (items, targetId, updater) =>
     items.map((item) => {
@@ -982,7 +990,7 @@ export default function CommentModal({
       }, 60)
     } catch (err) {
       console.error('Create comment failed:', err)
-      toast.error(err.message || 'Gửi bình luận thất bại')
+      toast.error(err.message || t('feed.comment.sendCommentFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -1014,7 +1022,7 @@ export default function CommentModal({
         data = JSON.parse(rawText)
       } catch {
         console.error('Toggle comment like returned non-JSON:', rawText)
-        throw new Error(`Backend không trả JSON. Status: ${res.status}`)
+        throw new Error(t('feed.comment.backendNotJson', { status: res.status }))
       }
 
       if (!res.ok || !data.success) {
@@ -1030,7 +1038,7 @@ export default function CommentModal({
       )
     } catch (err) {
       console.error('Toggle comment like failed:', err)
-      toast.error(err.message || 'Không thể thích bình luận')
+      toast.error(err.message || t('feed.comment.toggleLikeFailed'))
     }
   }
 
@@ -1079,7 +1087,7 @@ export default function CommentModal({
       closeReplyBox()
     } catch (err) {
       console.error('Reply comment failed:', err)
-      toast.error(err.message || 'Gửi phản hồi thất bại')
+      toast.error(err.message || t('feed.comment.sendReplyFailed'))
     } finally {
       setReplySubmitting(false)
     }
@@ -1156,7 +1164,7 @@ export default function CommentModal({
       cancelEditComment()
     } catch (err) {
       console.error('Update comment failed:', err)
-      toast.error(err.message || 'Sửa bình luận thất bại')
+      toast.error(err.message || t('feed.comment.updateCommentFailed'))
     } finally {
       setEditingSubmitting(false)
     }
@@ -1213,7 +1221,7 @@ export default function CommentModal({
       setCommentToDelete(null)
     } catch (err) {
       console.error('Delete comment failed:', err)
-      toast.error(err.message || 'Xóa bình luận thất bại')
+      toast.error(err.message || t('feed.comment.deleteCommentFailed'))
     }
   }
 
@@ -1258,7 +1266,7 @@ export default function CommentModal({
       console.log('After setIsDeleting(true)')
       setDeleteProgress(10)
       console.log('After setDeleteProgress(10)')
-      
+
       const token = getToken()
       const deleteUrl = `http://localhost:8000/api/content/drafts/${canonicalPostId}/delete/`
       console.log('🗑️ Deleting post:', podcast.id, 'URL:', deleteUrl)
@@ -1304,7 +1312,7 @@ export default function CommentModal({
       console.error('❌ Delete error:', err)
       setDeleteProgress(0)
       setIsDeleting(false)
-      toast.error(err.message || 'Xóa bài viết thất bại')
+      toast.error(err.message || t('feed.comment.deletePostFailed'))
       sessionStorage.removeItem('feedScrollPosition')
     }
   }
@@ -1331,7 +1339,7 @@ export default function CommentModal({
       })
 
       if (!res.ok) {
-        throw new Error('Ẩn bài viết thất bại')
+        throw new Error(t('feed.comment.hidePostFailed'))
       }
 
       hidePost(canonicalPostId)
@@ -1341,7 +1349,7 @@ export default function CommentModal({
       onClose()
     } catch (err) {
       console.error('Hide post error:', err)
-      toast.error(err.message || 'Ẩn bài viết thất bại')
+      toast.error(err.message || t('feed.comment.hidePostFailed'))
     }
   }
 
@@ -1352,10 +1360,10 @@ export default function CommentModal({
 
   const handleReport = () => {
     setPostMoreMenuOpen(false)
-    toast.info('Tính năng báo cáo bài viết sắp có')
+    toast.info(t('feed.comment.reportComingSoon'))
   }
 
-  const [statsHoverType, setStatsHoverType] = useState(null) 
+  const [statsHoverType, setStatsHoverType] = useState(null)
   const [statsPopupData, setStatsPopupData] = useState({
     likes: [],
     comments: [],
@@ -1500,12 +1508,12 @@ export default function CommentModal({
     podcast.type === 'shared' && originalEngagement
       ? originalEngagement
       : {
-          liked,
-          likeCount,
-          shareCount,
-          saveCount,
-          saved,
-        }
+        liked,
+        likeCount,
+        shareCount,
+        saveCount,
+        saved,
+      }
   const displayLiked = engagement.liked
   const displayLikeCount = engagement.likeCount
   const displayShareCount = engagement.shareCount
@@ -1514,7 +1522,7 @@ export default function CommentModal({
 
   const coverImage = podcast.cover || podcast.thumbnail_url || podcast.thumbnailUrl
   const shareAuthorLabel =
-    podcast.sharedBy?.name || podcast.sharedBy?.username || 'Người dùng'
+    podcast.sharedBy?.name || podcast.sharedBy?.username || t('feed.comment.user')
   const sharedBy = podcast.sharedBy || {}
   const sharerInitials = getInitials(
     sharedBy.username || sharedBy.name || shareAuthorLabel
@@ -1522,7 +1530,7 @@ export default function CommentModal({
   const listensDisplay =
     typeof podcast.listens === 'string' && podcast.listens.trim()
       ? podcast.listens
-      : `${Number(podcast.listen_count ?? 0)} lượt nghe`
+      : t('feed.listens', { count: Number(podcast.listen_count ?? 0) })
 
   const isOwnerPost =
   podcast?.isOwner === true ||
@@ -1603,8 +1611,8 @@ export default function CommentModal({
 
   const authorName =
     typeof podcast.author === 'object'
-      ? podcast.author?.name || podcast.author?.username || 'Ẩn danh'
-      : podcast.author || 'Ẩn danh'
+      ? podcast.author?.name || podcast.author?.username || t('feed.anonymous')
+      : podcast.author || t('feed.anonymous')
 
   const authorUsername =
     typeof podcast.author === 'object'
@@ -1703,7 +1711,7 @@ export default function CommentModal({
                           onClick={(e) => handleDeleteShareClick(e)}
                         >
                           <Trash2 size={14} />
-                          <span>Xóa</span>
+                          <span>{t('feed.delete')}</span>
                         </button>
                       </div>
                     )}
@@ -1731,7 +1739,7 @@ export default function CommentModal({
                 <div className={styles.author}>{authorName}</div>
                 <div className={styles.meta}>
                   {(isShareCommentModal ? podcast.postTimeAgo : podcast.timeAgo) ||
-                    formatTimeAgo(podcast.created_at)}
+                    formatTimeAgo(podcast.created_at, t)}
                   {isShareCommentModal && Number(podcast.listen_count ?? 0) > 0 && (
                     <> · {listensDisplay}</>
                   )}
@@ -1797,7 +1805,7 @@ export default function CommentModal({
                     onClick={handleHide}
                   >
                     <EyeOff size={14} />
-                    <span>Ẩn bài viết</span>
+                    <span>{t('feed.hidePost')}</span>
                   </button>
                   <button
                     type="button"
@@ -1805,7 +1813,7 @@ export default function CommentModal({
                     onClick={handleReport}
                   >
                     <Flag size={14} />
-                    <span>Báo cáo</span>
+                    <span>{t('feed.report')}</span>
                   </button>
                 </div>
               )}
@@ -1817,26 +1825,11 @@ export default function CommentModal({
             <h3 className={styles.title}>{livePostMeta.title}</h3>
             <p className={styles.description}>{livePostMeta.description}</p>
 
-            {coverImage ? (
-              <div className={styles.mediaWrap}>
-                {(durationSeconds || audioUrl) && (
-                  <>
-                    {!isCurrentTrack && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          e.stopPropagation()
-                          handlePlayClick()
-                        }}
-                        className={styles.centerPlayBtn}
-                      >
-                        <Play size={34} />
-                      </button>
-                    )}
-
-                    {isCurrentTrack && (
-                      <div className={styles.youtubeControls}>
+              {coverImage ? (
+                <div className={styles.mediaWrap}>
+                  {(durationSeconds || audioUrl) && (
+                    <>
+                      {!isCurrentTrack && (
                         <button
                           type="button"
                           onClick={(e) => {
@@ -1844,66 +1837,81 @@ export default function CommentModal({
                             e.stopPropagation()
                             handlePlayClick()
                           }}
-                          className={styles.youtubePlayBtn}
+                          className={styles.centerPlayBtn}
                         >
-                          {isCurrentPlaying ? <Pause size={18} /> : <Play size={18} />}
+                          <Play size={34} />
                         </button>
+                      )}
 
-                        <span className={styles.youtubeTime}>
-                          {String(Math.floor(displayTime / 60)).padStart(2, '0')}:
-                          {String(Math.floor(displayTime) % 60).padStart(2, '0')}
-                        </span>
-
-                        <div ref={progressBarRef} onClick={handleProgressBarClick} className={styles.youtubeProgressBar}>
-                          <div
-                            className={styles.youtubeProgressFill}
-                            style={{
-                              width: `${displayProgress}%`,
-                              transition: isSeeking ? 'none' : 'width 0.1s linear',
+                      {isCurrentTrack && (
+                        <div className={styles.youtubeControls}>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault()
+                              e.stopPropagation()
+                              handlePlayClick()
                             }}
-                          />
+                            className={styles.youtubePlayBtn}
+                          >
+                            {isCurrentPlaying ? <Pause size={18} /> : <Play size={18} />}
+                          </button>
+
+                          <span className={styles.youtubeTime}>
+                            {String(Math.floor(displayTime / 60)).padStart(2, '0')}:
+                            {String(Math.floor(displayTime) % 60).padStart(2, '0')}
+                          </span>
+
+                          <div ref={progressBarRef} onClick={handleProgressBarClick} className={styles.youtubeProgressBar}>
+                            <div
+                              className={styles.youtubeProgressFill}
+                              style={{
+                                width: `${displayProgress}%`,
+                                transition: isSeeking ? 'none' : 'width 0.1s linear',
+                              }}
+                            />
+                          </div>
+
+                          <span className={styles.youtubeTime}>
+                            {String(Math.floor(displayDuration / 60)).padStart(2, '0')}:
+                            {String(Math.floor(displayDuration) % 60).padStart(2, '0')}
+                          </span>
                         </div>
+                      )}
+                    </>
+                  )}
 
-                        <span className={styles.youtubeTime}>
-                          {String(Math.floor(displayDuration / 60)).padStart(2, '0')}:
-                          {String(Math.floor(displayDuration) % 60).padStart(2, '0')}
-                        </span>
-                      </div>
-                    )}
-                  </>
-                )}
-
-                <img src={coverImage} alt={podcast.title} className={styles.cover} />
-              </div>
-            ) : (
-              (durationSeconds || audioUrl) && (
-                <div className={styles.audioOnlyPlayer}>
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.preventDefault()
-                      e.stopPropagation()
-                      handlePlayClick()
-                    }}
-                    className={styles.audioOnlyPlayBtn}
-                  >
-                    {isCurrentPlaying ? <Pause size={18} /> : <Play size={18} />}
-                  </button>
-
-                  <span className={styles.audioOnlyTime}>
-                    {String(Math.floor(displayTime / 60)).padStart(2, '0')}:
-                    {String(Math.floor(displayTime) % 60).padStart(2, '0')}
-                  </span>
-
-                  <div ref={progressBarRef} onClick={handleProgressBarClick} className={styles.audioOnlyProgress}>
-                    <div
-                      className={styles.audioOnlyProgressFill}
-                      style={{
-                        width: `${displayProgress}%`,
-                        transition: isSeeking ? 'none' : 'width 0.1s linear',
+                  <img src={coverImage} alt={podcast.title} className={styles.cover} />
+                </div>
+              ) : (
+                (durationSeconds || audioUrl) && (
+                  <div className={styles.audioOnlyPlayer}>
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        handlePlayClick()
                       }}
-                    />
-                  </div>
+                      className={styles.audioOnlyPlayBtn}
+                    >
+                      {isCurrentPlaying ? <Pause size={18} /> : <Play size={18} />}
+                    </button>
+
+                    <span className={styles.audioOnlyTime}>
+                      {String(Math.floor(displayTime / 60)).padStart(2, '0')}:
+                      {String(Math.floor(displayTime) % 60).padStart(2, '0')}
+                    </span>
+
+                    <div ref={progressBarRef} onClick={handleProgressBarClick} className={styles.audioOnlyProgress}>
+                      <div
+                        className={styles.audioOnlyProgressFill}
+                        style={{
+                          width: `${displayProgress}%`,
+                          transition: isSeeking ? 'none' : 'width 0.1s linear',
+                        }}
+                      />
+                    </div>
 
                   <span className={styles.audioOnlyTime}>
                     {String(Math.floor(displayDuration / 60)).padStart(2, '0')}:
@@ -1915,84 +1923,84 @@ export default function CommentModal({
           </div>
           </div>
 
-          <div className={`${styles.statsRow} ${isShareCommentModal ? styles.statsRowShareFeed : ''}`}>
-            <div className={styles.leftStats}>
-              <div
-                className={styles.statHoverWrap}
-              >
-                <button type="button" className={styles.statItemButton}>
-                  <Heart size={14} />
-                  <span
-                    onMouseEnter={() => handleStatsMouseEnter('likes')}
-                    onMouseLeave={handleStatsMouseLeave}
-                    className={styles.statsText}
-                  >
-                    {displayLikeCount ?? 0}
-                  </span>
-                </button>
+            <div className={`${styles.statsRow} ${isShareCommentModal ? styles.statsRowShareFeed : ''}`}>
+              <div className={styles.leftStats}>
+                <div
+                  className={styles.statHoverWrap}
+                >
+                  <button type="button" className={styles.statItemButton}>
+                    <Heart size={14} />
+                    <span
+                      onMouseEnter={() => handleStatsMouseEnter('likes')}
+                      onMouseLeave={handleStatsMouseLeave}
+                      className={styles.statsText}
+                    >
+                      {displayLikeCount ?? 0}
+                    </span>
+                  </button>
 
-                {statsHoverType === 'likes' && (
-                  <div
-                    className={styles.statsPopup}
-                    onMouseEnter={() => handleStatsMouseEnter('likes')}
-                    onMouseLeave={handleStatsMouseLeave}
-                  >
+                  {statsHoverType === 'likes' && (
+                    <div
+                      className={styles.statsPopup}
+                      onMouseEnter={() => handleStatsMouseEnter('likes')}
+                      onMouseLeave={handleStatsMouseLeave}
+                    >
 
-                    {statsPopupLoading ? (
-                      <div className={styles.statsPopupEmpty}>Đang tải...</div>
-                    ) : statsPopupData.likes.length > 0 ? (
-                      statsPopupData.likes.map((user) => (
-                        <div key={user.user_id} className={styles.statsPopupItem}>
-                          <span className={styles.statsPopupName}>
-                            {publicDisplayName(user)}
-                          </span>
-                        </div>
-                      ))
-                    ) : (
-                      <div className={styles.statsPopupEmpty}>Chưa có lượt thích</div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className={styles.rightStats}>
-              <div
-                className={styles.statHoverWrap}
-              >
-                <button type="button" className={styles.statTextButton}>
-                  <span
-                    onMouseEnter={() => handleStatsMouseEnter('comments')}
-                    onMouseLeave={handleStatsMouseLeave}
-                    className={styles.statsText}
-                  >
-                    {commentCount} bình luận
-                  </span>
-                </button>
-
-                {statsHoverType === 'comments' && (
-                  <div
-                    className={`${styles.statsPopup} ${styles.statsPopupRight}`}
-                    onMouseEnter={() => handleStatsMouseEnter('comments')}
-                    onMouseLeave={handleStatsMouseLeave}
-                  >
-
-                    {statsPopupLoading ? (
-                      <div className={styles.statsPopupEmpty}>Đang tải...</div>
-                    ) : statsPopupData.comments.length > 0 ? (
-                      statsPopupData.comments.map((user) => (
-                        <div key={user.user_id} className={styles.statsPopupItem}>
-                          <div className={styles.statsPopupName}>
-                            {publicDisplayName(user)}
+                      {statsPopupLoading ? (
+                        <div className={styles.statsPopupEmpty}>{t('feed.loadingText')}</div>
+                      ) : statsPopupData.likes.length > 0 ? (
+                        statsPopupData.likes.map((user) => (
+                          <div key={user.user_id} className={styles.statsPopupItem}>
+                            <span className={styles.statsPopupName}>
+                              {publicDisplayName(user)}
+                            </span>
                           </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className={styles.statsPopupEmpty}>Chưa có bình luận</div>
-                    )}
-                  </div>
-                )}
+                        ))
+                      ) : (
+                        <div className={styles.statsPopupEmpty}>{t('feed.noLikes')}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
+
+              <div className={styles.rightStats}>
+                <div
+                  className={styles.statHoverWrap}
+                >
+                  <button type="button" className={styles.statTextButton}>
+                    <span
+                      onMouseEnter={() => handleStatsMouseEnter('comments')}
+                      onMouseLeave={handleStatsMouseLeave}
+                      className={styles.statsText}
+                    >
+                      {t('feed.commentsLower', { count: commentCount })}
+                    </span>
+                  </button>
+
+                  {statsHoverType === 'comments' && (
+                    <div
+                      className={`${styles.statsPopup} ${styles.statsPopupRight}`}
+                      onMouseEnter={() => handleStatsMouseEnter('comments')}
+                      onMouseLeave={handleStatsMouseLeave}
+                    >
+
+                      {statsPopupLoading ? (
+                        <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                      ) : statsPopupData.comments.length > 0 ? (
+                        statsPopupData.comments.map((user) => (
+                          <div key={user.user_id} className={styles.statsPopupItem}>
+                            <div className={styles.statsPopupName}>
+                              {publicDisplayName(user)}
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className={styles.statsPopupEmpty}>{t('feed.noComments')}</div>
+                      )}
+                    </div>
+                  )}
+                </div>
 
               {!isShareCommentModal && (
               <div
@@ -2008,12 +2016,12 @@ export default function CommentModal({
                   </span>
                 </button>
 
-                {statsHoverType === 'shares' && (
-                  <div
-                    className={`${styles.statsPopup} ${styles.statsPopupRight}`}
-                    onMouseEnter={() => handleStatsMouseEnter('shares')}
-                    onMouseLeave={handleStatsMouseLeave}
-                  >
+                  {statsHoverType === 'shares' && (
+                    <div
+                      className={`${styles.statsPopup} ${styles.statsPopupRight}`}
+                      onMouseEnter={() => handleStatsMouseEnter('shares')}
+                      onMouseLeave={handleStatsMouseLeave}
+                    >
 
                     {statsPopupLoading ? (
                       <div className={styles.statsPopupEmpty}>Đang tải...</div>
@@ -2026,7 +2034,7 @@ export default function CommentModal({
                         </div>
                       ))
                     ) : (
-                      <div className={styles.statsPopupEmpty}>Chưa có lượt chia sẻ</div>
+                      <div className={styles.statsPopupEmpty}>{t('feed.noShares')}</div>
                     )}
                   </div>
                 )}
@@ -2035,29 +2043,29 @@ export default function CommentModal({
             </div>
           </div>
 
-          <div className={`${styles.actionRow} ${isShareCommentModal ? styles.actionRowShareFeed : ''}`}>
-            <button
-              type="button"
-              className={`${styles.actionBtn} ${displayLiked ? styles.activeLike : ''}`}
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                handleLikeWithRefetch(e)
-              }}
-            >
-              <Heart size={17} fill={displayLiked ? 'currentColor' : 'none'} />
-              <span>Thích</span>
-            </button>
+            <div className={`${styles.actionRow} ${isShareCommentModal ? styles.actionRowShareFeed : ''}`}>
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${displayLiked ? styles.activeLike : ''}`}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  handleLikeWithRefetch(e)
+                }}
+              >
+                <Heart size={17} fill={displayLiked ? 'currentColor' : 'none'} />
+                <span>{t('feed.like')}</span>
+              </button>
 
-            <button type="button" className={styles.actionBtn} onClick={scrollToComments}>
-              <MessageCircle size={17} />
-              <span>Bình luận</span>
-            </button>
+              <button type="button" className={styles.actionBtn} onClick={scrollToComments}>
+                <MessageCircle size={17} />
+                <span>{t('feed.commentAction')}</span>
+              </button>
 
             {!isShareCommentModal && (
               <button type="button" className={styles.actionBtn} onClick={() => setShowShareModal(true)}>
                 <Share2 size={17} />
-                <span>Chia sẻ</span>
+                <span>{t('shareModal.title')}</span>
               </button>
             )}
 
@@ -2077,76 +2085,83 @@ export default function CommentModal({
                 }}
               >
                 <Bookmark size={17} fill={displaySaved ? 'currentColor' : 'none'} />
-                <span>Lưu</span>
+                <span>{t('library.postDetail.save')}</span>
               </button>
             )}
           </div>
 
-          <div
-            className={
-              isShareCommentModal ? styles.shareCommentsBlock : styles.commentSection
-            }
-          >
             <div
-              ref={commentListRef}
-              className={`${styles.commentList} ${isShareCommentModal ? styles.commentListShare : ''}`}
+              className={
+                isShareCommentModal ? styles.shareCommentsBlock : styles.commentSection
+              }
             >
-              {loadingComments ? (
-                <p className={styles.empty}>Đang tải bình luận...</p>
-              ) : comments.length === 0 ? (
-                <p className={styles.empty}>Chưa có bình luận nào.</p>
-              ) : (
-                comments
-                  .filter((comment) => !hiddenCommentIds.includes(comment.id))
-                  .map((comment) => (
-                    <CommentNode
-                      key={comment.id}
-                      navigate={navigate}
-                      item={comment}
-                      level={0}
-                      currentUser={currentUser}
-                      podcast={podcast}
-                      openMenuId={openMenuId}
-                      setOpenMenuId={setOpenMenuId}
-                      menuRefs={menuRefs}
-                      isOwnComment={isOwnComment}
-                      formatCommentTime={formatCommentTime}
-                      handleToggleCommentLike={handleToggleCommentLike}
-                      openReplyBox={openReplyBox}
-                      closeReplyBox={closeReplyBox}
-                      replyingTarget={replyingTarget}
-                      replyInput={replyInput}
-                      setReplyInput={setReplyInput}
-                      replyInputRef={replyInputRef}
-                      replySubmitting={replySubmitting}
-                      handleSubmitReply={handleSubmitReply}
-                      getDisplayName={getDisplayName}
-                      editingCommentId={editingCommentId}
-                      editingInput={editingInput}
-                      setEditingInput={setEditingInput}
-                      editingSubmitting={editingSubmitting}
-                      openEditComment={openEditComment}
-                      cancelEditComment={cancelEditComment}
-                      handleUpdateComment={handleUpdateComment}
-                      handleDeleteComment={handleDeleteComment}
-                      hiddenCommentIds={hiddenCommentIds}
-                      hideCommentLocally={hideCommentLocally}
-                    />
-                  )
-                )
-              )}
+              {isShareCommentModal ? (
+                <p className={styles.shareCommentsLabel}>
+                  {t('feed.comment.sharedPostComments')}
+                </p>
+              ) : null}
+
+              <div
+                ref={commentListRef}
+                className={`${styles.commentList} ${isShareCommentModal ? styles.commentListShare : ''}`}
+              >
+                {loadingComments ? (
+                  <p className={styles.empty}>{t('feed.comment.loadingComments')}</p>
+                ) : comments.length === 0 ? (
+                  <p className={styles.empty}>{t('feed.comment.noComments')}</p>
+                ) : (
+                  comments
+                    .filter((comment) => !hiddenCommentIds.includes(comment.id))
+                    .map((comment) => (
+                      <CommentNode
+                        key={comment.id}
+                        navigate={navigate}
+                        item={comment}
+                        level={0}
+                        currentUser={currentUser}
+                        podcast={podcast}
+                        openMenuId={openMenuId}
+                        setOpenMenuId={setOpenMenuId}
+                        menuRefs={menuRefs}
+                        isOwnComment={isOwnComment}
+                        formatCommentTime={formatCommentTime}
+                        handleToggleCommentLike={handleToggleCommentLike}
+                        openReplyBox={openReplyBox}
+                        closeReplyBox={closeReplyBox}
+                        replyingTarget={replyingTarget}
+                        replyInput={replyInput}
+                        setReplyInput={setReplyInput}
+                        replyInputRef={replyInputRef}
+                        replySubmitting={replySubmitting}
+                        handleSubmitReply={handleSubmitReply}
+                        getDisplayName={getDisplayName}
+                        editingCommentId={editingCommentId}
+                        editingInput={editingInput}
+                        setEditingInput={setEditingInput}
+                        editingSubmitting={editingSubmitting}
+                        openEditComment={openEditComment}
+                        cancelEditComment={cancelEditComment}
+                        handleUpdateComment={handleUpdateComment}
+                        handleDeleteComment={handleDeleteComment}
+                        hiddenCommentIds={hiddenCommentIds}
+                        hideCommentLocally={hideCommentLocally}
+                        t={t}
+                      />
+                    )
+                    )
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        <form className={styles.commentComposer} onSubmit={handleSubmitComment}>
-          <Avatar
-            src={currentUser?.avatar_url || currentUser?.avatar}
-            name={currentUser?.display_name || currentUser?.name}
-            username={currentUser?.username}
-            className={styles.composerAvatar}
-            imageClassName={styles.avatarImage}
-          />
+          <form className={styles.commentComposer} onSubmit={handleSubmitComment}>
+            <Avatar
+              src={currentUser?.avatar_url || currentUser?.avatar}
+              name={currentUser?.display_name || currentUser?.name}
+              username={currentUser?.username}
+              className={styles.composerAvatar}
+              imageClassName={styles.avatarImage}
+            />
 
           <div className={styles.inputWrap}>
             <input
@@ -2155,7 +2170,7 @@ export default function CommentModal({
               type="text"
               value={commentInput}
               onChange={(e) => setCommentInput(e.target.value)}
-              placeholder="Viết bình luận..."
+              placeholder={t('feed.comment.writeComment')}
               className={styles.commentInput}
               autoComplete="off"
               autoCorrect="off"
@@ -2221,18 +2236,18 @@ Hành động này không thể hoàn tác.`}
         document.body
       ) : null,
 
-      createPortal(
-        <ConfirmModal
-          isOpen={hidePostModalOpen}
-          title="Ẩn bài viết"
-          message="Bạn có muốn ẩn bài viết này không?"
-          confirmText="Ẩn"
-          cancelText="Hủy"
-          onConfirm={confirmHidePost}
-          onCancel={() => setHidePostModalOpen(false)}
-        />,
-        document.body
-      ),
+    createPortal(
+      <ConfirmModal
+        isOpen={hidePostModalOpen}
+        title={t('feed.confirm.hidePostTitle')}
+        message={t('feed.confirm.hidePostMessage')}
+        confirmText={t('feed.confirm.hide')}
+        cancelText={t('feed.confirm.cancel')}
+        onConfirm={confirmHidePost}
+        onCancel={() => setHidePostModalOpen(false)}
+      />,
+      document.body
+    ),
 
       createPortal(
         <SaveCollectionModal

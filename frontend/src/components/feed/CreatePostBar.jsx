@@ -5,8 +5,10 @@ import styles from '../../style/feed/CreatePostBar.module.css'
 import { getInitials } from '../../utils/getInitials'
 import { getToken } from '../../utils/auth'
 import { useAuth } from '../contexts/AuthContext'
+import { useTranslation } from 'react-i18next'
 
 export default function CreatePostBar() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const { user } = useAuth()
 
@@ -20,7 +22,7 @@ export default function CreatePostBar() {
     user?.name ||
     user?.display_name ||
     user?.username ||
-    'bạn'
+    t('createPostBar.you')
 
   const avatarFallback = getInitials(user)
 
@@ -46,7 +48,7 @@ export default function CreatePostBar() {
       setDrafts(draftList.filter((d) => d?.id))
     } catch (error) {
       console.error('Load drafts error:', error)
-      toast.error('Không tải được bản nháp')
+      toast.error(t('createPostBar.loadDraftsFailed'))
     } finally {
       setLoadingDrafts(false)
     }
@@ -73,13 +75,13 @@ export default function CreatePostBar() {
     if (!file) return
 
     if (!file.type.startsWith('audio/')) {
-      toast.error('Vui lòng chọn tệp audio')
+      toast.error(t('createPostBar.selectAudioFile'))
       return
     }
 
     const maxSize = 5 * 1024 * 1024
     if (file.size > maxSize) {
-      toast.error('Tệp quá lớn. Tối đa 5MB')
+      toast.error(t('createPostBar.fileTooLarge'))
       return
     }
 
@@ -128,7 +130,7 @@ export default function CreatePostBar() {
               <input
                 type="text"
                 className={styles.input}
-                placeholder={`Có nội dung nào muốn kể lại không, ${displayName}?`}
+                placeholder={t('createPostBar.placeholder', { name: displayName })}
                 readOnly
                 onClick={() => navigate('/publish-post')}
               />
@@ -138,7 +140,7 @@ export default function CreatePostBar() {
               <button
                 className={styles.actionButton}
                 onClick={handleUploadClick}
-                title="Tải audio từ thiết bị"
+                title={t('createPostBar.uploadAudioTitle')}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6" />
@@ -149,7 +151,7 @@ export default function CreatePostBar() {
               <button
                 className={styles.actionButton}
                 onClick={handleDraftsClick}
-                title="Chọn từ bản nháp"
+                title={t('createPostBar.chooseDraftTitle')}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -162,7 +164,7 @@ export default function CreatePostBar() {
               <button
                 className={styles.actionButton}
                 onClick={() => navigate('/create')}
-                title="Tạo audio mới"
+                title={t('createPostBar.createAudioTitle')}
               >
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                   <path d="M12 5v14M5 12h14" />
@@ -177,7 +179,7 @@ export default function CreatePostBar() {
         <div className={styles.modalOverlay} onClick={() => setShowDraftModal(false)}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2>Chọn bản nháp</h2>
+              <h2>{t('createPostBar.chooseDraft')}</h2>
               <button className={styles.closeButton} onClick={() => setShowDraftModal(false)}>
                 ✕
               </button>
@@ -185,10 +187,10 @@ export default function CreatePostBar() {
 
             <div className={styles.modalContent}>
               {loadingDrafts ? (
-                <div className={styles.loading}>Đang tải bản nháp...</div>
+                <div className={styles.loading}>{t('createPostBar.loadingDrafts')}</div>
               ) : drafts.length === 0 ? (
                 <div className={styles.empty}>
-                  <p>Không có bản nháp nào</p>
+                  <p>{t('createPostBar.noDrafts')}</p>
                   <button
                     className={styles.createButton}
                     onClick={() => {
@@ -196,7 +198,7 @@ export default function CreatePostBar() {
                       navigate('/create')
                     }}
                   >
-                    + Tạo bản nháp mới
+                    {t('createPostBar.createNewDraft')}
                   </button>
                 </div>
               ) : (
@@ -209,7 +211,7 @@ export default function CreatePostBar() {
                     >
                       <div className={styles.draftThumbnail}>
                         {draft.thumbnail_url ? (
-                          <img src={draft.thumbnail_url} alt={draft.title} />
+                          <img src={draft.thumbnail_url} alt={draft.title || t('createPostBar.untitledDraft')} />
                         ) : (
                           <div className={styles.draftPlaceholder}>🎙️</div>
                         )}
@@ -217,16 +219,10 @@ export default function CreatePostBar() {
 
                       <div className={styles.draftInfo}>
                         <h3 className={styles.draftTitle}>
-                          {draft.title || 'Không có tiêu đề'}
+                          {draft.title || t('createPostBar.untitledDraft')}
                         </h3>
                         <p className={styles.draftStatus}>
-                          {draft.status === 'draft'
-                            ? 'Bản nháp'
-                            : draft.status === 'processing'
-                              ? 'Đang xử lý'
-                              : draft.status === 'published'
-                                ? 'Đã xuất bản'
-                                : draft.status}
+                          {t(`createPostBar.status.${draft.status}`, { defaultValue: draft.status })}
                         </p>
                       </div>
                     </div>

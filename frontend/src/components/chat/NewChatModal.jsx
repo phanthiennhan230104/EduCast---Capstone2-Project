@@ -3,10 +3,12 @@ import { Avatar, Input, List, Modal } from "antd";
 import { UserOutlined } from "@ant-design/icons";
 import { toast } from "react-toastify";
 import { searchChatUsers } from "../../utils/chatApi";
+import { useTranslation } from "react-i18next";
 
 const { Search } = Input;
 
 export default function NewChatModal({ open, onClose, onSelectUser }) {
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
 
@@ -16,7 +18,7 @@ export default function NewChatModal({ open, onClose, onSelectUser }) {
       const data = await searchChatUsers(value);
       setUsers(data);
     } catch (error) {
-      toast.error(error.message || "Không tìm được user");
+      toast.error(error.message || t("newChatModal.searchUserFailed"));
     } finally {
       setLoading(false);
     }
@@ -31,10 +33,10 @@ export default function NewChatModal({ open, onClose, onSelectUser }) {
       open={open}
       onCancel={onClose}
       footer={null}
-      title="Bắt đầu cuộc trò chuyện mới"
+      title={t("newChatModal.title")}
     >
       <Search
-        placeholder="Tìm theo username hoặc email"
+        placeholder={t("newChatModal.searchPlaceholder")}
         onSearch={handleSearch}
         allowClear
         enterButton

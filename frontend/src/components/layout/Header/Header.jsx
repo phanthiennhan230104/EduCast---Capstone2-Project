@@ -69,7 +69,7 @@ export default function Header({ hideGlobalProgress = false }) {
     localStorage.setItem('i18nextLng', lang)
     setOpenLangMenu(false)
   }
-
+const currentLang = (i18n.resolvedLanguage || i18n.language || 'vi').split('-')[0]
   return (
     <header className={styles.header}>
       <div className={styles.logo} onClick={() => navigate('/')}>
@@ -112,7 +112,7 @@ export default function Header({ hideGlobalProgress = false }) {
             aria-label={t('header.chooseLanguage')}
           >
             <span className={styles.flag}>
-              {i18n.language === 'en' ? '🇬🇧' : '🇻🇳'}
+              {currentLang === 'en' ? 'EN' : 'VI'}
             </span>
           </button>
 

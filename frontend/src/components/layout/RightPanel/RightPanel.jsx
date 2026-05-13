@@ -16,17 +16,17 @@ const ROADMAP = [
 ]
 
 const TRENDING = [
-  { tag: '#Python', count: '12.4k bài' },
-  { tag: '#AIViệtNam', count: '8.7k bài' },
-  { tag: '#MachineLearning', count: '6.2k bài' },
-  { tag: '#ReactJS', count: '5.9k bài' },
-  { tag: '#StartupVN', count: '4.1k bài' },
+  { tag: '#Python', count: '12.4k ' },
+  { tag: '#AIViệtNam', count: '8.7k ' },
+  { tag: '#MachineLearning', count: '6.2k ' },
+  { tag: '#ReactJS', count: '5.9k ' },
+  { tag: '#StartupVN', count: '4.1k ' },
 ]
 
 const SUGGESTIONS = [
   { id: 1, name: 'Linh Đặng Tech', followers: '24.5k', avatar: 'https://i.pravatar.cc/36?img=5' },
-  { id: 2, name: 'AI Minh Trâm',   followers: '18.3k', avatar: 'https://i.pravatar.cc/36?img=9' },
-  { id: 3, name: 'Code with Hoa',  followers: '11.8k', avatar: 'https://i.pravatar.cc/36?img=16' },
+  { id: 2, name: 'AI Minh Trâm', followers: '18.3k', avatar: 'https://i.pravatar.cc/36?img=9' },
+  { id: 3, name: 'Code with Hoa', followers: '11.8k', avatar: 'https://i.pravatar.cc/36?img=16' },
 ]
 
 export default function RightPanel() {
@@ -34,8 +34,8 @@ export default function RightPanel() {
   const [followed, setFollowed] = useState({})
   const [chatInput, setChatInput] = useState('')
   const [messages, setMessages] = useState([
-  { role: 'ai', textKey: 'rightPanel.aiGreeting' }
-])
+    { role: 'ai', textKey: 'rightPanel.aiGreeting' }
+  ])
 
   // Load followed status from localStorage on mount
   useEffect(() => {
@@ -83,15 +83,15 @@ export default function RightPanel() {
       // Update local state
       const updated = { ...followed, [name]: !isCurrentlyFollowing }
       setFollowed(updated)
-      
+
       // Save to localStorage
       localStorage.setItem('rightPanelFollowed', JSON.stringify(updated))
-      
-      const action = isCurrentlyFollowing
-  ? t('buttons.unfollow')
-  : t('rightPanel.follow')
 
-toast.success(t('rightPanel.followSuccess', { action, name }))
+      const action = isCurrentlyFollowing
+        ? t('buttons.unfollow')
+        : t('rightPanel.follow')
+
+      toast.success(t('rightPanel.followSuccess', { action, name }))
     } catch (err) {
       console.error('Toggle follow failed:', err)
       toast.error(t('rightPanel.actionFailed'))
@@ -111,8 +111,8 @@ toast.success(t('rightPanel.followSuccess', { action, name }))
           <div key={tag} className={styles.trendItem}>
             <span className={styles.trendTag}>{tag}</span>
             <span className={styles.trendCount}>
-  {t('rightPanel.posts', { count })}
-</span>
+              {t('rightPanel.posts', { count })}
+            </span>
           </div>
         ))}
       </div>
@@ -129,8 +129,8 @@ toast.success(t('rightPanel.followSuccess', { action, name }))
             <div className={styles.suggestionInfo}>
               <span className={styles.suggestionName}>{name}</span>
               <span className={styles.suggestionFollowers}>
-  {t('rightPanel.followers', { count: followers })}
-</span>
+                {t('rightPanel.followers', { count: followers })}
+              </span>
             </div>
             <button
               className={`${styles.followBtn} ${followed[name] ? styles.following : ''}`}

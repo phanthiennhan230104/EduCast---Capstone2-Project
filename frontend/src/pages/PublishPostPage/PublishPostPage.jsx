@@ -4,6 +4,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { Select } from 'antd'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
+import { useTranslation } from 'react-i18next'
 import {
   createDraft,
   getTopics,
@@ -18,8 +19,8 @@ import { getToken } from '../../utils/auth'
 import styles from '../../style/pages/PublishPostPage/PublishPostPage.module.css'
 
 const VISIBILITY_OPTIONS = [
-  { value: 'public', label: 'Công khai' },
-  { value: 'private', label: 'Riêng tư' },
+  { value: 'public', labelKey: 'publishPost.visibility.public' },
+  { value: 'private', labelKey: 'publishPost.visibility.private' },
 ]
 
 const MAX_TAGS = 5
@@ -73,6 +74,7 @@ function toIntegerDuration(value) {
 }
 
 export default function PublishPostPage() {
+  const { t } = useTranslation()
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -173,12 +175,12 @@ export default function PublishPostPage() {
     const normalized = normalizeTag(tagInput)
 
     if (!normalized) {
-      if (tagInput.trim()) toast.info('Tag không hợp lệ')
+      if (tagInput.trim()) toast.info(t('publishPost.invalidTag'))
       return
     }
 
     if (form.tags.length >= MAX_TAGS) {
-      toast.info(`Tối đa ${MAX_TAGS} tag`)
+      toast.info(t('publishPost.maxTags', { count: MAX_TAGS }))
       return
     }
 
@@ -210,7 +212,7 @@ export default function PublishPostPage() {
     }
 
     if (form.topicIds.length >= MAX_TOPICS) {
-      toast.info(`Tối đa ${MAX_TOPICS} chủ đề`)
+      toast.info(t('publishPost.maxTopics', { count: MAX_TOPICS }))
       return
     }
 
@@ -219,7 +221,7 @@ export default function PublishPostPage() {
 
   const handleTopicChange = (selectedIds) => {
     if (selectedIds.length > MAX_TOPICS) {
-      toast.info(`Tối đa ${MAX_TOPICS} chủ đề`)
+      toast.info(t('publishPost.maxTopics', { count: MAX_TOPICS }))
       return
     }
     updateField('topicIds', selectedIds)
@@ -238,7 +240,7 @@ export default function PublishPostPage() {
         setTopics(normalizeTopicList(topicRes))
       } catch (error) {
         console.error(error)
-        toast.error('Không tải được danh sách chủ đề')
+        toast.error(t('publishPost.loadTopicsFailed'))
       } finally {
         if (mounted) setLoadingMeta(false)
       }
@@ -275,7 +277,7 @@ export default function PublishPostPage() {
         }
       }
 
-      toast.info('Đang tải audio lên...')
+      toast.info(t('publishPost.uploadingAudio'))
 
       try {
         const response = await fetch(audioUrl)
@@ -296,9 +298,13 @@ export default function PublishPostPage() {
           setForm((prev) => ({ ...prev, durationSeconds }))
         }
 
-        toast.success('Tải audio thành công!')
+        toast.success(t('publishPost.uploadAudioSuccess'))
       } catch (error) {
-        throw new Error('Không thể tải audio lên: ' + (error?.message || 'Lỗi không xác định'))
+        throw new Error(
+          t('publishPost.uploadAudioFailedWithMessage', {
+            message: error?.message || t('publishPost.unknownError'),
+          })
+       )
       }
     } else if (!durationSeconds) {
       durationSeconds = toIntegerDuration(await getAudioDuration(audioUrl))
@@ -312,12 +318,12 @@ export default function PublishPostPage() {
 
   const handleSubmit = async () => {
     if (!form.audioUrl) {
-      toast.info('Chưa có audio để đăng bài')
+      toast.info(t('publishPost.noAudioToPublish'))
       return
     }
 
     if (!form.title.trim()) {
-      toast.info('Vui lòng nhập tiêu đề')
+      toast.info(t('publishPost.titleRequired'))
       return
     }
 
@@ -343,8 +349,8 @@ export default function PublishPostPage() {
         is_ai_generated: true,
       }
 
-      console.log('Submitting payload:', payload)
-      toast.info('Đang đăng bài...')
+      console.log(t('publishPost.submittingPayloadLog'), payload)
+      toast.info(t('publishPost.publishing'))
 
       await publishPost(payload)
 
@@ -352,14 +358,14 @@ export default function PublishPostPage() {
         state: {
           toast: {
             type: 'success',
-            message: 'Đăng bài thành công! Bài viết của bạn đã được công bố lên feed.',
+            message: t('publishPost.publishSuccess'),
           },
           refreshFeed: true,
         },
       })
     } catch (error) {
-      console.error('Publish error:', error)
-      toast.error(error?.message || 'Đăng bài thất bại. Vui lòng thử lại.')
+      console.error(t('publishPost.publishErrorLog'), error)
+       toast.error(error?.message || t('publishPost.publishFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -381,7 +387,7 @@ export default function PublishPostPage() {
           summary_text: form.script || '',
           audio_url: audioResult?.audioUrl || form.audioUrl || '',
           public_id: audioResult?.publicId || null,
-          voice_name: 'Minh Tuấn',
+          voice_name: t('publishPost.defaultVoiceName'),
           format: 'mp3',
           duration_seconds: toIntegerDuration(audioResult?.durationSeconds || form.durationSeconds) || null,
           status: 'draft',
@@ -396,7 +402,7 @@ export default function PublishPostPage() {
           processed_text: form.script || form.originalText || '',
           audio_url: audioResult?.audioUrl || form.audioUrl,
           public_id: audioResult?.publicId || null,
-          voice_name: 'Minh Tuấn',
+          voice_name: t('publishPost.defaultVoiceName'),
           format: 'mp3',
           duration_seconds: toIntegerDuration(audioResult?.durationSeconds || form.durationSeconds) || null,
         })
@@ -409,12 +415,12 @@ export default function PublishPostPage() {
         })
       }
 
-      toast.success('Đã lưu nháp')
+      toast.success(t('publishPost.saveDraftSuccess'))
       setShowLeaveConfirm(false)
       navigate(-1)
     } catch (error) {
-      console.error('Save draft error:', error)
-      toast.error(error?.message || 'Không thể lưu nháp')
+      console.error(t('publishPost.saveDraftErrorLog'), error)
+      toast.error(error?.message || t('publishPost.saveDraftFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -445,14 +451,14 @@ export default function PublishPostPage() {
         },
       })
 
-      if (!res.ok) throw new Error('Failed to load drafts')
+      if (!res.ok) throw new Error(t('publishPost.loadDraftsFailed'))
 
       const data = await res.json()
       const draftList = Array.isArray(data) ? data : data.results || data.data || []
       setDrafts(draftList.filter((d) => d?.id))
     } catch (error) {
-      console.error('Load drafts error:', error)
-      toast.error('Không tải được bản nháp')
+      console.error(t('publishPost.loadDraftsErrorLog'), error)
+      toast.error(t('publishPost.loadDraftsFailed'))
     } finally {
       setLoadingDrafts(false)
     }
@@ -489,13 +495,13 @@ export default function PublishPostPage() {
     if (!file) return
 
     if (!file.type.startsWith('audio/')) {
-      toast.error('Vui lòng chọn tệp audio')
+      toast.error(t('publishPost.selectAudioFile'))
       return
     }
 
     const maxSize = 50 * 1024 * 1024 // 50MB
     if (file.size > maxSize) {
-      toast.error('Tệp quá lớn. Tối đa 50MB')
+      toast.error(t('publishPost.audioFileTooLarge'))
       return
     }
 
@@ -506,7 +512,7 @@ export default function PublishPostPage() {
       const dur = await getAudioDuration(audioUrl)
       setForm((prev) => ({ ...prev, durationSeconds: dur }))
     } catch (err) {
-      console.warn('Failed to read audio duration locally', err)
+      console.warn(t('publishPost.readAudioDurationFailedLog'), err)
     }
   }
 
@@ -527,19 +533,19 @@ export default function PublishPostPage() {
     if (!file) return
 
     if (!file.type.startsWith('image/')) {
-      toast.error('Vui lòng chọn tệp ảnh')
+      toast.error(t('publishPost.selectImageFile'))
       return
     }
 
     const maxSize = 5 * 1024 * 1024 // 5MB
     if (file.size > maxSize) {
-      toast.error('Tệp quá lớn. Tối đa 5MB')
+      toast.error(t('publishPost.imageFileTooLarge'))
       return
     }
 
     try {
       setUploadingThumbnail(true)
-      toast.info('Đang tải ảnh lên...')
+      toast.info(t('publishPost.uploadingThumbnail'))
       
       const result = await uploadThumbnail(file)
       
@@ -548,10 +554,10 @@ export default function PublishPostPage() {
         thumbnailUrl: result.thumbnail_url,
       }))
       
-      toast.success('Tải ảnh thành công!')
+      toast.success(t('publishPost.uploadThumbnailSuccess'))
     } catch (error) {
-      console.error('Thumbnail upload error:', error)
-      toast.error(error?.message || 'Không thể tải ảnh lên')
+      console.error(t('publishPost.thumbnailUploadErrorLog'), error)
+      toast.error(error?.message || t('publishPost.uploadThumbnailFailed'))
     } finally {
       setUploadingThumbnail(false)
     }
@@ -566,9 +572,9 @@ export default function PublishPostPage() {
       <div className={styles.page}>
         <div className={styles.hero}>
           <div>
-            <h1 className={styles.title}>Chuẩn bị đăng bài</h1>
+            <h1 className={styles.title}>{t('publishPost.pageTitle')}</h1>
             <p className={styles.subtitle}>
-              Hoàn thiện thông tin trước khi xuất bản audio lên feed cộng đồng.
+              {t('publishPost.pageSubtitle')}
             </p>
           </div>
 
@@ -578,7 +584,7 @@ export default function PublishPostPage() {
               className={styles.secondaryButton}
               onClick={requestLeave}
             >
-              Quay lại
+              {t('publishPost.back')}
             </button>
 
             <button
@@ -587,7 +593,7 @@ export default function PublishPostPage() {
               onClick={handleSubmit}
               disabled={submitting}
             >
-              {submitting ? 'Đang đăng...' : 'Đăng bài'}
+              {submitting ? t('publishPost.publishingShort') : t('publishPost.publishPost')}
             </button>
           </div>
         </div>
@@ -597,30 +603,30 @@ export default function PublishPostPage() {
             <div className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h2 className={styles.cardTitle}>Nội dung bài đăng</h2>
+                  <h2 className={styles.cardTitle}>{t('publishPost.contentTitle')}</h2>
                   <p className={styles.cardDesc}>
-                    Tối ưu tiêu đề, mô tả và phân loại để bài dễ được khám phá hơn.
+                    {t('publishPost.contentDesc')}
                   </p>
                 </div>
               </div>
 
               <div className={styles.field}>
-                <label className={styles.label}>Tiêu đề</label>
+                <label className={styles.label}>{t('publishPost.titleLabel')}</label>
                 <input
                   className={styles.input}
                   type="text"
-                  placeholder="Ví dụ: Tư duy phản biện trong công việc hằng ngày"
+                  placeholder={t('publishPost.titlePlaceholder')}
                   value={form.title}
                   onChange={(e) => updateField('title', e.target.value)}
                 />
               </div>
 
               <div className={styles.field}>
-                <label className={styles.label}>Mô tả ngắn</label>
+                <label className={styles.label}>{t('publishPost.descriptionLabel')}</label>
                 <textarea
                   className={`${styles.input} ${styles.textarea}`}
                   rows={4}
-                  placeholder="Viết mô tả ngắn giúp người nghe hiểu nội dung chính..."
+                  placeholder={t('publishPost.descriptionPlaceholder')}
                   value={form.description}
                   onChange={(e) => updateField('description', e.target.value)}
                 />
@@ -630,19 +636,19 @@ export default function PublishPostPage() {
             <div className={styles.card}>
               <div className={styles.cardHeader}>
                 <div>
-                  <h2 className={styles.cardTitle}>Phân loại nội dung</h2>
+                  <h2 className={styles.cardTitle}>{t('publishPost.categoryTitle')}</h2>
                   <p className={styles.cardDesc}>
-                    Chọn topic và tag để bài dễ được khám phá hơn.
+                    {t('publishPost.categoryDesc')}
                   </p>
                 </div>
               </div>
 
               <div className={styles.field}>
-                <label className={styles.label}>Lĩnh vực học tập</label>
+                <label className={styles.label}>{t('publishPost.learningFieldLabel')}</label>
                 <input
                   className={styles.input}
                   type="text"
-                  placeholder="Ví dụ: Công nghệ, kinh doanh, kỹ năng mềm..."
+                  placeholder={t('publishPost.learningFieldPlaceholder')}
                   value={form.learningField}
                   onChange={(e) => updateField('learningField', e.target.value)}
                 />
@@ -650,7 +656,10 @@ export default function PublishPostPage() {
 
               <div className={styles.field}>
                 <label className={styles.label}>
-                  Chủ đề <span className={styles.helper}>Tối đa {MAX_TOPICS}</span>
+                  {t('publishPost.topicLabel')}{' '}
+                  <span className={styles.helper}>
+                    {t('publishPost.maxCount', { count: MAX_TOPICS })}
+                  </span>
                 </label>
 
                 <Select
@@ -658,7 +667,7 @@ export default function PublishPostPage() {
                   mode="multiple"
                   allowClear
                   showSearch={{ optionFilterProp: 'label' }}
-                  placeholder="Chọn chủ đề"
+                  placeholder={t('publishPost.topicPlaceholder')}
                   value={form.topicIds}
                   onChange={handleTopicChange}
                   disabled={loadingMeta}
@@ -672,14 +681,17 @@ export default function PublishPostPage() {
 
               <div className={styles.field}>
                 <label className={styles.label}>
-                  Tag <span className={styles.helper}>Tối đa {MAX_TAGS}</span>
+                  {t('publishPost.tagLabel')}{' '}
+                  <span className={styles.helper}>
+                    {t('publishPost.maxCount', { count: MAX_TAGS })}
+                  </span>
                 </label>
 
                 <div className={styles.tagComposer}>
                   <input
                     className={styles.tagInput}
                     type="text"
-                    placeholder="Nhập tag rồi nhấn Enter"
+                    placeholder={t('publishPost.tagPlaceholder')}
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={handleTagKeyDown}
@@ -689,13 +701,13 @@ export default function PublishPostPage() {
                     className={styles.tagAddButton}
                     onClick={addTag}
                   >
-                    Thêm
+                    {t('publishPost.add')}
                   </button>
                 </div>
 
                 <div className={styles.tagList}>
                   {form.tags.length === 0 ? (
-                    <span className={styles.emptyText}>Chưa có tag nào</span>
+                    <span className={styles.emptyText}>{t('publishPost.noTags')}</span>
                   ) : (
                     form.tags.map((tag) => (
                       <span key={`tag-${tag}`} className={styles.tagChip}>
@@ -704,7 +716,7 @@ export default function PublishPostPage() {
                           type="button"
                           className={styles.tagRemove}
                           onClick={() => removeTag(tag)}
-                          aria-label={`Xóa tag ${tag}`}
+                          aria-label={t('publishPost.removeTagAria', { tag })}
                         >
                           ×
                         </button>
@@ -715,7 +727,7 @@ export default function PublishPostPage() {
               </div>
 
               <div className={styles.field}>
-                <label className={styles.label}>Quyền riêng tư</label>
+                <label className={styles.label}>{t('publishPost.privacyLabel')}</label>
                 <div className={styles.radioGroup}>
                   {VISIBILITY_OPTIONS.map((item) => (
                     <label key={`visibility-${item.value}`} className={styles.radioItem}>
@@ -726,7 +738,7 @@ export default function PublishPostPage() {
                         checked={form.visibility === item.value}
                         onChange={(e) => updateField('visibility', e.target.value)}
                       />
-                      <span>{item.label}</span>
+                      <span>{t(item.labelKey)}</span>
                     </label>
                   ))}
                 </div>
@@ -737,7 +749,7 @@ export default function PublishPostPage() {
           <aside className={styles.rightColumn}>
             <div className={`${styles.card} ${styles.stickyCard}`}>
               <div className={styles.previewTop}>
-                <span className={styles.previewBadge}>Xem trước audio</span>
+                <span className={styles.previewBadge}>{t('publishPost.audioPreview')}</span>
                 <div className={styles.previewTopActions}>
                   
                   {/* <span className={styles.previewDuration}>
@@ -749,7 +761,7 @@ export default function PublishPostPage() {
                       type="button"
                       className={styles.iconButton}
                       onClick={handleUploadClick}
-                      title="Tải audio từ thiết bị"
+                      title={t('publishPost.uploadAudioTitle')}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6" />
@@ -761,7 +773,7 @@ export default function PublishPostPage() {
                       type="button"
                       className={styles.iconButton}
                       onClick={handleDraftsClick}
-                      title="Chọn từ bản nháp"
+                      title={t('publishPost.chooseDraftTitle')}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
@@ -775,7 +787,7 @@ export default function PublishPostPage() {
                       type="button"
                       className={styles.iconButton}
                       onClick={() => navigate('/create')}
-                      title="Tạo audio mới"
+                      title={t('publishPost.createAudioTitle')}
                     >
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <path d="M12 5v14M5 12h14" />
@@ -818,10 +830,11 @@ export default function PublishPostPage() {
                     }}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <h3 style={{ margin: 0, color: '#fff', fontSize: 20 }}>Thoát trang?</h3>
+                    <h3 style={{ margin: 0, color: '#fff', fontSize: 20 }}>
+                      {t('publishPost.leaveConfirmTitle')}
+                    </h3>
                     <p style={{ margin: '10px 0 0', color: 'rgba(245,240,232,0.72)', lineHeight: 1.6 }}>
-                      Bạn đang có audio hoặc nội dung đang làm dở. Bạn có muốn lưu lại nháp trước khi rời đi không?
-                    </p>
+{t('publishPost.leaveConfirmMessage')}                    </p>
 
                     <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, flexWrap: 'wrap' }}>
                       <button
@@ -833,7 +846,7 @@ export default function PublishPostPage() {
                         }}
                         disabled={submitting}
                       >
-                        Rời đi
+                        {t('publishPost.leave')}
                       </button>
 
                       <button
@@ -842,7 +855,7 @@ export default function PublishPostPage() {
                         onClick={() => setShowLeaveConfirm(false)}
                         disabled={submitting}
                       >
-                        Ở lại
+                        {t('publishPost.stay')}
                       </button>
 
                       <button
@@ -851,7 +864,7 @@ export default function PublishPostPage() {
                         onClick={saveCurrentDraft}
                         disabled={submitting}
                       >
-                        {submitting ? 'Đang lưu...' : 'Lưu nháp'}
+                        {submitting ? t('publishPost.saving') : t('publishPost.saveDraft')}
                       </button>
                     </div>
                   </div>
@@ -885,7 +898,7 @@ export default function PublishPostPage() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3 style={{ margin: 0 }}>Chọn bản nháp</h3>
+                      <h3 style={{ margin: 0 }}>{t('publishPost.chooseDraft')}</h3>
                       <button
                         onClick={() => setShowDraftModal(false)}
                         style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer' }}
@@ -896,10 +909,11 @@ export default function PublishPostPage() {
 
                     <div style={{ marginTop: 12 }}>
                       {loadingDrafts ? (
-                        <div style={{ color: 'rgba(255,255,255,0.7)' }}>Đang tải bản nháp...</div>
-                      ) : drafts.length === 0 ? (
+<div style={{ color: 'rgba(255,255,255,0.7)' }}>
+                          {t('publishPost.loadingDrafts')}
+                        </div>                      ) : drafts.length === 0 ? (
                         <div style={{ color: 'rgba(255,255,255,0.7)' }}>
-                          Không có bản nháp nào
+                          {t('publishPost.noDrafts')}
                           <div style={{ marginTop: 12 }}>
                             <button
                               className={styles.primaryButton}
@@ -908,7 +922,7 @@ export default function PublishPostPage() {
                                 navigate('/create')
                               }}
                             >
-                              + Tạo bản nháp mới
+                              + {t('publishPost.createDraft')}
                             </button>
                           </div>
                         </div>
@@ -938,8 +952,9 @@ export default function PublishPostPage() {
                               </div>
 
                               <div style={{ flex: 1 }}>
-                                <div style={{ fontWeight: 700, color: '#fff' }}>{draft.title || 'Không có tiêu đề'}</div>
-                                <div style={{ color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>{draft.status || ''}</div>
+<div style={{ fontWeight: 700, color: '#fff' }}>
+                                  {draft.title || t('publishPost.untitled')}
+                                </div>                                <div style={{ color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>{draft.status || ''}</div>
                               </div>
                             </div>
                           ))}
@@ -950,30 +965,32 @@ export default function PublishPostPage() {
                 </div>
               )}
 
-              <h3 className={styles.previewTitle}>{form.title || 'Chưa có tiêu đề'}</h3>
+              <h3 className={styles.previewTitle}>
+                {form.title || t('publishPost.untitled')}
+              </h3>
 
               <p className={styles.previewDescription}>
-                {form.description || 'Chưa có mô tả cho bài đăng này.'}
+                {form.description || t('publishPost.noDescription')}
               </p>
 
               <div className={styles.audioBox}>
                 {form.audioUrl ? (
                   <audio controls className={styles.audioPlayer}>
                     <source src={form.audioUrl} type="audio/mpeg" />
-                    Trình duyệt không hỗ trợ audio.
+                    {t('publishPost.browserNotSupportAudio')}
                   </audio>
                 ) : (
-                  <div className={styles.audioEmpty}>Chưa có audio để phát</div>
+                  <div className={styles.audioEmpty}>{t('publishPost.noAudioToPlay')}</div>
                 )}
               </div>
 
               <div className={styles.thumbnailBox}>
-                <div className={styles.thumbnailLabel}>Ảnh đại diện</div>
+                <div className={styles.thumbnailLabel}>{t('publishPost.thumbnailLabel')}</div>
                 {form.thumbnailUrl ? (
                   <div className={styles.thumbnailPreview}>
                     <img 
                       src={form.thumbnailUrl} 
-                      alt="Ảnh đại diện" 
+                      alt={t('publishPost.thumbnailAlt')} 
                       className={styles.thumbnailImage}
                     />
                     <div className={styles.thumbnailActions}>
@@ -983,7 +1000,7 @@ export default function PublishPostPage() {
                         onClick={handleThumbnailClick}
                         disabled={uploadingThumbnail}
                       >
-                        Thay đổi
+                        {t('publishPost.change')}
                       </button>
                       <button
                         type="button"
@@ -991,7 +1008,7 @@ export default function PublishPostPage() {
                         onClick={handleRemoveThumbnail}
                         disabled={uploadingThumbnail}
                       >
-                        Xóa
+                        {t('publishPost.remove')}
                       </button>
                     </div>
                   </div>
@@ -1002,7 +1019,9 @@ export default function PublishPostPage() {
                     onClick={handleThumbnailClick}
                     disabled={uploadingThumbnail}
                   >
-                    {uploadingThumbnail ? 'Đang tải...' : '+ Thêm ảnh đại diện'}
+                    {uploadingThumbnail
+                      ? t('publishPost.uploading')
+                      : t('publishPost.addThumbnail')}
                   </button>
                 )}
               </div>
@@ -1017,7 +1036,7 @@ export default function PublishPostPage() {
 
               <div className={styles.previewMeta}>
                 <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>Chủ đề</span>
+                  <span className={styles.metaLabel}>{t('publishPost.topicLabel')}</span>
                   <div className={styles.metaTopicWrap}>
                     {form.topicIds.length === 0 ? (
                       <span className={styles.metaValue}>—</span>
@@ -1037,7 +1056,7 @@ export default function PublishPostPage() {
                 </div>
 
                 <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>Tag</span>
+                  <span className={styles.metaLabel}>{t('publishPost.tagLabel')}</span>
                   <div className={styles.metaTopicWrap}>
                     {form.tags.length === 0 ? (
                       <span className={styles.metaValue}>—</span>
@@ -1059,7 +1078,7 @@ export default function PublishPostPage() {
                   onClick={handleSubmit}
                   disabled={submitting}
                 >
-                  {submitting ? 'Đang đăng...' : 'Xuất bản ngay'}
+                  {submitting ? t('publishPost.publishingShort') : t('publishPost.publishNow')}
                 </button>
 
                 <button
@@ -1068,7 +1087,7 @@ export default function PublishPostPage() {
                   onClick={requestLeave}
                   disabled={submitting}
                 >
-                  Hủy
+                  {t('publishPost.cancel')}
                 </button>
               </div>
             </div>

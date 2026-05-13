@@ -23,6 +23,8 @@ from .serializers import (
     RegisterSerializer,
     MyTokenObtainPairSerializer,
     ResetPasswordSerializer,
+    UserProfileSerializer,
+    AdminUserListSerializer,
 )
 from .utils import (
     get_active_lock,
@@ -293,15 +295,79 @@ def get_current_user(request):
 @api_view(["GET"])
 @permission_classes([AllowAny])
 def get_user_profile(request, user_id):
-    """Get user profile by user_id"""
+    """Get user profile by user_id - respects profile_visibility settings"""
     try:
         user = User.objects.get(id=user_id)
         profile = getattr(user, "profile", None)
         
-        # Get follower/following counts
+        # Get user settings to check profile_visibility
+        user_settings, _ = UserSettings.objects.get_or_create(
+            user=user,
+            defaults={
+                "profile_visibility": "public",
+                "allow_messages_from": "everyone",
+            }
+        )
+        
+        # Import Follow and Post models
         from apps.social.models import Follow
         from apps.content.models import Post
         
+        # Check visibility permissions
+        current_user = request.user if request.user.is_authenticated else None
+        can_view_profile = False
+        not_accessible_reason = None
+        
+        if user_settings.profile_visibility == "public":
+            # Bất kỳ ai cũng có thể xem
+            can_view_profile = True
+        elif user_settings.profile_visibility == "followers_only":
+            # Chỉ những người theo dõi mới xem được
+            if current_user and current_user.id != user_id:
+                is_follower = Follow.objects.filter(
+                    follower_id=current_user.id,
+                    following_id=user_id
+                ).exists()
+                can_view_profile = is_follower
+                if not can_view_profile:
+                    not_accessible_reason = "followers_only"
+            elif current_user and current_user.id == user_id:
+                # Chính user đó luôn xem được
+                can_view_profile = True
+            else:
+                # Chưa đăng nhập
+                not_accessible_reason = "followers_only"
+        elif user_settings.profile_visibility == "private":
+            # Chỉ chính user đó mới xem được (hoặc admin)
+            if current_user:
+                can_view_profile = (current_user.id == user_id or current_user.role == "admin")
+                if not can_view_profile:
+                    not_accessible_reason = "private"
+            else:
+                not_accessible_reason = "private"
+        
+        # Nếu không thể xem profile - trả về thông báo thân thiện
+        if not can_view_profile:
+            response_data = {
+                "data": {
+                    "id": str(user.id),
+                    "username": user.username,
+                    "display_name": profile.display_name if profile else user.username,
+                    "avatar_url": profile.avatar_url if profile else None,
+                    "profile_visibility": user_settings.profile_visibility,
+                }
+            }
+            
+            if not_accessible_reason == "private":
+                response_data["is_accessible"] = False
+                response_data["message"] = "Người này đã để trang cá nhân riêng tư"
+            elif not_accessible_reason == "followers_only":
+                response_data["is_accessible"] = False
+                response_data["message"] = "Chỉ những người theo dõi mới xem được bài viết của người này"
+            
+            return Response(response_data, status=status.HTTP_200_OK)
+        
+        # Get follower/following counts
         followers_count = Follow.objects.filter(following_id=user_id).count()
         following_count = Follow.objects.filter(follower_id=user_id).count()
         
@@ -325,7 +391,9 @@ def get_user_profile(request, user_id):
                     "following_count": following_count,
                     "podcast_count": podcast_count,
                     "preferred_language": profile.preferred_language if profile else "vi",
-                }
+                    "profile_visibility": user_settings.profile_visibility,
+                },
+                "is_accessible": True,
             },
             status=status.HTTP_200_OK,
         )
@@ -335,6 +403,7 @@ def get_user_profile(request, user_id):
             status=status.HTTP_404_NOT_FOUND,
         )
     except Exception as e:
+        logger.error(f"Error getting user profile: {str(e)}")
         return Response(
             {"error": str(e)},
             status=status.HTTP_500_INTERNAL_SERVER_ERROR,

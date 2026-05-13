@@ -1,6 +1,7 @@
 import { API_BASE_URL } from '../config/apiBase'
 import { apiRequest } from '../utils/api'
 import { getToken } from './auth'
+import i18n from './i18n'
 
 // Tạo nháp chưa có audio
 export const createDraft = async (payload) => {
@@ -84,7 +85,7 @@ export const publishPost = async (payload) => {
 
 // Upload audio file to cloud
 export const uploadAudioFile = async (file) => {
-  if (!file) throw new Error('File is required')
+  if (!file) throw new Error(i18n.t('contentApi.fileRequired'))
   
   const formData = new FormData()
   formData.append('audio', file)
@@ -101,7 +102,7 @@ export const uploadAudioFile = async (file) => {
 
   if (!res.ok) {
     const error = await res.json()
-    throw new Error(error.error || 'Upload failed')
+    throw new Error(error.error || i18n.t('contentApi.uploadFailed'))
   }
 
   const data = await res.json()
@@ -116,7 +117,7 @@ export const uploadAudioFile = async (file) => {
 
 // Upload thumbnail image to cloud
 export const uploadThumbnail = async (file) => {
-  if (!file) throw new Error('File is required')
+  if (!file) throw new Error(i18n.t('contentApi.fileRequired'))
   
   const formData = new FormData()
   formData.append('thumbnail', file)
@@ -133,7 +134,7 @@ export const uploadThumbnail = async (file) => {
 
   if (!res.ok) {
     const error = await res.json()
-    throw new Error(error.error || 'Upload failed')
+    throw new Error(error.error || i18n.t('contentApi.uploadFailed'))
   }
 
   const data = await res.json()

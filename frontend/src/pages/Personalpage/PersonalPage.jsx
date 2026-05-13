@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { useTranslation } from 'react-i18next'
 import {
   CheckCircle2,
   Edit3,
@@ -19,7 +20,7 @@ import {
 import styles from '../../style/pages/PersonalPage.module.css'
 import { apiRequest } from '../../utils/api'
 
-const TABS = ['Bài đăng', 'Podcast', 'Giới thiệu', 'Bạn bè', 'Ảnh']
+const TABS = ['posts', 'podcasts', 'about', 'friends', 'photos']
 
 const DEFAULT_AVATAR = 'https://i.pravatar.cc/300?img=11'
 const DEFAULT_COVER = 'https://picsum.photos/seed/cover/1200/400'
@@ -29,7 +30,8 @@ const SAMPLE_PODCASTS = []
 const SAMPLE_FRIENDS = []
 
 export default function PersonalPage() {
-  const [activeTab, setActiveTab] = useState('Bài đăng')
+  const { t } = useTranslation()
+  const [activeTab, setActiveTab] = useState('posts')
   const [profile, setProfile] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -47,21 +49,21 @@ export default function PersonalPage() {
       const userId = meRes?.user?.id
 
       if (!userId) {
-        throw new Error('Không tìm thấy user id.')
+        throw new Error(t('personal.userIdNotFound'))
       }
 
       const profileRes = await apiRequest(`/auth/${userId}/profile/`)
       setProfile(profileRes?.data)
     } catch (err) {
-      console.error('Failed to fetch user profile:', err)
-      setError('Không thể tải hồ sơ người dùng.')
+      console.error(t('personal.fetchProfileFailed'), err)
+      setError(t('personal.fetchProfileFailed'))
     } finally {
       setLoading(false)
     }
   }
 
   if (loading) {
-    return <div className={styles.container}>Đang tải hồ sơ...</div>
+    return <div className={styles.container}>{t('personal.loadingProfile')}</div>
   }
 
   if (error) {
@@ -74,13 +76,13 @@ export default function PersonalPage() {
         <div className={styles.coverPhoto}>
           <img
             src={profile?.cover_url || DEFAULT_COVER}
-            alt="Cover"
+            alt={t('personal.coverAlt')}
             className={styles.coverImage}
           />
 
           <button className={styles.editCoverBtn}>
             <ImageIcon size={16} />
-            <span className={styles.editCoverText}>Chỉnh sửa ảnh bìa</span>
+            <span className={styles.editCoverText}>{t('personal.editCover')}</span>
           </button>
         </div>
 
@@ -90,7 +92,7 @@ export default function PersonalPage() {
               <div className={styles.avatar}>
                 <img
                   src={profile?.avatar_url || DEFAULT_AVATAR}
-                  alt="Avatar"
+                  alt={t('personal.avatarAlt')}
                   className={styles.avatarImage}
                 />
               </div>
@@ -102,26 +104,26 @@ export default function PersonalPage() {
 
             <div className={styles.profileInfo}>
               <h1 className={styles.profileName}>
-                {profile?.display_name || profile?.username || 'Người dùng'}
+                {profile?.display_name || profile?.username || t('personal.userFallback')}
                 <CheckCircle2 size={20} className={styles.verifyBadge} />
               </h1>
 
               <p className={styles.profileStats}>
-                {profile?.podcast_count || 0} Podcast ·{' '}
-                {profile?.followers_count || 0} Người theo dõi ·{' '}
-                {profile?.following_count || 0} Đang theo dõi
+                {t('personal.podcastCount', { count: profile?.podcast_count || 0 })} ·{' '}
+                {t('personal.followersCount', { count: profile?.followers_count || 0 })} ·{' '}
+                {t('personal.followingCount', { count: profile?.following_count || 0 })}
               </p>
             </div>
 
             <div className={styles.actions}>
               <button className={styles.editBtn}>
                 <Edit3 size={16} />
-                Chỉnh sửa
+                {t('personal.edit')}
               </button>
 
               <button className={styles.shareBtn}>
                 <Share2 size={16} />
-                Chia sẻ
+                {t('personal.share')}
               </button>
 
               <button className={styles.moreBtn}>
@@ -131,7 +133,7 @@ export default function PersonalPage() {
           </div>
 
           <p className={styles.bio}>
-            {profile?.bio || 'Chưa có giới thiệu.'}
+            {profile?.bio || t('personal.noBio')}
           </p>
         </div>
 
@@ -165,37 +167,37 @@ export default function PersonalPage() {
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
           >
-            {activeTab === 'Bài đăng' && (
+            {activeTab === 'posts' && (
               <div className={styles.postsLayout}>
                 <div className={styles.leftCol}>
                   <div className={styles.introCard}>
-                    <h3 className={styles.cardTitle}>Giới thiệu</h3>
+                    <h3 className={styles.cardTitle}>{t('personal.introTitle')}</h3>
 
                     <div className={styles.introList}>
                       <div className={styles.introItem}>
                         <Briefcase size={18} className={styles.introIcon} />
                         <span>
-                          Podcaster tại <strong>EduCast</strong>
+                          {t('personal.introWork')} <strong>EduCast</strong>
                         </span>
                       </div>
 
                       <div className={styles.introItem}>
                         <GraduationCap size={18} className={styles.introIcon} />
                         <span>
-                          Học tập và chia sẻ kiến thức
+                          {t('personal.introStudy')}
                         </span>
                       </div>
 
                       <div className={styles.introItem}>
                         <MapPin size={18} className={styles.introIcon} />
                         <span>
-                          Sống tại <strong>Việt Nam</strong>
+                          {t('personal.introLocation')} <strong>{t('personal.vietnam')}</strong>
                         </span>
                       </div>
 
                       <div className={styles.introItem}>
                         <Calendar size={18} className={styles.introIcon} />
-                        <span>Thành viên EduCast</span>
+                        <span>{t('personal.memberEduCast')}</span>
                       </div>
                     </div>
                   </div>
@@ -206,11 +208,11 @@ export default function PersonalPage() {
                     <div className={styles.createPostTop}>
                       <img
                         src={profile?.avatar_url || DEFAULT_AVATAR}
-                        alt="Avatar"
+                        alt={t('personal.avatarAlt')}
                         className={styles.smallAvatar}
                       />
                       <button className={styles.createPostInput}>
-                        Bạn đang nghĩ gì?
+                        {t('personal.createPostPlaceholder')}
                       </button>
                     </div>
 
@@ -218,16 +220,16 @@ export default function PersonalPage() {
                       <div className={styles.createPostActions}>
                         <button className={styles.createPostActionBtn}>
                           <ImageIcon size={18} className={styles.greenIcon} />
-                          <span>Ảnh/Video</span>
+                          <span>{t('personal.photoVideo')}</span>
                         </button>
 
                         <button className={styles.createPostActionBtn}>
                           <Smile size={18} className={styles.yellowIcon} />
-                          <span>Cảm xúc</span>
+                          <span>{t('personal.feeling')}</span>
                         </button>
                       </div>
 
-                      <button className={styles.postBtn}>Đăng</button>
+                      <button className={styles.postBtn}>{t('personal.post')}</button>
                     </div>
                   </div>
 
@@ -236,9 +238,9 @@ export default function PersonalPage() {
                       <div className={styles.emptyIcon}>
                         <ImageIcon size={24} />
                       </div>
-                      <h3 className={styles.emptyTitle}>Chưa có bài đăng</h3>
+                      <h3 className={styles.emptyTitle}>{t('personal.noPosts')}</h3>
                       <p className={styles.emptyText}>
-                        Khi bạn đăng podcast hoặc nội dung mới, chúng sẽ xuất hiện ở đây.
+                        {t('personal.noPostsDescription')}
                       </p>
                     </div>
                   ) : (
@@ -267,17 +269,17 @@ export default function PersonalPage() {
                         <div className={styles.postActions}>
                           <button className={styles.postActionBtn}>
                             <Heart size={18} />
-                            <span>Thích</span>
+                            <span>{t('personal.like')}</span>
                           </button>
 
                           <button className={styles.postActionBtn}>
                             <MessageCircle size={18} />
-                            <span>Bình luận</span>
+                            <span>{t('personal.comment')}</span>
                           </button>
 
                           <button className={styles.postActionBtn}>
                             <Share2 size={18} />
-                            <span>Chia sẻ</span>
+                            <span>{t('personal.share')}</span>
                           </button>
                         </div>
                       </div>
@@ -287,38 +289,38 @@ export default function PersonalPage() {
               </div>
             )}
 
-            {activeTab === 'Podcast' && (
+            {activeTab === 'podcasts' && (
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>
                   <PlayCircle size={24} />
                 </div>
-                <h3 className={styles.emptyTitle}>Chưa có podcast</h3>
+                <h3 className={styles.emptyTitle}>{t('personal.noPodcasts')}</h3>
                 <p className={styles.emptyText}>
-                  Podcast bạn tạo sẽ xuất hiện tại đây.
+                  {t('personal.noPodcastsDescription')}
                 </p>
               </div>
             )}
 
-            {activeTab === 'Bạn bè' && (
+            {activeTab === 'friends' && (
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>
                   <Heart size={24} />
                 </div>
-                <h3 className={styles.emptyTitle}>Chưa có bạn bè</h3>
+                <h3 className={styles.emptyTitle}>{t('personal.noFriends')}</h3>
                 <p className={styles.emptyText}>
-                  Danh sách bạn bè sẽ được cập nhật sau.
+                  {t('personal.noFriendsDescription')}
                 </p>
               </div>
             )}
 
-            {(activeTab === 'Giới thiệu' || activeTab === 'Ảnh') && (
+            {(activeTab === 'about' || activeTab === 'photos') && (
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>
                   <ImageIcon size={24} />
                 </div>
-                <h3 className={styles.emptyTitle}>Chưa có nội dung</h3>
+                <h3 className={styles.emptyTitle}>{t('personal.noContent')}</h3>
                 <p className={styles.emptyText}>
-                  Nội dung cho tab {activeTab} đang được cập nhật.
+                 {t('personal.tabContentUpdating', { tab: t(`personal.tabs.${activeTab}`) })}
                 </p>
               </div>
             )}

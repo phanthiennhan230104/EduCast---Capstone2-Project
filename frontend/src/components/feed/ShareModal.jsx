@@ -7,12 +7,14 @@ import { getToken, getCurrentUser } from '../../utils/auth'
 import { getInitials } from '../../utils/getInitials'
 import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
 import { API_BASE_URL } from '../../config/apiBase'
+import { useTranslation } from 'react-i18next'
 import {
   EDUCAST_PERSONAL_SHARE_SUCCESS,
   markPersonalSharePendingFeedRefresh,
 } from '../../utils/appEvents'
 
 export default function ShareModal({ podcast, onClose, onShareSuccess }) {
+  const { t } = useTranslation()
   const [caption, setCaption] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [friends, setFriends] = useState([])
@@ -31,8 +33,8 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
 
   const authorName =
     typeof podcast.author === 'object'
-      ? podcast.author?.name || podcast.author?.username || 'Người dùng'
-      : podcast.author || 'Người dùng'
+      ? podcast.author?.name || podcast.author?.username || t('feed.comment.user')
+: podcast.author || t('feed.comment.user')
 
   const authorUsername =
     typeof podcast.author === 'object'
@@ -82,7 +84,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
       setFriends(data.data?.friends || [])
     } catch (err) {
       console.error('Fetch friends failed:', err)
-      toast.error('Lỗi khi tải danh sách bạn bè')
+      toast.error(t('shareModal.fetchFriendsError'))
     } finally {
       setLoadingFriends(false)
     }
@@ -102,7 +104,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
 
   const handleSendToFriends = async () => {
     if (selectedFriends.size === 0) {
-      toast.error('Vui lòng chọn ít nhất một người để gửi')
+      toast.error(t('shareModal.selectAtLeastOne'))
       return
     }
 
@@ -114,7 +116,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
       console.warn('Share aborted: no valid recipient IDs', {
         selectedFriends: Array.from(selectedFriends),
       })
-      toast.error('Không tìm thấy người nhận hợp lệ')
+      toast.error(t('shareModal.noValidRecipients'))
       return
     }
 
@@ -145,7 +147,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
         const errorFromResults = Array.isArray(data?.data?.results)
           ? data.data.results.find((r) => !r?.success)?.error
           : null
-        toast.error(errorFromResults || data.message || 'Gửi podcast thất bại')
+        toast.error(errorFromResults || data.message || t('shareModal.sendPodcastFailed'))
         return
       }
 
@@ -155,13 +157,13 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
 
       if (successResults.length === 0) {
         const firstError = failedResults[0]?.error
-        toast.error(firstError || 'Không gửi được cho người nhận nào')
+        toast.error(firstError || t('shareModal.noRecipientsSent'))
         return
       }
 
-      toast.success(`Đã gửi cho ${successResults.length} người`)
+      toast.success(t('shareModal.sentToPeople', { count: successResults.length }))
       if (failedResults.length > 0) {
-        toast.warning(`Không gửi được ${failedResults.length} người`)
+        toast.warning(t('shareModal.failedToSendPeople', { count: failedResults.length }))
       }
 
       const successResult = successResults[0]
@@ -188,7 +190,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
       onClose()
     } catch (err) {
       console.error('Send failed:', err)
-      toast.error('Gửi tin nhắn thất bại')
+      toast.error(t('shareModal.sendMessageFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -248,7 +250,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
       })
     } catch (err) {
       console.error('Share failed:', err)
-      toast.error(err.message || 'Chia sẻ bài viết thất bại')
+      toast.error(err.message || t('shareModal.sharePostFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -258,8 +260,13 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.topBar}>
-          <h2 className={styles.modalTitle}>Chia sẻ</h2>
-          <button className={styles.closeBtn} type="button" onClick={onClose}>
+          <h2 className={styles.modalTitle}>{t('shareModal.title')}</h2>
+          <button
+  className={styles.closeBtn}
+  type="button"
+  onClick={onClose}
+  aria-label={t('feed.confirm.close')}
+>
             <X size={20} />
           </button>
         </div>
@@ -317,7 +324,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                   ref={inputRef}
                   value={caption}
                   onChange={(e) => setCaption(e.target.value)}
-                  placeholder="Hãy nói gì đó về nội dung này..."
+                  placeholder={t('shareModal.captionPlaceholder')}
                   className={styles.textarea}
                   maxLength={500}
                 />
@@ -327,14 +334,14 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
             <div className={styles.charCount}>{caption.length}/500</div>
 
             <div className={styles.friendsSection}>
-              <div className={styles.friendsTitle}>Chọn người nhận</div>
+              <div className={styles.friendsTitle}>{t('shareModal.chooseRecipients')}</div>
 
               {loadingFriends ? (
                 <div className={styles.loadingText}>
-                  Đang tải danh sách bạn bè...
+                  {t('shareModal.loadingFriends')}
                 </div>
               ) : friends.length === 0 ? (
-                <div className={styles.emptyText}>Bạn chưa có bạn bè</div>
+                <div className={styles.emptyText}>{t('shareModal.noFriends')}</div>
               ) : (
                 <div className={styles.friendsCarousel}>
                   {friends.map((friend) => {
@@ -344,7 +351,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                       friend.profile?.display_name ||
                       friend.name ||
                       friend.username ||
-                      'Người dùng'
+                      t('feed.comment.user')
                     const friendAvatarUrl =
                       friend.avatar_url ||
                       friend.avatar ||
@@ -415,7 +422,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                   onClick={handleShareToPersonal}
                   disabled={submitting}
                 >
-                  {submitting ? 'Đang chia sẻ...' : 'Chia sẻ ngay'}
+                  {submitting ? t('shareModal.sharing') : t('shareModal.shareNow')}
                 </button>
               ) : (
                 <button
@@ -424,7 +431,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                   onClick={handleSendToFriends}
                   disabled={submitting}
                 >
-                  {submitting ? 'Đang gửi...' : 'Gửi'}
+                  {submitting ? t('shareModal.sending') : t('shareModal.send')}
                 </button>
               )}
             </div>
@@ -436,7 +443,7 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
                 onClick={onClose}
                 disabled={submitting}
               >
-                Hủy
+                {t('shareModal.cancel')}
               </button>
             </div>
           </form>

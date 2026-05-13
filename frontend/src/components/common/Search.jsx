@@ -1,8 +1,10 @@
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { searchContent } from '../../utils/searchApi'
 import styles from '../../style/common/Search.module.css'
+import { useTranslation } from 'react-i18next'
 
 export default function Search() {
+  const { t } = useTranslation()
   const [query, setQuery] = useState('')
   const [searchType, setSearchType] = useState('all')
   const [results, setResults] = useState({
@@ -73,7 +75,7 @@ export default function Search() {
         <div className={styles.searchInputGroup}>
           <input
             type="text"
-            placeholder="Tìm kiếm podcast, chủ đề, tác giả..."
+            placeholder={t('search.searchPlaceholder')}
             className={styles.searchInput}
             value={query}
             onChange={handleQueryChange}
@@ -84,19 +86,19 @@ export default function Search() {
             value={searchType}
             onChange={handleTypeChange}
           >
-            <option value="all">Tất cả</option>
-            <option value="posts">Podcast</option>
-            <option value="authors">Tác giả</option>
-            <option value="tags">Chủ đề</option>
+            <option value="all">{t('search.types.all')}</option>
+<option value="posts">{t('search.types.posts')}</option>
+<option value="authors">{t('search.types.authors')}</option>
+<option value="tags">{t('search.types.tags')}</option>
           </select>
         </div>
 
         {showResults && (
           <div className={styles.resultsDropdown}>
-            {loading && <div className={styles.loading}>Đang tìm kiếm...</div>}
+            {loading && <div className={styles.loading}>{t('search.searching')}</div>}
 
             {!loading && (results.posts.length === 0 && results.authors.length === 0 && results.tags.length === 0) && (
-              <div className={styles.noResults}>Không có kết quả</div>
+              <div className={styles.noResults}>{t('search.noResults')}</div>
             )}
 
             {/* Posts Results */}
@@ -116,7 +118,7 @@ export default function Search() {
                         <h5 className={styles.resultTitle}>{post.title}</h5>
                         <p className={styles.resultAuthor}>{post.author}</p>
                         <span className={styles.resultMeta}>
-                          {post.listen_count || 0} lượt nghe
+                          {t('search.listenCount', { count: post.listen_count || 0 })}
                         </span>
                       </div>
                     </div>
@@ -128,7 +130,7 @@ export default function Search() {
             {/* Authors Results */}
             {results.authors.length > 0 && (
               <div className={styles.resultSection}>
-                <h4 className={styles.sectionTitle}>Tác giả</h4>
+                <h4 className={styles.sectionTitle}>{t('search.sections.authors')}</h4>
                 <div className={styles.resultsList}>
                   {results.authors.map((author) => (
                     <div key={author.id} className={styles.resultItem}>
@@ -153,7 +155,7 @@ export default function Search() {
             {/* Tags Results */}
             {results.tags.length > 0 && (
               <div className={styles.resultSection}>
-                <h4 className={styles.sectionTitle}>Chủ đề</h4>
+                <h4 className={styles.sectionTitle}>{t('search.sections.tags')}</h4>
                 <div className={styles.tagsList}>
                   {results.tags.map((tag) => (
                     <a

@@ -1,5 +1,6 @@
 import styles from "../../style/sections/CtaSection.module.css";
 
+
 export default function CtaSection({ onOpenSignup, onOpenLogin }) {
   return (
     <section className={styles.ctaSection}>

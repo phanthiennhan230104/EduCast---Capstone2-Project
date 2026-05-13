@@ -212,9 +212,9 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
 
   const displayDuration = formatTime(safeDuration)
   const authorName =
-    typeof item.author === 'object'
-      ? item.author?.name || item.author?.username || 'Người dùng'
-      : item.author || 'Người dùng'
+  typeof item.author === 'object'
+    ? item.author?.name || item.author?.username || t('library.content.user')
+    : item.author || t('library.content.user')
   return (
     <article className={`${styles.savedCard} ${viewMode === 'list' ? styles.savedCardList : ''}`}>
       <div className={styles.savedTop}>
@@ -379,6 +379,7 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
                 <PlayCircle size={14} />
               )}
 
+              
               <span>{getListenLabel(item.listenedPercent, t)}</span>
             </button>
 
@@ -573,7 +574,7 @@ export default function FavoritesContent() {
         setShowAllPostsModal(true)
       }
     } catch (err) {
-      console.error('Failed to fetch collection posts:', err)
+      console.error(t('library.content.fetchCollectionPostsFailed'), err)
       setCollectionPosts([])
     } finally {
       setLoadingCollections(false)
@@ -670,7 +671,7 @@ export default function FavoritesContent() {
         setPodcasts(transformedPodcasts)
       }
     } catch (err) {
-      console.error('Failed to fetch saved posts:', err)
+      console.error(t('library.content.fetchSavedPostsFailed'), err)
       setPodcasts([])
     } finally {
       setLoading(false)
@@ -897,7 +898,7 @@ export default function FavoritesContent() {
         })
       }
     } catch (err) {
-      console.error('Failed to toggle like:', err)
+      console.error(t('library.content.toggleLikeFailed'), err)
     }
   }
 
@@ -937,7 +938,7 @@ export default function FavoritesContent() {
         throw new Error(t('library.content.unsaveFailed'))
       }
     } catch (err) {
-      console.error('Failed to toggle save:', err)
+      console.error(t('library.content.toggleSaveFailed'), err)
       toast.error(t('library.content.unsavePostFailed'))
       // Restore if API fails
       if (removedItem) {
@@ -948,9 +949,9 @@ export default function FavoritesContent() {
 
   const handleShare = async () => {
     try {
-      console.log('Share post:', selectedPostDetail?.id)
+      console.log(t('library.content.sharePostLog'), selectedPostDetail?.id)
     } catch (err) {
-      console.error('Failed to share:', err)
+      console.error(t('library.content.shareFailed'), err)
     }
   }
 
@@ -1179,7 +1180,7 @@ export default function FavoritesContent() {
         )
       }
     } catch (err) {
-      console.error('Failed to save note:', err)
+      console.error(t('library.content.saveNoteError'), err)
       alert(t('library.content.saveNoteError'))
     }
   }
@@ -1316,7 +1317,7 @@ export default function FavoritesContent() {
             timeAgo: raw.timeAgo,
           }
         } catch (err) {
-          console.error('Fetch post detail failed:', err)
+          console.error(t('library.content.fetchPostDetailFailed'), err)
           return
         }
       }

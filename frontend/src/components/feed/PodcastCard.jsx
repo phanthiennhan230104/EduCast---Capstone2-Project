@@ -19,6 +19,7 @@ import ShareModal from './ShareModal'
 import ConfirmModal from './ConfirmModal'
 import EditPostModal from './EditPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
+import { useTranslation } from 'react-i18next'
 
 function formatTime(seconds) {
   const total = Math.floor(Number(seconds || 0))
@@ -27,10 +28,10 @@ function formatTime(seconds) {
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
 
-function statsHoverEmptyLabel(kind) {
-  if (kind === 'likes') return 'Chưa có lượt thích'
-  if (kind === 'comments') return 'Chưa có bình luận'
-  return 'Chưa có lượt chia sẻ'
+function statsHoverEmptyLabel(kind, t) {
+  if (kind === 'likes') return t('feed.noLikes')
+  if (kind === 'comments') return t('feed.noComments')
+  return t('feed.noShares')
 }
 
 export default function PodcastCard({
@@ -46,6 +47,7 @@ export default function PodcastCard({
   onSeek = null,
   onEditPost = null,
 }) {
+  const { t } = useTranslation()
   const currentUser = getCurrentUser()
   const navigate = useNavigate()
   const menuRef = useRef(null)
@@ -136,8 +138,8 @@ export default function PodcastCard({
     type: 'confirm',
     title: '',
     message: '',
-    confirmText: 'Xác nhận',
-    cancelText: 'Hủy',
+    confirmText: t('feed.confirm.defaultConfirm'),
+    cancelText: t('common.cancel'),
     isDangerous: false,
     inputValue: '',
     onConfirm: null,
@@ -232,7 +234,7 @@ export default function PodcastCard({
     podcast.author_name ||
     podcast.authorDisplayName ||
     authorUsername ||
-    'Ẩn danh'
+    t('feed.anonymous')
 
   const authorProfileTarget =
     authorDetails?.username ||
@@ -307,8 +309,8 @@ export default function PodcastCard({
       type: 'confirm',
       title: '',
       message: '',
-      confirmText: 'Xác nhận',
-      cancelText: 'Hủy',
+      confirmText: t('feed.confirm.defaultConfirm'),
+      cancelText: t('common.cancel'),
       isDangerous: false,
       inputValue: '',
       onConfirm: null,
@@ -355,9 +357,9 @@ export default function PodcastCard({
 
     showModal({
       type: 'confirm',
-      title: 'Xóa bài viết',
-      message: 'Bạn chắc chắn muốn xóa bài viết này?\nHành động này không thể hoàn tác.',
-      confirmText: 'Xóa',
+      title: t('feed.confirm.deletePostTitle'),
+      message: t('feed.confirm.deletePostMessage'),
+      confirmText: t('common.delete'),
       isDangerous: true,
       onConfirm: async () => {
         try {
@@ -386,7 +388,7 @@ export default function PodcastCard({
           }, 450)
         } catch (err) {
           console.error('Delete error:', err)
-          toast.error(err.message || 'Xóa bài viết thất bại')
+          toast.error(err.message || t('feed.comment.deletePostFailed'))
           sessionStorage.removeItem('feedScrollPosition')
         }
       },
@@ -398,9 +400,9 @@ export default function PodcastCard({
 
     showModal({
       type: 'confirm',
-      title: 'Ẩn bài viết',
-      message: 'Bạn có muốn ẩn bài viết này khỏi feed không?',
-      confirmText: 'Ẩn',
+      title: t('feed.confirm.hidePostTitle'),
+      message: t('feed.confirm.hidePostFeedMessage'),
+      confirmText: t('feed.confirm.hide'),
       onConfirm: async () => {
         try {
           closeModal()
@@ -420,13 +422,13 @@ export default function PodcastCard({
           })
 
           if (!res.ok) {
-            throw new Error('Ẩn bài viết thất bại')
+            throw new Error(t('feed.hidePostFailed'))
           }
 
           onHide?.(podcast.id)
         } catch (err) {
           console.error('Hide post error:', err)
-          toast.error(err.message || 'Ẩn bài viết thất bại')
+          toast.error(err.message || t('feed.hidePostFailed'))
         }
       },
     })
@@ -624,7 +626,7 @@ export default function PodcastCard({
         })
       } catch (err) {
         console.error('Unsave failed:', err)
-        toast.error('Lỗi khi bỏ lưu: ' + err.message)
+        toast.error(`${t('library.content.unsaveFailed')}: ${err.message}`)
       } finally {
         setLoadingSave(false)
       }
@@ -687,6 +689,13 @@ export default function PodcastCard({
       setStatsPopupLoading(true)
 
       const token = getToken()
+      const rawId =
+        type === 'shares' &&
+          (podcast.type === 'shared' ||
+            String(podcast.id || '').startsWith('share_'))
+          ? String(podcast.id || '').trim()
+          : getCanonicalPostIdForEngagement(podcast) ??
+          String(podcast.post_id ?? podcast.id ?? '').trim()
       const postIdEnc = encodeURIComponent(String(engagementPostId || '').trim())
       if (!postIdEnc) return
 
@@ -912,7 +921,7 @@ export default function PodcastCard({
               {aiGenerated && (
                 <span className={styles.aiBadge}>
                   <Sparkles size={13} />
-                  Được tạo bởi AI
+                  {t('feed.aiGenerated')}
                 </span>
               )}
             </div>
@@ -924,7 +933,7 @@ export default function PodcastCard({
                 className={styles.menuBtn}
                 type="button"
                 onClick={() => setMenuOpen(!menuOpen)}
-                aria-label="Tùy chọn"
+                aria-label={t('feed.options')}
               >
                 <MoreHorizontal size={20} />
               </button>
@@ -942,22 +951,22 @@ export default function PodcastCard({
                       <>
                         <button className={styles.dropdownItem} onClick={handleEdit}>
                           <Edit size={14} />
-                          <span>Chỉnh sửa</span>
+                          <span>{t('feed.edit')}</span>
                         </button>
                         <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleDelete}>
                           <Trash2 size={14} />
-                          <span>Xóa</span>
+                          <span>{t('feed.delete')}</span>
                         </button>
                       </>
                     ) : (
                       <>
                         <button className={styles.dropdownItem} onClick={handleHide}>
                           <EyeOff size={14} />
-                          <span>Ẩn bài viết</span>
+                          <span>{t('feed.hidePost')}</span>
                         </button>
                         <button className={`${styles.dropdownItem} ${styles.danger}`} onClick={handleReport}>
                           <Flag size={14} />
-                          <span>Báo cáo</span>
+                          <span>{t('feed.report')}</span>
                         </button>
                       </>
                     )}
@@ -992,9 +1001,9 @@ export default function PodcastCard({
           <button
             className={`${styles.playBtn} ${isPlaying ? styles.playing : ''}`}
             onClick={handlePlayClick}
-            aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
+            aria-label={isPlaying ? t('feed.pause') : t('feed.play')}
             disabled={!audioSrc}
-            title={!audioSrc ? 'Bài này chưa có audio' : ''}
+            title={!audioSrc ? t('feed.noAudio') : ''}
             type="button"
           >
             {isPlaying ? <Pause size={16} /> : <Play size={16} />}
@@ -1046,14 +1055,13 @@ export default function PodcastCard({
               </button>
               {statsHoverType === 'likes' && (
                 <div
-                  className={`${styles.statsPopup} ${
-                    statsPopupDirection === 'up' ? styles.statsPopupUp : styles.statsPopupDown
-                  }`}
+                  className={`${styles.statsPopup} ${statsPopupDirection === 'up' ? styles.statsPopupUp : styles.statsPopupDown
+                    }`}
                   onMouseEnter={handleStatsPopupMouseEnter}
                   onMouseLeave={handleStatsMouseLeave}
                 >
                   {statsPopupLoading ? (
-                    <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                    <div className={styles.statsPopupEmpty}>{t('common.loading')}</div>
                   ) : statsPopupData.likes.length > 0 ? (
                     statsPopupData.likes.map((user) => (
                       <div key={user.user_id || user.username} className={styles.statsPopupItem}>
@@ -1061,7 +1069,7 @@ export default function PodcastCard({
                       </div>
                     ))
                   ) : (
-                    <div className={styles.statsPopupEmpty}>{statsHoverEmptyLabel('likes')}</div>
+                    <div className={styles.statsPopupEmpty}>{statsHoverEmptyLabel('likes', t)}</div>
                   )}
                 </div>
               )}
@@ -1082,14 +1090,13 @@ export default function PodcastCard({
                   onMouseLeave={handleStatsMouseLeave}
                   className={styles.statsText}
                 >
-                  {commentCount} Bình luận
+                  {t('feed.comments', { count: commentCount })}
                 </span>
               </button>
               {statsHoverType === 'comments' && (
                 <div
-                  className={`${styles.statsPopup} ${
-                    statsPopupDirection === 'up' ? styles.statsPopupUp : styles.statsPopupDown
-                  }`}
+                  className={`${styles.statsPopup} ${statsPopupDirection === 'up' ? styles.statsPopupUp : styles.statsPopupDown
+                    }`}
                   onMouseEnter={handleStatsPopupMouseEnter}
                   onMouseLeave={handleStatsMouseLeave}
                 >
@@ -1102,7 +1109,7 @@ export default function PodcastCard({
                       </div>
                     ))
                   ) : (
-                    <div className={styles.statsPopupEmpty}>{statsHoverEmptyLabel('comments')}</div>
+                    <div className={styles.statsPopupEmpty}>{statsHoverEmptyLabel('comments', t)}</div>
                   )}
                 </div>
               )}
@@ -1124,14 +1131,13 @@ export default function PodcastCard({
                   onMouseLeave={handleStatsMouseLeave}
                   className={styles.statsText}
                 >
-                  {shareCount} Chia sẻ
+                  {t('feed.share', { count: shareCount })}
                 </span>
               </button>
               {statsHoverType === 'shares' && (
                 <div
-                  className={`${styles.statsPopup} ${
-                    statsPopupDirection === 'up' ? styles.statsPopupUp : styles.statsPopupDown
-                  }`}
+                  className={`${styles.statsPopup} ${statsPopupDirection === 'up' ? styles.statsPopupUp : styles.statsPopupDown
+                    }`}
                   onMouseEnter={handleStatsPopupMouseEnter}
                   onMouseLeave={handleStatsMouseLeave}
                 >
@@ -1144,7 +1150,7 @@ export default function PodcastCard({
                       </div>
                     ))
                   ) : (
-                    <div className={styles.statsPopupEmpty}>{statsHoverEmptyLabel('shares')}</div>
+                    <div className={styles.statsPopupEmpty}>{statsHoverEmptyLabel('shares', t)}</div>
                   )}
                 </div>
               )}
@@ -1158,7 +1164,7 @@ export default function PodcastCard({
               disabled={loadingSave}
             >
               <Bookmark size={16} fill={saved ? 'currentColor' : 'none'} />
-              <span>{saveCount} Lưu</span>
+              <span>{t('feed.save', { count: saveCount })}</span>
             </button>
           </div>
         )}
@@ -1255,6 +1261,7 @@ export default function PodcastCard({
 }
 
 function ReportModal({ postId, postTitle, authorId, authorName, onClose, onReportSuccess }) {
+  const { t } = useTranslation()
   const [selectedReason, setSelectedReason] = useState('')
   const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
@@ -1263,35 +1270,35 @@ function ReportModal({ postId, postTitle, authorId, authorName, onClose, onRepor
 
   useEffect(() => {
     if (currentUser?.id === authorId) {
-      toast.error('Bạn không thể báo cáo bài viết của chính mình.')
+      toast.error(t('feed.reportModal.ownPostError'))
       onClose()
     }
   }, [currentUser?.id, authorId, onClose])
 
   const REPORT_REASONS = [
-    { value: 'spam', label: 'Spam' },
-    { value: 'inappropriate_content', label: 'Nội dung không phù hợp' },
-    { value: 'harassment', label: 'Quấy rối' },
-    { value: 'misinformation', label: 'Thông tin sai lệch' },
-    { value: 'copyright', label: 'Vi phạm bản quyền' },
-    { value: 'other', label: 'Khác' },
+    { value: 'spam', label: t('feed.reportModal.reasons.spam') },
+    { value: 'inappropriate_content', label: t('feed.reportModal.reasons.inappropriate_content') },
+    { value: 'harassment', label: t('feed.reportModal.reasons.harassment') },
+    { value: 'misinformation', label: t('feed.reportModal.reasons.misinformation') },
+    { value: 'copyright', label: t('feed.reportModal.reasons.copyright') },
+    { value: 'other', label: t('feed.reportModal.reasons.other') },
   ]
 
   const handleSubmit = async (e) => {
     e.preventDefault()
 
     if (!selectedReason) {
-      toast.error('Vui lòng chọn lý do báo cáo')
+      toast.error(t('feed.reportModal.requiredReason'))
       return
     }
 
     if (!description.trim()) {
-      toast.error('Vui lòng nhập mô tả chi tiết')
+      toast.error(t('feed.reportModal.requiredDescription'))
       return
     }
 
     if (description.trim().length < 10) {
-      toast.error('Mô tả phải có ít nhất 10 ký tự')
+      toast.error(t('feed.reportModal.descriptionMin'))
       return
     }
 
@@ -1321,14 +1328,14 @@ function ReportModal({ postId, postTitle, authorId, authorName, onClose, onRepor
         throw new Error(data.message || `HTTP ${res.status}`)
       }
 
-      toast.success('Báo cáo đã gửi thành công!')
+      toast.success(t('feed.reportModal.success'))
       setSelectedReason('')
       setDescription('')
       onClose()
       onReportSuccess?.()
     } catch (err) {
       console.error('Report failed:', err)
-      toast.error(err.message || 'Báo cáo thất bại. Vui lòng thử lại.')
+      toast.error(err.message || t('feed.reportModal.failed'))
     } finally {
       setLoading(false)
     }
@@ -1338,12 +1345,12 @@ function ReportModal({ postId, postTitle, authorId, authorName, onClose, onRepor
     <div className={styles.reportOverlay} onClick={onClose}>
       <div className={styles.reportModal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.reportHeader}>
-          <h2>Báo cáo bài viết</h2>
+          <h2>{t('feed.reportModal.title')}</h2>
           <button
             className={styles.reportCloseBtn}
             onClick={onClose}
             type="button"
-            aria-label="Đóng"
+            aria-label={t('feed.confirm.close')}
           >
             <X size={20} />
           </button>
@@ -1352,16 +1359,16 @@ function ReportModal({ postId, postTitle, authorId, authorName, onClose, onRepor
         <form onSubmit={handleSubmit} className={styles.reportForm}>
           <div className={styles.reportPostInfo}>
             <p className={styles.reportPostTitle}>
-              <strong>Bài viết:</strong> {postTitle}
+              <strong>{t('feed.reportModal.post')}</strong> {postTitle}
             </p>
             <p className={styles.reportPostAuthor}>
-              <strong>Tác giả:</strong> {authorName}
+              <strong>{t('feed.reportModal.author')}</strong> {authorName}
             </p>
           </div>
 
           <div className={styles.reportFormGroup}>
             <label htmlFor="reason" className={styles.reportLabel}>
-              Lý do báo cáo <span className={styles.reportRequired}>*</span>
+              {t('feed.reportModal.reasonLabel')} <span className={styles.reportRequired}>*</span>
             </label>
             <select
               id="reason"
@@ -1370,7 +1377,7 @@ function ReportModal({ postId, postTitle, authorId, authorName, onClose, onRepor
               className={styles.reportSelect}
               disabled={loading}
             >
-              <option value="">-- Chọn lý do --</option>
+              <option value="">{t('feed.reportModal.reasonPlaceholder')}</option>
               {REPORT_REASONS.map((reason) => (
                 <option key={reason.value} value={reason.value}>
                   {reason.label}
@@ -1381,14 +1388,14 @@ function ReportModal({ postId, postTitle, authorId, authorName, onClose, onRepor
 
           <div className={styles.reportFormGroup}>
             <label htmlFor="description" className={styles.reportLabel}>
-              Mô tả chi tiết <span className={styles.reportRequired}>*</span>
+              {t('feed.reportModal.descriptionLabel')} <span className={styles.reportRequired}>*</span>
             </label>
             <textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               className={styles.reportTextarea}
-              placeholder="Hãy cho chúng tôi biết tại sao bạn báo cáo bài viết này..."
+              placeholder={t('feed.reportModal.descriptionPlaceholder')}
               rows="4"
               disabled={loading}
             />
@@ -1404,14 +1411,14 @@ function ReportModal({ postId, postTitle, authorId, authorName, onClose, onRepor
               className={styles.reportCancelBtn}
               disabled={loading}
             >
-              Hủy
+              {t('common.cancel')}
             </button>
             <button
               type="submit"
               className={styles.reportSubmitBtn}
               disabled={loading || !selectedReason || !description.trim()}
             >
-              {loading ? 'Đang gửi...' : 'Gửi báo cáo'}
+              {loading ? t('feed.reportModal.submitting') : t('feed.reportModal.submit')}
             </button>
           </div>
         </form>

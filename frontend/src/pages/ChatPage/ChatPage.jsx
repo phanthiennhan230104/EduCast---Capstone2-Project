@@ -164,9 +164,9 @@ export default function ChatPage() {
         return next;
       });
 
-      toast.success("Đã xoá cuộc trò chuyện");
+      toast.success(t('chat.deleteConversationSuccess'));
     } catch (error) {
-      toast.error(error.message || "Không xoá được cuộc trò chuyện");
+      toast.error(error.message || t('chat.deleteConversationFailed'));
     }
   };
 
@@ -336,7 +336,7 @@ export default function ChatPage() {
 
   const handleUploadAndSend = async (file) => {
     if (status !== "open") {
-      toast.error("Vui lòng chờ kết nối chat hoàn tất");
+      toast.error(t('chat.waitConnection'));
       return false;
     }
 
@@ -353,7 +353,7 @@ export default function ChatPage() {
       });
 
       if (!ok) {
-        toast.error("WebSocket chưa kết nối");
+        toast.error(t('chat.websocketNotConnected'));
       }
     } catch (error) {
       toast.error(error.message || t('chat.uploadFailed'));
@@ -369,12 +369,12 @@ export default function ChatPage() {
     const isImage = mime.startsWith("image/");
 
     if (type === "image" && !isImage) {
-      toast.error("Nút hình ảnh chỉ được chọn file ảnh");
+      toast.error(t('chat.imageOnlyError'));
       return Upload.LIST_IGNORE;
     }
 
     if (type === "file" && isImage) {
-      toast.error("Nút attachment không dùng để gửi ảnh");
+      toast.error(t('chat.fileUploadNotImageError'));
       return Upload.LIST_IGNORE;
     }
 
@@ -395,7 +395,7 @@ export default function ChatPage() {
 
   const handleStartRecording = async () => {
     if (status !== "open") {
-      toast.error("Vui lòng chờ kết nối chat hoàn tất");
+      toast.error(t('chat.waitConnection'));
       return;
     }
 
@@ -442,7 +442,7 @@ export default function ChatPage() {
         setRecordSeconds((prev) => prev + 1);
       }, 1000);
     } catch (error) {
-      toast.error("Không thể bật micro");
+      toast.error(t('chat.microphoneFailed'));
     }
   };
 
@@ -497,7 +497,7 @@ export default function ChatPage() {
       setActiveRoomId(data.room_id);
       await loadMessages(data.room_id);
     } catch (error) {
-      toast.error(error.message || "Không tạo được cuộc trò chuyện");
+      toast.error(error.message || t('chat.createConversationFailed'));
     }
   };
 
@@ -924,10 +924,10 @@ export default function ChatPage() {
                   <div className="recording-box">
                     <audio controls src={URL.createObjectURL(recordedAudio)} />
                     <Button size="small" type="primary" onClick={handleSendRecordedAudio}>
-                      Gửi
+                      {t('pages.chat.send')}
                     </Button>
                     <Button size="small" danger onClick={() => setRecordedAudio(null)}>
-                      Huỷ
+                      {t('common.cancel')}
                     </Button>
                   </div>
                 )}
@@ -993,14 +993,14 @@ export default function ChatPage() {
                 onClick={() => {
                   const peerId = activeConversation?.peer?.id;
                   if (!peerId) {
-                    toast.error("Không tìm thấy ID người dùng");
+                    toast.error(t('chat.userIdNotFound'));
                     return;
                   }
 
                   navigate(`/profile/${peerId}`);
                 }}
               >
-                Hồ sơ
+                {t('chat.profile')}
               </Button>
 
               <ChatHistoryPanel

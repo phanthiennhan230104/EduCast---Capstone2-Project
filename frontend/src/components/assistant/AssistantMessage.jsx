@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import styles from '../../style/assistant/AssistantWidget.module.css'
+import { useTranslation } from 'react-i18next'
 
 
 function renderPlainText(text) {
@@ -13,12 +14,12 @@ function renderPlainText(text) {
     ))
 }
 
-function getPostAuthor(post) {
+function getPostAuthor(post, t) {
   return (
     post?.author?.username ||
     post?.author ||
     post?.user?.username ||
-    'Không rõ tác giả'
+    t('assistant.unknownAuthor')
   )
 }
 
@@ -35,6 +36,7 @@ function getPostTags(post) {
 }
 
 export default function AssistantMessage({ message, onQuickAction }) {
+  const { t } = useTranslation()
   const [previewPost, setPreviewPost] = useState(null)
   const isUser = message.role === 'user'
 
@@ -119,7 +121,7 @@ export default function AssistantMessage({ message, onQuickAction }) {
                 >
                   <div className={styles.searchResultHeader}>
                     <h5 className={styles.postTitle}>{post.title}</h5>
-                    <span className={styles.viewPostText}>Xem bài viết</span>
+                    <span className={styles.viewPostText}>{t('assistant.viewPost')}</span>
                   </div>
 
                   {post.description && (
@@ -128,7 +130,7 @@ export default function AssistantMessage({ message, onQuickAction }) {
 
                   <div className={styles.postMeta}>
                     <span className={styles.postAuthor}>
-                      Tác giả: {getPostAuthor(post)}
+                      {t('assistant.author')}: {getPostAuthor(post, t)}
                     </span>
 
                     {tags.length > 0 && (
@@ -175,7 +177,7 @@ export default function AssistantMessage({ message, onQuickAction }) {
             <div className={styles.postPreviewHeader}>
               <div>
                 <h3>{previewPost.title}</h3>
-                <span>Tác giả: {getPostAuthor(previewPost)}</span>
+                <span>{t('assistant.author')}: {getPostAuthor(previewPost, t)}</span>
               </div>
 
               <button
@@ -223,7 +225,7 @@ export default function AssistantMessage({ message, onQuickAction }) {
                   window.location.href = `/post/${previewPost.slug}`
                 }}
               >
-                Mở bài viết đầy đủ
+                {t('assistant.openFullPost')}
               </button>
             )}
           </div>

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { X, Plus } from 'lucide-react'
 import styles from '../../style/feed/TagSelector.module.css'
 import { getToken } from '../../utils/auth'
+import { useTranslation } from 'react-i18next'
 import {
   fetchUserTagPreferences,
   addTagPreference,
@@ -10,6 +11,7 @@ import {
 } from '../../utils/tagApi'
 
 export default function TagSelector() {
+  const { t } = useTranslation()
   const [preferences, setPreferences] = useState([])
   const [availableTags, setAvailableTags] = useState([])
   const [showDropdown, setShowDropdown] = useState(false)
@@ -33,7 +35,7 @@ export default function TagSelector() {
       setAvailableTags(tags)
     } catch (err) {
       // Fail silently: nếu backend lỗi/timeout thì chỉ hiển thị trạng thái rỗng
-      setError(err?.message || 'Failed to load tags')
+      setError(err?.message || t('tags.loadFailed'))
     } finally {
       setLoading(false)
     }
@@ -67,7 +69,7 @@ export default function TagSelector() {
   return (
     <div className={styles.selectorSection}>
       <div className={styles.selectorHeader}>
-        <h3 className={styles.selectorTitle}>Tags Yêu Thích</h3>
+        <h3 className={styles.selectorTitle}>{t('navigation.tags')}</h3>
         <button
           className={styles.addBtn}
           onClick={() => {
@@ -76,7 +78,7 @@ export default function TagSelector() {
           }}
           type="button"
           disabled={loading}
-          title="Thêm tag"
+          title={t('tags.addTag')}
         >
           <Plus size={16} />
         </button>
@@ -87,7 +89,7 @@ export default function TagSelector() {
           <div>
             {preferences.map((pref) => (
               <div key={pref.tag_id} className={styles.tag}>
-                {pref.tag_name || pref.tag?.name || 'N/A'}
+                {pref.tag_name || pref.tag?.name || t('tags.unknown')}
                 <X
                   size={12}
                   className={styles.removeIcon}
@@ -99,7 +101,7 @@ export default function TagSelector() {
           </div>
         ) : (
           <p className={styles.emptyText}>
-            {loading ? 'Đang tải...' : 'Chưa có tag yêu thích'}
+            {loading ? t('common.loading') : t('navigation.noTags')}
           </p>
         )}
 
@@ -119,7 +121,7 @@ export default function TagSelector() {
               ))
             ) : (
               <p style={{ fontSize: '11px', color: '#aeb8da' }}>
-                Tất cả tags đã được chọn
+                {t('tags.allSelected')}
               </p>
             )}
           </div>
