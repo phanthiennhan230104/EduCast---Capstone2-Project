@@ -48,7 +48,7 @@ function formatTime(seconds) {
 }
 
 function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail }) {
-  const {t} = useTranslation()
+  const { t } = useTranslation()
   const {
     playTrack,
     currentTrack,
@@ -299,9 +299,8 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
 
             <button
               type="button"
-              className={`${styles.metaPill} ${
-                item.hasNote ? styles.metaPillNoted : styles.metaPillMuted
-              }`}
+              className={`${styles.metaPill} ${item.hasNote ? styles.metaPillNoted : styles.metaPillMuted
+                }`}
               onClick={(e) => {
                 e.stopPropagation()
                 onOpenNotes(item)
@@ -413,10 +412,10 @@ export default function FavoritesContent() {
             typeof post.author === 'object'
               ? post.author
               : {
-                  name: post.author || 'Người dùng',
-                  username: post.author_username || '',
-                  avatar_url: post.author_avatar || '',
-                },
+                name: post.author || 'Người dùng',
+                username: post.author_username || '',
+                avatar_url: post.author_avatar || '',
+              },
 
           author_avatar:
             post.author?.avatar_url ||
@@ -511,10 +510,10 @@ export default function FavoritesContent() {
               typeof post.author === 'object'
                 ? post.author
                 : {
-                    name: post.author || 'Người dùng',
-                    username: post.author_username || '',
-                    avatar_url: post.author_avatar || '',
-                  },
+                  name: post.author || 'Người dùng',
+                  username: post.author_username || '',
+                  avatar_url: post.author_avatar || '',
+                },
 
             author_avatar:
               post.author?.avatar_url ||
@@ -662,7 +661,7 @@ export default function FavoritesContent() {
       console.log('🎁 [Favorites] UI updated (toggleSaved):', prev.length, '->', filtered.length)
       return filtered
     })
-    
+
     removeSavedPost(id)
     decreaseCollectionCountByPostId(id)
 
@@ -975,10 +974,10 @@ export default function FavoritesContent() {
               typeof post.author === 'object'
                 ? post.author
                 : {
-                    name: post.author || 'Người dùng',
-                    username: post.author_username || '',
-                    avatar_url: post.author_avatar || '',
-                  },
+                  name: post.author || 'Người dùng',
+                  username: post.author_username || '',
+                  avatar_url: post.author_avatar || '',
+                },
 
             author_avatar:
               post.author?.avatar_url ||

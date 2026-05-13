@@ -110,6 +110,12 @@ export default function ChatPage() {
         normalizeConversationOwnership(item, user?.id)
       );
 
+      normalizedData.sort((a, b) => {
+        const aTime = a.last_message?.created_at || a.created_at || "";
+        const bTime = b.last_message?.created_at || b.created_at || "";
+        return dayjs(bTime).valueOf() - dayjs(aTime).valueOf();
+      });
+
       setConversations(normalizedData);
 
       setActiveRoomId((prev) => {
@@ -237,12 +243,12 @@ export default function ChatPage() {
       prev.map((conversation) =>
         conversation.peer?.id === user_id
           ? {
-              ...conversation,
-              peer: {
-                ...conversation.peer,
-                is_online: status === "online",
-              },
-            }
+            ...conversation,
+            peer: {
+              ...conversation.peer,
+              is_online: status === "online",
+            },
+          }
           : conversation
       )
     );
@@ -285,7 +291,7 @@ export default function ChatPage() {
           try {
             await markRoomRead(activeRoomId);
             markRead();
-          } catch (_) {}
+          } catch (_) { }
         }
       },
     });
@@ -438,19 +444,19 @@ export default function ChatPage() {
     }
   };
 
-    const handleSendRecordedAudio = async () => {
-      if (!recordedAudio) return;
+  const handleSendRecordedAudio = async () => {
+    if (!recordedAudio) return;
 
-      const audioFile = new File(
-        [recordedAudio],
-        `voice-message-${Date.now()}.webm`,
-        { type: recordedAudio.type || "audio/webm" }
-      );
+    const audioFile = new File(
+      [recordedAudio],
+      `voice-message-${Date.now()}.webm`,
+      { type: recordedAudio.type || "audio/webm" }
+    );
 
-      await handleUploadAndSend(audioFile);
-      setRecordedAudio(null);
-      setRecordSeconds(0);
-    };
+    await handleUploadAndSend(audioFile);
+    setRecordedAudio(null);
+    setRecordSeconds(0);
+  };
 
   const scrollToMessage = useCallback((messageId) => {
     const node = messageNodeRefs.current[messageId];
@@ -475,7 +481,7 @@ export default function ChatPage() {
     }
   };
 
-  
+
   useEffect(() => {
     const handleChatMessageSent = async (event) => {
       const roomId = event.detail?.roomId;
@@ -522,7 +528,7 @@ export default function ChatPage() {
             }}
           >
             <Title level={3} className="chat-sidebar-title">
-               {t('chat.title')}
+              {t('chat.title')}
             </Title>
 
             <Button
@@ -535,7 +541,7 @@ export default function ChatPage() {
 
           <div className="conversation-list">
             {conversations.length === 0 ? (
-             <Empty description={t('chat.noConversations')} />
+              <Empty description={t('chat.noConversations')} />
             ) : (
               conversations.map((item) => (
                 <ConversationItem
@@ -638,12 +644,11 @@ export default function ChatPage() {
                   onChange={(e) => setDraft(e.target.value)}
                   autoSize={{ minRows: 1, maxRows: 3 }}
                   placeholder={
-  status === "open"
-    ? t('chat.messagePlaceholder')
-    : t('chat.connectingRealtime')
-}
+                    status === "open"
+                      ? t('chat.messagePlaceholder')
+                      : t('chat.connectingRealtime')
+                  }
                   disabled={status !== "open"}
-                  autoSize={false}
                   onPressEnter={(e) => {
                     if (!e.shiftKey) {
                       e.preventDefault();
@@ -668,7 +673,7 @@ export default function ChatPage() {
           )}
         </Card>
 
-       <Card
+        <Card
           className={`chat-card right-panel ${rightPanelOpen ? "is-open" : "is-hidden"}`}
           bodyStyle={{ padding: 16 }}
         >

@@ -388,7 +388,7 @@ export default function Feed() {
         setLoading(true)
         setError('')
 
-        const token = localStorage.getItem('educast_access')
+        const token = getToken()
         const currentTab = TABS[activeTab]?.key || 'for_you'
         const hasTagFilter =
           Array.isArray(selectedTagIds) && selectedTagIds.length > 0
@@ -416,13 +416,12 @@ export default function Feed() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
         const data = await res.json()
-            // console.log('📡 Feed API items:', { itemsCount: Array.isArray(data?.items) ? data.items.length : null })
 
         const mapped = (data.items || []).map((item) => {
           const durationSeconds = Number(
             item.audio?.duration_seconds ||
-              item.viewer_state?.duration_seconds ||
-              0
+            item.viewer_state?.duration_seconds ||
+            0
           )
 
           const progressSeconds = Number(
@@ -439,8 +438,8 @@ export default function Feed() {
           )
           const originalCachedSync = item.post_id
             ? JSON.parse(
-                localStorage.getItem(`post-sync-${item.post_id}`) || 'null'
-              )
+              localStorage.getItem(`post-sync-${item.post_id}`) || 'null'
+            )
             : null
           // Card share (ngoài): chỉ cache theo id dòng share — không gộp trạng thái bài gốc.
           const syncState =
@@ -704,9 +703,9 @@ export default function Feed() {
     const apiId = isShareCommentModal ? selectedPodcast.id : canonicalId
     const syncPostId = isShareCommentModal ? selectedPodcast.id : canonicalId
 
-    const token = localStorage.getItem('educast_access')
+    const token = getToken()
     const currentUser = JSON.parse(
-      localStorage.getItem('educast_user') || 'null'
+      localStorage.getItem('educast_user') || sessionStorage.getItem('educast_user') || 'null'
     )
 
     const res = await fetch(
@@ -778,9 +777,9 @@ export default function Feed() {
     const apiId = isShareCommentModal ? selectedPodcast.id : canonicalId
     const syncPostId = isShareCommentModal ? selectedPodcast.id : canonicalId
 
-    const token = localStorage.getItem('educast_access')
+    const token = getToken()
     const currentUser = JSON.parse(
-      localStorage.getItem('educast_user') || 'null'
+      localStorage.getItem('educast_user') || sessionStorage.getItem('educast_user') || 'null'
     )
 
     const res = await fetch(
@@ -1039,7 +1038,7 @@ export default function Feed() {
       } else if (kind === 'shares') {
         const pid =
           podcast.type === 'shared' ||
-          String(podcast.id || '').startsWith('share_')
+            String(podcast.id || '').startsWith('share_')
             ? String(podcast.id || '').trim()
             : engagementPostId(podcast)
         if (!pid) {
@@ -1583,10 +1582,10 @@ export default function Feed() {
                 prev.map((p) =>
                   String(p.id) === String(selectedPodcast.id)
                     ? {
-                        ...p,
-                        comments: newCount,
-                        comment_count: newCount,
-                      }
+                      ...p,
+                      comments: newCount,
+                      comment_count: newCount,
+                    }
                     : p
                 )
               )
@@ -1604,7 +1603,7 @@ export default function Feed() {
             setPodcasts((prev) =>
               prev.map((p) =>
                 feedRowMatchesCanonicalPost(p, canonicalId) &&
-                p.type !== 'shared'
+                  p.type !== 'shared'
                   ? { ...p, comments: newCount, comment_count: newCount }
                   : p
               )
@@ -1684,10 +1683,10 @@ export default function Feed() {
           authorId={reportSharePodcast.authorId}
           authorName={
             typeof reportSharePodcast.author === 'object' &&
-            reportSharePodcast.author != null
+              reportSharePodcast.author != null
               ? reportSharePodcast.author.name ||
-                reportSharePodcast.author.username ||
-                'Ẩn danh'
+              reportSharePodcast.author.username ||
+              'Ẩn danh'
               : reportSharePodcast.author || 'Ẩn danh'
           }
           onClose={() => setReportSharePodcast(null)}
