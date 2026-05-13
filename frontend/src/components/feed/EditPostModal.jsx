@@ -102,7 +102,6 @@ export default function EditPostModal({
         title: form.title.trim(),
         description: form.description.trim(),
       })
-      toast.success('Cập nhật bài viết thành công!')
       const payload = {
         title: form.title.trim(),
         description: form.description.trim(),

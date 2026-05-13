@@ -171,17 +171,12 @@ class FeedService:
                 posts = list(posts_plain.order_by("-created_at")[:fetch_limit])
             
             # Shared items in feed:
-            # - Everyone's "personal" reshares (public timeline).
-            # - Current user's shares via DM/friends (share_type="message") so họ vẫn thấy hoạt động chia sẻ của chính họ.
+            # - Chỉ "personal" reshare (đăng bài chia sẻ) mới xuất hiện trên feed.
+            # - "message" share (gửi qua tin nhắn) chỉ tăng share_count, KHÔNG tạo dòng feed.
             shared_posts_qs = post_share_qs().select_related(
                 "post", "post__user", "post__user__profile", "user", "user__profile"
             )
-            if user_id:
-                shared_posts_qs = shared_posts_qs.filter(
-                    Q(share_type="personal") | Q(user_id=user_id)
-                )
-            else:
-                shared_posts_qs = shared_posts_qs.filter(share_type="personal")
+            shared_posts_qs = shared_posts_qs.filter(share_type="personal")
             # Dòng share trên timeline chung: chỉ bài gốc public (tránh lộ bài private qua re-share).
             shared_posts_qs = shared_posts_qs.filter(
                 post__status="published",
@@ -215,7 +210,7 @@ class FeedService:
                 if share.post.user_id not in author_ids:
                     author_ids.append(share.post.user_id)
 
-            # Like/lưu: bài gốc (post_id, share_id=NULL); card share (post_id + share_id của lần chia sẻ).
+            # Like/lưu: chỉ bản ghi bài gốc (post_id, share_id=NULL); viewer_state / stats likes trên card share cũng theo bài gốc.
             if user_id:
                 like_pairs = set(
                     PostLike.objects.filter(user_id=user_id, post_id__in=all_post_ids).values_list(
@@ -260,7 +255,8 @@ class FeedService:
 
             items = []
 
-            # Lượt chia sẻ trên card bài gốc: chỉ share trực tiếp (không dùng Post.share_count — có thể lệch với post_shares).
+            # Lượt chia sẻ trên card bài gốc: gộp cả "personal" (đăng bài share) và "message" (gửi DM).
+            # Chỉ tính share trực tiếp từ bài gốc, không tính re-share lồng nhau.
             direct_share_counts = {}
             if post_ids:
                 try:
@@ -269,7 +265,7 @@ class FeedService:
                             post_share_qs()
                             .filter(
                                 post_id__in=post_ids,
-                                share_type="personal",
+                                share_type__in=["personal", "message"],
                                 shared_from_share_id__isnull=True,
                             )
                             .values("post_id")
@@ -278,7 +274,10 @@ class FeedService:
                     else:
                         rows = (
                             post_share_qs()
-                            .filter(post_id__in=post_ids, share_type="personal")
+                            .filter(
+                                post_id__in=post_ids,
+                                share_type__in=["personal", "message"],
+                            )
                             .values("post_id")
                             .annotate(c=Count("id"))
                         )
@@ -366,11 +365,18 @@ class FeedService:
                     reshare_count = 0
 
                 try:
-                    share_likes = PostLike.objects.filter(share_id=share.id).count()
                     share_comments = Comment.objects.filter(share_id=share.id).count()
-                    share_saves = SavedPost.objects.filter(share_id=share.id).count()
                 except Exception:
-                    share_likes = share_comments = share_saves = 0
+                    share_comments = 0
+                try:
+                    canonical_likes = PostLike.objects.filter(
+                        post_id=post.id, share_id__isnull=True
+                    ).count()
+                    canonical_saves = SavedPost.objects.filter(
+                        post_id=post.id, share_id__isnull=True
+                    ).count()
+                except Exception:
+                    canonical_likes = canonical_saves = 0
 
                 item = {
                     "id": f"share_{share.id}_{post.id}",
@@ -405,14 +411,14 @@ class FeedService:
                         "duration_seconds": post.duration_seconds,
                     } if post.audio_url else None,
                     "stats": {
-                        "likes": share_likes,
+                        "likes": canonical_likes,
                         "comments": share_comments,
                         "shares": reshare_count,
-                        "saves": share_saves,
+                        "saves": canonical_saves,
                     },
                     "viewer_state": {
-                        "is_liked": (post.id, share.id) in like_pairs,
-                        "is_saved": (post.id, share.id) in save_pairs,
+                        "is_liked": (post.id, None) in like_pairs,
+                        "is_saved": (post.id, None) in save_pairs,
                         "is_following_author": post.user_id in following_author_ids,
                         "progress_seconds": getattr(playback, "progress_seconds", 0) or 0,
                         "duration_seconds": getattr(playback, "duration_seconds", 0) or 0,

@@ -1,5 +1,6 @@
 import { API_BASE_URL } from '../config/apiBase'
 import { apiRequest } from '../utils/api'
+import { getToken } from './auth'
 
 // Tạo nháp chưa có audio
 export const createDraft = async (payload) => {
@@ -88,7 +89,7 @@ export const uploadAudioFile = async (file) => {
   const formData = new FormData()
   formData.append('audio', file)
   
-  const token = localStorage.getItem('educast_access')
+  const token = getToken()
   
   const res = await fetch(`${API_BASE_URL}/content/upload-audio/`, {
     method: 'POST',
@@ -120,7 +121,7 @@ export const uploadThumbnail = async (file) => {
   const formData = new FormData()
   formData.append('thumbnail', file)
   
-  const token = localStorage.getItem('educast_access')
+  const token = getToken()
   
   const res = await fetch('http://localhost:8000/api/content/upload-thumbnail/', {
     method: 'POST',

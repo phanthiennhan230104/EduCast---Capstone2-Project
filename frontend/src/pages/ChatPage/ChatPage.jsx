@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from 'react-i18next'
 import {
   Avatar,
@@ -41,11 +41,17 @@ import MessageBubble from "../../components/chat/MessageBubble";
 import ChatHistoryPanel from "../../components/chat/ChatHistoryPanel";
 import NewChatModal from "../../components/chat/NewChatModal";
 import ChatHeader from "../../components/chat/ChatHeader";
+import CommentModal from "../../components/feed/CommentModal";
 import {
   normalizeConversationOwnership,
   normalizeMessageOwnership,
 } from "../../utils/chat/chatHelpers";
 import { useNavigate } from "react-router-dom";
+import { getToken, getCurrentUser } from "../../utils/auth";
+import { getCanonicalPostIdForEngagement } from "../../utils/canonicalPostId";
+import { API_BASE_URL } from "../../config/apiBase";
+import { PodcastContext } from "../../components/contexts/PodcastContext";
+import { POST_REMOVED_EVENT, matchesRemovedPost } from "../../utils/postRemoval";
 
 const { Text, Title } = Typography;
 const { TextArea } = Input;
@@ -72,6 +78,10 @@ export default function ChatPage() {
   const { t } = useTranslation()
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { isPostDeleted, isPostHidden } = useContext(PodcastContext) || {
+    isPostDeleted: () => false,
+    isPostHidden: () => false,
+  };
   const [loading, setLoading] = useState(true);
   const [conversations, setConversations] = useState([]);
   const [activeRoomId, setActiveRoomId] = useState(null);
@@ -92,6 +102,16 @@ export default function ChatPage() {
 
   const messagesEndRef = useRef(null);
   const messageNodeRefs = useRef({});
+
+  // Post detail modal state (mở từ MessageBubble click hoặc AudioPlayer click)
+  const [postDetailModalOpen, setPostDetailModalOpen] = useState(false);
+  const [postDetail, setPostDetail] = useState(null);
+  const [postLiked, setPostLiked] = useState(false);
+  const [postSaved, setPostSaved] = useState(false);
+  const [postLikeCount, setPostLikeCount] = useState(0);
+  const [postSaveCount, setPostSaveCount] = useState(0);
+  const [postShareCount, setPostShareCount] = useState(0);
+  const [postCommentCount, setPostCommentCount] = useState(0);
 
   const scrollToBottom = useCallback((behavior = "smooth") => {
     messagesEndRef.current?.scrollIntoView({ behavior, block: "end" });
@@ -481,7 +501,280 @@ export default function ChatPage() {
     }
   };
 
+  const dispatchPostSync = useCallback((payload) => {
+    if (!payload?.postId) return;
+    try {
+      const cached = JSON.parse(
+        localStorage.getItem(`post-sync-${payload.postId}`) || "{}"
+      );
+      const next = { ...cached };
+      if (typeof payload.liked === "boolean") next.liked = payload.liked;
+      if (typeof payload.likeCount === "number") next.likeCount = payload.likeCount;
+      if (typeof payload.saved === "boolean") next.saved = payload.saved;
+      if (typeof payload.saveCount === "number") next.saveCount = payload.saveCount;
+      localStorage.setItem(`post-sync-${payload.postId}`, JSON.stringify(next));
+    } catch (_) {}
+    window.dispatchEvent(
+      new CustomEvent("post-sync-updated", { detail: payload })
+    );
+  }, []);
 
+  const openPostDetailById = useCallback(
+    async (rawPostId, options = {}) => {
+      const contentPostId = String(rawPostId || "").trim();
+      if (!contentPostId || contentPostId.startsWith("share_")) return;
+
+      if (isPostDeleted?.(contentPostId)) {
+        toast.info("Bài viết đã bị xoá nên không thể mở.");
+        return;
+      }
+      if (isPostHidden?.(contentPostId)) {
+        toast.info("Bài viết đã bị ẩn nên không thể mở.");
+        return;
+      }
+
+      try {
+        const token = getToken();
+        const res = await fetch(
+          `${API_BASE_URL}/content/posts/${encodeURIComponent(contentPostId)}/`,
+          {
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+          }
+        );
+
+        if (res.status === 404) {
+          toast.info("Bài viết không tồn tại hoặc đã bị xoá.");
+          return;
+        }
+
+        const json = await res.json();
+        const raw = json?.data;
+        if (!res.ok || !raw?.id) return;
+
+        let sync = {};
+        try {
+          sync = JSON.parse(localStorage.getItem(`post-sync-${raw.id}`) || "{}");
+        } catch (_) {
+          sync = {};
+        }
+
+        const detail = {
+          id: raw.id,
+          postId: raw.id,
+          post_id: raw.id,
+          title: raw.title,
+          description: raw.description,
+          author:
+            raw.author ||
+            raw.author_username ||
+            options?.podcastPreview?.author ||
+            "",
+          author_avatar:
+            raw.author_avatar ||
+            (typeof options?.podcastPreview?.author === "object"
+              ? options.podcastPreview.author?.avatar_url
+              : "") ||
+            "",
+          authorUsername: raw.author_username || "",
+          authorId: raw.author_id,
+          author_id: raw.author_id,
+          userId: raw.author_id,
+          user_id: raw.author_id,
+          isOwner: String(user?.id) === String(raw.author_id),
+          cover: raw.thumbnail_url || "",
+          thumbnail_url: raw.thumbnail_url || "",
+          audio_url: raw.audio_url || "",
+          audioUrl: raw.audio_url || "",
+          duration_seconds: raw.duration_seconds || 0,
+          durationSeconds: raw.duration_seconds || 0,
+          created_at: raw.created_at,
+          timeAgo: raw.timeAgo,
+        };
+
+        setPostDetail(detail);
+        setPostLiked(
+          typeof sync.liked === "boolean" ? sync.liked : Boolean(raw.is_liked)
+        );
+        setPostSaved(
+          typeof sync.saved === "boolean" ? sync.saved : Boolean(raw.is_saved)
+        );
+        setPostLikeCount(
+          typeof sync.likeCount === "number"
+            ? sync.likeCount
+            : Number(raw.like_count || 0)
+        );
+        setPostSaveCount(
+          typeof sync.saveCount === "number"
+            ? sync.saveCount
+            : Number(raw.save_count || 0)
+        );
+        setPostShareCount(Number(raw.share_count || 0));
+        setPostCommentCount(Number(raw.comment_count || 0));
+        setPostDetailModalOpen(true);
+      } catch (err) {
+        console.error("ChatPage: failed to load post detail", err);
+      }
+    },
+    [user?.id, isPostDeleted, isPostHidden]
+  );
+
+  // Tự động đóng modal chi tiết khi chính bài đó vừa bị xoá/ẩn ở nơi khác.
+  useEffect(() => {
+    const handleRemoved = (event) => {
+      const removedId = event.detail?.postId;
+      if (!removedId) return;
+      setPostDetail((prev) =>
+        prev && matchesRemovedPost(prev, removedId) ? null : prev
+      );
+      setPostDetailModalOpen((prev) => {
+        if (!prev) return prev;
+        if (postDetail && matchesRemovedPost(postDetail, removedId)) {
+          return false;
+        }
+        return prev;
+      });
+    };
+    window.addEventListener(POST_REMOVED_EVENT, handleRemoved);
+    return () => window.removeEventListener(POST_REMOVED_EVENT, handleRemoved);
+  }, [postDetail]);
+
+  useEffect(() => {
+    const handleOpenPostDetail = (event) => {
+      const detail = event.detail || {};
+      const rowPostId = detail.postId;
+      if (!rowPostId) return;
+
+      const contentPostId =
+        detail.canonicalPostId ||
+        getCanonicalPostIdForEngagement({
+          id: rowPostId,
+          postId: rowPostId,
+          post_id: rowPostId,
+        }) ||
+        rowPostId;
+
+      void openPostDetailById(contentPostId, {
+        podcastPreview: detail.podcastPreview,
+      });
+    };
+
+    window.addEventListener("open-post-detail", handleOpenPostDetail);
+    return () => {
+      window.removeEventListener("open-post-detail", handleOpenPostDetail);
+    };
+  }, [openPostDetailById]);
+
+  // Đồng bộ tiêu đề / mô tả / like / save khi bài bị chỉnh sửa ở nơi khác (Feed/Search/Favorites).
+  useEffect(() => {
+    const handlePostSync = (event) => {
+      const d = event.detail || {};
+      if (!d.postId) return;
+      setPostDetail((prev) => {
+        if (!prev || String(prev.id) !== String(d.postId)) return prev;
+        return {
+          ...prev,
+          ...(typeof d.title === "string" ? { title: d.title } : {}),
+          ...(typeof d.description === "string"
+            ? { description: d.description }
+            : {}),
+        };
+      });
+      if (postDetail && String(postDetail.id) === String(d.postId)) {
+        if (typeof d.liked === "boolean") setPostLiked(d.liked);
+        if (typeof d.likeCount === "number") setPostLikeCount(d.likeCount);
+        if (typeof d.saved === "boolean") setPostSaved(d.saved);
+        if (typeof d.saveCount === "number") setPostSaveCount(d.saveCount);
+      }
+    };
+
+    window.addEventListener("post-sync-updated", handlePostSync);
+    return () => {
+      window.removeEventListener("post-sync-updated", handlePostSync);
+    };
+  }, [postDetail]);
+
+  const handleClosePostDetail = useCallback(() => {
+    setPostDetailModalOpen(false);
+    setPostDetail(null);
+  }, []);
+
+  const handleTogglePostLike = useCallback(async () => {
+    if (!postDetail?.id) return;
+    try {
+      const token = getToken();
+      const currentUser = getCurrentUser();
+      const res = await fetch(
+        `${API_BASE_URL}/social/posts/${encodeURIComponent(postDetail.id)}/like/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ user_id: currentUser?.id }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || `HTTP ${res.status}`);
+      }
+      const nextLiked = Boolean(data.data?.liked);
+      const nextLikeCount = Number(data.data?.like_count || 0);
+      setPostLiked(nextLiked);
+      setPostLikeCount(nextLikeCount);
+      dispatchPostSync({
+        postId: postDetail.id,
+        liked: nextLiked,
+        likeCount: nextLikeCount,
+      });
+    } catch (err) {
+      console.error("ChatPage: toggle like failed", err);
+    }
+  }, [postDetail, dispatchPostSync]);
+
+  const handleTogglePostSave = useCallback(async () => {
+    if (!postDetail?.id) return;
+    try {
+      const token = getToken();
+      const currentUser = getCurrentUser();
+      const res = await fetch(
+        `${API_BASE_URL}/social/posts/${encodeURIComponent(postDetail.id)}/save/`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ user_id: currentUser?.id }),
+        }
+      );
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || `HTTP ${res.status}`);
+      }
+      const nextSaved = Boolean(data.data?.saved);
+      const nextSaveCount = Number(data.data?.save_count || 0);
+      setPostSaved(nextSaved);
+      setPostSaveCount(nextSaveCount);
+      dispatchPostSync({
+        postId: postDetail.id,
+        saved: nextSaved,
+        saveCount: nextSaveCount,
+      });
+    } catch (err) {
+      console.error("ChatPage: toggle save failed", err);
+    }
+  }, [postDetail, dispatchPostSync]);
+
+  const handlePostDeletedInChat = useCallback(() => {
+    setPostDetailModalOpen(false);
+    setPostDetail(null);
+  }, []);
+
+  
   useEffect(() => {
     const handleChatMessageSent = async (event) => {
       const roomId = event.detail?.roomId;
@@ -726,6 +1019,25 @@ export default function ChatPage() {
         onClose={() => setOpenNewChat(false)}
         onSelectUser={handleCreateConversation}
       />
+
+      {postDetailModalOpen && postDetail && (
+        <CommentModal
+          podcast={postDetail}
+          liked={postLiked}
+          saved={postSaved}
+          likeCount={postLikeCount}
+          shareCount={postShareCount}
+          saveCount={postSaveCount}
+          commentCount={postCommentCount}
+          onClose={handleClosePostDetail}
+          onCommentCountChange={setPostCommentCount}
+          onToggleLike={handleTogglePostLike}
+          onToggleSave={handleTogglePostSave}
+          onShare={() => {}}
+          onPostDeleted={handlePostDeletedInChat}
+          disableAutoScroll={true}
+        />
+      )}
     </div>
   );
 }

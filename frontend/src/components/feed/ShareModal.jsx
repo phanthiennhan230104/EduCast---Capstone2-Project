@@ -22,13 +22,10 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
   const currentUser = getCurrentUser()
 
   const rowId = String(podcast?.id ?? '').trim()
-  const isFeedShareRow =
-    podcast?.type === 'shared' || rowId.startsWith('share_')
-
+  /** Luôn chia sẻ bài gốc (canonical), kể cả khi preview nằm trong card share (id dạng share_...). */
   const shareTargetPostId =
-    isFeedShareRow && rowId
-      ? rowId
-      : getCanonicalPostIdForEngagement(podcast) ?? podcast.post_id ?? podcast.id
+    getCanonicalPostIdForEngagement(podcast) ??
+    String(podcast.post_id ?? podcast.id ?? rowId).trim()
 
   const inputRef = useRef(null)
 
@@ -177,6 +174,14 @@ export default function ShareModal({ podcast, onClose, onShareSuccess }) {
           },
         })
       )
+
+      // DM share cũng tăng share_count (BE đã +PostShare cho từng người nhận),
+      // nhưng KHÔNG tạo dòng feed (chỉ "personal" mới lên feed).
+      onShareSuccess?.({
+        share_type: 'message',
+        share_count: data?.data?.share_count,
+        share_count_increment: successResults.length,
+      })
 
       setCaption('')
       setSelectedFriends(new Set())

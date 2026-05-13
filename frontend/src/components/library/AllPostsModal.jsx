@@ -1,4 +1,5 @@
-import { X } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { X, MoreHorizontal, Edit, Trash2, EyeOff } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import styles from '../../style/library/AllPostsModal.module.css'
 
@@ -18,7 +19,95 @@ function displayTagLabel(tag) {
   return String(tag)
 }
 
-export default function AllPostsModal({ isOpen, onClose, posts, title, onSelectPost }) {
+function PostMenu({ post, isOwner, onEdit, onDelete, onHide }) {
+  const ref = useRef(null)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    window.addEventListener('mousedown', handleClickOutside)
+    return () => window.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  return (
+    <div className={styles.menuWrap} ref={ref}>
+      <button
+        type="button"
+        className={styles.moreBtn}
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((prev) => !prev)
+        }}
+        aria-label="Tùy chọn"
+      >
+        <MoreHorizontal size={16} />
+      </button>
+
+      {open && (
+        <div className={styles.dropdown}>
+          {isOwner ? (
+            <>
+              <button
+                type="button"
+                className={styles.dropdownItem}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpen(false)
+                  onEdit?.(post)
+                }}
+              >
+                <Edit size={14} />
+                <span>Chỉnh sửa</span>
+              </button>
+              <button
+                type="button"
+                className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setOpen(false)
+                  onDelete?.(post)
+                }}
+              >
+                <Trash2 size={14} />
+                <span>Xóa</span>
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className={styles.dropdownItem}
+              onClick={(e) => {
+                e.stopPropagation()
+                setOpen(false)
+                onHide?.(post)
+              }}
+            >
+              <EyeOff size={14} />
+              <span>Ẩn bài viết</span>
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function AllPostsModal({
+  isOpen,
+  onClose,
+  posts,
+  title,
+  onSelectPost,
+  isOwner,
+  onEditPost,
+  onDeletePost,
+  onHidePost,
+}) {
   const { t } = useTranslation()
   if (!isOpen) return null
 
@@ -57,11 +146,7 @@ export default function AllPostsModal({ isOpen, onClose, posts, title, onSelectP
                   )}
                   <div className={styles.postInfo}>
                     <h3 className={styles.postTitle}>{post.title}</h3>
-                    <p className={styles.postAuthor}>
-                      {typeof post.author === 'object'
-                        ? post.author?.name || post.author?.username || 'Người dùng'
-                        : post.author}
-                    </p>
+                    <p className={styles.postAuthor}>{displayAuthor(post.author)}</p>
                     {post.tags && post.tags.length > 0 && (
                       <div className={styles.tags}>
                         {post.tags.slice(0, 2).map((tag, idx) => (
@@ -76,6 +161,14 @@ export default function AllPostsModal({ isOpen, onClose, posts, title, onSelectP
                     )}
                     <p className={styles.duration}>{post.duration}</p>
                   </div>
+
+                  <PostMenu
+                    post={post}
+                    isOwner={typeof isOwner === 'function' ? isOwner(post) : false}
+                    onEdit={onEditPost}
+                    onDelete={onDeletePost}
+                    onHide={onHidePost}
+                  />
                 </div>
               ))}
             </div>

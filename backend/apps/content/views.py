@@ -1068,17 +1068,17 @@ class UserPostsAPIView(APIView):
             like_count = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
             comment_count = Comment.objects.filter(post_id=post.id, share_id__isnull=True).count()
             save_count = SavedPost.objects.filter(post_id=post.id, share_id__isnull=True).count()
-            # Share count cho bài gốc: chỉ share trực tiếp khi DB có cột re-share.
+            # Share count cho bài gốc: gộp cả "personal" (đăng bài share) và "message" (gửi DM).
             if post_shares_has_shared_from_share_id_column():
                 share_count = PostShare.objects.filter(
                     post_id=post.id,
-                    share_type="personal",
+                    share_type__in=["personal", "message"],
                     shared_from_share_id__isnull=True,
                 ).count()
             else:
                 share_count = PostShare.objects.filter(
                     post_id=post.id,
-                    share_type="personal",
+                    share_type__in=["personal", "message"],
                 ).count()
         
         post_data = {
@@ -1227,10 +1227,11 @@ class UserSharedPostsAPIView(APIView):
                     "shared_posts": []
                 }, status=status.HTTP_404_NOT_FOUND)
             
-            # Lấy danh sách shared posts (thông qua PostShare model)
+            # Lấy danh sách shared posts (chỉ "personal" mới hiển thị trên profile;
+            # share qua tin nhắn chỉ tăng share_count, không hiển thị thành dòng).
             shared_posts_qs = (
                 post_share_qs()
-                .filter(user_id=target_user_id)
+                .filter(user_id=target_user_id, share_type="personal")
                 .select_related("post", "post__user", "post__user__profile")
                 .order_by("-created_at")
             )
@@ -1333,17 +1334,17 @@ class PostDetailView(APIView):
             like_count = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
             comment_count = Comment.objects.filter(post_id=post.id, share_id__isnull=True).count()
             save_count = SavedPost.objects.filter(post_id=post.id, share_id__isnull=True).count()
-            # Share count cho bài gốc: chỉ share trực tiếp khi DB có cột re-share.
+            # Share count cho bài gốc: gộp cả "personal" (đăng bài share) và "message" (gửi DM).
             if post_shares_has_shared_from_share_id_column():
                 share_count = PostShare.objects.filter(
                     post_id=post.id,
-                    share_type="personal",
+                    share_type__in=["personal", "message"],
                     shared_from_share_id__isnull=True,
                 ).count()
             else:
                 share_count = PostShare.objects.filter(
                     post_id=post.id,
-                    share_type="personal",
+                    share_type__in=["personal", "message"],
                 ).count()
             
             post_data = {

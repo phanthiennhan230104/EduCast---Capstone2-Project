@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import styles from '../../style/feed/CreatePostBar.module.css'
 import { getInitials } from '../../utils/getInitials'
+import { getToken } from '../../utils/auth'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function CreatePostBar() {
@@ -26,7 +27,7 @@ export default function CreatePostBar() {
   const loadDrafts = async () => {
     try {
       setLoadingDrafts(true)
-      const token = localStorage.getItem('educast_access')
+      const token = getToken()
 
       const res = await fetch('http://localhost:8000/api/content/drafts/my/', {
         headers: {

@@ -7,14 +7,12 @@ import {
 } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
-  Bookmark,
   Edit,
   EyeOff,
   Flag,
   Heart,
   MessageCircle,
   MoreHorizontal,
-  Share2,
   Trash2,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
@@ -23,10 +21,8 @@ import PodcastCard from './PodcastCard'
 import ReportPostModal from './ReportPostModal'
 import CreatePostBar from './CreatePostBar'
 import CommentModal from './CommentModal'
-import ShareModal from './ShareModal'
 import EditShareCaptionModal from './EditShareCaptionModal'
 import ConfirmModal from './ConfirmModal'
-import SaveCollectionModal from '../common/SaveCollectionModal'
 
 import styles from '../../style/feed/Feed.module.css'
 import { API_BASE_URL, API_ORIGIN } from '../../config/apiBase'
@@ -43,6 +39,7 @@ import { publicDisplayName } from '../../utils/publicDisplayName'
 import { useTagFilter } from '../contexts/TagFilterContext'
 import { PodcastContext } from '../contexts/PodcastContext'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
+import { POST_REMOVED_EVENT, matchesRemovedPost } from '../../utils/postRemoval'
 
 const TABS = [
   { label: 'Dành cho bạn', key: 'for_you' },
@@ -88,7 +85,7 @@ export default function Feed() {
   const { selectedTagIds, updateSelectedTags } = useTagFilter()
   const selectedTagIdsRef = useRef(selectedTagIds)
   selectedTagIdsRef.current = selectedTagIds
-  const { setSavedPostIds_batch, deletePost, hidePost, addSavedPost, removeSavedPost } =
+  const { setSavedPostIds_batch, deletePost, hidePost } =
     useContext(PodcastContext)
 
   const { pauseTrackIfDeleted } = useAudioPlayer()
@@ -112,11 +109,7 @@ export default function Feed() {
   const [failedAvatarUrls, setFailedAvatarUrls] = useState(new Set())
   const [reportSharePodcast, setReportSharePodcast] = useState(null)
 
-  const [shareModalPodcast, setShareModalPodcast] = useState(null)
   const [editShareCaptionPodcast, setEditShareCaptionPodcast] = useState(null)
-  const [showCollectionModal, setShowCollectionModal] = useState(false)
-  const [collectionTargetPodcast, setCollectionTargetPodcast] = useState(null)
-  const sharedSaveBtnRef = useRef(null)
   const [feedReloadNonce, setFeedReloadNonce] = useState(0)
   const [sharedActionHover, setSharedActionHover] = useState({
     rowKey: null,
@@ -380,6 +373,21 @@ export default function Feed() {
 
     window.addEventListener(POST_SYNC_EVENT, handlePostSync)
     return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
+  }, [])
+
+  // Đồng bộ liên trang khi 1 bài bị xoá/ẩn ở nơi khác:
+  // loại bỏ cả dòng bài gốc lẫn các dòng share dẫn về bài gốc đó.
+  useEffect(() => {
+    const handleRemoved = (event) => {
+      const removedId = event.detail?.postId
+      if (!removedId) return
+      setPodcasts((prev) => prev.filter((p) => !matchesRemovedPost(p, removedId)))
+      setSelectedPodcast((prev) =>
+        prev && matchesRemovedPost(prev, removedId) ? null : prev
+      )
+    }
+    window.addEventListener(POST_REMOVED_EVENT, handleRemoved)
+    return () => window.removeEventListener(POST_REMOVED_EVENT, handleRemoved)
   }, [])
 
   useEffect(() => {
@@ -701,7 +709,6 @@ export default function Feed() {
       selectedPodcast?.type === 'shared' &&
       selectedPodcast?.commentModalScope === 'share'
     const apiId = isShareCommentModal ? selectedPodcast.id : canonicalId
-    const syncPostId = isShareCommentModal ? selectedPodcast.id : canonicalId
 
     const token = getToken()
     const currentUser = JSON.parse(
@@ -732,21 +739,13 @@ export default function Feed() {
 
     setPodcasts((prev) =>
       prev.map((p) => {
-        if (
-          isShareCommentModal &&
-          p.type === 'shared' &&
-          String(p.id) === String(selectedPodcast.id)
-        ) {
-          return { ...p, liked: nextLiked, likes: nextLikeCount }
-        }
-        if (p.type === 'shared') return p
         if (!feedRowMatchesCanonicalPost(p, canonicalId)) return p
         return { ...p, liked: nextLiked, likes: nextLikeCount }
       })
     )
 
     dispatchPostSync({
-      postId: syncPostId,
+      postId: canonicalId,
       liked: nextLiked,
       likeCount: nextLikeCount,
     })
@@ -754,7 +753,7 @@ export default function Feed() {
     window.dispatchEvent(
       new CustomEvent('audio-track-like-updated', {
         detail: {
-          postId: syncPostId,
+          postId: canonicalId,
           liked: nextLiked,
           likeCount: nextLikeCount,
         },
@@ -775,7 +774,6 @@ export default function Feed() {
       selectedPodcast?.type === 'shared' &&
       selectedPodcast?.commentModalScope === 'share'
     const apiId = isShareCommentModal ? selectedPodcast.id : canonicalId
-    const syncPostId = isShareCommentModal ? selectedPodcast.id : canonicalId
 
     const token = getToken()
     const currentUser = JSON.parse(
@@ -806,21 +804,13 @@ export default function Feed() {
 
     setPodcasts((prev) =>
       prev.map((p) => {
-        if (
-          isShareCommentModal &&
-          p.type === 'shared' &&
-          String(p.id) === String(selectedPodcast.id)
-        ) {
-          return { ...p, saved: nextSaved, saveCount: nextSaveCount }
-        }
-        if (p.type === 'shared') return p
         if (!feedRowMatchesCanonicalPost(p, canonicalId)) return p
         return { ...p, saved: nextSaved, saveCount: nextSaveCount }
       })
     )
 
     dispatchPostSync({
-      postId: syncPostId,
+      postId: canonicalId,
       saved: nextSaved,
       saveCount: nextSaveCount,
     })
@@ -833,8 +823,10 @@ export default function Feed() {
       const post = podcasts.find((p) => p.id === postId)
       if (!post) return
 
-      const apiId = post.type === 'shared' ? post.id : engagementPostId(post)
-      if (!apiId) return
+      const canonicalId = engagementPostId(post)
+      if (!canonicalId) return
+
+      const apiId = post.type === 'shared' ? post.id : canonicalId
 
       const res = await fetch(
         `http://localhost:8000/api/social/posts/${apiId}/like/`,
@@ -857,13 +849,14 @@ export default function Feed() {
       const nextLikeCount = Number(data.data?.like_count || 0)
 
       setPodcasts((prev) =>
-        prev.map((p) =>
-          p.id === postId ? { ...p, liked: nextLiked, likes: nextLikeCount } : p
-        )
+        prev.map((p) => {
+          if (!feedRowMatchesCanonicalPost(p, canonicalId)) return p
+          return { ...p, liked: nextLiked, likes: nextLikeCount }
+        })
       )
 
       dispatchPostSync({
-        postId,
+        postId: canonicalId,
         liked: nextLiked,
         likeCount: nextLikeCount,
       })
@@ -871,7 +864,7 @@ export default function Feed() {
       window.dispatchEvent(
         new CustomEvent('audio-track-like-updated', {
           detail: {
-            postId,
+            postId: canonicalId,
             liked: nextLiked,
             likeCount: nextLikeCount,
           },
@@ -881,137 +874,6 @@ export default function Feed() {
       console.error('Like (share card) failed:', err)
       toast.error('Lỗi khi thích bài viết')
     }
-  }
-
-  const handleFeedSharedSave = async (postId) => {
-    try {
-      const podcast = podcasts.find((p) => p.id === postId)
-      if (!podcast) return
-
-      const apiId =
-        podcast.type === 'shared' ? podcast.id : engagementPostId(podcast)
-      if (!apiId) return
-
-      if (podcast.saved) {
-        const token = getToken()
-        const currentUser = getCurrentUser()
-
-        const res = await fetch(
-          `http://localhost:8000/api/social/posts/${apiId}/save/`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-            body: JSON.stringify({ user_id: currentUser?.id }),
-          }
-        )
-
-        const data = await res.json()
-        if (!res.ok || !data.success) {
-          throw new Error(data.message || `HTTP ${res.status}`)
-        }
-
-        const nextSaveCount = Number(data.data?.save_count || 0)
-
-        setPodcasts((prev) =>
-          prev.map((p) =>
-            p.id === postId
-              ? { ...p, saved: false, saveCount: nextSaveCount }
-              : p
-          )
-        )
-
-        removeSavedPost(apiId)
-
-        dispatchPostSync({
-          postId,
-          saved: false,
-          saveCount: nextSaveCount,
-        })
-      } else {
-        setCollectionTargetPodcast(podcast)
-        setShowCollectionModal(true)
-      }
-    } catch (err) {
-      console.error('Save (share card) failed:', err)
-      toast.error('Lỗi khi lưu bài viết')
-    }
-  }
-
-  const handleFeedCollectionSave = () => {
-    const target = collectionTargetPodcast
-    if (!target) return
-    const rowId = target.id
-    const apiId =
-      target.type === 'shared' ? target.id : engagementPostId(target)
-    if (!apiId) return
-
-    const prevCount =
-      podcasts.find((p) => p.id === rowId)?.saveCount || 0
-    const newSaveCount = prevCount + 1
-
-    setPodcasts((prev) =>
-      prev.map((p) =>
-        p.id === rowId ? { ...p, saved: true, saveCount: newSaveCount } : p
-      )
-    )
-
-    addSavedPost(apiId)
-
-    dispatchPostSync({
-      postId: rowId,
-      saved: true,
-      saveCount: newSaveCount,
-    })
-
-    setShowCollectionModal(false)
-    setCollectionTargetPodcast(null)
-  }
-
-  const handleFeedShareSuccess = (sourcePodcast, data) => {
-    const newShareCount = Number(data?.share_count ?? NaN)
-    if (Number.isNaN(newShareCount)) return
-    if (!sourcePodcast) return
-
-    const rowKey = String(sourcePodcast.viewId ?? sourcePodcast.id ?? '')
-    const isSharedRow =
-      sourcePodcast.type === 'shared' ||
-      /^share_/i.test(String(sourcePodcast.id ?? ''))
-
-    if (isSharedRow && rowKey) {
-      setPodcasts((prev) =>
-        prev.map((p) =>
-          String(p.viewId ?? p.id) === rowKey ? { ...p, shares: newShareCount } : p
-        )
-      )
-      dispatchPostSync({
-        postId: rowKey,
-        shareCount: newShareCount,
-      })
-      setShareModalPodcast(null)
-      return
-    }
-
-    const canonicalId = engagementPostId(sourcePodcast)
-
-    setPodcasts((prev) =>
-      prev.map((p) => {
-        if (canonicalId == null) return p
-        const samePost = feedRowMatchesCanonicalPost(p, canonicalId)
-        if (!samePost) return p
-        if (p.type === 'shared' || /^share_/i.test(String(p.id ?? ''))) return p
-        return { ...p, shares: newShareCount }
-      })
-    )
-
-    dispatchPostSync({
-      postId: canonicalId,
-      shareCount: newShareCount,
-    })
-
-    setShareModalPodcast(null)
   }
 
   const clearSharedActionHoverLeaveTimer = () => {
@@ -1440,58 +1302,6 @@ export default function Feed() {
                   </div>
                 )}
             </div>
-            <div className={styles.shareStatWrap}>
-              <button
-                type="button"
-                className={styles.shareActionBtn}
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setShareModalPodcast(podcast)
-                }}
-              >
-                <Share2 size={16} />
-                <span
-                  onMouseEnter={() => handleSharedRowStatsEnter(podcast, 'shares')}
-                  onMouseLeave={() => handleSharedRowStatsLeave(podcast)}
-                >
-                  {podcast.shares || 0} Chia sẻ
-                </span>
-              </button>
-              {sharedActionHover.rowKey === rowKey &&
-                sharedActionHover.kind === 'shares' && (
-                  <div
-                    className={styles.shareSharerPopup}
-                    onMouseEnter={handleSharedRowStatsPopupEnter}
-                    onMouseLeave={() => handleSharedRowStatsLeave(podcast)}
-                  >
-                    {sharedActionHover.loading ? (
-                      <div className={styles.shareSharerEmpty}>Đang tải...</div>
-                    ) : sharedActionHover.items.length > 0 ? (
-                      sharedActionHover.items.map((u) => (
-                        <div key={u.user_id || u.username} className={styles.shareSharerRow}>
-                          {hoverUserLabel(u)}
-                        </div>
-                      ))
-                    ) : (
-                      <div className={styles.shareSharerEmpty}>
-                        {sharedHoverEmptyLabel('shares')}
-                      </div>
-                    )}
-                  </div>
-                )}
-            </div>
-            <button
-              type="button"
-              ref={sharedSaveBtnRef}
-              className={`${styles.shareActionBtn} ${styles.shareActionBtnSave} ${podcast.saved ? styles.saved : ''}`}
-              onClick={(e) => {
-                e.stopPropagation()
-                handleFeedSharedSave(podcast.id)
-              }}
-            >
-              <Bookmark size={16} fill={podcast.saved ? 'currentColor' : 'none'} />
-              <span>{podcast.saveCount || 0} Lưu</span>
-            </button>
           </div>
         </div>
       </div>
@@ -1635,16 +1445,6 @@ export default function Feed() {
         />
       )}
 
-      {shareModalPodcast && (
-        <ShareModal
-          podcast={shareModalPodcast}
-          onClose={() => setShareModalPodcast(null)}
-          onShareSuccess={(data) =>
-            handleFeedShareSuccess(shareModalPodcast, data)
-          }
-        />
-      )}
-
       <EditShareCaptionModal
         isOpen={Boolean(editShareCaptionPodcast)}
         compositeRowId={editShareCaptionPodcast?.id}
@@ -1658,22 +1458,6 @@ export default function Feed() {
             shareCaption: caption,
           })
         }}
-      />
-
-      <SaveCollectionModal
-        isOpen={showCollectionModal}
-        onClose={() => {
-          setShowCollectionModal(false)
-          setCollectionTargetPodcast(null)
-        }}
-        postId={
-          collectionTargetPodcast?.type === 'shared'
-            ? collectionTargetPodcast.id
-            : engagementPostId(collectionTargetPodcast)
-        }
-        onSave={handleFeedCollectionSave}
-        triggerRef={sharedSaveBtnRef}
-        isPopup={false}
       />
 
       {reportSharePodcast && (

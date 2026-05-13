@@ -1,22 +1,24 @@
-import { useState } from "react"
-import React from "react"
-import { useNavigate } from "react-router-dom"
-import { Modal, Typography } from "antd"
+import { useContext, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import React from "react";
+import { Modal, Typography } from "antd";
 import {
   DownloadOutlined,
   FileOutlined,
   FilePdfOutlined,
   FileTextOutlined,
   FileWordOutlined,
-} from "@ant-design/icons"
+} from "@ant-design/icons";
+import { EyeOff, Ban } from "lucide-react";
+import { toast } from "react-toastify";
 import ChatAudioPlayer from "./ChatAudioPlayer"
-import CommentModal from "../feed/CommentModal"
 import {
   formatFileSize,
   getFileExtension,
   getFileNameFromUrl,
   formatChatTime,
 } from "../../utils/chat/chatHelpers"
+import { PodcastContext } from "../contexts/PodcastContext"
 
 const { Text } = Typography
 
@@ -27,31 +29,16 @@ function FileTypeIcon({ ext }) {
   return <FileOutlined />
 }
 
-function formatTimeAgo(dateString) {
-  if (!dateString) return "Vừa xong"
-
-  const created = new Date(dateString)
-  const now = new Date()
-  const diffMs = now - created
-  const diffMinutes = Math.floor(diffMs / 60000)
-  const diffHours = Math.floor(diffMinutes / 60)
-  const diffDays = Math.floor(diffHours / 24)
-
-  if (diffMinutes < 1) return "Vừa xong"
-  if (diffMinutes < 60) return `${diffMinutes} phút trước`
-  if (diffHours < 24) return `${diffHours} giờ trước`
-  return `${diffDays} ngày trước`
-}
-
 export default function MessageBubble({ message, containerRef }) {
   const navigate = useNavigate()
   const mine = message.is_mine
-
-  const [showCommentModal, setShowCommentModal] = useState(false)
   const [podcastData, setPodcastData] = useState(null)
   const [previewOpen, setPreviewOpen] = useState(false)
-
-  const messageTimeLabel = formatChatTime(message.created_at)
+  const messageTimeLabel = formatChatTime(message.created_at);
+  const { isPostDeleted, isPostHidden } = useContext(PodcastContext) || {
+    isPostDeleted: () => false,
+    isPostHidden: () => false,
+  }
 
   const fileName =
     message.original_filename || getFileNameFromUrl(message.attachment_url || "")
@@ -104,25 +91,37 @@ export default function MessageBubble({ message, containerRef }) {
   }
 
   const handlePodcastClick = () => {
-    if (podcastData) {
-      setShowCommentModal(true)
+    if (!podcastData?.post_id) return
+
+    const canonicalPostId = String(podcastData.post_id)
+
+    if (isPostDeleted?.(canonicalPostId)) {
+      toast.info('Bài viết đã bị xoá nên không thể mở.')
+      return
     }
+    if (isPostHidden?.(canonicalPostId)) {
+      toast.info('Bài viết đã bị ẩn nên không thể mở.')
+      return
+    }
+
+    window.dispatchEvent(
+      new CustomEvent('open-post-detail', {
+        detail: {
+          postId: canonicalPostId,
+          canonicalPostId,
+          disableAutoScroll: true,
+          source: 'chat-message',
+          podcastPreview: {
+            ...podcastData,
+            sharedBy: message?.sender || null,
+            shareCaption: podcastData.caption || '',
+          },
+        },
+      })
+    )
   }
 
-  const handleProfileClick = () => {
-    if (!podcastData) return
-
-    const target =
-      podcastData.username ||
-      podcastData.profile_username ||
-      podcastData.profile_user_id ||
-      podcastData.user_id
-
-    if (!target) return
-
-    navigate(`/profile/${target}`)
-  }
-
+  // Parse podcast data on mount or when message changes
   React.useEffect(() => {
     if (!message.content) {
       setPodcastData(null)
@@ -177,29 +176,15 @@ export default function MessageBubble({ message, containerRef }) {
       podcastData?.author_username ||
       senderLabel
 
-  const profileDisplayName =
-    podcastData?.display_name ||
-    podcastData?.profile_display_name ||
-    podcastData?.full_name ||
-    podcastData?.name ||
-    podcastData?.username ||
-    "Trang cá nhân"
-
-  const profileUsername =
-    podcastData?.username ||
-    podcastData?.profile_username ||
-    ""
-
-  const profileAvatar =
-    podcastData?.avatar_url ||
-    podcastData?.profile_avatar_url ||
-    podcastData?.avatar ||
-    ""
-
-  const profileBio =
-    podcastData?.bio ||
-    podcastData?.profile_bio ||
-    ""
+  // Bài gốc bị tác giả xoá hoặc bị người dùng hiện tại ẩn → hiển thị placeholder thay vì card podcast.
+  const sharedPostMissingReason = isSharedPostMessage
+    ? isPostDeleted?.(String(podcastData.post_id))
+      ? 'deleted'
+      : isPostHidden?.(String(podcastData.post_id))
+        ? 'hidden'
+        : null
+    : null
+  const sharedPostMissing = sharedPostMissingReason !== null
 
   return (
     <>
@@ -290,65 +275,7 @@ export default function MessageBubble({ message, containerRef }) {
           </div>
         )}
 
-        {isProfileShareMessage && podcastData && (
-          <div className={`message-podcast ${mine ? "mine" : ""}`}>
-            <button
-              type="button"
-              className="shared-post-card shared-profile-card"
-              onClick={handleProfileClick}
-            >
-              {profileAvatar ? (
-                <img
-                  src={profileAvatar}
-                  alt={profileDisplayName}
-                  className="shared-post-cover shared-profile-avatar"
-                />
-              ) : (
-                <div className="shared-post-cover shared-profile-avatar-fallback">
-                  {String(profileDisplayName || "U").charAt(0).toUpperCase()}
-                </div>
-              )}
-
-              <div className="shared-post-main">
-                <div
-                  className="shared-post-title"
-                  title={profileDisplayName}
-                >
-                  {profileDisplayName}
-                </div>
-
-                {profileUsername ? (
-                  <div className="shared-post-author">
-                    @{profileUsername}
-                  </div>
-                ) : (
-                  <div className="shared-post-author">
-                    Trang cá nhân EduCast
-                  </div>
-                )}
-
-                {podcastData.caption ? (
-                  <div
-                    className="shared-post-caption"
-                    title={podcastData.caption}
-                  >
-                    {podcastData.caption}
-                  </div>
-                ) : profileBio ? (
-                  <div className="shared-post-caption" title={profileBio}>
-                    {profileBio}
-                  </div>
-                ) : null}
-              </div>
-            </button>
-
-            <div className="message-time message-podcast-time">
-              <Text className="message-time-text">{messageTimeLabel}</Text>
-            </div>
-          </div>
-        )}
-
-        {isSharedPostMessage && podcastData && (
+        {isSharedPostMessage && podcastData && !sharedPostMissing && (
           <div className={`message-podcast ${mine ? "mine" : ""}`}>
             <button
               type="button"
@@ -392,6 +319,34 @@ export default function MessageBubble({ message, containerRef }) {
             </div>
           </div>
         )}
+
+        {isSharedPostMessage && podcastData && sharedPostMissing && (
+          <div className={`message-podcast message-podcast-missing ${mine ? "mine" : ""}`}>
+            <div className="shared-post-card shared-post-card-missing">
+              <div className="shared-post-missing-icon">
+                {sharedPostMissingReason === 'hidden' ? (
+                  <EyeOff size={22} />
+                ) : (
+                  <Ban size={22} />
+                )}
+              </div>
+              <div className="shared-post-main">
+                <div className="shared-post-title">
+                  Bài viết không tồn tại
+                </div>
+                <div className="shared-post-author">
+                  {sharedPostMissingReason === 'hidden'
+                    ? 'Bài viết đã được ẩn khỏi danh sách của bạn.'
+                    : 'Bài viết đã bị xoá hoặc không còn khả dụng.'}
+                </div>
+              </div>
+            </div>
+
+            <div className="message-time message-podcast-time">
+              <Text className="message-time-text">{messageTimeLabel}</Text>
+            </div>
+          </div>
+        )}
       </div>
 
       <Modal
@@ -409,44 +364,6 @@ export default function MessageBubble({ message, containerRef }) {
         />
       </Modal>
 
-      {showCommentModal && podcastData && !isProfileShareMessage && (
-        <CommentModal
-          podcast={{
-            id: podcastData.post_id,
-            postId: podcastData.post_id,
-            title: podcastData.title,
-            description: podcastData.description,
-            author: podcastData.author || sharedAuthor,
-            author_avatar:
-              typeof podcastData?.author === "object"
-                ? podcastData.author?.avatar_url || ""
-                : "",
-            authorUsername:
-              typeof podcastData?.author === "object"
-                ? podcastData.author?.username || ""
-                : podcastData.author_username || sharedAuthor || "",
-            cover: podcastData.thumbnail_url || "",
-            thumbnail_url: podcastData.thumbnail_url || "",
-            audio_url: podcastData.audio_url || "",
-            audioUrl: podcastData.audio_url || "",
-            duration_seconds: podcastData.duration_seconds || 0,
-            durationSeconds: podcastData.duration_seconds || 0,
-            created_at: podcastData.created_at || message.created_at,
-            timeAgo: podcastData.created_at
-              ? formatTimeAgo(podcastData.created_at)
-              : undefined,
-            isOwner: false,
-          }}
-          liked={false}
-          saved={false}
-          likeCount={Number(podcastData.like_count || 0)}
-          shareCount={Number(podcastData.share_count || 0)}
-          saveCount={Number(podcastData.save_count || 0)}
-          commentCount={Number(podcastData.comment_count || 0)}
-          onClose={() => setShowCommentModal(false)}
-          disableAutoScroll={true}
-        />
-      )}
     </>
   )
 }

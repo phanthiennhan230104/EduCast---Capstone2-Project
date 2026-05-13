@@ -14,6 +14,7 @@ import {
   uploadThumbnail,
 } from '../../utils/contentApi'
 import { getAudioDuration } from '../../utils/formatDuration'
+import { getToken } from '../../utils/auth'
 import styles from '../../style/pages/PublishPostPage/PublishPostPage.module.css'
 
 const VISIBILITY_OPTIONS = [
@@ -435,7 +436,7 @@ export default function PublishPostPage() {
   const loadDrafts = async () => {
     try {
       setLoadingDrafts(true)
-      const token = localStorage.getItem('educast_access')
+      const token = getToken()
 
       const res = await fetch('http://localhost:8000/api/content/drafts/my/', {
         headers: {

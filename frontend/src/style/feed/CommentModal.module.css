@@ -1,7 +1,8 @@
   .overlay {
     position: fixed;
     inset: 0;
-    z-index: 2147483647;
+    /* Thấp hơn EditPostModal / EditShareCaption / Confirm (2147483647) để popup con nổi trên */
+    z-index: 2147483000;
     display: flex;
     align-items: flex-start;
     justify-content: center;
@@ -217,6 +218,108 @@
     flex-shrink: 0;
   }
 
+  /* ===== Share intro (người chia sẻ + caption) — bố cục mô phỏng share row trên Feed ===== */
+  .shareIntroBlock {
+    padding: 12px 16px 4px;
+  }
+
+  /* Không có mô tả chia sẻ: vẫn chừa khoảng dưới header người chia sẻ trước card bài gốc */
+  .shareIntroBlockNoCaption {
+    padding-bottom: 14px;
+  }
+
+  .shareIntroRow {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  .shareIntroInfo {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .shareIntroName {
+    font-size: 15px;
+    font-weight: 700;
+    color: #f7f9ff;
+    line-height: 1.2;
+    cursor: pointer;
+  }
+
+  .shareIntroName:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .shareIntroMeta {
+    font-size: 12px;
+    color: #a0aec0;
+    line-height: 1.3;
+  }
+
+  .shareIntroMeta::before {
+    content: "·";
+    margin-right: 6px;
+    color: #6b7390;
+  }
+
+  .shareIntroCaption {
+    margin: 8px 0 12px;
+    padding: 0;
+    font-size: 14px;
+    color: #e4e6eb;
+    line-height: 1.5;
+    word-break: break-word;
+    white-space: pre-wrap;
+  }
+
+  /* ===== Embedded card cho bài viết gốc — giống PodcastCard nhúng trên Feed ===== */
+  .sharedPostCard {
+    position: relative;
+    margin: 0 16px 8px;
+    border-radius: 14px;
+    background: rgba(12, 16, 36, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+    overflow: hidden;
+    transition: background 0.18s ease;
+  }
+
+  .sharedPostCard:hover {
+    background: rgba(12, 16, 36, 0.62);
+  }
+
+  .sharedPostCard .postHeader {
+    padding: 12px 14px 6px;
+  }
+
+  .sharedPostCard .postBody {
+    padding: 0 14px 12px;
+  }
+
+  .sharedPostCard .title {
+    font-size: 15px;
+  }
+
+  .sharedPostCard .description {
+    font-size: 13px;
+  }
+
+  .sharedPostCard .cover {
+    border-radius: 12px;
+  }
+
+  .sharedPostCard .audioOnlyPlayer {
+    margin-top: 10px;
+    height: 60px;
+    border-radius: 14px;
+  }
+
   .authorBlock {
     display: flex;
     gap: 12px;
@@ -414,6 +517,53 @@
   .commentSection {
     padding-top: 8px;
     scroll-margin-top: 88px;
+  }
+
+  /* Khối bình luận khi modal mở từ share row */
+  .shareCommentsBlock {
+    margin: 4px 16px 0;
+    padding: 10px 0 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    scroll-margin-top: 88px;
+  }
+
+  .shareCommentsLabel {
+    margin: 0 0 4px;
+    padding-left: 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #c5cae9;
+  }
+
+  .commentListShare {
+    padding: 6px 4px 18px;
+  }
+
+  /* Stats / action row khi đang ở scope share — căn lề trùng với card bài gốc */
+  .statsRowShareFeed {
+    margin: 0 16px;
+    padding: 6px 4px;
+  }
+
+  .actionRowShareFeed {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0 16px;
+    padding: 2px 0;
+    gap: 8px;
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .actionRowShareFeed .actionBtn {
+    height: 32px;
+    border-radius: 8px;
+    font-size: 13px;
+    gap: 8px;
+  }
+
+  .actionRowShareFeed .actionBtn:hover {
+    background: rgba(255, 255, 255, 0.06);
   }
 
   .commentList {
@@ -631,10 +781,10 @@
     top: 54%;
     left: calc(100% + 4px);
     transform: translateY(-40%);
-    min-width: 100px;
+    min-width: 96px;
     width: max-content;
-    max-width: 220px;
-    padding: 2px 4px;
+    max-width: 180px;
+    padding: 3px 5px;
     border-radius: 8px;
     background: rgba(20, 28, 55, 0.98);
     border: 1px solid rgba(255,255,255,0.08);
@@ -642,7 +792,7 @@
     z-index: 40;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 2px;
   }
 
   .commentDropdown::before {
@@ -660,7 +810,7 @@
 
   .commentDropdownItem {
     width: 100%;
-    min-height: 0;
+    min-height: 26px;
     border: none;
     border-radius: 6px;
     background: transparent;
@@ -668,7 +818,7 @@
     font-size: 12px;
     font-weight: 600;
     text-align: left;
-    padding: 4px 9px;
+    padding: 5px 10px;
     line-height: 1.25;
     cursor: pointer;
     display: flex;

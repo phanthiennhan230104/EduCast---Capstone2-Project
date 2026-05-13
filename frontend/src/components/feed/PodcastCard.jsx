@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useContext } from 'react'
-import { useNavigate, useLocation } from 'react-router-dom'
+import { useNavigate } from 'react-router-dom'
 import { createPortal } from 'react-dom'
 import { toast } from 'react-toastify'
 import {
@@ -13,11 +13,11 @@ import { getToken, getCurrentUser } from '../../utils/auth'
 import { getInitials } from '../../utils/getInitials'
 import { API_BASE_URL } from '../../config/apiBase'
 import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
-import { saveScrollAndMarkReturnFromEdit } from '../../utils/feedScrollSession'
 import { publicDisplayName } from '../../utils/publicDisplayName'
 import CommentModal from './CommentModal'
 import ShareModal from './ShareModal'
 import ConfirmModal from './ConfirmModal'
+import EditPostModal from './EditPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
 
 function formatTime(seconds) {
@@ -40,14 +40,34 @@ export default function PodcastCard({
   onHide,
   hideMenu = false,
   hideActions = false,
+  /** Bài nhúng trong card share trên feed — like/lưu/chia sẻ/bình luận theo bài gốc (post_id). */
+  embedInShare = false,
   onPlayClick = null,
   onSeek = null,
   onEditPost = null,
 }) {
   const currentUser = getCurrentUser()
   const navigate = useNavigate()
-  const routerLocation = useLocation()
   const menuRef = useRef(null)
+
+  const engagementPostId =
+    getCanonicalPostIdForEngagement(podcast) ||
+    String(podcast.post_id ?? podcast.id ?? '').trim()
+
+  const isFeedShareRow =
+    podcast.type === 'shared' || String(podcast.id || '').startsWith('share_')
+
+  const shareModalPodcast =
+    isFeedShareRow && embedInShare
+      ? {
+          ...podcast,
+          id: engagementPostId,
+          post_id: engagementPostId,
+          type: 'original',
+        }
+      : podcast
+
+  const commentModalPodcast = shareModalPodcast
 
   const [liked, setLiked] = useState(podcast.liked ?? false)
   const [likeCount, setLikeCount] = useState(podcast.likes ?? 0)
@@ -67,6 +87,43 @@ export default function PodcastCard({
   const [menuOpen, setMenuOpen] = useState(false)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
   const [showReportModal, setShowReportModal] = useState(false)
+  const [editPostModalOpen, setEditPostModalOpen] = useState(false)
+  const [livePostMeta, setLivePostMeta] = useState({
+    title: podcast?.title,
+    description: podcast?.description,
+  })
+
+  useEffect(() => {
+    setLivePostMeta({
+      title: podcast?.title,
+      description: podcast?.description,
+    })
+  }, [podcast?.id, podcast?.title, podcast?.description])
+
+  useEffect(() => {
+    const handlePostSync = (event) => {
+      const d = event.detail || {}
+      if (!d.postId) return
+      const canonical =
+        getCanonicalPostIdForEngagement(podcast) ||
+        podcast?.post_id ||
+        podcast?.id
+      if (String(d.postId) !== String(canonical)) return
+
+      if (typeof d.title === 'string' || typeof d.description === 'string') {
+        setLivePostMeta((prev) => ({
+          title: typeof d.title === 'string' ? d.title : prev.title,
+          description:
+            typeof d.description === 'string' ? d.description : prev.description,
+        }))
+      }
+    }
+
+    window.addEventListener('post-sync-updated', handlePostSync)
+    return () => {
+      window.removeEventListener('post-sync-updated', handlePostSync)
+    }
+  }, [podcast?.id, podcast?.post_id])
 
   const POST_SYNC_EVENT = 'post-sync-updated'
 
@@ -263,24 +320,34 @@ export default function PodcastCard({
     setModal((prev) => ({ ...prev, isOpen: false, onConfirm: null }))
   }
 
-  const saveEditReturnState = () => {
-    saveScrollAndMarkReturnFromEdit({ editFocusPostId: podcast.id })
-  }
-
   const handleEdit = () => {
     setMenuOpen(false)
     if (typeof onEditPost === 'function') {
       onEditPost(podcast)
       return
     }
-    saveEditReturnState()
-    const editId =
+    setEditPostModalOpen(true)
+  }
+
+  const handlePostEdited = (next) => {
+    if (!next) return
+    setLivePostMeta({
+      title: next.title ?? livePostMeta.title,
+      description: next.description ?? livePostMeta.description,
+    })
+    const syncPostId =
       getCanonicalPostIdForEngagement(podcast) ||
       podcast.post_id ||
       podcast.id
-    navigate(`/edit/${editId}`, {
-      state: { background: routerLocation },
-    })
+    window.dispatchEvent(
+      new CustomEvent('post-sync-updated', {
+        detail: {
+          postId: syncPostId,
+          title: next.title,
+          description: next.description,
+        },
+      })
+    )
   }
 
   const handleDelete = async () => {
@@ -453,7 +520,7 @@ export default function PodcastCard({
       const currentUser = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${podcast.id}/like/`,
+        `http://localhost:8000/api/social/posts/${engagementPostId}/like/`,
         {
           method: 'POST',
           headers: {
@@ -479,7 +546,7 @@ export default function PodcastCard({
       setLikeCount(nextLikeCount)
 
       dispatchPostSync({
-        postId: podcast.id,
+        postId: engagementPostId,
         liked: nextLiked,
         likeCount: nextLikeCount,
       })
@@ -487,7 +554,7 @@ export default function PodcastCard({
       window.dispatchEvent(
         new CustomEvent('audio-track-like-updated', {
           detail: {
-            postId: podcast.id,
+            postId: engagementPostId,
             liked: nextLiked,
             likeCount: nextLikeCount,
           },
@@ -520,7 +587,7 @@ export default function PodcastCard({
         const currentUser = getCurrentUser()
 
         const res = await fetch(
-          `http://localhost:8000/api/social/posts/${podcast.id}/save/`,
+          `http://localhost:8000/api/social/posts/${engagementPostId}/save/`,
           {
             method: 'POST',
             headers: {
@@ -548,10 +615,10 @@ export default function PodcastCard({
 
         setSaved(false)
         setSaveCount(nextSaveCount)
-        removeSavedPost(podcast.id)
+        removeSavedPost(engagementPostId)
 
         dispatchPostSync({
-          postId: podcast.id,
+          postId: engagementPostId,
           saved: false,
           saveCount: nextSaveCount,
         })
@@ -575,7 +642,7 @@ export default function PodcastCard({
       const next = prev + 1
 
       dispatchPostSync({
-        postId: podcast.id,
+        postId: engagementPostId,
         saved: true,
         saveCount: next,
       })
@@ -583,7 +650,7 @@ export default function PodcastCard({
       return next
     })
 
-    addSavedPost(podcast.id)
+    addSavedPost(engagementPostId)
     setShowCollectionModal(false)
   }
 
@@ -620,14 +687,7 @@ export default function PodcastCard({
       setStatsPopupLoading(true)
 
       const token = getToken()
-      const rawId =
-        type === 'shares' &&
-        (podcast.type === 'shared' ||
-          String(podcast.id || '').startsWith('share_'))
-          ? String(podcast.id || '').trim()
-          : getCanonicalPostIdForEngagement(podcast) ??
-            String(podcast.post_id ?? podcast.id ?? '').trim()
-      const postIdEnc = encodeURIComponent(String(rawId ?? '').trim())
+      const postIdEnc = encodeURIComponent(String(engagementPostId || '').trim())
       if (!postIdEnc) return
 
       let endpoint = ''
@@ -772,6 +832,7 @@ export default function PodcastCard({
       <article
         className={[
           styles.card,
+          embedInShare ? styles.cardShareEmbed : '',
           showCommentModal ? styles.noHover : '',
           isActive ? styles.activeCard : '',
         ].join(' ')}
@@ -909,8 +970,10 @@ export default function PodcastCard({
 
         <div className={styles.body}>
           <div className={styles.textContent}>
-            <h3 className={styles.title}>{title}</h3>
-            <p className={styles.description}>{description}</p>
+            <h3 className={styles.title}>{livePostMeta.title ?? title}</h3>
+            <p className={styles.description}>
+              {livePostMeta.description ?? description}
+            </p>
           </div>
 
           {cover && (
@@ -961,7 +1024,7 @@ export default function PodcastCard({
         </div>
 
         {!hideActions && (
-          <div className={styles.actions}>
+          <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
             <div
               ref={(el) => { statRefs.current.likes = el }}
               className={styles.statHoverWrap}
@@ -1121,7 +1184,7 @@ export default function PodcastCard({
 
       {showCommentModal && (
         <CommentModal
-          podcast={podcast}
+          podcast={commentModalPodcast}
           liked={liked}
           saved={saved}
           likeCount={likeCount}
@@ -1135,17 +1198,26 @@ export default function PodcastCard({
           onShare={handleShare}
           onPostDeleted={() => {
             setShowCommentModal(false)
-            onDelete?.(podcast.id)
+            onDelete?.(engagementPostId)
           }}
         />
       )}
 
       {showShareModal && (
         <ShareModal
-          podcast={podcast}
+          podcast={shareModalPodcast}
           onClose={() => setShowShareModal(false)}
           onShareSuccess={(data) => {
-            setShareCount(Number(data?.share_count || shareCount + 1))
+            const inc = Number(data?.share_count_increment || 0)
+            const nextCount =
+              typeof data?.share_count === 'number'
+                ? Number(data.share_count)
+                : shareCount + (inc > 0 ? inc : 1)
+            setShareCount(nextCount)
+            dispatchPostSync({
+              postId: engagementPostId,
+              shareCount: nextCount,
+            })
           }}
         />
       )}
@@ -1153,7 +1225,7 @@ export default function PodcastCard({
       <SaveCollectionModal
         isOpen={showCollectionModal}
         onClose={() => setShowCollectionModal(false)}
-        postId={podcast.id}
+        postId={engagementPostId}
         onSave={handleCollectionModalSave}
         triggerRef={saveBookmarkRef}
         isPopup={false}
@@ -1161,7 +1233,7 @@ export default function PodcastCard({
 
       {showReportModal && (
         <ReportModal
-          postId={podcast.id}
+          postId={engagementPostId}
           postTitle={podcast.title}
           authorId={podcast.authorId || podcast.author?.id}
           authorName={authorDisplayName}
@@ -1171,6 +1243,13 @@ export default function PodcastCard({
           }}
         />
       )}
+
+      <EditPostModal
+        isOpen={editPostModalOpen}
+        postId={engagementPostId}
+        onClose={() => setEditPostModalOpen(false)}
+        onSaved={handlePostEdited}
+      />
     </>
   )
 }

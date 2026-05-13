@@ -1,17 +1,51 @@
-import { createContext, useState, useCallback, useMemo } from 'react'
+import { createContext, useState, useCallback, useEffect, useMemo } from 'react'
 
 export const PodcastContext = createContext()
+
+const HIDDEN_KEY = 'educast.hiddenPostIds'
+const DELETED_KEY = 'educast.deletedPostIds'
+export const POST_REMOVED_EVENT = 'post-removed'
+
+const loadPersistedIdSet = (storageKey) => {
+  try {
+    const raw = localStorage.getItem(storageKey)
+    if (!raw) return new Set()
+    const arr = JSON.parse(raw)
+    if (!Array.isArray(arr)) return new Set()
+    return new Set(arr.map((v) => String(v)))
+  } catch {
+    return new Set()
+  }
+}
+
+const persistIdSet = (storageKey, idSet) => {
+  try {
+    localStorage.setItem(storageKey, JSON.stringify(Array.from(idSet)))
+  } catch {}
+}
 
 export const PodcastProvider = ({ children }) => {
   console.log('📦 PodcastProvider RENDER')
   // Lưu trữ danh sách podcasts và trạng thái saved của chúng
   const [savedPostIds, setSavedPostIds] = useState(new Set())
-  const [hiddenPostIds, setHiddenPostIds] = useState(new Set())
-  const [deletedPostIds, setDeletedPostIds] = useState(new Set())
+  const [hiddenPostIds, setHiddenPostIds] = useState(() =>
+    loadPersistedIdSet(HIDDEN_KEY)
+  )
+  const [deletedPostIds, setDeletedPostIds] = useState(() =>
+    loadPersistedIdSet(DELETED_KEY)
+  )
   const [deletedPostsVersion, setDeletedPostsVersion] = useState(0)
   const [hiddenPostsVersion, setHiddenPostsVersion] = useState(0)
   const [collections, setCollections] = useState([])
   const [collectionsVersion, setCollectionsVersion] = useState(0)
+
+  useEffect(() => {
+    persistIdSet(HIDDEN_KEY, hiddenPostIds)
+  }, [hiddenPostIds])
+
+  useEffect(() => {
+    persistIdSet(DELETED_KEY, deletedPostIds)
+  }, [deletedPostIds])
 
   // Thêm post vào danh sách saved
   const addSavedPost = useCallback((postId) => {
@@ -27,28 +61,44 @@ export const PodcastProvider = ({ children }) => {
     })
   }, [])
 
-  // Ẩn post
+  // Ẩn post — đồng bộ liên trang qua sự kiện `post-removed` (reason="hidden").
   const hidePost = useCallback((postId) => {
+    const key = String(postId)
     console.log('👁️ hidePost called with id:', postId, 'type:', typeof postId)
     setHiddenPostIds(prev => {
       const newSet = new Set(prev)
-      newSet.add(String(postId))
+      newSet.add(key)
       console.log('✅ hiddenPostIds now has:', newSet.size, 'items, ids:', Array.from(newSet))
       return newSet
     })
     setHiddenPostsVersion(v => v + 1)
+    try {
+      window.dispatchEvent(
+        new CustomEvent(POST_REMOVED_EVENT, {
+          detail: { postId: key, reason: 'hidden' },
+        })
+      )
+    } catch {}
   }, [])
 
-  // Xóa post
+  // Xóa post — đồng bộ liên trang qua sự kiện `post-removed` (reason="deleted").
   const deletePost = useCallback((postId) => {
+    const key = String(postId)
     console.log('📌 deletePost called with id:', postId, 'type:', typeof postId)
     setDeletedPostIds(prev => {
       const newSet = new Set(prev)
-      newSet.add(String(postId))
+      newSet.add(key)
       console.log('✅ deletedPostIds now has:', newSet.size, 'items, ids:', Array.from(newSet))
       return newSet
     })
     setDeletedPostsVersion(v => v + 1)
+    try {
+      window.dispatchEvent(
+        new CustomEvent(POST_REMOVED_EVENT, {
+          detail: { postId: key, reason: 'deleted' },
+        })
+      )
+    } catch {}
   }, [])
 
   // Kiểm tra post có được save không

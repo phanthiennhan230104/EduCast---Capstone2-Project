@@ -99,7 +99,8 @@
   min-height: 82px;
   cursor: pointer;
   transition: all 0.2s;
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
 }
 
 .postItem:hover {
@@ -176,4 +177,71 @@
   height: 200px;
   color: rgba(255, 255, 255, 0.5);
   font-size: 14px;
+}
+
+.menuWrap {
+  position: relative;
+  margin-left: auto;
+  align-self: flex-start;
+}
+
+.moreBtn {
+  background: transparent;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.moreBtn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+}
+
+.dropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  background: #161b27;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+}
+
+.dropdownItem {
+  background: transparent;
+  border: none;
+  color: #e2e8f0;
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.dropdownItem:hover {
+  background: rgba(127, 140, 255, 0.14);
+}
+
+.dropdownItemDanger {
+  color: #f87171;
+}
+
+.dropdownItemDanger:hover {
+  background: rgba(248, 113, 113, 0.12);
 }

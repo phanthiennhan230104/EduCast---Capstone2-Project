@@ -3,7 +3,10 @@ import { X, MoreHorizontal, Heart, MessageCircle, Share2, Bookmark, Edit, Trash2
 import { toast } from 'react-toastify'
 import ConfirmModal from './ConfirmModal'
 import ShareModal from './ShareModal'
+import EditPostModal from './EditPostModal'
+import EditShareCaptionModal from './EditShareCaptionModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
+import { API_BASE_URL } from '../../config/apiBase'
 import styles from '../../style/feed/CommentModal.module.css'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
@@ -124,6 +127,11 @@ function CommentNode({
                       onChange={(e) => setEditingInput(e.target.value)}
                       className={styles.editInput}
                       placeholder="Nhập nội dung mới..."
+                      autoComplete="off"
+                      autoCorrect="off"
+                      autoCapitalize="off"
+                      spellCheck={false}
+                      name={`edit-comment-input-${item.id}`}
                     />
 
                     <div className={styles.editActions}>
@@ -270,6 +278,11 @@ function CommentNode({
                   onChange={(e) => setReplyInput(e.target.value)}
                   placeholder={`Viết phản hồi cho ${getDisplayName(replyingTarget)}...`}
                   className={styles.replyInput}
+                  autoComplete="off"
+                  autoCorrect="off"
+                  autoCapitalize="off"
+                  spellCheck={false}
+                  name={`reply-input-${item.id}`}
                 />
                 <button
                   type="submit"
@@ -410,10 +423,51 @@ export default function CommentModal({
   const [postMenuOpen, setPostMenuOpen] = useState(false)
   const [deletePostModalOpen, setDeletePostModalOpen] = useState(false)
   const [hidePostModalOpen, setHidePostModalOpen] = useState(false)
+  const [editPostModalOpen, setEditPostModalOpen] = useState(false)
+  const [livePostMeta, setLivePostMeta] = useState({
+    title: podcast.title,
+    description: podcast.description,
+  })
+
+  useEffect(() => {
+    setLivePostMeta({
+      title: podcast.title,
+      description: podcast.description,
+    })
+  }, [podcast?.id, podcast?.title, podcast?.description])
+
+  // Đồng bộ tiêu đề/mô tả khi bài viết bị chỉnh sửa ở nơi khác (Feed/Search/Favorites)
+  useEffect(() => {
+    const handleExternalPostSync = (event) => {
+      const d = event.detail || {}
+      if (!d.postId) return
+      if (typeof d.title !== 'string' && typeof d.description !== 'string') {
+        return
+      }
+      if (String(d.postId) !== String(canonicalPostId)) return
+      setLivePostMeta((prev) => ({
+        title: typeof d.title === 'string' ? d.title : prev.title,
+        description:
+          typeof d.description === 'string' ? d.description : prev.description,
+      }))
+    }
+    window.addEventListener('post-sync-updated', handleExternalPostSync)
+    return () =>
+      window.removeEventListener('post-sync-updated', handleExternalPostSync)
+  }, [canonicalPostId])
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const [postMoreMenuOpen, setPostMoreMenuOpen] = useState(false)
   const [deleteProgress, setDeleteProgress] = useState(0)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [editShareCaptionOpen, setEditShareCaptionOpen] = useState(false)
+  const [deleteShareConfirmOpen, setDeleteShareConfirmOpen] = useState(false)
+  const [liveShareCaption, setLiveShareCaption] = useState(
+    podcast?.share_caption || ''
+  )
+
+  useEffect(() => {
+    setLiveShareCaption(podcast?.share_caption || '')
+  }, [podcast?.id, podcast?.share_caption])
   const postMenuRef = useRef(null)
   const postMoreMenuRef = useRef(null)
   const saveButtonRef = useRef(null)
@@ -1165,21 +1219,25 @@ export default function CommentModal({
 
   const handleEditPost = () => {
     setPostMenuOpen(false)
+    setEditPostModalOpen(true)
+  }
 
-    const mainElement = document.querySelector('main')
-
-    const y = mainElement?.scrollTop || 0
-    sessionStorage.setItem('returnToAfterEdit', location.pathname + location.search)
-    sessionStorage.setItem('feedScrollPosition', String(y))
-    writeFeedScrollSessionKeys(y)
-    sessionStorage.setItem('feedFocusPostId', String(podcast.id))
-    sessionStorage.setItem('openPostDetailId', String(podcast.id))
-    sessionStorage.setItem('openPostDetailNoScroll', 'true')
-    sessionStorage.setItem('returnFromEdit', 'true')
-
-    navigate(`/edit/${canonicalPostId}`, {
-      state: { background: location },
+  const handlePostEdited = (next) => {
+    if (!next) return
+    setLivePostMeta({
+      title: next.title ?? livePostMeta.title,
+      description: next.description ?? livePostMeta.description,
     })
+    // Đồng bộ feed/card khác đang hiển thị bài này
+    window.dispatchEvent(
+      new CustomEvent('post-sync-updated', {
+        detail: {
+          postId: canonicalPostId,
+          title: next.title,
+          description: next.description,
+        },
+      })
+    )
   }
 
   const handleDeletePost = () => {
@@ -1474,6 +1532,75 @@ export default function CommentModal({
   String(currentUser?.id) === String(podcast.user_id) ||
   String(currentUser?.username) === String(podcast.authorUsername)
 
+  const sharedByUserId =
+    sharedBy?.id ?? sharedBy?.user_id ?? sharedBy?.pk ?? sharedBy?.userId
+  const isShareOwner =
+    isShareCommentModal &&
+    sharedByUserId != null &&
+    currentUser?.id != null &&
+    String(currentUser.id) === String(sharedByUserId)
+
+  const handleEditShareCaption = (e) => {
+    e?.stopPropagation?.()
+    e?.preventDefault?.()
+    setPostMenuOpen(false)
+    setEditShareCaptionOpen(true)
+  }
+
+  const handleShareCaptionSaved = (nextCaption) => {
+    setLiveShareCaption(nextCaption || '')
+    setEditShareCaptionOpen(false)
+    window.dispatchEvent(
+      new CustomEvent('post-sync-updated', {
+        detail: {
+          postId: podcast.id,
+          shareCaption: nextCaption ?? '',
+        },
+      })
+    )
+  }
+
+  const handleDeleteShareClick = (e) => {
+    e?.stopPropagation?.()
+    e?.preventDefault?.()
+    setPostMenuOpen(false)
+    setDeleteShareConfirmOpen(true)
+  }
+
+  const confirmDeleteShare = async () => {
+    try {
+      const token = getToken()
+      const user = getCurrentUser()
+      const res = await fetch(
+        `${API_BASE_URL}/social/posts/${canonicalPostId}/unshare/`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ user_id: user?.id }),
+        }
+      )
+      let data = {}
+      try {
+        data = await res.json()
+      } catch {
+        data = {}
+      }
+      if (!res.ok) {
+        throw new Error(data.message || `HTTP ${res.status}`)
+      }
+      toast.success('Đã xóa bài viết')
+      setDeleteShareConfirmOpen(false)
+      onPostDeleted?.(podcast.id)
+      handleClose()
+    } catch (err) {
+      console.error('Unshare failed:', err)
+      toast.error(err.message || 'Xóa bài viết thất bại')
+    }
+  }
+
   const authorName =
     typeof podcast.author === 'object'
       ? podcast.author?.name || podcast.author?.username || 'Ẩn danh'
@@ -1494,7 +1621,11 @@ export default function CommentModal({
         <div className={styles.overlay} onClick={handleClose}>
           <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.topBar}>
-          <h2 className={styles.modalTitle}>Bài viết của {authorName}</h2>
+          <h2 className={styles.modalTitle}>
+            {isShareCommentModal
+              ? `Bài chia sẻ của ${shareAuthorLabel}`
+              : `Bài viết của ${authorName}`}
+          </h2>
           <div className={styles.topBarRight}>
             <button className={styles.closeBtn} type="button" onClick={handleClose}>
               <X size={22} />
@@ -1503,6 +1634,90 @@ export default function CommentModal({
         </div>
 
         <div ref={contentScrollRef} className={styles.contentScroll}>
+          {isShareCommentModal && (
+            <div
+              className={[
+                styles.shareIntroBlock,
+                liveShareCaption?.trim()
+                  ? ''
+                  : styles.shareIntroBlockNoCaption,
+              ]
+                .filter(Boolean)
+                .join(' ')}
+            >
+              <div className={styles.shareIntroRow}>
+                <Avatar
+                  src={sharedBy.avatar_url}
+                  name={shareAuthorLabel}
+                  username={sharedBy.username || sharedBy.user_id}
+                  className={styles.avatar}
+                  imageClassName={styles.avatarImage}
+                />
+                <div className={styles.shareIntroInfo}>
+                  <div
+                    className={styles.shareIntroName}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() =>
+                      navigate(`/profile/${sharedBy.username || sharedBy.user_id || ''}`)
+                    }
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        navigate(`/profile/${sharedBy.username || sharedBy.user_id || ''}`)
+                      }
+                    }}
+                  >
+                    {shareAuthorLabel}
+                  </div>
+                  <div className={styles.shareIntroMeta}>
+                    {podcast.sharedTimeAgo || podcast.timeAgo || 'Vừa xong'}
+                  </div>
+                </div>
+
+                {isShareOwner && (
+                  <div className={styles.postMenuWrap} ref={postMenuRef}>
+                    <button
+                      className={styles.moreBtn}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setPostMenuOpen(!postMenuOpen)
+                      }}
+                    >
+                      <MoreHorizontal size={20} />
+                    </button>
+
+                    {postMenuOpen && (
+                      <div className={styles.postDropdown}>
+                        <button
+                          type="button"
+                          className={styles.postDropdownItem}
+                          onClick={(e) => handleEditShareCaption(e)}
+                        >
+                          <Edit size={14} />
+                          <span>Chỉnh sửa</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.postDropdownItem} ${styles.postDropdownItemDanger}`}
+                          onClick={(e) => handleDeleteShareClick(e)}
+                        >
+                          <Trash2 size={14} />
+                          <span>Xóa</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {liveShareCaption && (
+                <p className={styles.shareIntroCaption}>{liveShareCaption}</p>
+              )}
+            </div>
+          )}
+
+          <div className={isShareCommentModal ? styles.sharedPostCard : undefined}>
           <div className={styles.postHeader}>
             <div className={styles.authorBlock}>
               <Avatar
@@ -1515,12 +1730,16 @@ export default function CommentModal({
               <div>
                 <div className={styles.author}>{authorName}</div>
                 <div className={styles.meta}>
-                  {podcast.timeAgo || formatTimeAgo(podcast.created_at)}
+                  {(isShareCommentModal ? podcast.postTimeAgo : podcast.timeAgo) ||
+                    formatTimeAgo(podcast.created_at)}
+                  {isShareCommentModal && Number(podcast.listen_count ?? 0) > 0 && (
+                    <> · {listensDisplay}</>
+                  )}
                 </div>
               </div>
             </div>
 
-            {isOwnerPost && (
+            {isOwnerPost && !isShareCommentModal && (
             <div className={styles.postMenuWrap} ref={postMenuRef}>
               <button 
                 className={styles.moreBtn} 
@@ -1556,7 +1775,8 @@ export default function CommentModal({
             </div>
             )}
 
-            {!isOwnerPost && (
+
+            {!isOwnerPost && !isShareCommentModal && (
             <div className={styles.postMenuWrap} ref={postMoreMenuRef}>
               <button 
                 className={styles.moreBtn} 
@@ -1594,8 +1814,8 @@ export default function CommentModal({
           </div>
 
           <div className={styles.postBody}>
-            <h3 className={styles.title}>{podcast.title}</h3>
-            <p className={styles.description}>{podcast.description}</p>
+            <h3 className={styles.title}>{livePostMeta.title}</h3>
+            <p className={styles.description}>{livePostMeta.description}</p>
 
             {coverImage ? (
               <div className={styles.mediaWrap}>
@@ -1693,6 +1913,7 @@ export default function CommentModal({
               )
             )}
           </div>
+          </div>
 
           <div className={`${styles.statsRow} ${isShareCommentModal ? styles.statsRowShareFeed : ''}`}>
             <div className={styles.leftStats}>
@@ -1773,6 +1994,7 @@ export default function CommentModal({
                 )}
               </div>
 
+              {!isShareCommentModal && (
               <div
                 className={styles.statHoverWrap}
               >
@@ -1809,6 +2031,7 @@ export default function CommentModal({
                   </div>
                 )}
               </div>
+              )}
             </div>
           </div>
 
@@ -1831,28 +2054,32 @@ export default function CommentModal({
               <span>Bình luận</span>
             </button>
 
-            <button type="button" className={styles.actionBtn} onClick={() => setShowShareModal(true)}>
-              <Share2 size={17} />
-              <span>Chia sẻ</span>
-            </button>
+            {!isShareCommentModal && (
+              <button type="button" className={styles.actionBtn} onClick={() => setShowShareModal(true)}>
+                <Share2 size={17} />
+                <span>Chia sẻ</span>
+              </button>
+            )}
 
-            <button
-              ref={saveButtonRef}
-              type="button"
-              className={`${styles.actionBtn} ${displaySaved ? styles.activeSave : ''}`}
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
-                if (displaySaved) {
-                  handleSaveWithRefetch(e)
-                } else {
-                  setShowCollectionModal(true)
-                }
-              }}
-            >
-              <Bookmark size={17} fill={displaySaved ? 'currentColor' : 'none'} />
-              <span>Lưu</span>
-            </button>
+            {!isShareCommentModal && (
+              <button
+                ref={saveButtonRef}
+                type="button"
+                className={`${styles.actionBtn} ${displaySaved ? styles.activeSave : ''}`}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  if (displaySaved) {
+                    handleSaveWithRefetch(e)
+                  } else {
+                    setShowCollectionModal(true)
+                  }
+                }}
+              >
+                <Bookmark size={17} fill={displaySaved ? 'currentColor' : 'none'} />
+                <span>Lưu</span>
+              </button>
+            )}
           </div>
 
           <div
@@ -1860,10 +2087,6 @@ export default function CommentModal({
               isShareCommentModal ? styles.shareCommentsBlock : styles.commentSection
             }
           >
-            {isShareCommentModal ? (
-              <p className={styles.shareCommentsLabel}>Bình luận trên bài chia sẻ</p>
-            ) : null}
-
             <div
               ref={commentListRef}
               className={`${styles.commentList} ${isShareCommentModal ? styles.commentListShare : ''}`}
@@ -1934,6 +2157,11 @@ export default function CommentModal({
               onChange={(e) => setCommentInput(e.target.value)}
               placeholder="Viết bình luận..."
               className={styles.commentInput}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              name={`comment-input-${podcast.id}`}
             />
             <button
               type="submit"
@@ -2014,6 +2242,39 @@ Hành động này không thể hoàn tác.`}
           onSave={handleCollectionModalSave}
           triggerRef={saveButtonRef}
           isPopup={false}
+        />,
+        document.body
+      ),
+
+      <EditPostModal
+        key="edit-post-modal"
+        isOpen={editPostModalOpen}
+        postId={canonicalPostId}
+        onClose={() => setEditPostModalOpen(false)}
+        onSaved={handlePostEdited}
+      />,
+
+      <EditShareCaptionModal
+        key="edit-share-caption-modal"
+        isOpen={editShareCaptionOpen}
+        compositeRowId={podcast?.id}
+        initialCaption={liveShareCaption}
+        onClose={() => setEditShareCaptionOpen(false)}
+        onSaved={handleShareCaptionSaved}
+      />,
+
+      createPortal(
+        <ConfirmModal
+          key="delete-share-confirm"
+          isOpen={deleteShareConfirmOpen}
+          title="Xóa bài viết"
+          message={`Bạn chắc chắn muốn xóa bài viết này?
+Hành động này không thể hoàn tác.`}
+          confirmText="Xóa"
+          cancelText="Hủy"
+          isDangerous={true}
+          onConfirm={confirmDeleteShare}
+          onCancel={() => setDeleteShareConfirmOpen(false)}
         />,
         document.body
       ),

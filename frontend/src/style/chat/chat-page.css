@@ -595,6 +595,47 @@
   justify-content: flex-end;
 }
 
+.shared-post-card-missing {
+  cursor: default;
+  align-items: center;
+  background: rgba(15, 23, 42, 0.72);
+  border-style: dashed;
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+.shared-post-card-missing:hover {
+  transform: none;
+  border-color: rgba(148, 163, 184, 0.32);
+  box-shadow: none;
+}
+
+.message-row.mine .shared-post-card-missing {
+  background: rgba(15, 23, 42, 0.62);
+  border-color: rgba(148, 163, 184, 0.32);
+}
+
+.shared-post-missing-icon {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(148, 163, 184, 0.12);
+  color: rgba(226, 232, 240, 0.78);
+}
+
+.shared-post-card-missing .shared-post-title {
+  color: rgba(248, 250, 252, 0.92);
+  font-style: italic;
+}
+
+.shared-post-card-missing .shared-post-author {
+  color: rgba(148, 163, 184, 0.88);
+  font-size: 12px;
+}
+
 .message-row-highlight {
   animation: messageRowPulse 1.4s ease;
 }

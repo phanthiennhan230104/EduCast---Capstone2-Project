@@ -1,7 +1,8 @@
 import { API_BASE_URL } from '../config/apiBase'
+import { getToken } from './auth'
 
 export const searchContent = async (query, type = 'all', limit = 20, offset = 0) => {
-  const token = localStorage.getItem('educast_access')
+  const token = getToken()
   
   if (!token) {
     throw new Error('Authentication required')

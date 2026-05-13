@@ -15,16 +15,26 @@ import {
   Play,
   Pause,
   Loader,
+  MoreHorizontal,
+  Edit,
+  Trash2,
+  EyeOff,
+
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useTranslation } from 'react-i18next'
 import styles from '../../style/library/FavoritesContent.module.css'
-import { getToken } from '../../utils/auth'
+import { getToken, getCurrentUser } from '../../utils/auth'
+import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
+import { API_BASE_URL } from '../../config/apiBase'
 import { PodcastContext } from '../contexts/PodcastContext'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
+import { POST_REMOVED_EVENT, matchesRemovedPost } from '../../utils/postRemoval'
 import NotesModal from './NotesModal'
 import AllPostsModal from './AllPostsModal'
 import CommentModal from '../feed/CommentModal'
+import EditPostModal from '../feed/EditPostModal'
+import ConfirmModal from '../feed/ConfirmModal'
 
 const COLLECTIONS = [
   { id: 1, name: 'AI cơ bản', count: 6 },
@@ -63,6 +73,19 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
 
   const progressBarRef = useRef(null)
   const draggingRef = useRef(false)
+  const menuRef = useRef(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const handleClickOutside = (e) => {
+      if (menuRef.current && !menuRef.current.contains(e.target)) {
+        setMenuOpen(false)
+      }
+    }
+    window.addEventListener('mousedown', handleClickOutside)
+    return () => window.removeEventListener('mousedown', handleClickOutside)
+  }, [menuOpen])
 
   const handlePlayClick = () => {
     if (!item.audioUrl) {
@@ -195,12 +218,74 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
   return (
     <article className={`${styles.savedCard} ${viewMode === 'list' ? styles.savedCardList : ''}`}>
       <div className={styles.savedTop}>
-        {item.pinned && (
+        {item.pinned ? (
           <span className={styles.savedBadge}>
             <Pin size={11} />
             {t('library.content.pinned')}
           </span>
+        ) : (
+          <span />
         )}
+
+        <div className={styles.savedMenuWrap} ref={menuRef}>
+          <button
+            type="button"
+            className={styles.savedMoreBtn}
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuOpen((prev) => !prev)
+            }}
+            aria-label="Tùy chọn"
+          >
+            <MoreHorizontal size={16} />
+          </button>
+
+          {menuOpen && (
+            <div className={styles.savedDropdown}>
+              {isOwner ? (
+                <>
+                  <button
+                    type="button"
+                    className={styles.savedDropdownItem}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMenuOpen(false)
+                      onEdit?.(item)
+                    }}
+                  >
+                    <Edit size={14} />
+                    <span>Chỉnh sửa</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`${styles.savedDropdownItem} ${styles.savedDropdownItemDanger}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setMenuOpen(false)
+                      onDelete?.(item)
+                    }}
+                  >
+                    <Trash2 size={14} />
+                    <span>Xóa</span>
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className={styles.savedDropdownItem}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setMenuOpen(false)
+                    onHide?.(item)
+                  }}
+                >
+                  <EyeOff size={14} />
+                  <span>Ẩn bài viết</span>
+                </button>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className={styles.savedBody} onClick={() => onOpenDetail(item)}>
@@ -337,7 +422,31 @@ export default function FavoritesContent() {
   const [commentCount, setCommentCount] = useState(0)
   const [liked, setLiked] = useState(false)
   const [saved, setSaved] = useState(true)
+  const [editPostModalOpen, setEditPostModalOpen] = useState(false)
+  const [editingPostId, setEditingPostId] = useState(null)
+  const [deletePostConfirmOpen, setDeletePostConfirmOpen] = useState(false)
+  const [deletingPost, setDeletingPost] = useState(null)
+  const [isDeletingPost, setIsDeletingPost] = useState(false)
+  const [hidePostConfirmOpen, setHidePostConfirmOpen] = useState(false)
+  const [hidingPost, setHidingPost] = useState(null)
+  const [isHidingPost, setIsHidingPost] = useState(false)
+  const currentUser = getCurrentUser()
   const POST_SYNC_EVENT = 'post-sync-updated'
+
+  const computeIsOwner = useCallback((post) => {
+    if (!post) return false
+    if (post.isOwner === true || post.is_owner === true) return true
+    const candidateIds = [
+      post.author_id,
+      post.authorId,
+      post.user_id,
+      post.userId,
+      post.author?.id,
+    ].filter((id) => id != null && id !== '')
+    return candidateIds.some(
+      (id) => String(id) === String(currentUser?.id ?? '')
+    )
+  }, [currentUser?.id])
 
   const { pauseTrackIfDeleted } = useAudioPlayer()
 
@@ -581,6 +690,10 @@ export default function FavoritesContent() {
               is_liked: typeof d.liked === 'boolean' ? d.liked : item.is_liked,
               like_count: typeof d.likeCount === 'number' ? d.likeCount : item.like_count,
               saved: typeof d.saved === 'boolean' ? d.saved : item.saved,
+              ...(typeof d.title === 'string' ? { title: d.title } : {}),
+              ...(typeof d.description === 'string'
+                ? { description: d.description }
+                : {}),
             }
             : item
         )
@@ -593,6 +706,10 @@ export default function FavoritesContent() {
             is_liked: typeof d.liked === 'boolean' ? d.liked : prev.is_liked,
             like_count: typeof d.likeCount === 'number' ? d.likeCount : prev.like_count,
             saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
+            ...(typeof d.title === 'string' ? { title: d.title } : {}),
+            ...(typeof d.description === 'string'
+              ? { description: d.description }
+              : {}),
           }
           : prev
       )
@@ -607,6 +724,23 @@ export default function FavoritesContent() {
     window.addEventListener(POST_SYNC_EVENT, handlePostSync)
     return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
   }, [selectedPostDetail])
+
+  // Đồng bộ liên trang khi 1 bài bị xoá/ẩn ở nơi khác.
+  useEffect(() => {
+    const handleRemoved = (event) => {
+      const removedId = event.detail?.postId
+      if (!removedId) return
+      setPodcasts((prev) => prev.filter((item) => !matchesRemovedPost(item, removedId)))
+      setCollectionPosts((prev) =>
+        prev.filter((item) => !matchesRemovedPost(item, removedId))
+      )
+      setSelectedPostDetail((prev) =>
+        prev && matchesRemovedPost(prev, removedId) ? null : prev
+      )
+    }
+    window.addEventListener(POST_REMOVED_EVENT, handleRemoved)
+    return () => window.removeEventListener(POST_REMOVED_EVENT, handleRemoved)
+  }, [])
 
   // Fetch danh sách saved posts và collections từ API khi component mount
   useEffect(() => {
@@ -849,6 +983,163 @@ export default function FavoritesContent() {
     setSelectedPostDetail(null)
   }
 
+  const handleEditPost = useCallback((post) => {
+    const postId =
+      getCanonicalPostIdForEngagement(post) || String(post?.id ?? '')
+    if (!postId) return
+    setEditingPostId(postId)
+    setEditPostModalOpen(true)
+  }, [])
+
+  const handlePostEdited = useCallback((next) => {
+    if (!editingPostId || !next) return
+    setPodcasts((prev) =>
+      prev.map((item) =>
+        String(item.id) === String(editingPostId)
+          ? {
+              ...item,
+              ...(typeof next.title === 'string' ? { title: next.title } : {}),
+              ...(typeof next.description === 'string'
+                ? { description: next.description }
+                : {}),
+            }
+          : item
+      )
+    )
+    setCollectionPosts((prev) =>
+      prev.map((item) =>
+        String(item.id) === String(editingPostId)
+          ? {
+              ...item,
+              ...(typeof next.title === 'string' ? { title: next.title } : {}),
+              ...(typeof next.description === 'string'
+                ? { description: next.description }
+                : {}),
+            }
+          : item
+      )
+    )
+    window.dispatchEvent(
+      new CustomEvent(POST_SYNC_EVENT, {
+        detail: {
+          postId: editingPostId,
+          title: next.title,
+          description: next.description,
+        },
+      })
+    )
+  }, [editingPostId])
+
+  const handleRequestDeletePost = useCallback((post) => {
+    if (!post?.id) return
+    setDeletingPost(post)
+    setDeletePostConfirmOpen(true)
+  }, [])
+
+  const handleRequestHidePost = useCallback((post) => {
+    if (!post?.id) return
+    setHidingPost(post)
+    setHidePostConfirmOpen(true)
+  }, [])
+
+  const handleConfirmHidePost = useCallback(async () => {
+    if (!hidingPost) return
+    const postId =
+      getCanonicalPostIdForEngagement(hidingPost) ||
+      String(hidingPost?.id ?? '')
+    if (!postId) return
+
+    try {
+      setIsHidingPost(true)
+      const token = getToken()
+      const res = await fetch(
+        `${API_BASE_URL}/social/posts/${encodeURIComponent(postId)}/hide/`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ user_id: currentUser?.id }),
+        }
+      )
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        throw new Error(`Hide failed: ${res.status} ${errText}`)
+      }
+
+      pauseTrackIfDeleted(postId)
+      hidePost(postId)
+
+      setPodcasts((prev) =>
+        prev.filter((item) => String(item.id) !== String(postId))
+      )
+      setCollectionPosts((prev) =>
+        prev.filter((item) => String(item.id) !== String(postId))
+      )
+
+      toast.success('Đã ẩn bài viết')
+      setHidePostConfirmOpen(false)
+      setHidingPost(null)
+    } catch (err) {
+      console.error('Hide post failed:', err)
+      toast.error('Không thể ẩn bài viết')
+    } finally {
+      setIsHidingPost(false)
+    }
+  }, [hidingPost, currentUser?.id, pauseTrackIfDeleted, hidePost])
+
+  const handleConfirmDeletePost = useCallback(async () => {
+    if (!deletingPost) return
+    const postId =
+      getCanonicalPostIdForEngagement(deletingPost) ||
+      String(deletingPost?.id ?? '')
+    if (!postId) return
+
+    try {
+      setIsDeletingPost(true)
+      const token = getToken()
+      const res = await fetch(
+        `${API_BASE_URL}/content/drafts/${encodeURIComponent(postId)}/delete/`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      )
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        throw new Error(`Delete failed: ${res.status} ${errText}`)
+      }
+
+      pauseTrackIfDeleted(postId)
+      deletePost(postId)
+      removeSavedPost(postId)
+
+      setPodcasts((prev) =>
+        prev.filter((item) => String(item.id) !== String(postId))
+      )
+      setCollectionPosts((prev) =>
+        prev.filter((item) => String(item.id) !== String(postId))
+      )
+
+      fetchCollections()
+
+      toast.success('Đã xóa bài viết')
+      setDeletePostConfirmOpen(false)
+      setDeletingPost(null)
+    } catch (err) {
+      console.error('Delete post failed:', err)
+      toast.error('Không thể xóa bài viết')
+    } finally {
+      setIsDeletingPost(false)
+    }
+  }, [deletingPost, pauseTrackIfDeleted, deletePost, removeSavedPost, fetchCollections])
+
   const handleNoteLoaded = (postId, hasNote) => {
     // Cập nhật hasNote khi ghi chú được tải từ backend
     setPodcasts(prev =>
@@ -947,32 +1238,48 @@ export default function FavoritesContent() {
 
   useEffect(() => {
     const handleOpenPostDetailFromPlayer = async (event) => {
-      const postId = event.detail?.postId
-      if (!postId) return
+      const rowPostId = event.detail?.postId
+      if (!rowPostId) return
 
-      let post = podcasts.find(p => String(p.id) === String(postId))
+      const contentPostId =
+        event.detail?.canonicalPostId ||
+        getCanonicalPostIdForEngagement({
+          id: rowPostId,
+          postId: rowPostId,
+          post_id: rowPostId,
+        }) ||
+        rowPostId
+
+      if (!contentPostId || String(contentPostId).startsWith('share_')) return
+
+      let post = podcasts.find(p => String(p.id) === String(contentPostId))
 
       if (!post) {
         try {
           const token = getToken()
 
-          const res = await fetch(`http://localhost:8000/api/content/drafts/${postId}/`, {
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          })
+          const res = await fetch(
+            `${API_BASE_URL}/content/posts/${encodeURIComponent(contentPostId)}/`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            }
+          )
 
           const data = await res.json()
           const raw = data.data || data
+          if (!res.ok || !raw?.id) return
 
           post = {
             id: raw.id,
+            postId: raw.id,
             title: raw.title,
             description: raw.description,
             author:
-              typeof post.author === 'object'
-                ? post.author
+              typeof raw.author === 'object'
+                ? raw.author
                 : {
                   name: post.author || 'Người dùng',
                   username: post.author_username || '',
@@ -998,11 +1305,13 @@ export default function FavoritesContent() {
             audio_url: raw.audio?.audio_url || raw.audio_url || '',
             durationSeconds: raw.audio?.duration_seconds || raw.duration_seconds || 0,
             duration_seconds: raw.audio?.duration_seconds || raw.duration_seconds || 0,
-            like_count: raw.stats?.likes || raw.like_count || 0,
-            comment_count: raw.stats?.comments || raw.comment_count || 0,
-            share_count: raw.stats?.shares || raw.share_count || 0,
-            is_liked: raw.viewer_state?.is_liked || raw.is_liked || false,
-            saved: raw.viewer_state?.is_saved || raw.saved || false,
+            like_count: raw.like_count ?? raw.stats?.likes ?? 0,
+            comment_count: raw.comment_count ?? raw.stats?.comments ?? 0,
+            share_count: raw.share_count ?? raw.stats?.shares ?? 0,
+            save_count: raw.save_count ?? raw.stats?.saves ?? 0,
+            is_liked: raw.is_liked ?? raw.viewer_state?.is_liked ?? false,
+            is_saved: raw.is_saved ?? raw.viewer_state?.is_saved ?? false,
+            saved: raw.is_saved ?? raw.viewer_state?.is_saved ?? false,
             created_at: raw.created_at,
             timeAgo: raw.timeAgo,
           }
@@ -1011,6 +1320,8 @@ export default function FavoritesContent() {
           return
         }
       }
+
+      if (!post) return
 
       handleOpenPostDetail(post)
     }
@@ -1171,6 +1482,10 @@ export default function FavoritesContent() {
                   onToggleSaved={toggleSaved}
                   onOpenNotes={handleOpenNotes}
                   onOpenDetail={handleOpenPostDetail}
+                  isOwner={computeIsOwner(item)}
+                  onEdit={handleEditPost}
+                  onDelete={handleRequestDeletePost}
+                  onHide={handleRequestHidePost}
                   t={t}
                 />
               ))
@@ -1209,6 +1524,51 @@ export default function FavoritesContent() {
             : t('library.allSavedPodcasts', { count: visiblePodcasts.length })
         }
         onSelectPost={handleSelectPostFromAllModal}
+        isOwner={computeIsOwner}
+        onEditPost={handleEditPost}
+        onDeletePost={handleRequestDeletePost}
+        onHidePost={handleRequestHidePost}
+      />
+
+      <EditPostModal
+        isOpen={editPostModalOpen}
+        postId={editingPostId}
+        onClose={() => {
+          setEditPostModalOpen(false)
+          setEditingPostId(null)
+        }}
+        onSaved={handlePostEdited}
+      />
+
+      <ConfirmModal
+        isOpen={deletePostConfirmOpen}
+        onCancel={() => {
+          if (isDeletingPost) return
+          setDeletePostConfirmOpen(false)
+          setDeletingPost(null)
+        }}
+        onConfirm={handleConfirmDeletePost}
+        title="Xóa bài viết"
+        message="Bạn có chắc muốn xóa bài viết này? Hành động này không thể hoàn tác."
+        confirmText={isDeletingPost ? 'Đang xóa…' : 'Xóa bài viết'}
+        cancelText="Hủy"
+        isDangerous
+        isLoading={isDeletingPost}
+      />
+
+      <ConfirmModal
+        isOpen={hidePostConfirmOpen}
+        onCancel={() => {
+          if (isHidingPost) return
+          setHidePostConfirmOpen(false)
+          setHidingPost(null)
+        }}
+        onConfirm={handleConfirmHidePost}
+        title="Ẩn bài viết"
+        message="Bạn có muốn ẩn bài viết này khỏi danh sách?"
+        confirmText={isHidingPost ? 'Đang ẩn…' : 'Ẩn bài viết'}
+        cancelText="Hủy"
+        isLoading={isHidingPost}
       />
 
       {showPostDetail && selectedPostDetail && (

@@ -272,8 +272,76 @@
 
 .savedTop {
   display: flex;
-  justify-content: flex-start;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 1px;
+  position: relative;
+}
+
+.savedMenuWrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.savedMoreBtn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #94a3b8);
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.savedMoreBtn:hover {
+  background: rgba(127, 140, 255, 0.12);
+  color: var(--text-primary, #e2e8f0);
+}
+
+.savedDropdown {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 140px;
+  background: #161b27;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 4px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+}
+
+.savedDropdownItem {
+  background: transparent;
+  border: none;
+  color: var(--text-primary, #e2e8f0);
+  font-size: 13px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.savedDropdownItem:hover {
+  background: rgba(127, 140, 255, 0.14);
+}
+
+.savedDropdownItemDanger {
+  color: #f87171;
+}
+
+.savedDropdownItemDanger:hover {
+  background: rgba(248, 113, 113, 0.12);
 }
 
 .savedBadge {

@@ -1,14 +1,21 @@
 import { useEffect, useState, useContext, useCallback } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'react-toastify'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import { searchContent } from '../../utils/searchApi'
 import SearchPostCard from '../../components/common/SearchPostCard'
 import { useAuth } from '../../components/contexts/AuthContext'
 import { getInitials } from '../../utils/getInitials'
 import { getToken, getCurrentUser } from '../../utils/auth'
+import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
+import { API_BASE_URL } from '../../config/apiBase'
 import { PodcastContext } from '../../components/contexts/PodcastContext'
 import CommentModal from '../../components/feed/CommentModal'
+import EditPostModal from '../../components/feed/EditPostModal'
+import ConfirmModal from '../../components/feed/ConfirmModal'
+import { useAudioPlayer } from '../../components/contexts/AudioPlayerContext'
+import { POST_REMOVED_EVENT, matchesRemovedPost } from '../../utils/postRemoval'
 import styles from '../../style/pages/SearchResultPage/SearchResults.module.css'
 
 function mapSearchPostToDetail(post, currentUser) {
@@ -76,6 +83,17 @@ export default function SearchResultsPage() {
   const [commentCount, setCommentCount] = useState(0)
   const [liked, setLiked] = useState(false)
   const [saved, setSaved] = useState(false)
+
+  // State cho menu Chỉnh sửa / Xóa / Ẩn trên card kết quả
+  const [editPostModalOpen, setEditPostModalOpen] = useState(false)
+  const [editingPostId, setEditingPostId] = useState(null)
+  const [deletePostConfirmOpen, setDeletePostConfirmOpen] = useState(false)
+  const [deletingPost, setDeletingPost] = useState(null)
+  const [isDeletingPost, setIsDeletingPost] = useState(false)
+  const [hidePostConfirmOpen, setHidePostConfirmOpen] = useState(false)
+  const [hidingPost, setHidingPost] = useState(null)
+  const [isHidingPost, setIsHidingPost] = useState(false)
+  const { pauseTrackIfDeleted } = useAudioPlayer()
   const POST_SYNC_EVENT = 'post-sync-updated'
 
   const dispatchPostSync = (payload) => {
@@ -123,6 +141,10 @@ export default function SearchResultsPage() {
               like_count: typeof d.likeCount === 'number' ? d.likeCount : post.like_count,
               is_saved: typeof d.saved === 'boolean' ? d.saved : post.is_saved,
               save_count: typeof d.saveCount === 'number' ? d.saveCount : post.save_count,
+              ...(typeof d.title === 'string' ? { title: d.title } : {}),
+              ...(typeof d.description === 'string'
+                ? { description: d.description }
+                : {}),
             }
             : post
         ),
@@ -136,6 +158,10 @@ export default function SearchResultsPage() {
             like_count: typeof d.likeCount === 'number' ? d.likeCount : prev.like_count,
             is_saved: typeof d.saved === 'boolean' ? d.saved : prev.is_saved,
             save_count: typeof d.saveCount === 'number' ? d.saveCount : prev.save_count,
+            ...(typeof d.title === 'string' ? { title: d.title } : {}),
+            ...(typeof d.description === 'string'
+              ? { description: d.description }
+              : {}),
           }
           : prev
       )
@@ -153,6 +179,23 @@ export default function SearchResultsPage() {
       window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
     }
   }, [selectedPostDetail])
+
+  // Đồng bộ liên trang khi 1 bài bị xoá/ẩn ở nơi khác.
+  useEffect(() => {
+    const handleRemoved = (event) => {
+      const removedId = event.detail?.postId
+      if (!removedId) return
+      setResults((prev) => ({
+        ...prev,
+        posts: prev.posts.filter((p) => !matchesRemovedPost(p, removedId)),
+      }))
+      setSelectedPostDetail((prev) =>
+        prev && matchesRemovedPost(prev, removedId) ? null : prev
+      )
+    }
+    window.addEventListener(POST_REMOVED_EVENT, handleRemoved)
+    return () => window.removeEventListener(POST_REMOVED_EVENT, handleRemoved)
+  }, [])
 
   useEffect(() => {
     if (!query || query.length < 2) {
@@ -184,7 +227,7 @@ export default function SearchResultsPage() {
 
     const fetchFollowing = async () => {
       try {
-        const token = localStorage.getItem('educast_access')
+        const token = getToken()
 
         const response = await fetch('http://127.0.0.1:8000/api/social/follow-list/', {
           headers: {
@@ -218,7 +261,7 @@ export default function SearchResultsPage() {
     setLoadingFollow(prev => ({ ...prev, [authorId]: true }))
 
     try {
-      const token = localStorage.getItem('educast_access')
+      const token = getToken()
 
       const response = await fetch(
         `http://127.0.0.1:8000/api/social/users/${authorId}/follow/`,
@@ -263,19 +306,168 @@ export default function SearchResultsPage() {
     setShowPostDetail(true)
   }, [])
 
+  const handleEditPost = useCallback((post) => {
+    const postId =
+      getCanonicalPostIdForEngagement(post) || String(post?.id ?? '')
+    if (!postId) return
+    setEditingPostId(postId)
+    setEditPostModalOpen(true)
+  }, [])
+
+  const handlePostEdited = useCallback((next) => {
+    if (!editingPostId || !next) return
+    setResults((prev) => ({
+      ...prev,
+      posts: prev.posts.map((p) =>
+        String(p.id) === String(editingPostId)
+          ? {
+              ...p,
+              ...(typeof next.title === 'string' ? { title: next.title } : {}),
+              ...(typeof next.description === 'string'
+                ? { description: next.description }
+                : {}),
+            }
+          : p
+      ),
+    }))
+    window.dispatchEvent(
+      new CustomEvent('post-sync-updated', {
+        detail: {
+          postId: editingPostId,
+          title: next.title,
+          description: next.description,
+        },
+      })
+    )
+  }, [editingPostId])
+
+  const handleRequestDeletePost = useCallback((post) => {
+    if (!post?.id) return
+    setDeletingPost(post)
+    setDeletePostConfirmOpen(true)
+  }, [])
+
+  const handleConfirmDeletePost = useCallback(async () => {
+    if (!deletingPost) return
+    const postId =
+      getCanonicalPostIdForEngagement(deletingPost) ||
+      String(deletingPost?.id ?? '')
+    if (!postId) return
+
+    try {
+      setIsDeletingPost(true)
+      const token = getToken()
+      const res = await fetch(
+        `${API_BASE_URL}/content/drafts/${encodeURIComponent(postId)}/delete/`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      )
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        throw new Error(`Delete failed: ${res.status} ${errText}`)
+      }
+
+      pauseTrackIfDeleted(postId)
+      deletePost(postId)
+      removeSavedPost(postId)
+
+      setResults((prev) => ({
+        ...prev,
+        posts: prev.posts.filter((p) => String(p.id) !== String(postId)),
+      }))
+
+      toast.success('Đã xóa bài viết')
+      setDeletePostConfirmOpen(false)
+      setDeletingPost(null)
+    } catch (err) {
+      console.error('Delete post failed:', err)
+      toast.error('Không thể xóa bài viết')
+    } finally {
+      setIsDeletingPost(false)
+    }
+  }, [deletingPost, pauseTrackIfDeleted, deletePost, removeSavedPost])
+
+  const handleRequestHidePost = useCallback((post) => {
+    if (!post?.id) return
+    setHidingPost(post)
+    setHidePostConfirmOpen(true)
+  }, [])
+
+  const handleConfirmHidePost = useCallback(async () => {
+    if (!hidingPost) return
+    const postId =
+      getCanonicalPostIdForEngagement(hidingPost) ||
+      String(hidingPost?.id ?? '')
+    if (!postId) return
+
+    try {
+      setIsHidingPost(true)
+      const token = getToken()
+      const res = await fetch(
+        `${API_BASE_URL}/social/posts/${encodeURIComponent(postId)}/hide/`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ user_id: currentUserId }),
+        }
+      )
+
+      if (!res.ok) {
+        const errText = await res.text().catch(() => '')
+        throw new Error(`Hide failed: ${res.status} ${errText}`)
+      }
+
+      pauseTrackIfDeleted(postId)
+      hidePost(postId)
+
+      setResults((prev) => ({
+        ...prev,
+        posts: prev.posts.filter((p) => String(p.id) !== String(postId)),
+      }))
+
+      toast.success('Đã ẩn bài viết')
+      setHidePostConfirmOpen(false)
+      setHidingPost(null)
+    } catch (err) {
+      console.error('Hide post failed:', err)
+      toast.error('Không thể ẩn bài viết')
+    } finally {
+      setIsHidingPost(false)
+    }
+  }, [hidingPost, currentUserId, pauseTrackIfDeleted, hidePost])
+
   useEffect(() => {
     const handleOpenPostDetailFromPlayer = async (event) => {
-      const postId = event.detail?.postId
-      if (!postId) return
-      if (String(postId).startsWith('share_')) return
+      const rowPostId = event.detail?.postId
+      if (!rowPostId) return
 
-      let post = results.posts.find((p) => String(p.id) === String(postId))
+      const contentPostId =
+        event.detail?.canonicalPostId ||
+        getCanonicalPostIdForEngagement({
+          id: rowPostId,
+          postId: rowPostId,
+          post_id: rowPostId,
+        }) ||
+        rowPostId
+
+      if (!contentPostId || String(contentPostId).startsWith('share_')) return
+
+      let post = results.posts.find((p) => String(p.id) === String(contentPostId))
 
       if (!post) {
         try {
           const token = getToken()
           const res = await fetch(
-            `http://127.0.0.1:8000/api/content/posts/${encodeURIComponent(postId)}/`,
+            `${API_BASE_URL}/content/posts/${encodeURIComponent(contentPostId)}/`,
             {
               headers: {
                 'Content-Type': 'application/json',
@@ -594,7 +786,10 @@ export default function SearchResultsPage() {
                           created_at: post.created_at,
                           timeAgo: post.timeAgo,
                         }}
-
+                        isOwner={String(currentUserId) === String(post.author_id)}
+                        onEdit={handleEditPost}
+                        onDelete={handleRequestDeletePost}
+                        onHide={handleRequestHidePost}
                         onClick={() =>
                           handleOpenPostDetail(mapSearchPostToDetail(post, currentUser))
                         }
@@ -709,6 +904,47 @@ export default function SearchResultsPage() {
           disableAutoScroll={true}
         />
       )}
+
+      <EditPostModal
+        isOpen={editPostModalOpen}
+        postId={editingPostId}
+        onClose={() => {
+          setEditPostModalOpen(false)
+          setEditingPostId(null)
+        }}
+        onSaved={handlePostEdited}
+      />
+
+      <ConfirmModal
+        isOpen={deletePostConfirmOpen}
+        onCancel={() => {
+          if (isDeletingPost) return
+          setDeletePostConfirmOpen(false)
+          setDeletingPost(null)
+        }}
+        onConfirm={handleConfirmDeletePost}
+        title="Xóa bài viết"
+        message="Bạn có chắc muốn xóa bài viết này? Hành động này không thể hoàn tác."
+        confirmText={isDeletingPost ? 'Đang xóa…' : 'Xóa bài viết'}
+        cancelText="Hủy"
+        isDangerous
+        isLoading={isDeletingPost}
+      />
+
+      <ConfirmModal
+        isOpen={hidePostConfirmOpen}
+        onCancel={() => {
+          if (isHidingPost) return
+          setHidePostConfirmOpen(false)
+          setHidingPost(null)
+        }}
+        onConfirm={handleConfirmHidePost}
+        title="Ẩn bài viết"
+        message="Bạn có muốn ẩn bài viết này khỏi kết quả tìm kiếm?"
+        confirmText={isHidingPost ? 'Đang ẩn…' : 'Ẩn bài viết'}
+        cancelText="Hủy"
+        isLoading={isHidingPost}
+      />
     </MainLayout>
   )
 }

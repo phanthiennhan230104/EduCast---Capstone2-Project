@@ -8,6 +8,8 @@ import {
   useState,
 } from 'react'
 import { AuthContext } from './AuthContext'
+import { getToken } from '../../utils/auth'
+import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
 
 const AudioPlayerContext = createContext(null)
 
@@ -114,6 +116,97 @@ export function AudioPlayerProvider({ children }) {
         audio.src = ''
       }
     }
+  }, [])
+
+  // Đồng bộ currentTrack khi bài đang phát được chỉnh sửa (title/description/cover)
+  useEffect(() => {
+    const handlePostSync = (event) => {
+      const d = event.detail || {}
+      if (!d.postId) return
+      if (
+        typeof d.title !== 'string' &&
+        typeof d.description !== 'string' &&
+        typeof d.thumbnail_url !== 'string'
+      ) {
+        return
+      }
+
+      setCurrentTrack((prev) => {
+        if (!prev) return prev
+        const trackCanonical =
+          getCanonicalPostIdForEngagement(prev) || String(prev.id || '')
+        if (String(trackCanonical) !== String(d.postId)) return prev
+        return {
+          ...prev,
+          ...(typeof d.title === 'string' ? { title: d.title } : {}),
+          ...(typeof d.description === 'string'
+            ? { description: d.description }
+            : {}),
+          ...(typeof d.thumbnail_url === 'string'
+            ? { thumbnail_url: d.thumbnail_url, cover: d.thumbnail_url }
+            : {}),
+        }
+      })
+
+      setQueue((prevQueue) =>
+        prevQueue.map((item) => {
+          const canon =
+            getCanonicalPostIdForEngagement(item) || String(item.id || '')
+          if (String(canon) !== String(d.postId)) return item
+          return {
+            ...item,
+            ...(typeof d.title === 'string' ? { title: d.title } : {}),
+            ...(typeof d.description === 'string'
+              ? { description: d.description }
+              : {}),
+            ...(typeof d.thumbnail_url === 'string'
+              ? { thumbnail_url: d.thumbnail_url, cover: d.thumbnail_url }
+              : {}),
+          }
+        })
+      )
+    }
+
+    window.addEventListener('post-sync-updated', handlePostSync)
+    return () => window.removeEventListener('post-sync-updated', handlePostSync)
+  }, [])
+
+  // Dừng phát + dọn queue khi 1 bài bị xoá/ẩn ở bất kỳ trang nào.
+  useEffect(() => {
+    const handleRemoved = (event) => {
+      const removedId = event.detail?.postId
+      if (!removedId) return
+      const target = String(removedId)
+
+      setCurrentTrack((prev) => {
+        if (!prev) return prev
+        const canon =
+          getCanonicalPostIdForEngagement(prev) || String(prev.id || '')
+        if (String(canon) !== target) return prev
+        try {
+          const audio = audioRef.current
+          audio?.pause()
+          if (audio) {
+            audio.src = ''
+            audio.load()
+          }
+        } catch (_) {}
+        setPlaying(false)
+        setCurrentTime(0)
+        setDuration(0)
+        return null
+      })
+
+      setQueue((prevQueue) =>
+        prevQueue.filter((item) => {
+          const canon =
+            getCanonicalPostIdForEngagement(item) || String(item.id || '')
+          return String(canon) !== target
+        })
+      )
+    }
+    window.addEventListener('post-removed', handleRemoved)
+    return () => window.removeEventListener('post-removed', handleRemoved)
   }, [])
 
   const trackedListenRef = useRef({})
@@ -364,7 +457,7 @@ export function AudioPlayerProvider({ children }) {
       }
 
       try {
-        const token = localStorage.getItem('educast_access')
+        const token = getToken()
 
         const response = await fetch(
           `http://localhost:8000/api/social/posts/${trackId}/listen/`,

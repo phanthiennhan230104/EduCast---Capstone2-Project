@@ -138,13 +138,20 @@ export default function AudioPlayer() {
 
   const handleOpenPost = () => {
     // Feed tìm dòng theo id dòng (composite với bài share), không dùng canonical.
-    const rowId = currentTrack?.id
+    const rowId =
+      currentTrack?.id ??
+      currentTrack?.postId ??
+      currentTrack?.post_id
     if (!rowId) return
+
+    const canonicalPostId =
+      getCanonicalPostIdForEngagement(currentTrack) || String(rowId)
 
     window.dispatchEvent(
       new CustomEvent('open-post-detail', {
         detail: {
           postId: rowId,
+          canonicalPostId,
           disableAutoScroll: true,
         },
       })

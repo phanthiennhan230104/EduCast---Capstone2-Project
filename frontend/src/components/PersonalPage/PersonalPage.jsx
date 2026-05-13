@@ -16,6 +16,7 @@ import ProfileShareModal from '../feed/ProfileShareModal'
 import EditShareCaptionModal from '../feed/EditShareCaptionModal'
 import EditPostModal from '../feed/EditPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
+import { POST_REMOVED_EVENT, matchesRemovedPost } from '../../utils/postRemoval'
 import {
   Edit,
   Edit3,
@@ -356,6 +357,19 @@ export default function PersonalPage() {
     return () =>
       window.removeEventListener(EDUCAST_PERSONAL_SHARE_SUCCESS, onPersonalShare)
   }, [user?.id])
+
+  // Đồng bộ liên trang khi 1 bài bị xoá/ẩn ở nơi khác:
+  // loại bỏ cả dòng bài gốc lẫn các dòng share dẫn về bài gốc đó.
+  React.useEffect(() => {
+    const handleRemoved = (event) => {
+      const removedId = event.detail?.postId
+      if (!removedId) return
+      setPosts((prev) => prev.filter((p) => !matchesRemovedPost(p, removedId)))
+      setPodcasts((prev) => prev.filter((p) => !matchesRemovedPost(p, removedId)))
+    }
+    window.addEventListener(POST_REMOVED_EVENT, handleRemoved)
+    return () => window.removeEventListener(POST_REMOVED_EVENT, handleRemoved)
+  }, [])
 
   const fetchUserPodcasts = async () => {
     try {
