@@ -23,12 +23,12 @@ export default function GenerateSection({ vm }) {
 
   const handlePreview = () => {
     if (vm.genState === 'processing') {
-      toast.info('Vui lòng đợi tạo audio xong trước khi nghe thử')
+      toast.info(t('createAudio.generate.waitProcessingBeforePreview'))
       return
     }
 
     if (!vm.audioUrl) {
-      toast.info(t('createAudio.generate.preview.noAudio'))
+      toast.info(t('createAudio.generate.noAudioPreview'))
       return
     }
 
@@ -37,7 +37,7 @@ export default function GenerateSection({ vm }) {
 
   const handleDownload = () => {
     if (vm.genState === 'processing') {
-      toast.info('Vui lòng đợi tạo audio xong trước khi tải xuống')
+      toast.info(t('createAudio.generate.waitProcessingBeforeDownload'))
       return
     }
 
@@ -130,15 +130,17 @@ export default function GenerateSection({ vm }) {
 
             <div>
               <Title level={5} className={styles.title} style={{ marginBottom: 8 }}>
-                Tiêu đề bài viết
+                {t('createAudio.generate.postTitle')}
               </Title>
               <Text className={styles.subText}>
-                Bạn có thể xem và chỉnh sửa tiêu đề trước khi lưu nháp hoặc đăng bài
+                {t('createAudio.generate.editTitleHint')}
               </Text>
 
               <Input
                 value={vm.title}
                 onChange={(e) => vm.setTitle(e.target.value)}
+                maxLength={120}
+                placeholder={t('createAudio.generate.titlePlaceholder')}
                 maxLength={150}
                 placeholder="Nhập tiêu đề cho bài audio..."
                 style={{ marginTop: 12 }}
@@ -146,17 +148,17 @@ export default function GenerateSection({ vm }) {
 
               <div style={{ marginTop: 6, textAlign: 'right' }}>
                 <Text className={styles.subText}>
-                  {(vm.title || '').length}/150 ký tự
+                  {(vm.title || '').length}/120 {t('createAudio.generate.characters')}
                 </Text>
               </div>
             </div>
 
             <div>
               <Title level={5} className={styles.title} style={{ marginBottom: 8 }}>
-                Mô tả bài viết
+                {t('createAudio.generate.postDescription')}
               </Title>
               <Text className={styles.subText}>
-                Bạn có thể xem và chỉnh sửa mô tả trước khi lưu nháp hoặc đăng bài
+                {t('createAudio.generate.editDescriptionHint')}
               </Text>
 
               <TextArea
@@ -181,7 +183,7 @@ export default function GenerateSection({ vm }) {
                 onClick={handlePreview}
                 disabled={vm.genState === 'processing'}
               >
-                Nghe thử
+                {t('createAudio.generate.preview')}
               </Button>
 
               <Button
@@ -189,7 +191,7 @@ export default function GenerateSection({ vm }) {
                 onClick={handleDownload}
                 disabled={vm.genState === 'processing'}
               >
-                Tải xuống
+                {t('createAudio.generate.download')}
               </Button>
 
               <Button
@@ -197,9 +199,9 @@ export default function GenerateSection({ vm }) {
                 icon={<RocketOutlined />}
                 onClick={vm.goToPublish}
                 disabled={vm.genState === 'processing' || !vm.audioUrl || isPublishLocked}
-                title={isPublishLocked ? 'Bài này đã được đăng rồi' : undefined}
+                title={isPublishLocked ? t('createAudio.generate.alreadyPublished') : undefined}
               >
-                Tiếp tục đăng bài
+                {t('createAudio.generate.continuePublish')}
               </Button>
 
               <Button icon={<SaveOutlined />} onClick={vm.saveCurrentDraft}>

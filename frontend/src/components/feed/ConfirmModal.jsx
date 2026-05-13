@@ -1,5 +1,6 @@
 import { X } from 'lucide-react'
 import styles from '../../style/feed/ConfirmModal.module.css'
+import { useTranslation } from 'react-i18next'
 
 /** Tránh crash khi caller nhầm truyền object (vd. author) thay vì chuỗi. */
 function toModalText(value, fallback = '') {
@@ -28,30 +29,30 @@ export default function ConfirmModal({
   isOpen,
   title,
   message,
-  type = 'confirm', 
+  type = 'confirm',
   onConfirm,
   onCancel,
   inputValue = '',
   onInputChange,
-  confirmText = 'Xác nhận',
-  cancelText = 'Hủy',
+  confirmText,
+  cancelText,
   isDangerous = false,
   isLoading = false,
   progress = 0,
 }) {
+  const { t } = useTranslation()
   if (!isOpen) return null
 
-  const safeTitle = toModalText(title, 'Xác nhận')
+  const safeTitle = toModalText(title, t('feed.confirm.defaultConfirm'))
   const safeMessage = toModalText(message, '')
-  const safeConfirm = toModalText(confirmText, 'Xác nhận')
-  const safeCancel = toModalText(cancelText, 'Hủy')
-
+  const safeConfirm = toModalText(confirmText, t('feed.confirm.defaultConfirm'))
+  const safeCancel = toModalText(cancelText, t('feed.confirm.cancel'))
   return (
     <div className={styles.overlay} onClick={onCancel}>
       <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
         {isLoading && (
           <div className={styles.progressBar}>
-            <div 
+            <div
               className={styles.progressFill}
               style={{
                 width: `${progress}%`,
@@ -62,7 +63,7 @@ export default function ConfirmModal({
         )}
         <div className={styles.header}>
           <h2 className={styles.title}>{safeTitle}</h2>
-          <button className={styles.closeBtn} onClick={onCancel} aria-label="Đóng">
+          <button className={styles.closeBtn} onClick={onCancel} aria-label={t('feed.confirm.close')}>
             <X size={20} />
           </button>
         </div>
@@ -75,7 +76,7 @@ export default function ConfirmModal({
               className={styles.input}
               value={inputValue}
               onChange={(e) => onInputChange?.(e.target.value)}
-              placeholder="Nhập nội dung..."
+              placeholder={t('feed.confirm.inputPlaceholder')}
               autoFocus
             />
           )}

@@ -1,4 +1,5 @@
 import { Avatar, Badge, Typography, Button, Modal } from "antd";
+import { useTranslation } from "react-i18next";
 import {
   DeleteOutlined,
   UserOutlined,
@@ -9,6 +10,7 @@ import { getMessagePreview, formatChatTime } from "../../utils/chat/chatHelpers"
 const { Text } = Typography;
 
 export default function ConversationItem({ item, active, onClick, onDelete }) {
+  const { t } = useTranslation();
   const peer = item.peer;
   const lastMessage = item.last_message;
 
@@ -16,11 +18,11 @@ export default function ConversationItem({ item, active, onClick, onDelete }) {
     e.stopPropagation();
 
     Modal.confirm({
-      title: "Xoá cuộc trò chuyện?",
+      title: t("conversationItem.deleteTitle"),
       icon: <ExclamationCircleOutlined />,
-      content: "Bạn có chắc muốn xoá cuộc trò chuyện này không?",
-      okText: "Xoá",
-      cancelText: "Huỷ",
+      content: t("conversationItem.deleteContent"),
+      okText: t("conversationItem.deleteOk"),
+      cancelText: t("conversationItem.deleteCancel"),
       okButtonProps: {
         danger: true,
       },

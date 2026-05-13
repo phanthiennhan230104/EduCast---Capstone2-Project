@@ -87,15 +87,15 @@ export default function SourceCard({ vm }) {
 
           <Space wrap className={styles.counterRow}>
             <Space wrap>
-              <Button 
-                icon={<DeleteOutlined />} 
+              <Button
+                icon={<DeleteOutlined />}
                 onClick={vm.clearText}
                 disabled={vm.genState === 'processing'}
               >
                 {t('createAudio.source.clear')}
               </Button>
-              <Button 
-                icon={<FileAddOutlined />} 
+              <Button
+                icon={<FileAddOutlined />}
                 onClick={vm.fillDemoText}
                 disabled={vm.genState === 'processing'}
               >
@@ -105,7 +105,7 @@ export default function SourceCard({ vm }) {
 
             <Text className={styles.helperText}>
               {(vm.text || '').length.toLocaleString()} {t('createAudio.source.characters')} ·{' '}
-{t('createAudio.source.estimate')}: {vm.estLabel}
+              {t('createAudio.source.estimate')}: {vm.estLabel}
             </Text>
           </Space>
         </Space>
@@ -147,20 +147,20 @@ export default function SourceCard({ vm }) {
                   >
                     {(vm.file.size / 1024 / 1024).toFixed(2)} MB ·{' '}
                     {vm.isUploadingFile
-  ? t('createAudio.source.uploading')
-  : vm.fileReady
-    ? t('createAudio.source.analyzed')
-    : t('createAudio.source.notReady')}
+                      ? t('createAudio.source.uploading')
+                      : vm.fileReady
+                        ? t('createAudio.source.analyzed')
+                        : t('createAudio.source.notReady')}
                   </Text>
                 </Space>
 
-                <Button 
-                  danger 
-                  type="text" 
+                <Button
+                  danger
+                  type="text"
                   onClick={vm.removeFile}
                   disabled={vm.genState === 'processing'}
                 >
-                  Xóa
+                  {t('createAudio.source.clear')}
                 </Button>
               </Space>
             </Card>

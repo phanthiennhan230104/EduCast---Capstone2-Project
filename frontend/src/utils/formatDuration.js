@@ -1,12 +1,15 @@
+import i18n from './i18n'
 export function formatDurationVi(seconds) {
   const totalSeconds = Math.max(0, Math.floor(Number(seconds) || 0))
 
   const mins = Math.floor(totalSeconds / 60)
   const secs = totalSeconds % 60
 
-  if (mins > 0 && secs > 0) return `${mins} phút ${secs} giây`
-  if (mins > 0) return `${mins} phút`
-  return `${secs} giây`
+  if (mins > 0 && secs > 0) {
+    return i18n.t('duration.minutesSeconds', { mins, secs })
+  }
+  if (mins > 0) return i18n.t('duration.minutes', { count: mins })
+  return i18n.t('duration.seconds', { count: secs })
 }
 
 export function formatDurationClock(seconds) {

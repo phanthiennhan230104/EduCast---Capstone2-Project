@@ -211,7 +211,7 @@ export default function SearchResultsPage() {
         setResults(data || { posts: [], authors: [] })
       } catch (err) {
         setError(t('searchResults.searchError'))
-        console.error('Search error:', err)
+        console.error(t('searchResults.searchErrorLog'), err)
         setResults({ posts: [], authors: [] })
       } finally {
         setLoading(false)
@@ -236,7 +236,7 @@ export default function SearchResultsPage() {
         })
 
         const data = await response.json()
-        console.log('FOLLOW LIST:', data)
+        console.log(t('searchResults.followListLog'), data)
 
         const followingList = data.data?.following || []
 
@@ -244,7 +244,7 @@ export default function SearchResultsPage() {
           new Set(followingList.map(item => String(item.id)))
         )
       } catch (err) {
-        console.error('Fetch following list error:', err)
+        console.error(t('searchResults.fetchFollowingErrorLog'), err)
       }
     }
 
@@ -291,7 +291,7 @@ export default function SearchResultsPage() {
         })
       }
     } catch (err) {
-      console.error('Follow/Unfollow error:', err)
+      console.error(t('searchResults.followToggleErrorLog'), err)
     } finally {
       setLoadingFollow(prev => ({ ...prev, [authorId]: false }))
     }
@@ -498,7 +498,7 @@ export default function SearchResultsPage() {
             timeAgo: undefined,
           }
         } catch (err) {
-          console.error('SearchResultsPage: load post from player click failed', err)
+          console.error(t('searchResults.loadPostFromPlayerFailedLog'), err)
           return
         }
       }
@@ -594,7 +594,7 @@ export default function SearchResultsPage() {
         likeCount: nextLikeCount,
       })
     } catch (err) {
-      console.error('Failed to toggle like:', err)
+      console.error(t('searchResults.toggleLikeFailedLog'), err)
     }
   }
 
@@ -660,7 +660,7 @@ export default function SearchResultsPage() {
         saveCount: nextSaveCount,
       })
     } catch (err) {
-      console.error('Failed to toggle save:', err)
+      console.error(t('searchResults.toggleSaveFailedLog'), err)
     }
   }
 
@@ -684,7 +684,7 @@ export default function SearchResultsPage() {
 
       alert(t('searchResults.shareSuccess'))
     } catch (err) {
-      console.error('Failed to share:', err)
+      console.error(t('searchResults.shareFailedLog'), err)
       alert(t('searchResults.shareError'))
     }
   }
@@ -876,7 +876,7 @@ export default function SearchResultsPage() {
             {results.posts.length === 0 &&
               results.authors.length === 0 && (
                 <div className={styles.noResults}>
-                  <p>Không tìm thấy kết quả nào cho "{query}"</p>
+                  <p>{t('searchResults.noResultsFor', { query })}</p>
                 </div>
               )}
           </>

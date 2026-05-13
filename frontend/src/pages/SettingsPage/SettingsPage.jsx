@@ -27,8 +27,8 @@ import { useTranslation } from 'react-i18next'
 
 const TABS = [
   { id: 'account', labelKey: 'settings.tabs.account', icon: UserRound },
-  { id: 'notifications', labelKey: 'settings.tabs.notifications', icon: Bell },
-  { id: 'ai', labelKey: 'settings.tabs.ai', icon: BrainCircuit },
+  // { id: 'notifications', labelKey: 'settings.tabs.notifications', icon: Bell },
+  // { id: 'ai', labelKey: 'settings.tabs.ai', icon: BrainCircuit },
   { id: 'privacy', labelKey: 'settings.tabs.privacy', icon: Lock },
   { id: 'other', labelKey: 'settings.tabs.other', icon: Settings },
 ]
@@ -44,7 +44,7 @@ function Switch({ defaultChecked = false, onChange }) {
 
 function AccountSummaryCard() {
   const { t } = useTranslation()
-  
+
 }
 
 function SettingsRightPanel({ onLogout }) {
@@ -58,11 +58,11 @@ function SettingsRightPanel({ onLogout }) {
 
       <AccountSummaryCard />
 
-      <div className={styles.listenCard}>
+      {/* <div className={styles.listenCard}>
         <span>Tổng giờ đã nghe</span>
         <strong>142h</strong>
         <small>↑ 12h so với tháng trước</small>
-      </div>
+      </div> */}
 
       <div className={styles.miniStats}>
         <div className={styles.miniCard}>
@@ -78,7 +78,7 @@ function SettingsRightPanel({ onLogout }) {
         </div>
       </div>
 
-      
+
 
       <div className={styles.activityCard}>
         <h4>{t('settings.rightPanel.recentActivity')}</h4>
@@ -92,13 +92,7 @@ function SettingsRightPanel({ onLogout }) {
             </div>
           </div>
 
-          <div className={styles.activityItem}>
-            <BadgeCheck size={14} />
-            <div>
-              <b>Gia hạn Pro thành công</b>
-              <span>12 ngày trước</span>
-            </div>
-          </div>
+          
 
           <div className={styles.activityItem}>
             <ShieldAlert size={14} />
@@ -119,8 +113,10 @@ function SettingsRightPanel({ onLogout }) {
       </div>
 
       <button className={styles.logoutBtn} onClick={onLogout}>
-        <LogOut size={17} />
-        {t('header.logout')}
+        <span className={styles.logoutIcon}>
+          <LogOut size={12} />
+        </span>
+        <span>{t('header.logout')}</span>
       </button>
     </aside>
   )
@@ -217,7 +213,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
         setAvatar(null)
       }
     } catch (error) {
-      console.error('Save profile error:', error)
+      console.error(t('settings.account.saveProfileErrorLog'), error)
       const errorMsg = error?.message || t('settings.account.updateFailed')
       showToast(errorMsg, 'error')
     } finally {
@@ -343,7 +339,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
                   onClick={() => document.getElementById('avatar-upload-view')?.click()}
                 >
                   <Camera size={12} />
-                  Đổi ảnh
+                  {t('settings.account.changeAvatar')}
                 </button>
                 <input
                   type="file"
@@ -361,25 +357,25 @@ function AccountSettings({ profile, onProfileUpdate }) {
           <div className={styles.infoRow}>
             <span>{t('settings.account.displayName')}</span>
             <strong>{displayName}</strong>
-            <button className={styles.smallBtn} onClick={() => setIsEditing(true)}>Sửa</button>
+            <button className={styles.smallBtn} onClick={() => setIsEditing(true)}>{t('settings.account.editShort')}</button>
           </div>
 
           <div className={styles.infoRow}>
             <span>Email</span>
             <strong>{email}</strong>
-            <button className={styles.smallBtn}>Sửa</button>
+            <button className={styles.smallBtn}>{t('settings.account.editShort')}</button>
           </div>
 
           <div className={styles.infoRow}>
             <span>{t('settings.account.password')}</span>
             <strong>{t('settings.account.passwordSet')}</strong>
-            <button className={styles.smallBtn} onClick={() => setShowPasswordModal(true)}>Đổi</button>
+            <button className={styles.smallBtn} onClick={() => setShowPasswordModal(true)}>{t('settings.account.change')}</button>
           </div>
 
           <div className={styles.infoRow}>
             <span>{t('settings.account.bio')}</span>
             <strong>{bio || t('settings.account.notUpdated')}</strong>
-            <button className={styles.smallBtn} onClick={() => setIsEditing(true)}>Sửa</button>
+            <button className={styles.smallBtn} onClick={() => setIsEditing(true)}>{t('settings.account.editShort')}</button>
           </div>
         </div>
       </section>
@@ -391,25 +387,24 @@ function AccountSettings({ profile, onProfileUpdate }) {
           </div>
           <div className={styles.infoTable}>
             <input
-  type="password"
-  value={newPassword}
-  onChange={(e) => setNewPassword(e.target.value)}
-  placeholder={t('settings.account.newPassword')}
-  className={styles.input}
-/>
+              type="password"
+              value={oldPassword}
+              onChange={(e) => setOldPassword(e.target.value)}
+              placeholder={t('settings.account.currentPassword')}
+              className={styles.input}
+            />
             <input
               type="password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
               placeholder={t('settings.account.newPassword')}
-placeholder={t('settings.account.newPassword')}
               className={styles.input}
             />
             <input
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              placeholder={t('settings.account.confirmNewPassword')}  
+              placeholder={t('settings.account.confirmNewPassword')}
               className={styles.input}
             />
             <div className={styles.profileActions}>
@@ -421,7 +416,7 @@ placeholder={t('settings.account.newPassword')}
                 {isLoading ? <Loader size={12} className={styles.spin} /> : '✓'} {t('settings.account.confirm')}
               </button>
               <button className={styles.inlineBtn} onClick={() => setShowPasswordModal(false)}>
-               ✕ {t('settings.account.cancel')}
+                ✕ {t('settings.account.cancel')}
               </button>
             </div>
           </div>
@@ -455,7 +450,7 @@ placeholder={t('settings.account.newPassword')}
 
         <div className={styles.infoTable}>
           <div className={styles.infoRow}>
-           <span>{t('settings.account.deleteAccount')}</span>
+            <span>{t('settings.account.deleteAccount')}</span>
             <strong>{t('settings.account.deleteAccountWarning')}</strong>
             <button className={styles.deleteBtn} onClick={() => {
               if (window.confirm(t('settings.account.deleteConfirm'))) {
@@ -469,135 +464,135 @@ placeholder={t('settings.account.newPassword')}
   )
 }
 
-function NotificationSettings() {
-  const { t } = useTranslation()
-  const [settings, setSettings] = useState({
-    email_notifications: true,
-    push_notifications: true,
-  })
-  const [isLoading, setIsLoading] = useState(false)
+// function NotificationSettings() {
+//   const { t } = useTranslation()
+//   const [settings, setSettings] = useState({
+//     email_notifications: true,
+//     push_notifications: true,
+//   })
+//   const [isLoading, setIsLoading] = useState(false)
 
-  const handleSettingChange = async (key) => {
-    const newValue = !settings[key]
-    setSettings(prev => ({ ...prev, [key]: newValue }))
+//   const handleSettingChange = async (key) => {
+//     const newValue = !settings[key]
+//     setSettings(prev => ({ ...prev, [key]: newValue }))
 
-    setIsLoading(true)
-    try {
-      const updateData = { [key]: newValue }
-      const result = await updateUserSettings(updateData)
-      if (result) {
-        showToast(t('settings.notifications.updated'), 'success')
-      }
-    } catch (error) {
-      setSettings(prev => ({ ...prev, [key]: !newValue }))
-      showToast(t('settings.notifications.updateFailed'), 'error')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+//     setIsLoading(true)
+//     try {
+//       const updateData = { [key]: newValue }
+//       const result = await updateUserSettings(updateData)
+//       if (result) {
+//         showToast(t('settings.notifications.updated'), 'success')
+//       }
+//     } catch (error) {
+//       setSettings(prev => ({ ...prev, [key]: !newValue }))
+//       showToast(t('settings.notifications.updateFailed'), 'error')
+//     } finally {
+//       setIsLoading(false)
+//     }
+//   }
 
-  return (
-    <section className={styles.card}>
-      <div className={styles.cardTitle}>
-        <div className={styles.cardIcon}>
-          <Bell size={16} />
-        </div>
-        <h3>{t('settings.notifications.title')}</h3>
-      </div>
+//   return (
+//     <section className={styles.card}>
+//       <div className={styles.cardTitle}>
+//         <div className={styles.cardIcon}>
+//           <Bell size={16} />
+//         </div>
+//         <h3>{t('settings.notifications.title')}</h3>
+//       </div>
 
-      <div className={styles.infoTable}>
-        <div className={styles.infoRow}>
-          <span>{t('settings.notifications.general')}</span>
-          <strong>
-  {settings.push_notifications
-    ? t('settings.notifications.on')
-    : t('settings.notifications.off')}
-</strong>
-          <Switch defaultChecked={settings.push_notifications} onChange={() => handleSettingChange('push_notifications')} />
-        </div>
+//       <div className={styles.infoTable}>
+//         <div className={styles.infoRow}>
+//           <span>{t('settings.notifications.general')}</span>
+//           <strong>
+//             {settings.push_notifications
+//               ? t('settings.notifications.on')
+//               : t('settings.notifications.off')}
+//           </strong>
+//           <Switch defaultChecked={settings.push_notifications} onChange={() => handleSettingChange('push_notifications')} />
+//         </div>
 
-        <div className={styles.infoRow}>
-          <span>{t('settings.notifications.email')}</span>
-          <strong>
-  {settings.email_notifications
-    ? t('settings.notifications.on')
-    : t('settings.notifications.off')}
-</strong>
-          <Switch defaultChecked={settings.email_notifications} onChange={() => handleSettingChange('email_notifications')} />
-        </div>
-      </div>
-    </section>
-  )
-}
+//         <div className={styles.infoRow}>
+//           <span>{t('settings.notifications.email')}</span>
+//           <strong>
+//             {settings.email_notifications
+//               ? t('settings.notifications.on')
+//               : t('settings.notifications.off')}
+//           </strong>
+//           <Switch defaultChecked={settings.email_notifications} onChange={() => handleSettingChange('email_notifications')} />
+//         </div>
+//       </div>
+//     </section>
+//   )
+// }
 
 
-function AISettings() {
-  const { t } = useTranslation()
-  const [settings, setSettings] = useState({
-    aiRecommendations: true,
-    aiContentCreation: 'allow',
-  })
+// function AISettings() {
+//   const { t } = useTranslation()
+//   const [settings, setSettings] = useState({
+//     aiRecommendations: true,
+//     aiContentCreation: 'allow',
+//   })
 
-  // Note: AI settings are not in user_settings table yet
-  // These are stored locally or in localStorage for now
-  const handleAIRecommendationChange = () => {
-    const newValue = !settings.aiRecommendations
-    setSettings(prev => ({ ...prev, aiRecommendations: newValue }))
-    localStorage.setItem('aiRecommendations', JSON.stringify(newValue))
-    showToast(t('settings.ai.recommendationsUpdated'), 'success')
-  }
+//   // Note: AI settings are not in user_settings table yet
+//   // These are stored locally or in localStorage for now
+//   const handleAIRecommendationChange = () => {
+//     const newValue = !settings.aiRecommendations
+//     setSettings(prev => ({ ...prev, aiRecommendations: newValue }))
+//     localStorage.setItem('aiRecommendations', JSON.stringify(newValue))
+//     showToast(t('settings.ai.recommendationsUpdated'), 'success')
+//   }
 
-  const handleAIContentChange = (value) => {
-    setSettings(prev => ({ ...prev, aiContentCreation: value }))
-    localStorage.setItem('aiContentCreation', JSON.stringify(value))
-    showToast(t('settings.ai.contentCreationUpdated'), 'success')
-  }
+//   const handleAIContentChange = (value) => {
+//     setSettings(prev => ({ ...prev, aiContentCreation: value }))
+//     localStorage.setItem('aiContentCreation', JSON.stringify(value))
+//     showToast(t('settings.ai.contentCreationUpdated'), 'success')
+//   }
 
-  return (
-    <section className={styles.card}>
-      <div className={styles.cardTitle}>
-        <div className={styles.cardIcon}>
-          <BrainCircuit size={16} />
-        </div>
-        <h3>{t('settings.ai.title')}</h3>
-      </div>
+//   return (
+//     <section className={styles.card}>
+//       <div className={styles.cardTitle}>
+//         <div className={styles.cardIcon}>
+//           <BrainCircuit size={16} />
+//         </div>
+//         <h3>{t('settings.ai.title')}</h3>
+//       </div>
 
-      <div className={styles.infoTable}>
-        <div className={styles.infoRow}>
-          <span>{t('settings.ai.recommendations')}</span>
-          <strong>
-  {settings.aiRecommendations ? t('settings.ai.on') : t('settings.ai.off')}
-</strong>
-          <Switch defaultChecked={settings.aiRecommendations} onChange={handleAIRecommendationChange} />
-        </div>
+//       <div className={styles.infoTable}>
+//         <div className={styles.infoRow}>
+//           <span>{t('settings.ai.recommendations')}</span>
+//           <strong>
+//             {settings.aiRecommendations ? t('settings.ai.on') : t('settings.ai.off')}
+//           </strong>
+//           <Switch defaultChecked={settings.aiRecommendations} onChange={handleAIRecommendationChange} />
+//         </div>
 
-        <div className={styles.infoRow}>
-          <span>{t('settings.ai.contentCreation')}</span>
-          <div className={styles.aiContentOptions}>
-            <button
-              className={settings.aiContentCreation === 'allow' ? styles.active : ''}
-              onClick={() => handleAIContentChange('allow')}
-            >
-              {t('settings.ai.allow')}
-            </button>
-            <button
-              className={settings.aiContentCreation === 'review' ? styles.active : ''}
-              onClick={() => handleAIContentChange('review')}
-            >
-              {t('settings.ai.review')}
-            </button>
-            <button
-              className={settings.aiContentCreation === 'deny' ? styles.active : ''}
-              onClick={() => handleAIContentChange('deny')}
-            >
-              {t('settings.ai.deny')}
-            </button>
-          </div>
-        </div>
-      </div>
-    </section>
-  )
-}
+//         <div className={styles.infoRow}>
+//           <span>{t('settings.ai.contentCreation')}</span>
+//           <div className={styles.aiContentOptions}>
+//             <button
+//               className={settings.aiContentCreation === 'allow' ? styles.active : ''}
+//               onClick={() => handleAIContentChange('allow')}
+//             >
+//               {t('settings.ai.allow')}
+//             </button>
+//             <button
+//               className={settings.aiContentCreation === 'review' ? styles.active : ''}
+//               onClick={() => handleAIContentChange('review')}
+//             >
+//               {t('settings.ai.review')}
+//             </button>
+//             <button
+//               className={settings.aiContentCreation === 'deny' ? styles.active : ''}
+//               onClick={() => handleAIContentChange('deny')}
+//             >
+//               {t('settings.ai.deny')}
+//             </button>
+//           </div>
+//         </div>
+//       </div>
+//     </section>
+//   )
+// }
 
 function PrivacySettings() {
   const { t } = useTranslation()
@@ -606,22 +601,22 @@ function PrivacySettings() {
   })
 
   const visibilityOptions = [
-  {
-    value: 'public',
-    label: t('settings.privacy.options.public.label'),
-    description: t('settings.privacy.options.public.description'),
-  },
-  {
-    value: 'followers_only',
-    label: t('settings.privacy.options.followersOnly.label'),
-    description: t('settings.privacy.options.followersOnly.description'),
-  },
-  {
-    value: 'private',
-    label: t('settings.privacy.options.private.label'),
-    description: t('settings.privacy.options.private.description'),
-  },
-]
+    {
+      value: 'public',
+      label: t('settings.privacy.options.public.label'),
+      description: t('settings.privacy.options.public.description'),
+    },
+    {
+      value: 'followers_only',
+      label: t('settings.privacy.options.followersOnly.label'),
+      description: t('settings.privacy.options.followersOnly.description'),
+    },
+    {
+      value: 'private',
+      label: t('settings.privacy.options.private.label'),
+      description: t('settings.privacy.options.private.description'),
+    },
+  ]
 
   const handleProfileVisibilityChange = async (newValue) => {
     setSettings(prev => ({ ...prev, profile_visibility: newValue }))
@@ -773,7 +768,7 @@ export default function SettingsPage() {
         user?.name ||
         user?.display_name ||
         user?.username ||
-        (user?.email ? user.email.split('@')[0] : 'User')
+        (user?.email ? user.email.split('@')[0] : t('settings.account.userFallback'))
 
       setProfile({
         name: fallbackName,
@@ -804,10 +799,10 @@ export default function SettingsPage() {
     switch (activeTab) {
       case 'account':
         return <AccountSettings profile={profile} onProfileUpdate={handleProfileUpdate} />
-      case 'notifications':
-        return <NotificationSettings />
-      case 'ai':
-        return <AISettings />
+      // case 'notifications':
+      //   return <NotificationSettings />
+      // case 'ai':
+      //   return <AISettings />
       case 'privacy':
         return <PrivacySettings />
       case 'other':

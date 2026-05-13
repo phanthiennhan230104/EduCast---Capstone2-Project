@@ -2,7 +2,7 @@ export const EDUCAST_ACCESS = 'educast_access'
 export const EDUCAST_REFRESH = 'educast_refresh'
 export const EDUCAST_USER = 'educast_user'
 export const EDUCAST_REMEMBER_ME = 'educast_remember_me'
-
+import i18n from './i18n'
 export const AUTH_FORCE_LOGOUT_EVENT = 'educast_force_logout'
 export const LOGIN_PATH = '/'
 
@@ -65,7 +65,7 @@ export function isLoggedIn() {
   return Boolean(getToken())
 }
 
-export function forceLogoutToLogin(reason = 'Phiên đăng nhập đã kết thúc.') {
+export function forceLogoutToLogin(reason = i18n.t('authUtils.sessionEnded')) {
   clearAuth()
 
   window.dispatchEvent(

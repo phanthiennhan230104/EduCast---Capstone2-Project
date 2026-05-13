@@ -45,9 +45,9 @@ export default function PopularSection() {
           <h3 className={styles.bannerTitle}>Sẵn sàng khám phá?</h3>
           <p className={styles.bannerText}>Tham gia ngay để bắt đầu hành trình học tập</p>
           <div className={styles.ctaButtons}>
-  <button className={styles.btnOutlineLg}>Đăng nhập</button>
-  <button className={styles.btnCtaLg}>Dùng miễn phí</button>
-</div>
+            <button className={styles.btnOutlineLg}>Đăng nhập</button>
+            <button className={styles.btnCtaLg}>Dùng miễn phí</button>
+          </div>
         </div>
       </div>
     </section>

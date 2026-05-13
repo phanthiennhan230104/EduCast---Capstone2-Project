@@ -181,7 +181,7 @@ export default function SaveCollectionModal({
       }
     } catch (err) {
       console.error('❌ Error saving post:', err)
-      toast.error('Lỗi: ' + err.message)
+      toast.error(t('collection.errorPrefix') + err.message)
     } finally {
       setLoading(false)
     }
@@ -223,7 +223,7 @@ export default function SaveCollectionModal({
 
         {isPopup && (
           <div className={styles.popupHeader}>
-            <h3>Lưu bài viết</h3>
+            <h3>{t('collection.savePost')}</h3>
             <button className={styles.popupCloseBtn} onClick={onClose}>
               <X size={16} />
             </button>

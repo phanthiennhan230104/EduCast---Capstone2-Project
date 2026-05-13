@@ -1,8 +1,10 @@
 import { Bot } from 'lucide-react'
 import AssistantChatBox from './AssistantChatBox'
+import { useTranslation } from 'react-i18next'
 import styles from '../../style/assistant/AssistantWidget.module.css'
 
 export default function AssistantPopup({ anchorPosition, onClose }) {
+  const { t } = useTranslation()
   const popupStyle = getPopupPosition(anchorPosition)
 
   return (
@@ -13,8 +15,8 @@ export default function AssistantPopup({ anchorPosition, onClose }) {
             <Bot size={18} />
           </div>
           <div>
-            <strong>EduCast Assistant</strong>
-            <p>Educational writing & feed search</p>
+            <strong>{t('assistant.title')}</strong>
+<p>{t('assistant.popupSubtitle')}</p>
           </div>
         </div>
 

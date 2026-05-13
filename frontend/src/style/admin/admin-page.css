@@ -248,6 +248,36 @@
   gap: 14px;
 }
 
+.admin-pagination {
+  margin-top: 18px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.admin-page-btn {
+  min-width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  border: 1px solid rgba(162, 175, 255, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d4dcff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-page-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.admin-page-btn-active {
+  background: #f2b84c;
+  color: #222a5b;
+  border-color: #f2b84c;
+}
+
 .admin-report-row {
   display: flex;
   justify-content: space-between;

@@ -1,4 +1,5 @@
 import { apiRequest } from './api'
+import i18n from './i18n'
 
 /**
  * Fetch all user's favorite tag preferences
@@ -6,12 +7,12 @@ import { apiRequest } from './api'
 export const fetchUserTagPreferences = async () => {
   try {
     const data = await apiRequest('/auth/me/tag-preferences/')
-    console.log('📡 fetchUserTagPreferences API Response:', data)
+    console.log(i18n.t('tagPreferences.fetchPreferencesResponseLog'), data)
     const prefs = data.data?.preferences || []
-    console.log('📦 Extracted preferences:', prefs)
+    console.log(i18n.t('tagPreferences.extractedPreferencesLog'), prefs)
     return prefs
   } catch (err) {
-    console.error('❌ Error fetching tag preferences:', err)
+    console.error(i18n.t('tagPreferences.fetchPreferencesErrorLog'), err)
     throw err
   }
 }
@@ -27,7 +28,7 @@ export const updateUserTagPreferences = async (tagIds) => {
     })
     return data.data.preferences || []
   } catch (err) {
-    console.error('Error updating tag preferences:', err)
+    console.error(i18n.t('tagPreferences.updatePreferencesErrorLog'), err)
     throw err
   }
 }
@@ -43,7 +44,7 @@ export const addTagPreference = async (tagId) => {
     })
     return data.data
   } catch (err) {
-    console.error('Error adding tag preference:', err)
+    console.error(i18n.t('tagPreferences.addPreferenceErrorLog'), err)
     throw err
   }
 }
@@ -58,7 +59,7 @@ export const removeTagPreference = async (tagId) => {
     })
     return true
   } catch (err) {
-    console.error('Error removing tag preference:', err)
+    console.error(i18n.t('tagPreferences.removePreferenceErrorLog'), err)
     throw err
   }
 }
@@ -69,12 +70,12 @@ export const removeTagPreference = async (tagId) => {
 export const fetchAvailableTags = async () => {
   try {
     const data = await apiRequest('/auth/tags/available/')
-    console.log('📡 fetchAvailableTags API Response:', data)
+    console.log(i18n.t('tagPreferences.fetchAvailableTagsResponseLog'), data)
     const tags = Array.isArray(data.data) ? data.data : (data.data?.tags || [])
-    console.log('📦 Extracted tags:', tags)
+    console.log(i18n.t('tagPreferences.extractedTagsLog'), tags)
     return tags
   } catch (err) {
-    console.error('❌ Error fetching available tags:', err)
+    console.error(i18n.t('tagPreferences.fetchAvailableTagsErrorLog'), err)
     throw err
   }
 }

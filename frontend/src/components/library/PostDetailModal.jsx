@@ -52,7 +52,7 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
         }
       }
     } catch (err) {
-      console.error('Failed to save post:', err)
+      console.error(t('library.postDetail.savePostFailed'), err)
     }
   }
 
@@ -74,7 +74,7 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
         }
       }
     } catch (err) {
-      console.error('Failed to like post:', err)
+      console.error(t('library.postDetail.likePostFailed'), err)
     }
   }
 
@@ -103,8 +103,8 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
             <h1 className={styles.title}>{post.title}</h1>
             <p className={styles.author}>
               {typeof post.author === 'object'
-                ? post.author?.name || post.author?.username || 'Người dùng'
-                : post.author}
+  ? post.author?.name || post.author?.username || t('library.content.user')
+  : post.author || t('library.content.user')}
             </p>
           </div>
 

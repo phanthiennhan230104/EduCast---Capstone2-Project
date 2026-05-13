@@ -16,6 +16,7 @@ import ProfileShareModal from '../feed/ProfileShareModal'
 import EditShareCaptionModal from '../feed/EditShareCaptionModal'
 import EditPostModal from '../feed/EditPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
+import { useTranslation } from 'react-i18next'
 import { POST_REMOVED_EVENT, matchesRemovedPost } from '../../utils/postRemoval'
 import {
   Edit,
@@ -36,14 +37,19 @@ function engagementPostIdProfile(post) {
   return post.id
 }
 
-const TABS = ['Bài đăng', 'Bạn bè']
+const TABS = [
+  { key: 'posts', labelKey: 'personal.tabs.posts' },
+  { key: 'friends', labelKey: 'personal.tabs.friends' },
+]
 
 export default function PersonalPage() {
-  const [activeTab, setActiveTab] = useState('Bài đăng')
+  const { t } = useTranslation()
+  const [activeTab, setActiveTab] = useState('posts')
   const [posts, setPosts] = useState([])
   const [podcasts, setPodcasts] = useState([])
   const [friends, setFriends] = useState([])
   const [userProfile, setUserProfile] = useState(null)
+  const [profileAccessErrorType, setProfileAccessErrorType] = useState(null) // 'private', 'followers_only', or null
   const [openMenuPostId, setOpenMenuPostId] = useState(null)
   const [failedAvatarUrls, setFailedAvatarUrls] = useState(new Set())
   const [postStates, setPostStates] = useState({})
@@ -227,10 +233,26 @@ export default function PersonalPage() {
   const fetchUserProfile = async () => {
     try {
       const data = await apiRequest(`/users/${profileUserId}/profile/`)
-      setUserProfile(data.data || {})
+
+      // Check if profile is not accessible
+      if (data.is_accessible === false) {
+        // Store error type, not message - will be translated in render
+        let errorType = null
+        if (data.data?.profile_visibility === 'private') {
+          errorType = 'private'
+        } else if (data.data?.profile_visibility === 'followers_only') {
+          errorType = 'followers_only'
+        }
+        setProfileAccessErrorType(errorType)
+        setUserProfile(data.data || {}) // Still show basic info
+      } else {
+        setProfileAccessErrorType(null)
+        setUserProfile(data.data || {})
+      }
     } catch (err) {
-      console.error('Failed to fetch user profile:', err)
+      console.error(t('personal.fetchProfileFailed'), err)
       setUserProfile(null)
+      setProfileAccessErrorType(null)
     }
   }
 
@@ -296,15 +318,15 @@ export default function PersonalPage() {
           ),
           aiGenerated: post.is_ai_generated || false,
           timeAgo: post.shared_at
-            ? formatTimeAgo(post.shared_at)
-            : post.timeAgo || formatTimeAgo(post.created_at),
+            ? formatTimeAgo(post.shared_at, t)
+            : (post.timeAgo || formatTimeAgo(post.created_at, t)),
           sharedTimeAgo: post.shared_at
-            ? formatTimeAgo(post.shared_at)
-            : post.timeAgo || formatTimeAgo(post.created_at),
+            ? formatTimeAgo(post.shared_at, t)
+            : (post.timeAgo || formatTimeAgo(post.created_at, t)),
           postTimeAgo: post.created_at
-            ? formatTimeAgo(post.created_at)
-            : post.timeAgo || '',
-          listens: `${post.listen_count || 0} lượt nghe`,
+            ? formatTimeAgo(post.created_at, t)
+            : (post.timeAgo || ''),
+          listens: t('feed.listens', { count: post.listen_count || 0 }),
           likes: finalLikeCount,
           comments: commentCount,
           shares: shareCount,
@@ -338,7 +360,7 @@ export default function PersonalPage() {
 
       setPosts(filteredPosts)
     } catch (err) {
-      console.error('Failed to fetch posts:', err)
+      console.error(t('personal.fetchPostsFailed'), err)
       setPosts([])
     }
   }
@@ -376,7 +398,7 @@ export default function PersonalPage() {
       const data = await apiRequest(`/content/drafts/my/?limit=100`)
       setPodcasts(data.data?.results || data.data?.drafts || [])
     } catch (err) {
-      console.error('Failed to fetch podcasts:', err)
+      console.error(t('personal.fetchPodcastsFailed'), err)
       setPodcasts([])
     }
   }
@@ -393,7 +415,7 @@ export default function PersonalPage() {
 
       setFriends(following)
     } catch (err) {
-      console.error('Failed to fetch friends:', err)
+      console.error(t('personal.fetchFriendsFailed'), err)
       setFriends([])
     }
   }
@@ -441,8 +463,8 @@ export default function PersonalPage() {
         setShowCommentModal(true)
       }
     } catch (err) {
-      console.error('Failed to fetch original post:', err)
-      toast.error('Không thể tải bài đăng gốc')
+      console.error(t('personal.fetchOriginalPostFailed'), err)
+      toast.error(t('personal.fetchOriginalPostFailed'))
     }
   }
 
@@ -450,12 +472,46 @@ export default function PersonalPage() {
     navigate('/settings?tab=profile')
   }
 
-  const handleShareProfile = () => {
-    setShowProfileShareModal(true)
+  const handleShareProfile = async () => {
+    if (!user?.username) return
+    const profileUrl = `${window.location.origin}/profile/${user.username}`
+    if (navigator.share) {
+      await navigator.share({
+        title: t('personal.profileShareTitle', { username: user.username }),
+        text: t('personal.profileShareText', { username: user.username }),
+        url: profileUrl,
+      })
+    } else {
+      navigator.clipboard.writeText(profileUrl)
+      toast.success(t('personal.copiedLink'))
+    }
   }
 
   const handleMoreOptions = () => {
-    toast.info('Các tùy chọn khác')
+    toast.info(t('personal.moreOptions'))
+  }
+
+  const handleFollowUser = async () => {
+    try {
+      const currentUser = getCurrentUser()
+      if (!currentUser || !profileUserId) {
+        toast.error(t('personal.loginRequired'))
+        return
+      }
+      // Call follow API with correct endpoint: /social/users/{id}/follow/
+      const response = await apiRequest(`/social/users/${profileUserId}/follow/`, {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: currentUser.id,
+        }),
+      })
+      toast.success(t('personal.followedSuccessfully'))
+      // Refresh profile after follow
+      await fetchUserProfile()
+    } catch (err) {
+      console.error('Follow user error:', err)
+      toast.error(t('personal.followFailed'))
+    }
   }
 
   const handleToggleLike = async (postId) => {
@@ -515,8 +571,8 @@ export default function PersonalPage() {
         likeCount: nextLikeCount,
       })
     } catch (err) {
-      console.error('Like failed:', err)
-      toast.error('Lỗi khi thích bài viết')
+      console.error(t('personal.likeError'), err)
+      toast.error(t('personal.likeError'))
     }
   }
 
@@ -586,8 +642,8 @@ export default function PersonalPage() {
         setShowCollectionModal(true)
       }
     } catch (err) {
-      console.error('Save failed:', err)
-      toast.error('Lỗi khi lưu bài viết')
+      console.error(t('personal.saveError'), err)
+      toast.error(t('personal.saveError'))
     }
   }
 
@@ -772,8 +828,8 @@ export default function PersonalPage() {
       setPosts((prev) => prev.filter((p) => p.id !== postId))
       deletePost(postId)
     } catch (err) {
-      console.error('Delete failed:', err)
-      toast.error('Lỗi khi xóa bài viết: ' + err.message)
+      console.error(t('personal.deleteError', { message: err.message }), err)
+      toast.error(t('personal.deleteError', { message: err.message }))
     }
   }
 
@@ -781,7 +837,7 @@ export default function PersonalPage() {
     pauseTrackIfDeleted(postId)
     setPosts((prev) => prev.filter((p) => p.id !== postId))
     hidePost(postId)
-    toast.success('Đã ẩn bài đăng')
+    toast.success(t('personal.hideSuccess'))
   }
 
   return (
@@ -789,15 +845,15 @@ export default function PersonalPage() {
       <div className={styles.header}>
         <div className={styles.coverPhoto}>
           <img
-            src={userProfile?.cover_url || 'https://picsum.photos/seed/cover/1200/400'}
-            alt="Cover"
+            src={userProfile?.cover_url || "https://picsum.photos/seed/cover/1200/400"}
+            alt={t('personal.coverAlt')}
             className={styles.coverImage}
           />
 
           {isOwnProfile && (
             <button className={styles.editCoverBtn}>
               <ImageIcon size={16} />
-              <span className={styles.editCoverText}>Chỉnh sửa ảnh bìa</span>
+              <span className={styles.editCoverText}>{t('personal.editCover')}</span>
             </button>
           )}
         </div>
@@ -809,7 +865,7 @@ export default function PersonalPage() {
                 {profileAvatar && !failedAvatarUrls.has('profile') ? (
                   <img
                     src={profileAvatar}
-                    alt="Avatar"
+                    alt={t('personal.avatarAlt')}
                     className={styles.avatarImage}
                     onError={() => {
                       setFailedAvatarUrls((prev) => new Set([...prev, 'profile']))
@@ -821,7 +877,7 @@ export default function PersonalPage() {
                       username: userProfile?.username,
                       display_name: userProfile?.display_name,
                       name: userProfile?.full_name || userProfile?.name,
-                    })}
+                    } || t('personal.userFallback'))}
                   </div>
                 )}
               </div>
@@ -829,31 +885,30 @@ export default function PersonalPage() {
 
             <div className={styles.profileInfo}>
               <h1 className={styles.profileName}>
+
                 {userProfile?.display_name ||
                   userProfile?.full_name ||
                   userProfile?.name ||
                   userProfile?.username ||
-                  'User'}
-              </h1>
-
+                  t('personal.userFallback')}              </h1>
               <p className={styles.profileStats}>
-                {userProfile?.podcast_count || 0} Podcast ·{' '}
-                {userProfile?.followers_count || 0} Người theo dõi ·{' '}
-                {userProfile?.following_count || 0} Đang theo dõi
-              </p>
+
+                {t('personal.podcastCount', { count: userProfile?.podcast_count || 0 })} ·{' '}
+                {t('personal.followersCount', { count: userProfile?.followers_count || 0 })} ·{' '}
+                {t('personal.followingCount', { count: userProfile?.following_count || 0 })}              </p>
             </div>
 
             <div className={styles.actions}>
               {isOwnProfile && (
                 <button className={styles.editBtn} onClick={handleEditProfile}>
                   <Edit3 size={16} />
-                  Chỉnh sửa
+                  {t('personal.edit')}
                 </button>
               )}
 
               <button className={styles.shareBtn} onClick={handleShareProfile}>
                 <Share2 size={16} />
-                Chia sẻ
+                {t('personal.share')}
               </button>
 
               <button className={styles.moreBtn} onClick={handleMoreOptions}>
@@ -863,321 +918,286 @@ export default function PersonalPage() {
           </div>
 
           <p className={styles.bio}>
-            {userProfile?.bio ||
-              user?.bio ||
-              'Podcaster | AI Enthusiast | Chia sẻ kiến thức công nghệ mỗi ngày 🎙️🚀'}
-          </p>
+            {userProfile?.bio || user?.bio || t('personal.defaultBio')}          </p>
         </div>
 
         <div className={styles.tabsContainer}>
+
           {TABS.map((tab) => (
             <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={`${styles.tabBtn} ${activeTab === tab ? styles.activeTab : ''
-                }`}
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`${styles.tabBtn} ${activeTab === tab.key ? styles.activeTab : ''}`}
             >
-              {tab}
-              {activeTab === tab && (
-                <motion.div layoutId="activeTab" className={styles.tabIndicator} />
-              )}
+              {t(tab.labelKey)}
+              {activeTab === tab && <motion.div layoutId="activeTab" className={styles.tabIndicator} />}
             </button>
           ))}
         </div>
       </div>
 
-      <div className={styles.contentWrapper}>
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            transition={{ duration: 0.2 }}
-          >
-            {activeTab === 'Bài đăng' && (
-              <div className={styles.tabContent}>
-                <div className={styles.postsLayout}>
-                  {posts.length > 0 ? (
-                    posts.map((post) => {
-                      const isOriginalPost = post.type !== 'shared'
+      {/* Profile Access Error Message */}
+      {profileAccessErrorType && (
+        <div className={styles.accessErrorContainer}>
+          <div className={styles.accessErrorCard}>
+            <EyeOff size={48} className={styles.accessErrorIcon} />
+            <h2 className={styles.accessErrorTitle}>
+              {profileAccessErrorType === 'private'
+                ? t('personal.profilePrivate')
+                : t('personal.profileFollowersOnly')}
+            </h2>
+            <p className={styles.accessErrorDescription}>
+              {profileAccessErrorType === 'private'
+                ? t('personal.profilePrivateDescription')
+                : t('personal.profileFollowersOnlyDescription')}
+            </p>
+            <div className={styles.accessErrorActions}>
+              {!isOwnProfile && (
+                <button className={styles.followBtn} onClick={handleFollowUser}>
+                  {t('personal.followUser')}
+                </button>
+              )}
+              <button className={styles.backBtn} onClick={() => navigate(-1)}>
+                {t('personal.goBack')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
-                      if (isOriginalPost) {
-                        return (
-                          <div key={post.id} className={styles.postCard}>
-                            <PodcastCard
-                              podcast={post}
-                              queue={posts}
-                              onDelete={handleDeletePost}
-                              onHide={handleHidePost}
-                              hideMenu={false}
-                              hideActions={false}
-                              onEditPost={
-                                isOwnProfile ? () => setEditPostModalPost(post) : null
-                              }
-                            />
-                          </div>
-                        )
-                      }
+      {/* Tab Content - Only show if profile is accessible */}
+      {!profileAccessErrorType && (
+  <>
+    <div className={styles.contentWrapper}>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={activeTab}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                {activeTab === 'posts' && (
+                  <div className={styles.tabContent}>
+                    <div className={styles.postsLayout}>
+                      {posts.length > 0 ? (
+                        posts.map((post) => {
+                          const isOriginalPost = post.type !== 'shared'
 
-                      return (
-                        <div key={post.id} className={styles.postShareContainer}>
-                          <div className={styles.postShareWrapper}>
-                            <div className={styles.postShareInfo}>
-                              <div className={styles.postShareAuthor}>
-                                {profileAvatar && !failedAvatarUrls.has('postShare') ? (
-                                  <div className={styles.postShareAvatarWrapper}>
-                                    <img
-                                      src={profileAvatar}
-                                      alt={
-                                        userProfile?.username ||
-                                        userProfile?.display_name ||
-                                        'Avatar'
-                                      }
-                                      className={styles.postShareAvatar}
-                                      onError={() => {
-                                        setFailedAvatarUrls(
-                                          (prev) => new Set([...prev, 'postShare'])
-                                        )
-                                      }}
-                                    />
-                                  </div>
-                                ) : (
-                                  <div className={styles.postShareAvatarWrapper}>
-                                    <div className={styles.postShareAvatarInitials}>
-                                      {getInitials({
-                                        username: userProfile?.username,
-                                        display_name: userProfile?.display_name,
-                                        name: userProfile?.full_name || userProfile?.name,
-                                      })}
+                          // If it's own post, display like Feed (just PodcastCard without share frame)
+                          if (isOriginalPost) {
+                            return (
+                              <div key={post.id} className={styles.postCard}>
+                                <PodcastCard
+                                  podcast={post}
+                                  queue={posts}
+                                  onDelete={handleDeletePost}
+                                  onHide={handleHidePost}
+                                  hideMenu={false}
+                                  hideActions={false}
+                                  onEditPost={
+                                    isOwnProfile ? () => setEditPostModalPost(post) : null
+                                  }
+                                />
+                              </div>
+                            )
+                          }
+
+                          // If it's a shared post from someone else, display with share frame
+                          return (
+                            <div key={post.id} className={styles.postShareContainer}>
+                              {/* Wrapper div bao quanh tất cả */}
+                              <div className={styles.postShareWrapper}>
+                                {/* Share Info Header - Hiển thị tên người chia sẻ và thời gian */}
+                                <div className={styles.postShareInfo}>
+                                  <div className={styles.postShareAuthor}>
+                                    {profileAvatar && !failedAvatarUrls.has('postShare') ? (
+                                      <div className={styles.postShareAvatarWrapper}>
+                                        <img
+                                          src={profileAvatar}
+                                          alt={userProfile?.username || userProfile?.display_name || 'Avatar'}
+                                          className={styles.postShareAvatar}
+                                          onError={() => {
+                                            setFailedAvatarUrls(prev => new Set([...prev, 'postShare']))
+                                          }}
+                                        />
+                                      </div>
+                                    ) : (
+                                      <div className={styles.postShareAvatarWrapper}>
+                                        <div className={styles.postShareAvatarInitials}>
+                                          {getInitials({
+                                            username: userProfile?.username,
+                                            display_name: userProfile?.display_name,
+                                            name: userProfile?.full_name || userProfile?.name,
+                                          } || 'User')}
+                                        </div>
+                                      </div>
+                                    )}
+                                    <div>
+                                      <h5 className={styles.postShareAuthorName}>
+                                        {userProfile?.display_name || userProfile?.full_name || userProfile?.name || user?.username}
+                                      </h5>
+                                      <p className={styles.postShareTime}>
+                                        {post.sharedTimeAgo || post.timeAgo || formatTimeAgo(post.shared_at || post.created_at, t)}
+                                      </p>
                                     </div>
                                   </div>
-                                )}
-
-                                <div>
-                                  <h5 className={styles.postShareAuthorName}>
-                                    {userProfile?.display_name ||
-                                      userProfile?.full_name ||
-                                      userProfile?.name ||
-                                      user?.username}
-                                  </h5>
-
-                                  <p className={styles.postShareTime}>
-                                    {post.sharedTimeAgo ||
-                                      post.timeAgo ||
-                                      formatTimeAgo(post.shared_at || post.created_at)}
-                                  </p>
-                                </div>
-                              </div>
-
-                              {isOwnProfile && (
-                                <div className={styles.postMenuWrap} data-profile-share-menu>
-                                  <button
-                                    className={styles.postShareMenuBtn}
-                                    onClick={() =>
-                                      setOpenMenuPostId(
-                                        openMenuPostId === post.id ? null : post.id
-                                      )
-                                    }
-                                  >
-                                    <MoreHorizontal size={20} />
-                                  </button>
-
-                                  {openMenuPostId === post.id && (
-                                    <div className={styles.postMenu}>
+                                  {isOwnProfile && (
+                                    <div className={styles.postMenuWrap} data-profile-share-menu>
                                       <button
-                                        className={styles.postMenuOption}
-                                        onClick={() => {
-                                          setOpenMenuPostId(null)
-                                          setEditShareCaptionPost(post)
-                                        }}
+                                        className={styles.postShareMenuBtn}
+                                        onClick={() => setOpenMenuPostId(openMenuPostId === post.id ? null : post.id)}
                                       >
-                                        <Edit size={16} />
-                                        <span>Chỉnh sửa</span>
+                                        <MoreHorizontal size={20} />
                                       </button>
-
-                                      <button
-                                        className={`${styles.postMenuOption} ${styles.danger}`}
-                                        onClick={() => handleDeletePost(post.id)}
-                                      >
-                                        <Trash2 size={16} />
-                                        <span>Xóa</span>
-                                      </button>
+                                      {openMenuPostId === post.id && (
+                                        <div className={styles.postMenu}>
+                                          <button
+                                            className={styles.postMenuOption}
+                                            onClick={() => {
+                                              setOpenMenuPostId(null)
+                                              setEditShareCaptionPost(post)
+                                            }}
+                                          >
+                                            <Edit size={16} />
+                                            <span>{t('personal.edit')}</span>
+                                          </button>
+                                          <button
+                                            className={`${styles.postMenuOption} ${styles.danger}`}
+                                            onClick={() => handleDeletePost(post.id)}
+                                          >
+                                            <Trash2 size={16} />
+                                            <span>{t('common.delete')}</span>
+                                          </button>
+                                        </div>
+                                      )}
                                     </div>
                                   )}
                                 </div>
-                              )}
-                            </div>
 
-                            {post.share_caption && (
-                              <div className={styles.shareCaption}>
-                                <p>{post.share_caption}</p>
+                                {/* Share Caption - Hiển thị nội dung chia sẻ */}
+                                {post.share_caption && (
+                                  <div className={styles.shareCaption}>
+                                    <p>{post.share_caption}</p>
+                                  </div>
+                                )}
+
+                                {/* Shared Post Content - Hiển thị bài đăng gốc */}
+                                <div
+                                  className={styles.postCardInShare}
+                                  onClick={() => handleOpenOriginalPost(post)}
+                                  style={{ cursor: 'pointer' }}
+                                  title={t('feed.viewOriginalPost')}
+                                >
+                                  <PodcastCard
+                                    podcast={{ ...post, timeAgo: post.postTimeAgo || post.timeAgo }}
+                                    queue={posts}
+                                    onDelete={handleDeletePost}
+                                    onHide={handleHidePost}
+                                    hideMenu={true}
+                                    hideActions={true}
+                                    embedInShare={true}
+                                  />
+                                </div>
+
+                                {/* Share Actions - Hiển thị like, comment, share, lưu */}
+                                <div className={styles.postShareActions}>
+                                  <button
+                                    className={`${styles.shareActionBtn} ${postStates[post.id]?.liked ? styles.liked : ''}`}
+                                    onClick={() => handleToggleLike(post.id)}
+                                  >
+                                    <Heart size={16} fill={postStates[post.id]?.liked ? 'currentColor' : 'none'} />
+                                    <span>{postStates[post.id]?.likeCount ?? post.likes ?? 0}</span>
+                                  </button>
+                                  <button
+                                    className={styles.shareActionBtn}
+                                    onClick={() => handleOpenCommentModal(post)}
+                                  >
+                                    <MessageCircle size={16} />
+
+                                    <span>
+                                      {t('personal.comments', {
+                                        count: postStates[post.id]?.commentCount ?? post.comments ?? 0,
+                                      })}
+                                    </span>                              </button>
+                                  <button
+                                    className={styles.shareActionBtn}
+                                    onClick={() => handleOpenShareModal(post)}
+                                  >
+                                    <Share2 size={16} />
+                                    <span>
+                                      {t('personal.shares', {
+                                        count: postStates[post.id]?.shareCount ?? post.shares ?? 0,
+                                      })}
+                                    </span>                              </button>
+                                  <button
+                                    ref={saveBookmarkRef}
+                                    className={`${styles.shareActionBtn} ${postStates[post.id]?.saved ? styles.saved : ''}`}
+                                    onClick={() => handleToggleSave(post.id)}
+                                  >
+                                    <Bookmark size={16} fill={postStates[post.id]?.saved ? 'currentColor' : 'none'} />
+                                    <span>
+                                      {t('personal.saves', {
+                                        count: postStates[post.id]?.saveCount ?? post.saveCount ?? 0,
+                                      })}
+                                    </span>                              </button>
+                                </div>
+                              </div>
+                            </div>
+                          )
+                        })
+                      ) : (
+                        <div className={styles.emptyState}>
+                          <p>{t('personal.noPosts')}</p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+
+                {activeTab === 'friends' && (
+                  <div className={styles.tabContent}>
+                    <div className={styles.tabContentHeader}>
+                      <h3 className={styles.cardTitle}>{t('personal.tabs.friends')}</h3>
+                      <div className={styles.friendsCount}>
+                        {t('personal.people', { count: friends.length })}
+                      </div>                </div>
+                    <div className={styles.friendsGrid}>
+                      {friends.length > 0 ? (
+                        friends.map((friend) => (
+                          <div key={friend.name || friend.username} className={styles.friendCard}>
+                            {(friend.avatar_url || friend.avatar) && !failedAvatarUrls.has(`friend-${friend.id || friend.username}`) ? (
+                              <img
+                                src={friend.avatar_url || friend.avatar}
+                                alt={friend.name || friend.username}
+                                className={styles.friendAvatar}
+                                onError={() => setFailedAvatarUrls(prev => new Set([...prev, `friend-${friend.id || friend.username}`]))}
+                              />
+                            ) : (
+                              <div className={styles.friendAvatarInitials}>
+                                {getInitials({ username: friend.username, display_name: friend.display_name, name: friend.name } || 'User')}
                               </div>
                             )}
-
-                            <div
-                              className={styles.postCardInShare}
-                              onClick={() => handleOpenOriginalPost(post)}
-                              style={{ cursor: 'pointer' }}
-                              title="Click để xem bài đăng gốc"
-                            >
-                              <PodcastCard
-                                podcast={{
-                                  ...post,
-                                  timeAgo: post.postTimeAgo || post.timeAgo,
-                                }}
-                                queue={posts}
-                                onDelete={handleDeletePost}
-                                onHide={handleHidePost}
-                                hideMenu={true}
-                                hideActions={true}
-                                embedInShare={true}
-                              />
-                            </div>
-
-                            <div className={styles.postShareActions}>
-                              <button
-                                className={`${styles.shareActionBtn} ${postStates[post.id]?.liked ? styles.liked : ''
-                                  }`}
-                                onClick={() => handleToggleLike(post.id)}
-                              >
-                                <Heart
-                                  size={16}
-                                  fill={
-                                    postStates[post.id]?.liked
-                                      ? 'currentColor'
-                                      : 'none'
-                                  }
-                                />
-                                <span>
-                                  {postStates[post.id]?.likeCount ?? post.likes ?? 0}
-                                </span>
-                              </button>
-
-                              <button
-                                className={styles.shareActionBtn}
-                                onClick={() => handleOpenCommentModal(post)}
-                              >
-                                <MessageCircle size={16} />
-                                <span>
-                                  {postStates[post.id]?.commentCount ??
-                                    post.comments ??
-                                    0}{' '}
-                                  Bình luận
-                                </span>
-                              </button>
-
-                              <button
-                                className={styles.shareActionBtn}
-                                onClick={() => handleOpenShareModal(post)}
-                              >
-                                <Share2 size={16} />
-                                <span>
-                                  {postStates[post.id]?.shareCount ??
-                                    post.shares ??
-                                    0}{' '}
-                                  Chia sẻ
-                                </span>
-                              </button>
-
-                              <button
-                                ref={saveBookmarkRef}
-                                className={`${styles.shareActionBtn} ${postStates[post.id]?.saved ? styles.saved : ''
-                                  }`}
-                                onClick={() => handleToggleSave(post.id)}
-                              >
-                                <Bookmark
-                                  size={16}
-                                  fill={
-                                    postStates[post.id]?.saved
-                                      ? 'currentColor'
-                                      : 'none'
-                                  }
-                                />
-                                <span>
-                                  {postStates[post.id]?.saveCount ??
-                                    post.saveCount ??
-                                    0}{' '}
-                                  Lưu
-                                </span>
-                              </button>
-                            </div>
+                            <div>
+                              <h4 className={styles.friendName}>{friend.name || friend.display_name || friend.username}</h4>
+                              <button className={styles.followingBadge}>{t('buttons.following')}</button>                        </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className={styles.emptyState}>
+                          <p>{t('personal.noFriends')}</p>
                         </div>
-                      )
-                    })
-                  ) : (
-                    <div className={styles.emptyState}>
-                      <p>Chưa có bài đăng nào</p>
+                      )}
                     </div>
-                  )}
-                </div>
-              </div>
-            )}
+                  </div>
+                )}
 
-            {activeTab === 'Bạn bè' && (
-              <div className={styles.tabContent}>
-                <div className={styles.tabContentHeader}>
-                  <h3 className={styles.cardTitle}>Bạn bè</h3>
-                  <div className={styles.friendsCount}>{friends.length} người</div>
-                </div>
-
-                <div className={styles.friendsGrid}>
-                  {friends.length > 0 ? (
-                    friends.map((friend) => (
-                      <div
-                        key={friend.id || friend.name || friend.username}
-                        className={styles.friendCard}
-                      >
-                        {(friend.avatar_url || friend.avatar) &&
-                          !failedAvatarUrls.has(
-                            `friend-${friend.id || friend.username}`
-                          ) ? (
-                          <img
-                            src={friend.avatar_url || friend.avatar}
-                            alt={friend.name || friend.username}
-                            className={styles.friendAvatar}
-                            onError={() =>
-                              setFailedAvatarUrls(
-                                (prev) =>
-                                  new Set([
-                                    ...prev,
-                                    `friend-${friend.id || friend.username}`,
-                                  ])
-                              )
-                            }
-                          />
-                        ) : (
-                          <div className={styles.friendAvatarInitials}>
-                            {getInitials({
-                              username: friend.username,
-                              display_name: friend.display_name,
-                              name: friend.name,
-                            })}
-                          </div>
-                        )}
-
-                        <div>
-                          <h4 className={styles.friendName}>
-                            {friend.name || friend.display_name || friend.username}
-                          </h4>
-                          <button className={styles.followingBadge}>
-                            Đang theo dõi
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <div className={styles.emptyState}>
-                      <p>Chưa có bạn bè nào</p>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </div>
+              </motion.div>
+            </AnimatePresence>
+          </div>
+        </>
+      )}
 
       {showCommentModal && selectedPost && (
         <CommentModal
@@ -1294,8 +1314,8 @@ export default function PersonalPage() {
   )
 }
 
-function formatTimeAgo(dateString) {
-  if (!dateString) return 'Vừa xong'
+function formatTimeAgo(dateString, t) {
+  if (!dateString) return t('feed.time.justNow')
 
   const created = new Date(dateString)
   const now = new Date()
@@ -1304,9 +1324,8 @@ function formatTimeAgo(dateString) {
   const diffHours = Math.floor(diffMinutes / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMinutes < 1) return 'Vừa xong'
-  if (diffMinutes < 60) return `${diffMinutes} phút trước`
-  if (diffHours < 24) return `${diffHours} giờ trước`
-
-  return `${diffDays} ngày trước`
+  if (diffMinutes < 1) return t('feed.time.justNow')
+  if (diffMinutes < 60) return t('feed.time.minutesAgo', { count: diffMinutes })
+  if (diffHours < 24) return t('feed.time.hoursAgo', { count: diffHours })
+  return t('feed.time.daysAgo', { count: diffDays })
 }

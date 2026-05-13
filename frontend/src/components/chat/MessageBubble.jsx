@@ -12,6 +12,8 @@ import {
 import { EyeOff, Ban } from "lucide-react";
 import { toast } from "react-toastify";
 import ChatAudioPlayer from "./ChatAudioPlayer"
+import CommentModal from "../feed/CommentModal"
+import { useTranslation } from "react-i18next";
 import {
   formatFileSize,
   getFileExtension,
@@ -23,14 +25,31 @@ import { PodcastContext } from "../contexts/PodcastContext"
 const { Text } = Typography
 
 function FileTypeIcon({ ext }) {
-  if (ext === "pdf") return <FilePdfOutlined />
-  if (["doc", "docx"].includes(ext)) return <FileWordOutlined />
-  if (["txt", "md"].includes(ext)) return <FileTextOutlined />
-  return <FileOutlined />
+  if (ext === "pdf") return <FilePdfOutlined />;
+  if (["doc", "docx"].includes(ext)) return <FileWordOutlined />;
+  if (["txt", "md"].includes(ext)) return <FileTextOutlined />;
+  return <FileOutlined />;
+}
+
+function formatTimeAgo(dateString) {
+  if (!dateString) return t("feed.time.justNow")
+
+  const created = new Date(dateString)
+  const now = new Date()
+  const diffMs = now - created
+  const diffMinutes = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMinutes / 60)
+  const diffDays = Math.floor(diffHours / 24)
+
+  if (diffMinutes < 1) return t("feed.time.justNow")
+  if (diffMinutes < 60) return t("feed.time.minutesAgo", { count: diffMinutes })
+  if (diffHours < 24) return t("feed.time.hoursAgo", { count: diffHours })
+  return t("feed.time.daysAgo", { count: diffDays })
 }
 
 export default function MessageBubble({ message, containerRef }) {
-  const navigate = useNavigate()
+  const [showCommentModal, setShowCommentModal] = useState(false)
+  const { t } = useTranslation();
   const mine = message.is_mine
   const [podcastData, setPodcastData] = useState(null)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -54,13 +73,12 @@ export default function MessageBubble({ message, containerRef }) {
   const senderLabel =
     message?.sender?.display_name ||
     message?.sender?.username ||
-    (mine ? "Bạn" : "Người gửi")
-
+    (mine ? t("messageBubble.you") : t("messageBubble.sender"))
   const fallbackAuthor =
     message?.sender?.display_name ||
     message?.sender?.username ||
     message?.sender?.full_name ||
-    (mine ? "Bạn" : "Người gửi")
+    (mine ? t("messageBubble.you") : t("messageBubble.sender"))
 
   const parseLegacySharedPost = (content) => {
     if (!content || typeof content !== "string") return null
@@ -364,6 +382,42 @@ export default function MessageBubble({ message, containerRef }) {
         />
       </Modal>
 
+      {showCommentModal && podcastData && (
+        <CommentModal
+          podcast={{
+            id: podcastData.post_id,
+            postId: podcastData.post_id,
+            title: podcastData.title,
+            description: podcastData.description,
+            author: podcastData.author || sharedAuthor,
+            author_avatar:
+              typeof podcastData?.author === 'object'
+                ? podcastData.author?.avatar_url || ''
+                : '',
+            authorUsername:
+              typeof podcastData?.author === 'object'
+                ? podcastData.author?.username || ''
+                : podcastData.author_username || sharedAuthor || '',
+            cover: podcastData.thumbnail_url || '',
+            thumbnail_url: podcastData.thumbnail_url || '',
+            audio_url: podcastData.audio_url || '',
+            audioUrl: podcastData.audio_url || '',
+            duration_seconds: podcastData.duration_seconds || 0,
+            durationSeconds: podcastData.duration_seconds || 0,
+            created_at: podcastData.created_at || message.created_at,
+            timeAgo: podcastData.created_at ? formatTimeAgo(podcastData.created_at,t) : undefined,
+            isOwner: false,
+          }}
+          liked={false}
+          saved={false}
+          likeCount={Number(podcastData.like_count || 0)}
+          shareCount={Number(podcastData.share_count || 0)}
+          saveCount={Number(podcastData.save_count || 0)}
+          commentCount={Number(podcastData.comment_count || 0)}
+          onClose={() => setShowCommentModal(false)}
+          disableAutoScroll={true}
+        />
+      )}
     </>
   )
 }

@@ -1,9 +1,11 @@
 import { Avatar, Button, Space, Typography } from "antd";
 import { InfoCircleOutlined, UserOutlined } from "@ant-design/icons";
+import { useTranslation } from "react-i18next";
 
 const { Text } = Typography;
 
 export default function ChatHeader({ peer, onToggleInfoPanel, rightPanelOpen }) {
+  const { t } = useTranslation();
   return (
     <div className="chat-header">
       <div className="chat-header-inner">
@@ -30,7 +32,11 @@ export default function ChatHeader({ peer, onToggleInfoPanel, rightPanelOpen }) 
           className="chat-header-info-btn"
           icon={<InfoCircleOutlined />}
           onClick={onToggleInfoPanel}
-          aria-label={rightPanelOpen ? "Ẩn thông tin cuộc trò chuyện" : "Hiện thông tin cuộc trò chuyện"}
+          aria-label={
+  rightPanelOpen
+    ? t("chat.hideConversationInfo")
+    : t("chat.showConversationInfo")
+}
         />
       </div>
     </div>

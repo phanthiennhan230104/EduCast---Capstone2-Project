@@ -10,6 +10,7 @@ import ForgotPasswordModal from './ForgotPassword'
 
 
 
+
 export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
   const navigate = useNavigate()
   const { login } = useAuth()

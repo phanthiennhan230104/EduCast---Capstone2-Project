@@ -4,6 +4,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
+import { useTranslation } from 'react-i18next'
 
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 
@@ -20,6 +21,7 @@ import { useBlockNavigation } from '../../hooks/useBlockNavigation'
 import styles from '../../style/pages/CreateAudioPage/CreateAudioPage.module.css'
 
 export default function CreateAudioPage() {
+  const { t } = useTranslation()
   const baseVm = useCreateAudio()
   const navigate = useNavigate()
   const allDraftsPanelRef = useRef(null)
@@ -36,17 +38,17 @@ export default function CreateAudioPage() {
 
   const goToPublish = () => {
     if (baseVm.genState === 'processing') {
-      toast.info('Vui lòng đợi tạo audio xong')
+      toast.info(t('createAudio.page.waitGenerating'))
       return
     }
 
     if (baseVm.activeDraftStatus === 'published') {
-      toast.info('Bài này đã được đăng rồi, không thể tiếp tục đăng bài')
+      toast.info(t('createAudio.page.alreadyPublishedCannotContinue'))
       return
     }
 
     if (!baseVm.audioUrl) {
-      toast.info('Chưa có audio để đăng bài')
+      toast.info(t('createAudio.page.noAudioToPublish'))
       return
     }
 
@@ -59,7 +61,8 @@ export default function CreateAudioPage() {
       state: {
         draftData: {
           id: baseVm.activeDraftId || null,
-          title: (baseVm.title || '').trim() || baseText.slice(0, 80) || 'Bài audio',
+
+          title: (baseVm.title || '').trim() || baseText.slice(0, 80) || t('createAudio.page.defaultAudioTitle'),
           description: baseVm.description || '',
           script:
             baseVm.processedText ||

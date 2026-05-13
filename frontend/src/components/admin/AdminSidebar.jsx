@@ -9,6 +9,7 @@ import {
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import "../../style/admin/admin-sidebar.css";
+import logoImage from "../../assets/images/educast-logo.png";
 
 const menuItems = [
   {
@@ -57,24 +58,13 @@ export default function AdminSidebar() {
   return (
     <aside className="admin-sidebar">
       <div className="admin-logo-wrap">
-        <div className="admin-logo">
-          <div className="admin-logo-icon">
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M9 19V6l12-3v13"
-                stroke="#fff"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-              <circle cx="6" cy="19" r="3" stroke="#fff" strokeWidth="2" />
-              <circle cx="18" cy="16" r="3" stroke="#fff" strokeWidth="2" />
-            </svg>
-          </div>
-
-          <span className="admin-logo-text">EduCast</span>
-        </div>
-      </div>
+  <img
+    src={logoImage}
+    alt="EduCast Logo"
+    className="admin-sidebar-logo-image"
+    onClick={() => navigate("/admin")}
+  />
+</div>
 
       <nav className="admin-nav">
         {menuItems.map((item) => {

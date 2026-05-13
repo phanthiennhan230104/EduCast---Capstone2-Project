@@ -3,8 +3,10 @@ import { LoaderCircle, SendHorizonal } from 'lucide-react'
 import { useChatAssistant } from '../../hooks/useChatAssistant'
 import AssistantMessage from './AssistantMessage'
 import styles from '../../style/assistant/AssistantWidget.module.css'
+import { useTranslation } from 'react-i18next'
 
 export default function AssistantChatBox() {
+  const { t } = useTranslation()
   const [inputValue, setInputValue] = useState('')
   const {
     messages,
@@ -48,8 +50,8 @@ export default function AssistantChatBox() {
   }
 
   const loadingText = isSearching
-    ? 'EduCast Assistant đang tìm bài viết trong feed...'
-    : 'EduCast Assistant đang suy nghĩ...'
+  ? t('assistant.searchingFeed')
+  : t('assistant.thinking')
 
   return (
     <>
@@ -77,7 +79,7 @@ export default function AssistantChatBox() {
       <form className={styles.popupFooter} onSubmit={handleSubmit}>
         <input
           type="text"
-          placeholder="Nhập yêu cầu viết bài hoặc tìm nội dung..."
+          placeholder={t('assistant.chatPlaceholder')}
           value={inputValue}
           onChange={(event) => setInputValue(event.target.value)}
           disabled={isLoading}

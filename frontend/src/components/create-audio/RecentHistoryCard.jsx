@@ -10,7 +10,7 @@ import { formatDurationVi, getAudioDuration } from '../../utils/formatDuration'
 const { Text, Paragraph } = Typography
 
 function HistoryItemDuration({ audioUrl, fallbackDuration }) {
-  
+
   const [duration, setDuration] = useState(null)
 
   useEffect(() => {
@@ -43,16 +43,16 @@ function HistoryItemDuration({ audioUrl, fallbackDuration }) {
 }
 
 export default function RecentHistoryCard({ vm, onViewAll }) {
-    const { t } = useTranslation()
+  const { t } = useTranslation()
   const history = vm?.recentDrafts || []
 
   return (
     <Card
       className={styles.card}
-      title="Đã tạo gần đây"
+      title={t('createAudio.recentHistory.title')}
       extra={
         <Button type="link" onClick={onViewAll}>
-          Xem tất cả
+          {t('createAudio.recentHistory.viewAll')}
         </Button>
       }
       variant="borderless"
@@ -74,7 +74,7 @@ export default function RecentHistoryCard({ vm, onViewAll }) {
                 className={`${styles.item} ${isActive ? styles.itemActive : ''}`}
                 onClick={() => {
                   if (vm.genState === 'processing') {
-                    toast.info('Vui lòng hoàn tất tạo audio trước khi load draft khác')
+                    toast.info(t('draftsPanel.finishProcessingBeforeLoad'))
                     return
                   }
                   if (!vm.isLoadingDraft) {

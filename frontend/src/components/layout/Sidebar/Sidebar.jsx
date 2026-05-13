@@ -8,17 +8,17 @@ import { useTranslation } from "react-i18next";
 import TagSelector from '../../../components/feed/TagSelector'
 
 
-  const NAV_MAIN = [
-    { icon: Rss,           labelKey: 'navigation.main.feed',        to: '/feed' },
-    { icon: Heart,         labelKey: 'navigation.main.favorites',  to: '/favorites' },
-    { icon: Users,         labelKey: 'navigation.main.community',           to: '/community' },
-  ]
+const NAV_MAIN = [
+  { icon: Rss, labelKey: 'navigation.main.feed', to: '/feed' },
+  { icon: Heart, labelKey: 'navigation.main.favorites', to: '/favorites' },
+  { icon: Users, labelKey: 'navigation.main.community', to: '/community' },
+]
 
 const NAV_OTHER = [
-  { icon: MessageCircle, label: 'Tin nhắn',   to: '/messages' },
-  { icon: User,          label: 'Trang cá nhân', to: '/profile' },
-  { icon: Plus,          label: 'Tạo Audio AI',   to: '/create-audio' },
-  { icon: Settings,      label: 'Cài đặt',    to: '/settings' },
+  { icon: MessageCircle, labelKey: 'navigation.other.messages', to: '/messages' },
+  { icon: User, labelKey: 'navigation.other.profile', to: '/profile' },
+  { icon: Plus, labelKey: 'navigation.other.createAudio', to: '/create-audio' },
+  { icon: Settings, labelKey: 'navigation.other.settings', to: '/settings' },
 ]
 
 export default function Sidebar() {
@@ -52,18 +52,18 @@ export default function Sidebar() {
         ))}
 
         <p className={styles.sectionLabel}>{t('navigation.other.label')}</p>
-        {NAV_OTHER.map(({ icon: Icon, label, to }) => (
-  <NavLink
-    key={to}
-    to={to}
-    className={({ isActive }) =>
-      `${styles.navItem} ${isActive ? styles.active : ''}`
-    }
-  >
-    <Icon size={17} />
-    <span>{label}</span>
-  </NavLink>
-))}
+        {NAV_OTHER.map(({ icon: Icon, labelKey, to }) => (
+          <NavLink
+            key={to}
+            to={to}
+            className={({ isActive }) =>
+              `${styles.navItem} ${isActive ? styles.active : ''}`
+            }
+          >
+            <Icon size={17} />
+            <span>{t(labelKey)}</span>
+          </NavLink>
+        ))}
       </nav>
 
       {/* Favourite tags */}

@@ -7,6 +7,7 @@ import {
 } from 'react'
 import { useLocation } from 'react-router-dom'
 import {
+  Bookmark,
   Edit,
   EyeOff,
   Flag,
@@ -14,6 +15,7 @@ import {
   MessageCircle,
   MoreHorizontal,
   Trash2,
+  Share2,
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 
@@ -23,6 +25,8 @@ import CreatePostBar from './CreatePostBar'
 import CommentModal from './CommentModal'
 import EditShareCaptionModal from './EditShareCaptionModal'
 import ConfirmModal from './ConfirmModal'
+import SaveCollectionModal from '../common/SaveCollectionModal'
+import { useTranslation } from 'react-i18next'
 
 import styles from '../../style/feed/Feed.module.css'
 import { API_BASE_URL, API_ORIGIN } from '../../config/apiBase'
@@ -42,10 +46,10 @@ import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { POST_REMOVED_EVENT, matchesRemovedPost } from '../../utils/postRemoval'
 
 const TABS = [
-  { label: 'Dành cho bạn', key: 'for_you' },
-  { label: 'Đang theo dõi', key: 'following' },
-  { label: 'Xu hướng', key: 'trending' },
-  { label: 'Mới nhất', key: 'latest' },
+  { labelKey: 'feed.tabs.forYou', key: 'for_you' },
+  { labelKey: 'feed.tabs.following', key: 'following' },
+  { labelKey: 'feed.tabs.trending', key: 'trending' },
+  { labelKey: 'feed.tabs.latest', key: 'latest' },
 ]
 
 const POST_SYNC_EVENT = 'post-sync-updated'
@@ -80,6 +84,7 @@ function resolvePlaybackAudioUrl(url) {
 }
 
 export default function Feed() {
+  const { t } = useTranslation()
   const location = useLocation()
 
   const { selectedTagIds, updateSelectedTags } = useTagFilter()
@@ -108,7 +113,7 @@ export default function Feed() {
   })
   const [failedAvatarUrls, setFailedAvatarUrls] = useState(new Set())
   const [reportSharePodcast, setReportSharePodcast] = useState(null)
-
+  const sharedSaveBtnRef = useRef(null)
   const [editShareCaptionPodcast, setEditShareCaptionPodcast] = useState(null)
   const [feedReloadNonce, setFeedReloadNonce] = useState(0)
   const [sharedActionHover, setSharedActionHover] = useState({
@@ -471,7 +476,7 @@ export default function Feed() {
             title: item.title,
 
             author: item.author || {
-              name: 'Ẩn danh',
+              name: t('feed.anonymous'),
               username: '',
               avatar_url: '',
             },
@@ -514,12 +519,14 @@ export default function Feed() {
             comments: commentCount,
             comment_count: commentCount,
 
-            timeAgo: formatTimeAgo(item.created_at),
-            sharedTimeAgo: item.shared_at ? formatTimeAgo(item.shared_at) : null,
-            postTimeAgo: item.post_created_at ? formatTimeAgo(item.post_created_at) : formatTimeAgo(item.created_at),
+            timeAgo: formatTimeAgo(item.created_at, t),
+sharedTimeAgo: item.shared_at ? formatTimeAgo(item.shared_at, t) : null,
+postTimeAgo: item.post_created_at
+  ? formatTimeAgo(item.post_created_at, t)
+  : formatTimeAgo(item.created_at, t),
             sharedBy: item.shared_by || null,
             share_caption: item.share_caption || '',
-            listens: `${item.listen_count || 0} lượt nghe`,
+            listens: t('feed.listens', { count: item.listen_count || 0 }),
             shares: item.stats?.shares || 0,
 
             audioUrl: resolvePlaybackAudioUrl(item.audio?.audio_url || ''),
@@ -543,7 +550,7 @@ export default function Feed() {
         )
       } catch (err) {
         console.error('Fetch feed failed:', err)
-        setError('Không tải được feed')
+        setError(t('feed.loadError'))
       } finally {
         setLoading(false)
         if (pendingScrollFeedTopAfterShareRef.current) {
@@ -872,8 +879,139 @@ export default function Feed() {
       )
     } catch (err) {
       console.error('Like (share card) failed:', err)
-      toast.error('Lỗi khi thích bài viết')
+      toast.error(t('personal.likeError'))
     }
+  }
+
+  const handleFeedSharedSave = async (postId) => {
+    try {
+      const podcast = podcasts.find((p) => p.id === postId)
+      if (!podcast) return
+
+      const apiId =
+        podcast.type === 'shared' ? podcast.id : engagementPostId(podcast)
+      if (!apiId) return
+
+      if (podcast.saved) {
+        const token = getToken()
+        const currentUser = getCurrentUser()
+
+        const res = await fetch(
+          `http://localhost:8000/api/social/posts/${apiId}/save/`,
+          {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ user_id: currentUser?.id }),
+          }
+        )
+
+        const data = await res.json()
+        if (!res.ok || !data.success) {
+          throw new Error(data.message || `HTTP ${res.status}`)
+        }
+
+        const nextSaveCount = Number(data.data?.save_count || 0)
+
+        setPodcasts((prev) =>
+          prev.map((p) =>
+            p.id === postId
+              ? { ...p, saved: false, saveCount: nextSaveCount }
+              : p
+          )
+        )
+
+        removeSavedPost(apiId)
+
+        dispatchPostSync({
+          postId,
+          saved: false,
+          saveCount: nextSaveCount,
+        })
+      } else {
+        setCollectionTargetPodcast(podcast)
+        setShowCollectionModal(true)
+      }
+    } catch (err) {
+      console.error('Save (share card) failed:', err)
+      toast.error(t('personal.saveError'))
+    }
+  }
+
+  const handleFeedCollectionSave = () => {
+    const target = collectionTargetPodcast
+    if (!target) return
+    const rowId = target.id
+    const apiId =
+      target.type === 'shared' ? target.id : engagementPostId(target)
+    if (!apiId) return
+
+    const prevCount =
+      podcasts.find((p) => p.id === rowId)?.saveCount || 0
+    const newSaveCount = prevCount + 1
+
+    setPodcasts((prev) =>
+      prev.map((p) =>
+        p.id === rowId ? { ...p, saved: true, saveCount: newSaveCount } : p
+      )
+    )
+
+    addSavedPost(apiId)
+
+    dispatchPostSync({
+      postId: rowId,
+      saved: true,
+      saveCount: newSaveCount,
+    })
+
+    setShowCollectionModal(false)
+    setCollectionTargetPodcast(null)
+  }
+
+  const handleFeedShareSuccess = (sourcePodcast, data) => {
+    const newShareCount = Number(data?.share_count ?? NaN)
+    if (Number.isNaN(newShareCount)) return
+    if (!sourcePodcast) return
+
+    const rowKey = String(sourcePodcast.viewId ?? sourcePodcast.id ?? '')
+    const isSharedRow =
+      sourcePodcast.type === 'shared' ||
+      /^share_/i.test(String(sourcePodcast.id ?? ''))
+
+    if (isSharedRow && rowKey) {
+      setPodcasts((prev) =>
+        prev.map((p) =>
+          String(p.viewId ?? p.id) === rowKey ? { ...p, shares: newShareCount } : p
+        )
+      )
+      dispatchPostSync({
+        postId: rowKey,
+        shareCount: newShareCount,
+      })
+      setShareModalPodcast(null)
+      return
+    }
+
+    const canonicalId = engagementPostId(sourcePodcast)
+
+    setPodcasts((prev) =>
+      prev.map((p) => {
+        if (canonicalId == null) return p
+        const samePost = feedRowMatchesCanonicalPost(p, canonicalId)
+        if (!samePost) return p
+        if (p.type === 'shared' || /^share_/i.test(String(p.id ?? ''))) return p
+        return { ...p, shares: newShareCount }
+      })
+    )
+
+    dispatchPostSync({
+      postId: canonicalId,
+      shareCount: newShareCount,
+    })
+
+    setShareModalPodcast(null)
   }
 
   const clearSharedActionHoverLeaveTimer = () => {
@@ -960,10 +1098,10 @@ export default function Feed() {
   }
 
   const sharedHoverEmptyLabel = (kind) => {
-    if (kind === 'likes') return 'Chưa có lượt thích'
-    if (kind === 'comments') return 'Chưa có bình luận'
-    return 'Chưa có lượt chia sẻ'
-  }
+  if (kind === 'likes') return t('feed.noLikes')
+  if (kind === 'comments') return t('feed.noComments')
+  return t('feed.noShares')
+}
 
 
   const handleOpenPostModal = (podcast) => {
@@ -1012,7 +1150,7 @@ export default function Feed() {
       setOpenShareMenuId(null)
     } catch (err) {
       console.error(err)
-      toast.error(err.message || 'Gỡ chia sẻ thất bại')
+      toast.error(err.message || t('feed.unshareFailed'))
     }
   }
 
@@ -1049,7 +1187,7 @@ export default function Feed() {
       setOpenShareMenuId(null)
     } catch (err) {
       console.error(err)
-      toast.error(err.message || 'Ẩn bài viết thất bại')
+      toast.error(err.message || t('feed.hidePostFailed'))
     }
   }
 
@@ -1057,7 +1195,7 @@ export default function Feed() {
     const sharedBy = podcast.sharedBy || {}
     const rowKey = String(podcast.viewId || podcast.id)
     const avatarKey = `share-${podcast.viewId || podcast.id}`
-    const shareAuthorName = sharedBy.name || sharedBy.username || 'Ẩn danh'
+    const shareAuthorName = sharedBy.name || sharedBy.username || t('feed.anonymous')
     const shareAuthorInitials = getInitials(sharedBy || shareAuthorName)
     const currentUser = getCurrentUser()
     const sharedByUserId =
@@ -1114,7 +1252,7 @@ export default function Feed() {
                   e.stopPropagation()
                   setOpenShareMenuId(openShareMenuId === rowKey ? null : rowKey)
                 }}
-                aria-label="Tùy chọn"
+                aria-label={t('feed.options')}
               >
                 <MoreHorizontal size={20} />
               </button>
@@ -1134,7 +1272,7 @@ export default function Feed() {
                         }}
                       >
                         <Edit size={14} />
-                        <span>Chỉnh sửa</span>
+                        <span>{t('feed.edit')}</span>
                       </button>
                       <button
                         type="button"
@@ -1150,7 +1288,7 @@ export default function Feed() {
                         }}
                       >
                         <Trash2 size={14} />
-                        <span>Xóa</span>
+                        <span>{t('feed.delete')}</span>
                       </button>
                     </>
                   ) : (
@@ -1169,7 +1307,7 @@ export default function Feed() {
                         }}
                       >
                         <EyeOff size={14} />
-                        <span>Ẩn bài viết</span>
+                        <span>{t('feed.hidePost')}</span>
                       </button>
                       <button
                         type="button"
@@ -1181,7 +1319,7 @@ export default function Feed() {
                         }}
                       >
                         <Flag size={14} />
-                        <span>Báo cáo</span>
+                        <span>{t('feed.report')}</span>
                       </button>
                     </>
                   )}
@@ -1204,7 +1342,7 @@ export default function Feed() {
             onKeyDown={(e) => {
               if (e.key === 'Enter') handleOpenPostModal(podcast)
             }}
-            title="Click để xem bài đăng gốc"
+            title={t('feed.viewOriginalPost')}
           >
             <PodcastCard
               podcast={{ ...podcast, timeAgo: podcast.postTimeAgo || podcast.timeAgo }}
@@ -1243,7 +1381,7 @@ export default function Feed() {
                     onMouseLeave={() => handleSharedRowStatsLeave(podcast)}
                   >
                     {sharedActionHover.loading ? (
-                      <div className={styles.shareSharerEmpty}>Đang tải...</div>
+                      <div className={styles.shareSharerEmpty}>{t('common.loading')}</div>
                     ) : sharedActionHover.items.length > 0 ? (
                       sharedActionHover.items.map((u) => (
                         <div key={u.user_id || u.username} className={styles.shareSharerRow}>
@@ -1276,11 +1414,51 @@ export default function Feed() {
                   onMouseEnter={() => handleSharedRowStatsEnter(podcast, 'comments')}
                   onMouseLeave={() => handleSharedRowStatsLeave(podcast)}
                 >
-                  {podcast.comments || 0} Bình luận
+                  {t('feed.comments', { count: podcast.comments || 0 })}
                 </span>
               </button>
               {sharedActionHover.rowKey === rowKey &&
                 sharedActionHover.kind === 'comments' && (
+                  <div
+                    className={styles.shareSharerPopup}
+                    onMouseEnter={handleSharedRowStatsPopupEnter}
+                    onMouseLeave={() => handleSharedRowStatsLeave(podcast)}
+                  >
+                    {sharedActionHover.loading ? (
+                      <div className={styles.shareSharerEmpty}>{t('common.loading')}</div>
+                    ) : sharedActionHover.items.length > 0 ? (
+                      sharedActionHover.items.map((u) => (
+                        <div key={u.user_id || u.username} className={styles.shareSharerRow}>
+                          {hoverUserLabel(u)}
+                        </div>
+                      ))
+                    ) : (
+                      <div className={styles.shareSharerEmpty}>
+                        {sharedHoverEmptyLabel('comments')}
+                      </div>
+                    )}
+                  </div>
+                )}
+            </div>
+            <div className={styles.shareStatWrap}>
+              <button
+                type="button"
+                className={styles.shareActionBtn}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setShareModalPodcast(podcast)
+                }}
+              >
+                <Share2 size={16} />
+                <span
+                  onMouseEnter={() => handleSharedRowStatsEnter(podcast, 'shares')}
+                  onMouseLeave={() => handleSharedRowStatsLeave(podcast)}
+                >
+                  {t('feed.share', { count: podcast.shares || 0 })}
+                </span>
+              </button>
+              {sharedActionHover.rowKey === rowKey &&
+                sharedActionHover.kind === 'shares' && (
                   <div
                     className={styles.shareSharerPopup}
                     onMouseEnter={handleSharedRowStatsPopupEnter}
@@ -1296,12 +1474,24 @@ export default function Feed() {
                       ))
                     ) : (
                       <div className={styles.shareSharerEmpty}>
-                        {sharedHoverEmptyLabel('comments')}
+                        {sharedHoverEmptyLabel('shares')}
                       </div>
                     )}
                   </div>
                 )}
             </div>
+            <button
+              type="button"
+              ref={sharedSaveBtnRef}
+              className={`${styles.shareActionBtn} ${styles.shareActionBtnSave} ${podcast.saved ? styles.saved : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                handleFeedSharedSave(podcast.id)
+              }}
+            >
+              <Bookmark size={16} fill={podcast.saved ? 'currentColor' : 'none'} />
+              <span>{t('feed.save', { count: podcast.saveCount || 0 })}</span>
+            </button>
           </div>
         </div>
       </div>
@@ -1339,14 +1529,14 @@ export default function Feed() {
             className={`${styles.tab} ${activeTab === i ? styles.active : ''}`}
             onClick={() => setActiveTab(i)}
           >
-            {tab.label}
+            {t(tab.labelKey)}
           </button>
         ))}
       </div>
 
       <div className={styles.cards}>
         {loading && (
-          <div className={styles.feedState}>Đang tải dữ liệu...</div>
+          <div className={styles.feedState}>{t('feed.loading')}</div>
         )}
 
         {error && <div className={styles.feedError}>{error}</div>}
@@ -1470,8 +1660,8 @@ export default function Feed() {
               reportSharePodcast.author != null
               ? reportSharePodcast.author.name ||
               reportSharePodcast.author.username ||
-              'Ẩn danh'
-              : reportSharePodcast.author || 'Ẩn danh'
+              t('feed.anonymous')
+              : reportSharePodcast.author || t('feed.anonymous')
           }
           onClose={() => setReportSharePodcast(null)}
         />
@@ -1481,15 +1671,21 @@ export default function Feed() {
         isOpen={sharedRowConfirm.open}
         type="confirm"
         title={
-          sharedRowConfirm.mode === 'hide' ? 'Ẩn bài viết' : 'Xóa bài viết'
-        }
+  sharedRowConfirm.mode === 'hide'
+    ? t('feed.confirm.hidePostTitle')
+    : t('feed.confirm.deletePostTitle')
+}
         message={
-          sharedRowConfirm.mode === 'hide'
-            ? 'Bạn chắc chắn muốn ẩn bài viết này khỏi feed?\nBài gốc vẫn hiển thị với người khác.'
-            : 'Bạn chắc chắn muốn xóa bài viết này?\nHành động này không thể hoàn tác.'
-        }
-        confirmText={sharedRowConfirm.mode === 'hide' ? 'Ẩn' : 'Xóa'}
-        cancelText="Hủy"
+  sharedRowConfirm.mode === 'hide'
+    ? t('feed.confirm.hideSharedFeedMessage')
+    : t('feed.confirm.deletePostMessage')
+}
+        confirmText={
+  sharedRowConfirm.mode === 'hide'
+    ? t('feed.confirm.hide')
+    : t('common.delete')
+}
+cancelText={t('common.cancel')}
         isDangerous={sharedRowConfirm.mode !== 'hide'}
         onCancel={closeSharedRowConfirm}
         onConfirm={() => {
@@ -1531,8 +1727,8 @@ function calcProgress(current, duration) {
   return Math.min(100, Math.round((c / d) * 100))
 }
 
-function formatTimeAgo(dateString) {
-  if (!dateString) return 'Vừa xong'
+function formatTimeAgo(dateString, t) {
+  if (!dateString) return t('feed.time.justNow')
 
   const created = new Date(dateString)
   const now = new Date()
@@ -1541,9 +1737,9 @@ function formatTimeAgo(dateString) {
   const diffHours = Math.floor(diffMinutes / 60)
   const diffDays = Math.floor(diffHours / 24)
 
-  if (diffMinutes < 1) return 'Vừa xong'
-  if (diffMinutes < 60) return `${diffMinutes} phút trước`
-  if (diffHours < 24) return `${diffHours} giờ trước`
+  if (diffMinutes < 1) return t('feed.time.justNow')
+  if (diffMinutes < 60) return t('feed.time.minutesAgo', { count: diffMinutes })
+  if (diffHours < 24) return t('feed.time.hoursAgo', { count: diffHours })
 
-  return `${diffDays} ngày trước`
+  return t('feed.time.daysAgo', { count: diffDays })
 }

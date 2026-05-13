@@ -205,7 +205,28 @@ class ResetPasswordSerializer(serializers.Serializer):
         if attrs.get("password1") != attrs.get("password2"):
             raise serializers.ValidationError({"password": "Mật khẩu xác nhận không khớp."})
         return attrs
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for UserProfile model"""
+    class Meta:
+        model = UserProfile
+        fields = [
+            'id',
+            'user',
+            'display_name',
+            'bio',
+            'avatar_url',
+            'cover_url',
+            'headline',
+            'learning_field',
+            'interests',
+            'preferred_language',
+            'created_at',
+            'updated_at',
+        ]
     
+
 class AdminUserListSerializer(serializers.ModelSerializer):
     display_name = serializers.CharField(source="profile.display_name", read_only=True)
     avatar_url = serializers.CharField(source="profile.avatar_url", read_only=True)

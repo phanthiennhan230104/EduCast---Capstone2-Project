@@ -4,6 +4,7 @@ import { X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import styles from '../../style/feed/ShareModal.module.css'
 import { getDraftDetail, updateDraft } from '../../utils/contentApi'
+import { useTranslation } from 'react-i18next'
 
 const labelStyle = {
   fontSize: 13,
@@ -24,6 +25,7 @@ export default function EditPostModal({
   onClose,
   onSaved,
 }) {
+  const { t } = useTranslation()
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({ title: '', description: '' })
@@ -49,7 +51,7 @@ export default function EditPostModal({
         setOriginal(next)
       } catch (err) {
         console.error(err)
-        toast.error('Không thể tải bài viết')
+        toast.error(t('editAudio.loadPostFailed'))
         onClose?.()
       } finally {
         if (!cancelled) setLoading(false)
@@ -86,7 +88,7 @@ export default function EditPostModal({
   const validate = () => {
     const next = {}
     if (!form.title.trim()) {
-      next.title = 'Tiêu đề không được để trống'
+      next.title = t('editAudio.titleRequired')
     }
     setErrors(next)
     return Object.keys(next).length === 0
@@ -102,6 +104,7 @@ export default function EditPostModal({
         title: form.title.trim(),
         description: form.description.trim(),
       })
+      toast.success(t('editAudio.updateSuccess'))
       const payload = {
         title: form.title.trim(),
         description: form.description.trim(),
@@ -111,7 +114,7 @@ export default function EditPostModal({
       onClose?.()
     } catch (err) {
       console.error(err)
-      toast.error(err.message || 'Cập nhật thất bại')
+      toast.error(err.message || t('editAudio.updateFailed'))
     } finally {
       setSaving(false)
     }
@@ -121,12 +124,12 @@ export default function EditPostModal({
     <div className={styles.overlay} onClick={onClose}>
       <div className={styles.modal} onClick={(ev) => ev.stopPropagation()}>
         <div className={styles.topBar}>
-          <h2 className={styles.modalTitle}>Chỉnh sửa bài viết</h2>
+          <h2 className={styles.modalTitle}>{t('editAudio.pageTitle')}</h2>
           <button
             type="button"
             className={styles.closeBtn}
             onClick={onClose}
-            aria-label="Đóng"
+            aria-label={t('library.close')}
           >
             <X size={20} />
           </button>
@@ -143,12 +146,12 @@ export default function EditPostModal({
                 padding: '8px 0 16px',
               }}
             >
-              Đang tải bài viết…
+              {t('editAudio.loadingPost')}
             </p>
           </div>
         ) : (
           <form className={styles.shareForm} onSubmit={handleSave}>
-            <div style={labelStyle}>Tiêu đề</div>
+            <div style={labelStyle}>{t('editAudio.titleLabel')}</div>
             <div className={styles.textareaWrapper}>
               <div className={styles.textareaContainer}>
                 <textarea
@@ -167,7 +170,7 @@ export default function EditPostModal({
             </div>
             {errors.title ? <p style={errStyle}>{errors.title}</p> : null}
 
-            <div style={{ ...labelStyle, marginTop: 12 }}>Mô tả</div>
+            <div style={{ ...labelStyle, marginTop: 12 }}>{t('editAudio.descriptionLabel')}</div>
             <div className={styles.textareaWrapper}>
               <div className={styles.textareaContainer}>
                 <textarea
@@ -187,14 +190,14 @@ export default function EditPostModal({
                 onClick={onClose}
                 disabled={saving}
               >
-                Hủy
+                {t('editAudio.cancel')}
               </button>
               <button
                 type="submit"
                 className={styles.shareBtn}
                 disabled={saving || !hasChanges}
               >
-                {saving ? 'Đang lưu…' : 'Lưu thay đổi'}
+                {saving ? t('editAudio.saving') : t('editAudio.saveChanges')}
               </button>
             </div>
           </form>
