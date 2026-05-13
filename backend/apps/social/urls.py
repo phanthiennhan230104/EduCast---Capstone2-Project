@@ -58,4 +58,6 @@ urlpatterns = [
 
     # Reports
     path("reports/create/", views.create_report, name="create_report"),
+
+    path("profiles/<str:profile_user_id>/share-to-user/", views.share_profile_to_user,name="share_profile_to_user",),
 ]

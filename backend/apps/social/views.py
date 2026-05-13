@@ -2369,6 +2369,96 @@ def share_post_to_user(request, post_id):
         print(f"Share post to user error: {str(e)}")
         return _json_error(f"Server error: {str(e)}", 500)
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def share_profile_to_user(request, profile_user_id):
+    body = _parse_body(request)
+    if body is None:
+        return _json_error("Invalid JSON body", 400)
+
+    user = _get_current_user(request, body)
+    if not user:
+        return _json_error("Authentication required", 401)
+
+    profile_user = get_object_or_404(
+        User.objects.select_related("profile"),
+        Q(id=profile_user_id) | Q(username=profile_user_id),
+    )
+
+    target_user_ids = body.get("target_user_ids") or []
+    if isinstance(target_user_ids, (str, int)):
+        target_user_ids = [target_user_ids]
+
+    target_user_ids = [str(x).strip() for x in target_user_ids if str(x).strip()]
+    if not target_user_ids:
+        return _json_error("target_user_ids is required", 400)
+
+    caption = (body.get("caption") or "").strip() or None
+    results = []
+    channel_layer = get_channel_layer()
+
+    targets = User.objects.filter(Q(id__in=target_user_ids) | Q(username__in=target_user_ids))
+    target_map = {str(t.id): t for t in targets}
+    target_map.update({str(t.username): t for t in targets})
+
+    profile = getattr(profile_user, "profile", None)
+
+    payload = {
+        "type": "profile",
+        "profile_user_id": str(profile_user.id),
+        "username": profile_user.username,
+        "display_name": profile.display_name if profile and profile.display_name else profile_user.username,
+        "avatar_url": profile.avatar_url if profile else None,
+        "bio": profile.bio if profile else "",
+        "caption": caption,
+    }
+
+    for target_id in target_user_ids:
+        target_user = target_map.get(str(target_id))
+        if not target_user:
+            results.append({"target_user_id": target_id, "success": False, "error": "Target user not found"})
+            continue
+
+        if str(target_user.id) == str(user.id):
+            results.append({"target_user_id": target_id, "success": False, "error": "Cannot share with yourself"})
+            continue
+
+        room = get_or_create_direct_room(user, target_user)
+
+        message = Message.objects.create(
+            id=_generate_id("msg"),
+            room=room,
+            sender=user,
+            content=json.dumps(payload),
+            message_type="text",
+        )
+
+        serialized = MessageSerializer(message, context={"request": None, "user": user}).data
+
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                f"chat_{room.id}",
+                {"type": "message_event", "message": serialized},
+            )
+
+        broadcast_room_snapshot(room=room, event_type="conversation_updated")
+
+        results.append({
+            "target_user_id": target_id,
+            "success": True,
+            "message_id": message.id,
+            "room_id": room.id,
+        })
+
+    success_count = len([r for r in results if r.get("success")])
+    if success_count == 0:
+        return _json_error("Không gửi được cho người nhận nào", 400)
+
+    return _json_success("Profile shared successfully", {
+        "results": results,
+        "shared_with": success_count,
+        "total": len(target_user_ids),
+    }, status=201)
 
 # Create Report
 @csrf_exempt
