@@ -1,5 +1,5 @@
 import { Modal } from 'antd'
-import { useTranslation } from 'react-i18next'
+import i18n from '../../utils/i18n'
 
 export function showCancelConfirm(onConfirm) {
   const t = i18n.t.bind(i18n)
@@ -14,31 +14,4 @@ export function showCancelConfirm(onConfirm) {
       onConfirm?.()
     },
   })
-}
-
-export default function CreateAudioModal({ open, onClose, vm }) {
-  const handleRequestClose = () => {
-    if (vm.genState === 'processing') {
-      showCancelConfirm(() => {
-        vm.cancelGenerate?.()
-        onClose?.()
-      })
-      return
-    }
-
-    onClose?.()
-  }
-
-  return (
-    <Modal
-      open={open}
-      onCancel={handleRequestClose}
-      footer={null}
-      destroyOnClose={false}
-      maskClosable
-      keyboard
-    >
-      {/* content */}
-    </Modal>
-  )
 }

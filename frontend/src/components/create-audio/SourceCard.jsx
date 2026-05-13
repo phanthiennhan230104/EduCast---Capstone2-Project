@@ -129,10 +129,8 @@ export default function SourceCard({ vm }) {
             <p className="ant-upload-drag-icon">
               <UploadOutlined />
             </p>
-            <p className="ant-upload-text">{t('createAudio.source.dragAndDrop')}</p>
-            <p className="ant-upload-hint">
-              {t('createAudio.source.supportedFormats')} PDF, DOCX, TXT. {t('createAudio.source.maxSize')}: 25MB.
-            </p>
+            <p className="ant-upload-text">{t('createAudio.source.uploadText')}</p>
+            <p className="ant-upload-hint">{t('createAudio.source.uploadHint')}</p>
           </Upload.Dragger>
 
           {vm.file && (

@@ -9,11 +9,11 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
 from .models import HiddenPost, PostLike, SavedPost, Comment, CommentLike, Follow, Notification, PostShare, PlaybackHistory, PostNote, Collection, CollectionPost, Report
-from apps.content.models import Post
+from apps.content.models import Post, PostTag
 from apps.users.models import User
 from apps.users.authentication import CustomJWTAuthentication
 from apps.social.models import PlaybackHistory
-from apps.chat.models import ChatRoom, Message
+from apps.chat.models import  Message
 from apps.chat.serializers import MessageSerializer
 from apps.chat.services import get_or_create_direct_room
 from apps.chat.services import broadcast_room_snapshot
@@ -1383,54 +1383,91 @@ def list_post_sharers(request, post_id):
 @require_http_methods(["GET"])
 def get_saved_posts(request):
     try:
-        # Lấy user hiện tại từ request
         user = _get_current_user(request)
+
         if not user:
             return _json_error("Authentication required", 401)
 
-        # Bảng thật có thể không có cột share_id, nên defer field share để tránh SELECT cột này
-        saved_posts = SavedPost.objects.defer("share").filter(
-            user_id=user.id
-        ).exclude(
-            post__status='archived'
-        ).select_related("post").order_by("-created_at")
+        saved_posts = (
+            SavedPost.objects
+            .filter(user_id=user.id)
+            .exclude(post__status="archived")
+            .select_related(
+                "post",
+                "post__user",
+                "post__user__profile",
+            )
+            .order_by("-created_at")
+        )
 
-        # Lấy danh sách post đã bị ẩn (an toàn khi bảng hidden_posts có vấn đề)
         try:
-            hidden_post_ids = HiddenPost.objects.filter(
-                user_id=user.id
-            ).values_list("post_id", flat=True)
-            saved_posts = saved_posts.exclude(post_id__in=hidden_post_ids)
+            hidden_post_ids = set(
+                HiddenPost.objects.filter(
+                    user_id=user.id
+                ).values_list("post_id", flat=True)
+            )
         except Exception as e:
             print(f"⚠️ Hidden posts query issue in saved posts: {str(e)}")
+            hidden_post_ids = set()
 
-        # Chuyển đổi thành dict với thông tin post
+        saved_posts = [
+            sp for sp in saved_posts
+            if sp.post_id not in hidden_post_ids
+        ]
+
+        post_ids = [sp.post_id for sp in saved_posts]
+
+        playback_map = {
+            item.post_id: item
+            for item in PlaybackHistory.objects.filter(
+                user_id=user.id,
+                post_id__in=post_ids
+            )
+        }
+
+        note_post_ids = set(
+            PostNote.objects.filter(
+                user_id=user.id,
+                post_id__in=post_ids
+            ).values_list("post_id", flat=True)
+        )
+
+        liked_post_ids = set(
+            PostLike.objects.filter(
+                user_id=user.id,
+                post_id__in=post_ids,
+                share_id__isnull=True,
+            ).values_list("post_id", flat=True)
+        )
+
+        tags_map = {}
+
+        for post_id, tag_name in (
+            PostTag.objects
+            .filter(post_id__in=post_ids)
+            .select_related("tag")
+            .values_list("post_id", "tag__name")
+        ):
+            tags_map.setdefault(post_id, []).append(tag_name)
+
         posts_data = []
+
         for saved_post in saved_posts:
             post = saved_post.post
 
-            playback_history = PlaybackHistory.objects.filter(
-                user_id=user.id,
-                post_id=post.id
-            ).first()
+            playback_history = playback_map.get(post.id)
 
-            has_note = PostNote.objects.filter(
-                user_id=user.id,
-                post_id=post.id
-            ).exists()
+            try:
+                counts = _post_counts(post.id)
+            except Exception as e:
+                print(f"⚠️ Count issue in saved posts: {str(e)}")
 
-            # Chỉ like bài gốc (share_id NULL), khớp toggle_like_post / CommentModal
-            is_liked = PostLike.objects.filter(
-                user_id=user.id,
-                post_id=post.id,
-                share_id__isnull=True,
-            ).exists()
-
-            from apps.content.models import PostTag
-            post_tags = PostTag.objects.filter(post_id=post.id).select_related('tag').values_list('tag__name', flat=True)
-            tags = list(post_tags) if post_tags else []
-
-            counts = _post_counts(post.id)
+                counts = {
+                    "like_count": 0,
+                    "comment_count": 0,
+                    "save_count": 0,
+                    "share_count": 0,
+                }
 
             item = {
                 "id": post.id,
@@ -1445,14 +1482,19 @@ def get_saved_posts(request):
                 "save_count": counts["save_count"],
                 "share_count": counts["share_count"],
                 "user_id": post.user_id,
-                "is_owner": post.user_id == user.id,
-                "tags": tags,
-                "created_at": post.created_at.isoformat() if post.created_at else None,
-                "saved_at": saved_post.created_at.isoformat() if saved_post.created_at else None,
-                "has_note": has_note,
-                "is_liked": is_liked,
+                "tags": tags_map.get(post.id, []),
+                "created_at": (
+                    post.created_at.isoformat()
+                    if post.created_at else None
+                ),
+                "saved_at": (
+                    saved_post.created_at.isoformat()
+                    if saved_post.created_at else None
+                ),
+                "has_note": post.id in note_post_ids,
+                "is_liked": post.id in liked_post_ids,
                 "playback_history": {
-                    "completed_ratio": playback_history.completed_ratio if playback_history else 0,
+                    "completed_ratio": playback_history.completed_ratio,
                 } if playback_history else None,
             }
 
@@ -1474,7 +1516,11 @@ def get_saved_posts(request):
                     ),
                 }
 
-                item["author_username"] = getattr(post.user, "username", "")
+                item["author_username"] = getattr(
+                    post.user,
+                    "username",
+                    ""
+                )
 
             posts_data.append(item)
 
@@ -1482,19 +1528,20 @@ def get_saved_posts(request):
             "Saved posts fetched successfully",
             {
                 "saved_posts": posts_data,
-                "total_count": len(posts_data)
-            }
-        )
-    except Exception as e:
-        print(f"❌ get_saved_posts error: {str(e)}")
-        return _json_success(
-            "Saved posts fetched successfully",
-            {
-                "saved_posts": [],
-                "total_count": 0
+                "total_count": len(posts_data),
             }
         )
 
+    except Exception as e:
+        import traceback
+
+        print(f"❌ get_saved_posts error: {str(e)}")
+        print(traceback.format_exc())
+
+        return _json_error(
+            f"Error fetching saved posts: {str(e)}",
+            500
+        )
 
 @csrf_exempt
 @require_http_methods(["POST"])
@@ -1877,51 +1924,95 @@ def update_collection(request, collection_id):
 def get_collection_posts(request, collection_id):
     try:
         user = _get_current_user(request)
+
         if not user:
             return _json_error("Authentication required", 401)
 
-        collection = get_object_or_404(Collection, id=collection_id)
-        
-        if collection.user_id != user.id:
-            return _json_error("You don't have access to this collection", 403)
+        collection = get_object_or_404(
+            Collection,
+            id=collection_id
+        )
 
-        collection_posts = CollectionPost.objects.filter(
-            collection_id=collection.id
-        ).exclude(
-            post__status='archived'   
-        ).select_related('post').order_by('-added_at')
-        
-        # Lấy danh sách post đã bị ẩn
-        hidden_post_ids = HiddenPost.objects.filter(user_id=user.id).values_list("post_id", flat=True)
-        
+        if collection.user_id != user.id:
+            return _json_error(
+                "You don't have access to this collection",
+                403
+            )
+
+        collection_posts = (
+            CollectionPost.objects
+            .filter(collection_id=collection.id)
+            .exclude(post__status="archived")
+            .select_related(
+                "post",
+                "post__user",
+                "post__user__profile",
+            )
+            .order_by("-added_at")
+        )
+
+        hidden_post_ids = set(
+            HiddenPost.objects.filter(
+                user_id=user.id
+            ).values_list("post_id", flat=True)
+        )
+
+        collection_posts = [
+            cp for cp in collection_posts
+            if cp.post_id not in hidden_post_ids
+        ]
+
+        post_ids = [cp.post_id for cp in collection_posts]
+
+        playback_map = {
+            item.post_id: item
+            for item in PlaybackHistory.objects.filter(
+                user_id=user.id,
+                post_id__in=post_ids
+            )
+        }
+
+        note_post_ids = set(
+            PostNote.objects.filter(
+                user_id=user.id,
+                post_id__in=post_ids
+            ).values_list("post_id", flat=True)
+        )
+
+        liked_post_ids = set(
+            PostLike.objects.filter(
+                user_id=user.id,
+                post_id__in=post_ids,
+                share_id__isnull=True,
+            ).values_list("post_id", flat=True)
+        )
+
+        tags_map = {}
+
+        for post_id, tag_name in (
+            PostTag.objects
+            .filter(post_id__in=post_ids)
+            .select_related("tag")
+            .values_list("post_id", "tag__name")
+        ):
+            tags_map.setdefault(post_id, []).append(tag_name)
+
         data = []
+
         for cp in collection_posts:
             post = cp.post
-            
-            if post.id in hidden_post_ids:
-                continue
-            
-            playback_history = PlaybackHistory.objects.filter(
-                user_id=user.id,
-                post_id=post.id
-            ).first()
-            
-            has_note = PostNote.objects.filter(
-                user_id=user.id,
-                post_id=post.id
-            ).exists()
 
-            is_liked = PostLike.objects.filter(
-                user_id=user.id,
-                post_id=post.id,
-                share_id__isnull=True,
-            ).exists()
+            playback_history = playback_map.get(post.id)
 
-            from apps.content.models import PostTag
-            post_tags = PostTag.objects.filter(post_id=post.id).select_related('tag').values_list('tag__name', flat=True)
-            tags = list(post_tags) if post_tags else []
-
-            counts = _post_counts(post.id)
+            try:
+                counts = _post_counts(post.id)
+            except Exception:
+                counts = {
+                    "like_count": 0,
+                    "comment_count": 0,
+                    "save_count": 0,
+                    "share_count": 0,
+                }
 
             item = {
                 "id": post.id,
@@ -1936,16 +2027,18 @@ def get_collection_posts(request, collection_id):
                 "save_count": counts["save_count"],
                 "share_count": counts["share_count"],
                 "user_id": post.user_id,
-                "tags": tags,
-                "created_at": post.created_at.isoformat() if post.created_at else None,
-                "has_note": has_note,
-                "is_liked": is_liked,
+                "tags": tags_map.get(post.id, []),
+                "created_at": (
+                    post.created_at.isoformat()
+                    if post.created_at else None
+                ),
+                "has_note": post.id in note_post_ids,
+                "is_liked": post.id in liked_post_ids,
                 "playback_history": {
-                    "completed_ratio": playback_history.completed_ratio if playback_history else 0,
+                    "completed_ratio": playback_history.completed_ratio,
                 } if playback_history else None,
             }
-            
-            # Lấy thông tin author
+
             if post.user:
                 profile = getattr(post.user, "profile", None)
 
@@ -1964,24 +2057,35 @@ def get_collection_posts(request, collection_id):
                     ),
                 }
 
-                item["author_username"] = getattr(post.user, "username", "")
+                item["author_username"] = getattr(
+                    post.user,
+                    "username",
+                    ""
+                )
+
             else:
-                item["author"] = "Unknown"
-                item["author_username"] = "Unknown"
-            
+                item["author"] = None
+                item["author_username"] = ""
+
             item["is_owner"] = post.user_id == user.id
-            
+
             data.append(item)
 
         return _json_success(
             "Collection posts fetched successfully",
             {"posts": data}
         )
+
     except Exception as e:
         import traceback
+
         print(f"❌ Error in get_collection_posts: {str(e)}")
         print(traceback.format_exc())
-        return _json_error(f"Error fetching collection posts: {str(e)}", 500)
+
+        return _json_error(
+            f"Error fetching collection posts: {str(e)}",
+            500
+        )
 
 
 @csrf_exempt

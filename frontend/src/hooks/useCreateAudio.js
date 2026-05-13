@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'react-toastify'
 import { useTranslation } from 'react-i18next'
-
 import {
   getMyDrafts,
   previewAudio,
@@ -10,7 +9,6 @@ import {
   getDraftDetail,
   getTopics,
 } from '../utils/contentApi'
-
 import { formatDurationVi } from '../utils/formatDuration'
 
 const VOICE_NAME_MAP = {
@@ -30,28 +28,28 @@ const VOICE_ID_BY_NAME = {
 export function useCreateAudio() {
   const { t } = useTranslation()
 
-  const demoText = `Kỹ năng mềm là tập hợp những khả năng giúp con người tương tác, làm việc và thích nghi hiệu quả trong môi trường sống và làm việc.`
+  const demoText = `Kỹ năng mềm là tập hợp những khả năng giúp con người tương tác, làm việc và thích nghi hiệu quả trong môi trường sống và làm việc. Một trong những kỹ năng quan trọng nhất là kỹ năng giao tiếp, bởi nó giúp bạn truyền đạt ý tưởng rõ ràng, lắng nghe người khác và xây dựng mối quan hệ tích cực. Bên cạnh đó, kỹ năng quản lý thời gian giúp bạn sắp xếp công việc hợp lý, tránh căng thẳng và nâng cao hiệu suất. Ngoài ra, kỹ năng làm việc nhóm cũng rất cần thiết, vì trong hầu hết các môi trường, thành công thường đến từ sự hợp tác. Việc rèn luyện kỹ năng mềm không chỉ giúp bạn phát triển bản thân mà còn mở ra nhiều cơ hội trong học tập và sự nghiệp.`
 
   const voices = [
     {
       id: 'vi-hoai-my',
-      name: 'Hoài My',
-      tag: 'Nữ · Việt Nam · Kể chuyện tự nhiên',
+      name: t('createAudio.hook.voices.hoaiMy.name', { defaultValue: 'Hoài My' }),
+      tag: t('createAudio.hook.voices.hoaiMy.tag', { defaultValue: 'Nữ · Việt Nam · Kể chuyện tự nhiên' }),
     },
     {
       id: 'vi-nam-minh',
-      name: 'Nam Minh',
-      tag: 'Nam · Việt Nam · Rõ ràng học thuật',
+      name: t('createAudio.hook.voices.namMinh.name', { defaultValue: 'Nam Minh' }),
+      tag: t('createAudio.hook.voices.namMinh.tag', { defaultValue: 'Nam · Việt Nam · Rõ ràng học thuật' }),
     },
     {
       id: 'en-andrew',
-      name: 'Andrew',
-      tag: 'Male · English US · Storytelling',
+      name: t('createAudio.hook.voices.andrew.name', { defaultValue: 'Andrew' }),
+      tag: t('createAudio.hook.voices.andrew.tag', { defaultValue: 'Male · English US · Storytelling' }),
     },
     {
       id: 'en-ava',
-      name: 'Ava',
-      tag: 'Female · English US · Instructional',
+      name: t('createAudio.hook.voices.ava.name', { defaultValue: 'Ava' }),
+      tag: t('createAudio.hook.voices.ava.tag', { defaultValue: 'Female · English US · Instructional' }),
     },
   ]
 
@@ -84,10 +82,10 @@ export function useCreateAudio() {
 
   const [voice, setVoice] = useState('vi-hoai-my')
   const [format, setFormat] = useState('MP3')
-
-  // Topics from DB only
   const [topics, setTopics] = useState([])
+
   const [topicOptions, setTopicOptions] = useState([])
+  const [aiSuggestedTopics, setAiSuggestedTopics] = useState([])
 
   const [genState, setGenState] = useState('idle')
   const [progress, setProgress] = useState(0)
@@ -99,85 +97,51 @@ export function useCreateAudio() {
   const [processedText, setProcessedText] = useState('')
   const [publicId, setPublicId] = useState('')
   const [recentDrafts, setRecentDrafts] = useState([])
-
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
 
   const [activeDraftId, setActiveDraftId] = useState('')
   const [activeDraftStatus, setActiveDraftStatus] = useState('')
   const [isLoadingDraft, setIsLoadingDraft] = useState(false)
-
   const [durationSeconds, setDurationSeconds] = useState(0)
 
   const previewAbortRef = useRef(null)
   const isCancelledRef = useRef(false)
 
-  // Load topics from DB
   useEffect(() => {
-    let mounted = true
+    if (genState !== 'processing') return
 
-    const loadTopics = async () => {
-      try {
-        const response = await getTopics()
-
-        const list = response?.data ?? response ?? []
-
-        const rawItems = Array.isArray(list)
-          ? list
-          : Array.isArray(list?.results)
-            ? list.results
-            : []
-
-        const options = rawItems
-          .map((item) => ({
-            id: item?.id,
-            name: item?.name || item?.topic_name || '',
-          }))
-          .filter((item) => item.id && item.name)
-
-        if (mounted) {
-          setTopicOptions(options)
-        }
-      } catch (error) {
-        console.error('Load topics error:', error)
-
-        if (mounted) {
-          setTopicOptions([])
-        }
-      }
+    const incrementProgress = () => {
+      setProgress((prevProgress) => {
+        if (prevProgress >= 90) return prevProgress
+        const increment = Math.floor(Math.random() * 5) + 2
+        return Math.min(prevProgress + increment, 90)
+      })
     }
 
-    loadTopics()
+    const intervalId = window.setInterval(incrementProgress, 800 + Math.random() * 400)
 
-    return () => {
-      mounted = false
-    }
-  }, [])
+    return () => window.clearInterval(intervalId)
+  }, [genState])
 
   const selectedVoiceName = useMemo(() => {
     return VOICE_NAME_MAP[voice] || 'vi-VN-HoaiMyNeural'
   }, [voice])
 
   const currentSourceText = useMemo(() => {
-    return sourceTab === 'upload'
-      ? uploadedExtractedText || ''
-      : text || ''
+    return sourceTab === 'upload' ? uploadedExtractedText || '' : text || ''
   }, [sourceTab, text, uploadedExtractedText])
 
   const words = useMemo(() => {
     const baseText = processedText || currentSourceText || ''
     const normalized = baseText.trim()
-
     if (!normalized) return 0
-
     return normalized.split(/\s+/).length
   }, [processedText, currentSourceText])
 
   const estLabel = useMemo(() => {
     if (!words) return '—'
-
     const estimatedSeconds = Math.round((words / 130) * 60)
-
     return formatDurationVi(estimatedSeconds)
   }, [words])
 
@@ -189,10 +153,34 @@ export function useCreateAudio() {
     setGenState('idle')
     setProgress(0)
     setProcStep('')
+    setAiSuggestedTopics([])
     setTitle('')
     setDescription('')
     setDurationSeconds(0)
   }, [])
+
+  const cancelGenerate = useCallback(() => {
+    isCancelledRef.current = true
+
+    if (previewAbortRef.current) {
+      previewAbortRef.current.abort()
+      previewAbortRef.current = null
+    }
+
+    setGenState('idle')
+    setProgress(0)
+    setProcStep('')
+    setStep(2)
+    setProcessedText('')
+    setAudioUrl('')
+    setPublicId('')
+    setResultDur('')
+    setTitle('')
+    setDescription('')
+    setDurationSeconds(0)
+
+    toast.info(t('createAudio.hook.cancelled', { defaultValue: 'Đã dừng quá trình tạo audio' }))
+  }, [t])
 
   const loadRecentDrafts = useCallback(async () => {
     try {
@@ -208,120 +196,430 @@ export function useCreateAudio() {
     loadRecentDrafts()
   }, [loadRecentDrafts])
 
+  useEffect(() => {
+    let mounted = true
+
+    const loadTopicOptions = async () => {
+      try {
+        const response = await getTopics()
+        const list = response?.data ?? response ?? []
+
+        const rawItems = Array.isArray(list)
+          ? list
+          : Array.isArray(list?.results)
+            ? list.results
+            : []
+
+        const options = rawItems
+          .map((item) => {
+            const id = item?.id || item?.name || item?.topic_name || ''
+            const name = item?.name || item?.topic_name || ''
+
+            return {
+              id,
+              name,
+            }
+          })
+          .filter((item) => item.id && item.name)
+
+        if (!mounted) return
+
+        setTopicOptions(options)
+        setTopics((prev) =>
+          prev.filter((topic) =>
+            options.some((item) => item.id === topic || item.name === topic)
+          )
+        )
+      } catch (error) {
+        console.error('Load topics error:', error)
+
+        if (mounted) {
+          setTopicOptions([])
+        }
+      }
+    }
+
+    loadTopicOptions()
+
+    return () => {
+      mounted = false
+    }
+  }, [])
+
+  const normalizeTopics = (items) => {
+    if (!Array.isArray(items)) return []
+
+    return items
+      .map((item) => {
+        if (typeof item === 'string') return item
+        return item?.id || item?.name || item?.topic_name || ''
+      })
+      .filter(Boolean)
+  }
+
+  const loadDraftToForm = useCallback(async (draftId) => {
+    if (!draftId) return
+
+    try {
+      setActiveDraftId(draftId)
+      setIsLoadingDraft(true)
+
+      const res = await getDraftDetail(draftId)
+      const draft = res?.data || {}
+
+      const documents = Array.isArray(draft.documents) ? draft.documents : []
+      const defaultAudio = Array.isArray(draft.audio_versions)
+        ? draft.audio_versions.find((item) => item.is_default) || draft.audio_versions[0]
+        : null
+
+      const hasDocument = draft.source_type === 'uploaded_document'
+      const resolvedAudioUrl = draft.audio_url || defaultAudio?.audio_url || ''
+      const resolvedDurationSeconds = Number(
+        draft.duration_seconds || defaultAudio?.duration_seconds || 0
+      )
+      const resolvedFormat = String(defaultAudio?.format || 'mp3').toUpperCase()
+
+      setSourceTab(hasDocument ? 'upload' : 'text')
+
+      const originalText = draft.original_text || ''
+      setText(hasDocument ? '' : originalText)
+      setUploadedExtractedText(hasDocument ? originalText : '')
+
+      setTitle(draft.title || '')
+      setDescription(draft.description || '')
+      setAudioUrl(resolvedAudioUrl)
+      setPublicId(defaultAudio?.public_id || draft.public_id || '')
+      setActiveDraftStatus(draft.status || '')
+      setFileReady(hasDocument)
+      setDurationSeconds(resolvedDurationSeconds)
+
+      setUploadedDocUrl(documents[0]?.document_url || '')
+      setUploadedDocPublicId(documents[0]?.storage_path || documents[0]?.public_id || '')
+
+      if (hasDocument && documents[0]) {
+        setFile({
+          name: documents[0].file_name || 'document',
+          size: documents[0].file_size || 0,
+          type: documents[0].file_type || '',
+        })
+      } else {
+        setFile(null)
+      }
+
+      const detectedMode = draft.summary_text
+        ? 'summary'
+        : draft.dialogue_script
+          ? 'dialogue'
+          : draft.transcript_text && draft.is_ai_generated
+            ? 'translate'
+            : draft.mode || draft.ai_mode || 'original'
+
+      setAiMode(detectedMode)
+
+      const processed =
+        draft.summary_text ||
+        draft.dialogue_script ||
+        draft.transcript_text ||
+        draft.processed_text ||
+        ''
+
+      setProcessedText(processed)
+
+      if (resolvedDurationSeconds > 0) {
+        setResultDur(`${formatDurationVi(resolvedDurationSeconds)} • ${resolvedFormat}`)
+      } else {
+        setResultDur('')
+      }
+
+      setFormat(resolvedFormat)
+
+      const savedVoiceName =
+        defaultAudio?.voice_name ||
+        draft.voice_name ||
+        draft.voice ||
+        ''
+
+      setVoice(VOICE_ID_BY_NAME[savedVoiceName] || savedVoiceName || 'vi-hoai-my')
+
+      setTopics(normalizeTopics(draft.topics || draft.topic_ids || []))
+
+      setGenState(resolvedAudioUrl ? 'done' : 'idle')
+      setProgress(0)
+      setProcStep('')
+      setStep(resolvedAudioUrl ? 3 : 2)
+
+      toast.success('Đã tải bản nháp lên giao diện')
+    } catch (error) {
+      console.error('Load draft detail error:', error)
+      toast.error(error?.message || 'Không thể tải lại bản nháp')
+    } finally {
+      setIsLoadingDraft(false)
+    }
+  }, [])
+
+  const clearText = useCallback(() => {
+    setText('')
+    setUploadedExtractedText('')
+    setFile(null)
+    setFileReady(false)
+
+    setActiveDraftId('')
+    setActiveDraftStatus('')
+
+    resetGenerateState()
+  }, [resetGenerateState])
+
+  const fillDemoText = useCallback(() => {
+    setSourceTab('text')
+    setText(demoText)
+    setTextError(false)
+
+    resetGenerateState()
+
+    toast.success(
+      t('createAudio.hook.sampleInserted', {
+        defaultValue: 'Đã chèn văn bản mẫu',
+      })
+    )
+  }, [demoText, resetGenerateState, t])
+
+  const startGenerate = useCallback(async () => {
+    const inputText =
+      sourceTab === 'upload'
+        ? (uploadedExtractedText || '').trim()
+        : (text || '').trim()
+
+    const isValid =
+      (sourceTab === 'text' && !!inputText) ||
+      (sourceTab === 'upload' && fileReady && !!inputText)
+
+    if (!isValid) {
+      if (sourceTab === 'text') {
+        setTextError(true)
+        window.setTimeout(() => setTextError(false), 1200)
+      }
+
+      toast.error(
+        sourceTab === 'upload'
+          ? t('createAudio.hook.invalidUploadInput')
+          : t('createAudio.hook.invalidTextInput')
+      )
+      return
+    }
+
+    if (previewAbortRef.current) {
+      previewAbortRef.current.abort()
+      previewAbortRef.current = null
+    }
+
+    const controller = new AbortController()
+    previewAbortRef.current = controller
+    isCancelledRef.current = false
+
+    try {
+      setGenState('processing')
+      setStep(3)
+      setProgress(0)
+      setProcStep(
+        sourceTab === 'upload'
+          ? t('createAudio.hook.processingDocument')
+          : t('createAudio.hook.sendingAudioRequest')
+      )
+
+      setProcessedText('')
+      setAudioUrl('')
+      setPublicId('')
+      setResultDur('')
+      setAiSuggestedTopics([])
+      setDescription('')
+      setDurationSeconds(0)
+
+      const res = await previewAudio(
+        {
+          original_text: inputText,
+          mode: aiMode,
+          voice_name: voice,
+        },
+        controller.signal
+      )
+
+      if (isCancelledRef.current) return
+
+      const preview = res?.data || {}
+      const resolvedAudioUrl = preview.audio_url || ''
+      const resolvedDurationSeconds = Number(preview.duration_seconds || 0)
+      const generatedTitle =
+        (preview.title || '').trim() ||
+        inputText.slice(0, 80).trim() ||
+        t('createAudio.hook.draftTitleFallback')
+
+      setTitle(generatedTitle)
+      setProcessedText(preview.processed_text || '')
+      setAudioUrl(resolvedAudioUrl)
+      setPublicId(preview.public_id || '')
+      setDescription(preview.generated_description || '')
+      setDurationSeconds(resolvedDurationSeconds)
+
+      if (resolvedDurationSeconds > 0) {
+        setResultDur(`${formatDurationVi(resolvedDurationSeconds)} • ${format}`)
+      } else {
+        setResultDur('')
+      }
+
+      if (Array.isArray(preview.suggested_topics)) {
+        setAiSuggestedTopics(preview.suggested_topics)
+      }
+
+      setProgress(100)
+      setProcStep(t('createAudio.hook.completed'))
+      setGenState(resolvedAudioUrl ? 'done' : 'idle')
+
+      toast.success(t('createAudio.hook.generateSuccess'))
+    } catch (error) {
+      if (error?.name === 'AbortError') return
+
+      console.error('Preview audio error:', error)
+      setGenState('idle')
+      setProgress(0)
+      setProcStep('')
+      toast.error(error?.message || t('createAudio.hook.generateFailed'))
+    } finally {
+      if (previewAbortRef.current === controller) {
+        previewAbortRef.current = null
+      }
+    }
+  }, [
+    aiMode,
+    fileReady,
+    format,
+    selectedVoiceName,
+    sourceTab,
+    t,
+    text,
+    uploadedExtractedText,
+  ])
+
+  const saveCurrentDraft = useCallback(async () => {
+    if (!audioUrl) {
+      toast.info(t('createAudio.hook.createAudioBeforeSave'))
+      return
+    }
+
+    const baseText =
+      sourceTab === 'upload'
+        ? (uploadedExtractedText || '').trim()
+        : (text || '').trim()
+
+    const titleFromFile = file?.name?.replace(/\.[^/.]+$/, '') || ''
+    const titleFromText = baseText.slice(0, 60) || t('createAudio.hook.draftTitleFallback')
+
+    try {
+      const payload = {
+        title:
+          title.trim() ||
+          (sourceTab === 'upload' ? titleFromFile || titleFromText : titleFromText),
+        description: description.trim(),
+        original_text: baseText,
+        source_type: sourceTab === 'upload' ? 'uploaded_document' : 'manual',
+        mode: aiMode,
+        processed_text: processedText,
+        audio_url: audioUrl,
+        public_id: publicId,
+        voice_name: selectedVoiceName,
+        format: format.toLowerCase(),
+        document_url: uploadedDocUrl,
+        document_public_id: uploadedDocPublicId,
+        file_name: file?.name || '',
+        file_type: file?.type || '',
+        file_size: file?.size || null,
+      }
+
+      const res = await saveDraftWithAudio(payload)
+
+      toast.success(res?.message || t('createAudio.hook.saveDraftSuccess'))
+      setActiveDraftId(res?.data?.id || '')
+      setActiveDraftStatus(res?.data?.status || 'draft')
+      await loadRecentDrafts()
+    } catch (error) {
+      console.error('Save draft error:', error)
+      toast.error(error?.message || t('createAudio.hook.saveDraftFailed'))
+    }
+  
+  }, [
+    aiMode,
+    audioUrl,
+    description,
+    file,
+    format,
+    loadRecentDrafts,
+    processedText,
+    publicId,
+    selectedVoiceName,
+    sourceTab,
+    t,
+    text,
+    title,
+    uploadedExtractedText,
+    uploadedDocUrl,
+    uploadedDocPublicId,
+  ])
+
   return {
     step,
-    setStep,
-
     sourceTab,
     setSourceTab,
-
     aiMode,
     setAiMode,
-
     text,
     setText,
-
     file,
-    setFile,
-
     fileReady,
-    setFileReady,
-
     isUploadingFile,
-    setIsUploadingFile,
-
     uploadedDocUrl,
-    setUploadedDocUrl,
-
     uploadedDocPublicId,
-    setUploadedDocPublicId,
-
     uploadedExtractedText,
-    setUploadedExtractedText,
-
     voice,
     setVoice,
-
     format,
     setFormat,
-
     topics,
     setTopics,
-
     topicOptions,
     setTopicOptions,
-
+    aiSuggestedTopics,
+    setAiSuggestedTopics,
     genState,
-    setGenState,
-
     progress,
-    setProgress,
-
     procStep,
-    setProcStep,
-
     resultDur,
-    setResultDur,
-
     durationSeconds,
-    setDurationSeconds,
-
     audioUrl,
-    setAudioUrl,
-
     textError,
-    setTextError,
-
-    processedText,
-    setProcessedText,
-
-    publicId,
-    setPublicId,
-
-    recentDrafts,
-    setRecentDrafts,
-
-    title,
-    setTitle,
-
-    description,
-    setDescription,
-
-    activeDraftId,
-    setActiveDraftId,
-
-    activeDraftStatus,
-    setActiveDraftStatus,
-
-    isLoadingDraft,
-    setIsLoadingDraft,
-
     words,
+    clearText,
+    fillDemoText,
+    setRecentDrafts,
+    loadRecentDrafts,
     estLabel,
-
+    startGenerate,
+    cancelGenerate,
+    saveCurrentDraft,
     voices,
     formats,
     aiModes,
     sourceTabs,
-
-    demoText,
-
-    resetGenerateState,
-    loadRecentDrafts,
-
+    recentDrafts,
+    title,
+    setTitle,
+    description,
+    setDescription,
+    activeDraftId,
+    activeDraftStatus,
+    isLoadingDraft,
+    loadDraftToForm,
+    setDurationSeconds,
+    setResultDur,
     selectedVoiceName,
-
-    previewAbortRef,
-    isCancelledRef,
-
-    // APIs
-    previewAudio,
-    saveDraftWithAudio,
-    uploadDocument,
-    getDraftDetail,
-
-    // utils
-    toast,
     t,
   }
 }

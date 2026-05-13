@@ -27,7 +27,9 @@ export default function AllDraftsPanel({ vm }) {
   const [archivingId, setArchivingId] = useState('')
   const [durationCache, setDurationCache] = useState({})
 
-  const allDrafts = vm?.recentDrafts || []
+  const allDrafts = (vm?.recentDrafts || []).filter(
+    (draft) => draft.status !== 'archived'
+  )
 
   // Load actual durations from audio files for all drafts
   useEffect(() => {
@@ -76,11 +78,14 @@ export default function AllDraftsPanel({ vm }) {
     try {
       setArchivingId(draftId)
       await archiveDraft(draftId)
+
+      vm?.setRecentDrafts?.((prev) =>
+        prev.filter((draft) => draft.id !== draftId)
+      )
+
       toast.success(t('draftsPanel.archiveSuccess', { title: draftTitle }))
 
-      if (typeof vm?.loadRecentDrafts === 'function') {
-        await vm.loadRecentDrafts()
-      }
+      await vm?.loadRecentDrafts?.()
     } catch (error) {
       console.error('Archive draft error:', error)
       toast.error(error?.message || t('draftsPanel.archiveError'))
@@ -182,16 +187,19 @@ export default function AllDraftsPanel({ vm }) {
                   return
                 }
 
-                await vm?.loadDraftToForm?.(record.id)
+                try {
+                  await vm?.loadDraftToForm?.(record.id)
 
-                setTimeout(() => {
-                  if (!vm?.audioUrl) {
-                    toast.info('Draft chưa có audio để đăng bài')
-                    return
-                  }
+                  toast.success('Đã tải bản nháp')
 
-                  vm?.goToPublish?.()
-                }, 300)
+                  // nếu muốn tự chuyển publish
+                  // thì delay chút cho React render xong
+                  setTimeout(() => {
+                    vm?.goToPublish?.()
+                  }, 100)
+                } catch (error) {
+                  toast.error('Không thể tải draft')
+                }
               }}
               style={{ padding: 0 }}
             >

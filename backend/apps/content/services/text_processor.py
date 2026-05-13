@@ -148,6 +148,9 @@ def generate_short_description(text: str) -> str:
         return ""
 
     first = sentences[0]
+    if len(sentences) > 1:
+        first += " " + sentences[1]
+
     first = re.sub(r"\s+", " ", first).strip()
     first = re.sub(
         r"^(Trong audio này|Trong bài này|Bài viết này|Nội dung này)\s*[:,.-]?\s*",
@@ -156,8 +159,8 @@ def generate_short_description(text: str) -> str:
         flags=re.IGNORECASE,
     )
 
-    if len(first) > 220:
-        first = first[:220].rsplit(" ", 1)[0].strip() + "..."
+    if len(first) > 500:
+        first = first[:500].rsplit(" ", 1)[0].strip() + "..."
 
     return first
 
@@ -172,8 +175,8 @@ def generate_short_title(text: str) -> str:
     title = re.sub(r"^(Hello there!|Chào bạn,?)\s*", "", title, flags=re.IGNORECASE)
     title = title.strip('"').strip("'").strip()
 
-    if len(title) > 80:
-        title = title[:80].rsplit(" ", 1)[0].strip()
+    if len(title) > 150:
+        title = title[:150].rsplit(" ", 1)[0].strip()
 
     return title or "Bài audio"
 
@@ -212,30 +215,27 @@ def _build_prompts(text: str, mode: str) -> tuple[str, str]:
     dialogue_guidance = _target_dialogue_guidance(text)
 
     system_prompt = (
-        "Bạn là một biên tập viên podcast giáo dục. "
-        "Nhiệm vụ của bạn là biến văn bản thành nội dung audio tự nhiên, rõ ràng và dễ nghe. "
-        "Không dùng markdown, không bullet, không emoji, không ký tự trang trí. "
-        "Chỉ viết văn bản sạch, phù hợp để đưa vào hệ thống TTS."
+        "Bạn là một biên tập viên và Host podcast giáo dục xuất sắc. "
+        "Nhiệm vụ của bạn là biến văn bản khô khan thành kịch bản audio mượt mà, hấp dẫn và có hồn. "
+        "Nguyên tắc cốt lõi: Bạn ĐƯỢC PHÉP sáng tạo cách dẫn dắt, thêm thắt từ ngữ nối để bài diễn thuyết sinh động hơn, "
+        "nhưng TUYỆT ĐỐI KHÔNG ĐƯỢC thay đổi, làm sai lệch hay bỏ sót các ĐIỂM CHÍNH, SỐ LIỆU và THÔNG ĐIỆP CỐT LÕI của nội dung gốc. "
+        "Chỉ viết văn bản sạch (không markdown, không bullet, không ký tự trang trí) để phù hợp cho hệ thống TTS."
     )
 
     if mode == "summary":
         user_prompt = f"""
-Hãy chuyển nội dung dưới đây thành một kịch bản audio độc thoại bằng tiếng Việt.
+Hãy chuyển nội dung dưới đây thành kịch bản audio độc thoại bằng tiếng Việt.
 
-Mục tiêu:
-- Bắt buộc mở đầu bằng một lời chào thân thiện và giới thiệu chủ đề hấp dẫn.
-- Giữ đầy đủ các ý quan trọng, không tóm tắt quá hời hợt.
-- Diễn đạt theo ngôn ngữ nói (sử dụng các từ nối như: "Bạn biết không", "Thực tế là", "Để mình giải thích").
-- Có lời kết và chào tạm biệt ngắn gọn.
+Mục tiêu cốt lõi:
+- THÊM THẮT ĐỂ HẤP DẪN NHƯNG GIỮ NGUYÊN Ý CHÍNH: Bạn có toàn quyền sáng tạo cách diễn đạt, thêm các câu cảm thán, từ nối tự nhiên (như: "Bạn biết không", "Thử tưởng tượng xem", "Thực tế là") để bài nghe thật mượt mà và cuốn hút. 
+- CHUẨN XÁC NỘI DUNG: Dù diễn đạt hay đến đâu, các luận điểm chính, thông tin nền tảng và số liệu của bản gốc PHẢI được giữ nguyên. Không được tự ý đổi trắng thay đen hay làm sai lệch ý tác giả.
+- Bắt buộc có: Một lời chào mở đầu thật thu hút (kèm giới thiệu chủ đề) và một câu kết luận/chào tạm biệt ấn tượng ở cuối.
 
 Chiến lược xử lý theo độ dài:
 {summary_guidance}
 
-Yêu cầu:
-- Không markdown
-- Không bullet
-- Không dùng dấu sao hoặc ký tự trang trí
-- Viết thành các đoạn văn ngắn
+Yêu cầu định dạng:
+- Không markdown, không bullet. Viết thành các đoạn văn ngắn liền mạch.
 
 Nội dung:
 {text}
@@ -246,21 +246,17 @@ Nội dung:
         user_prompt = f"""
 Hãy chuyển nội dung dưới đây thành kịch bản talkshow podcast giữa MC và Khách mời.
 
-Mục tiêu:
-- Bắt buộc mở đầu bằng lời chào từ MC để dẫn dắt vào chương trình.
-- Tự nhiên như một cuộc trò chuyện thật: Có sự tung hứng, đồng tình, ngạc nhiên.
-- MC đặt câu hỏi gợi mở hoặc thay mặt người nghe thắc mắc chỗ khó hiểu.
-- Khách mời giải thích rõ ràng, dùng ví dụ gần gũi.
-- Giữ đủ các ý quan trọng của nội dung gốc.
+Mục tiêu cốt lõi:
+- TUNG HỨNG TỰ NHIÊN NHƯNG ĐÚNG KIẾN THỨC: MC và Khách mời có thể thoải mái thêm thắt các câu đùa nhẹ nhàng, biểu cảm ngạc nhiên ("Ồ", "Thật vậy sao?"), hoặc cách ví von để cuộc trò chuyện có hồn và đặc sắc. 
+- Tuy nhiên, khi giải thích, Khách mời BẮT BUỘC phải truyền tải đầy đủ và chính xác các ĐIỂM CHÍNH từ nội dung gốc. Không được chế tác sai lệch kiến thức.
+- Bắt buộc có: Lời chào mở đầu từ MC. MC liên tục đặt câu hỏi gợi mở. Cuối chương trình MC chốt lại bài học và chào tạm biệt.
 
 Chiến lược xử lý theo độ dài:
 {dialogue_guidance}
 
-Yêu cầu:
-- Mỗi lượt thoại dùng đúng format: MC: nội dung hoặc Khách mời: nội dung
-- Không markdown
-- Không bullet
-- Không để một lượt thoại quá dài
+Yêu cầu định dạng:
+- Format bắt buộc: MC: [nội dung] hoặc Khách mời: [nội dung]
+- Không markdown, không bullet. Các lượt thoại tung hứng linh hoạt, không để ai nói một mạch quá dài.
 
 Nội dung:
 {text}
@@ -269,22 +265,16 @@ Nội dung:
 
     if mode == "translate":
         user_prompt = f"""
-Transform the following content into a natural English solo podcast script.
+Translate and adapt the following content into a fluent, buttery-smooth English solo podcast script.
 
-Goals:
-- Translate and rewrite the content into fluent English
-- Keep the important ideas and meaning
-- Make it sound natural when read aloud
-- Start with a short engaging opening
-- End with a brief friendly conclusion
-- Do not over-summarize the source
+Core Objectives:
+- CREATIVE YET ACCURATE: Feel free to use engaging English idioms, natural conversational transitions (e.g., "Think about it," "Here's the kicker"), and expressive storytelling techniques to make the audio flow beautifully. 
+- However, you MUST strictly preserve all main points, core facts, and the original message. Do not alter the fundamental truth or leave out key arguments from the original text.
+- MUST include: A warm, hook-driven welcoming intro and a friendly sign-off at the end.
 
-Requirements:
-- Output English only
-- Plain paragraphs only
-- No markdown
-- No bullet points
-- No decorative characters
+Formatting Requirements:
+- OUTPUT STRICTLY IN ENGLISH ONLY.
+- Plain paragraphs only. NO markdown, NO bullet points.
 
 Original content:
 {text}
@@ -293,61 +283,62 @@ Original content:
 
     if mode == "title":
         user_prompt = f"""
-Write a short title for this learning audio.
+Viết một tiêu đề (title) chi tiết và bao quát nhất cho bài audio học tập này.
 
-Requirements:
-- Maximum 80 characters
-- If the content is English, the title must be English
-- If the content is Vietnamese, the title must be Vietnamese
-- Mention the main topic clearly
-- Natural, concise, and attractive
-- No quotation marks
-- No emoji
-- No markdown
-
-Content:
-{text}
-""".strip()
-        return system_prompt, user_prompt
-
-    if mode == "description":
-        user_prompt = f"""
-Viết một đoạn mô tả audio ngắn, rõ ràng và hấp dẫn để người dùng hiểu nội dung và muốn bấm nghe.
+RÀNG BUỘC NGÔN NGỮ (LANGUAGE LOCK):
+- Nhận diện ngôn ngữ của phần "Nội dung" bên dưới.
+- Nếu nội dung bằng TIẾNG ANH, bạn BẮT BUỘC phải viết tiêu đề bằng TIẾNG ANH 100%.
+- Nếu nội dung bằng TIẾNG VIỆT, bạn viết tiêu đề bằng TIẾNG VIỆT.
 
 Mục tiêu:
-- Nêu đúng chủ đề chính của audio
-- Cho thấy lợi ích người nghe nhận được sau khi nghe
-- Kích thích trí tò mò nhưng không phóng đại
-- Viết tối đa 2 câu, khoảng 180 đến 220 ký tự
-- Nếu nội dung là tiếng Anh thì mô tả phải là tiếng Anh
-- Nếu nội dung là tiếng Việt thì mô tả phải là tiếng Việt
+- Phản ánh chính xác và đầy đủ nội dung cốt lõi của toàn bộ bài.
+- Sử dụng cấu trúc (Tiêu đề chính - Tiêu đề phụ) để làm rõ ý.
+- Độ dài khoảng 15 đến 25 từ (tối đa 150 ký tự).
 
-Quy tắc:
-- Không dùng ngoặc kép
-- Không emoji
-- Không markdown
-- Không dùng câu rập khuôn như: Trong audio này, Bài viết này nói về
-- Không lan man, không viết quá chung chung
-- Văn phong tự nhiên, phù hợp cho audio học tập
+Yêu cầu định dạng:
+- Không dùng ngoặc kép. Không emoji, không markdown.
 
 Nội dung:
 {text}
 """.strip()
         return system_prompt, user_prompt
 
-    user_prompt = f"""
-Hãy biên tập nội dung sau thành một bản script phù hợp cho giọng đọc AI.
+    if mode == "description":
+        user_prompt = f"""
+Viết một đoạn mô tả (show notes/description) chi tiết để giới thiệu trọn vẹn nội dung bài audio này.
+
+RÀNG BUỘC NGÔN NGỮ (LANGUAGE LOCK):
+- Nhận diện ngôn ngữ của phần "Nội dung" bên dưới. 
+- Nếu nội dung bằng TIẾNG ANH, đoạn mô tả BẮT BUỘC phải được viết bằng TIẾNG ANH 100%.
+- Nếu nội dung bằng TIẾNG VIỆT, viết bằng TIẾNG VIỆT.
 
 Mục tiêu:
-- Bắt buộc thêm một câu chào mừng ngắn ở đầu bài và câu tạm biệt ở cuối bài.
-- Giữ gần như 100% ý chính của nội dung nguyên thủy.
-- Làm mềm các câu văn thô cứng, chuyển cấu trúc câu phức tạp thành ngôn ngữ kể chuyện.
-- Ngắt nhỏ các câu quá dài để giọng đọc AI có nhịp nghỉ tự nhiên.
+- Tóm tắt bối cảnh, liệt kê các ý chính và giá trị thực tế người nghe nhận được. Có thể viết hấp dẫn, bay bổng để thu hút người nghe.
+- Đủ dài để bao quát toàn bộ nội dung (viết khoảng 3 đến 5 câu, tối đa 500 ký tự).
+- KHÔNG được bịa thông tin không có trong bài.
 
-Yêu cầu:
-- Không markdown
-- Không bullet
-- Viết thành các đoạn văn liền mạch
+Yêu cầu định dạng:
+- Không dùng ngoặc kép, không emoji, không markdown.
+- Không dùng các câu rập khuôn như: "Trong audio này", "Bài viết này nói về".
+- Trình bày thành một đoạn văn duy nhất.
+
+Nội dung:
+{text}
+""".strip()
+        return system_prompt, user_prompt
+
+    # Chế độ Default (Giữ nguyên văn - Biên tập lại giọng đọc)
+    user_prompt = f"""
+Hãy biên tập nội dung sau thành một bản script phù hợp cho giọng đọc AI (độc thoại).
+
+Mục tiêu cốt lõi:
+- DIỄN ĐẠT CÓ HỒN NHƯNG BÁM SÁT TRỌNG TÂM: Được phép làm lại câu chữ cho mượt mà, thêm thắt lời dẫn để bài đọc không bị khô khan. 
+- Dù vậy, nội dung cốt lõi, các ý chính và thông tin quan trọng PHẢI được giữ nguyên vẹn và chính xác so với bản gốc. KHÔNG cắt xén làm hụt ý.
+- Bắt buộc thêm một câu chào mừng gợi mở ở đầu bài và câu chốt vấn đề/tạm biệt ở cuối bài.
+
+Yêu cầu định dạng:
+- Không markdown, không bullet, không ký tự đặc biệt.
+- Viết thành các đoạn văn liền mạch, dễ đọc thành tiếng.
 
 Nội dung:
 {text}
@@ -414,8 +405,8 @@ def generate_ai_title(text: str) -> str:
         result = _clean_text(result)
         result = result.strip('"').strip("'").strip()
 
-        if len(result) > 80:
-            result = result[:80].rsplit(" ", 1)[0].strip()
+        if len(result) > 150:
+            result = result[:150].rsplit(" ", 1)[0].strip()
 
         return result or generate_short_title(text)
     except Exception:
@@ -434,8 +425,8 @@ def generate_ai_description(text: str) -> str:
         result = _clean_text(result)
         result = result.strip('"').strip("'").strip()
 
-        if len(result) > 220:
-            result = result[:220].rsplit(" ", 1)[0].strip() + "..."
+        if len(result) > 500:
+            result = result[:500].rsplit(" ", 1)[0].strip() + "..."
 
         return result or generate_short_description(text)
     except Exception:
