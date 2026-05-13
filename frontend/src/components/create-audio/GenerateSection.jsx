@@ -101,7 +101,6 @@ export default function GenerateSection({ vm }) {
             </div>
 
             <Progress percent={vm.progress} strokeColor="#7f8cff" format={() => `${vm.progress}%`} />
-            
             <Text className={styles.subText}>{vm.procStep}</Text>
           </Space>
         </Card>
@@ -140,14 +139,14 @@ export default function GenerateSection({ vm }) {
               <Input
                 value={vm.title}
                 onChange={(e) => vm.setTitle(e.target.value)}
-                maxLength={120}
+                maxLength={150}
                 placeholder="Nhập tiêu đề cho bài audio..."
                 style={{ marginTop: 12 }}
               />
 
               <div style={{ marginTop: 6, textAlign: 'right' }}>
                 <Text className={styles.subText}>
-                  {(vm.title || '').length}/120 ký tự
+                  {(vm.title || '').length}/150 ký tự
                 </Text>
               </div>
             </div>
@@ -164,14 +163,14 @@ export default function GenerateSection({ vm }) {
                 value={vm.description}
                 onChange={(e) => vm.setDescription(e.target.value)}
                 rows={4}
-                maxLength={300}
+                maxLength={500}
                 placeholder={t('createAudio.generate.descriptionPlaceholder')}
                 style={{ marginTop: 12 }}
               />
 
               <div style={{ marginTop: 6, textAlign: 'right' }}>
                 <Text className={styles.subText}>
-                  {(vm.description || '').length}/300 {t('createAudio.generate.characters')}
+                  {(vm.description || '').length}/500 {t('createAudio.generate.characters')}
                 </Text>
               </div>
             </div>

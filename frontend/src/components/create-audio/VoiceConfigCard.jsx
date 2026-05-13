@@ -8,10 +8,19 @@ export default function VoiceConfigCard({ vm }) {
   const { t } = useTranslation()
 
   const topicOptions = (vm.topicOptions || vm.topicsMaster || [])
-    .map((topic) => ({
-      value: topic.id,
-      label: topic.name || topic.topic_name || 'Chủ đề',
-    }))
+    .map((topic) => {
+      if (typeof topic === 'string') {
+        return {
+          value: topic,
+          label: topic,
+        }
+      }
+
+      return {
+        value: topic.id || topic.name || topic.topic_name,
+        label: topic.name || topic.topic_name || 'Chủ đề',
+      }
+    })
     .filter((item) => item.value && item.label)
 
   return (

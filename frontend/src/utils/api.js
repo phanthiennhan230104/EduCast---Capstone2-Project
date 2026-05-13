@@ -123,11 +123,15 @@ export async function apiRequest(path, options = {}) {
     return data
   } catch (error) {
     if (error.name === 'AbortError') {
+      if (options.signal?.aborted) {
+        throw error
+      }
+
       throw new Error('Request timed out. Please check your backend connection.')
     }
 
     throw error
-  } finally {
+  }finally {
     clearTimeout(timeoutId)
   }
 }

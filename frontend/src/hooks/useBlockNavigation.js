@@ -5,12 +5,6 @@ export function useBlockNavigation(shouldBlock, onConfirmLeave) {
   useEffect(() => {
     if (!shouldBlock) return
 
-    const handleBeforeUnload = (e) => {
-      e.preventDefault()
-      e.returnValue = ''
-      return ''
-    }
-
     const handleDocumentClick = (e) => {
       const anchor = e.target.closest('a')
       if (!anchor) return
@@ -29,11 +23,9 @@ export function useBlockNavigation(shouldBlock, onConfirmLeave) {
       })
     }
 
-    window.addEventListener('beforeunload', handleBeforeUnload)
     document.addEventListener('click', handleDocumentClick, true)
 
     return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload)
       document.removeEventListener('click', handleDocumentClick, true)
     }
   }, [shouldBlock, onConfirmLeave])
