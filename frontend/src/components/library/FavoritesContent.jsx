@@ -15,10 +15,6 @@ import {
   Play,
   Pause,
   Loader,
-  MoreHorizontal,
-  Edit,
-  Trash2,
-  EyeOff,
 
 } from 'lucide-react'
 import { toast } from 'react-toastify'
@@ -73,20 +69,6 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
 
   const progressBarRef = useRef(null)
   const draggingRef = useRef(false)
-  const menuRef = useRef(null)
-  const [menuOpen, setMenuOpen] = useState(false)
-
-  useEffect(() => {
-    if (!menuOpen) return
-    const handleClickOutside = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) {
-        setMenuOpen(false)
-      }
-    }
-    window.addEventListener('mousedown', handleClickOutside)
-    return () => window.removeEventListener('mousedown', handleClickOutside)
-  }, [menuOpen])
-
   const handlePlayClick = () => {
     if (!item.audioUrl) {
       alert(t('library.content.noAudioAlert'))
@@ -217,76 +199,14 @@ function SavedCard({ item, viewMode, onToggleSaved, onOpenNotes, onOpenDetail })
     : item.author || t('library.content.user')
   return (
     <article className={`${styles.savedCard} ${viewMode === 'list' ? styles.savedCardList : ''}`}>
-      <div className={styles.savedTop}>
-        {item.pinned ? (
+      {item.pinned ? (
+        <div className={styles.savedTop}>
           <span className={styles.savedBadge}>
             <Pin size={11} />
             {t('library.content.pinned')}
           </span>
-        ) : (
-          <span />
-        )}
-
-        <div className={styles.savedMenuWrap} ref={menuRef}>
-          <button
-            type="button"
-            className={styles.savedMoreBtn}
-            onClick={(e) => {
-              e.stopPropagation()
-              setMenuOpen((prev) => !prev)
-            }}
-            aria-label="Tùy chọn"
-          >
-            <MoreHorizontal size={16} />
-          </button>
-
-          {menuOpen && (
-            <div className={styles.savedDropdown}>
-              {isOwner ? (
-                <>
-                  <button
-                    type="button"
-                    className={styles.savedDropdownItem}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      onEdit?.(item)
-                    }}
-                  >
-                    <Edit size={14} />
-                    <span>Chỉnh sửa</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.savedDropdownItem} ${styles.savedDropdownItemDanger}`}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      setMenuOpen(false)
-                      onDelete?.(item)
-                    }}
-                  >
-                    <Trash2 size={14} />
-                    <span>Xóa</span>
-                  </button>
-                </>
-              ) : (
-                <button
-                  type="button"
-                  className={styles.savedDropdownItem}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setMenuOpen(false)
-                    onHide?.(item)
-                  }}
-                >
-                  <EyeOff size={14} />
-                  <span>Ẩn bài viết</span>
-                </button>
-              )}
-            </div>
-          )}
         </div>
-      </div>
+      ) : null}
 
       <div className={styles.savedBody} onClick={() => onOpenDetail(item)}>
         <div className={styles.savedMain} style={{ cursor: 'pointer' }}>
@@ -1258,6 +1178,7 @@ export default function FavoritesContent() {
       if (!post) {
         try {
           const token = getToken()
+          const preview = event.detail?.podcastPreview || {}
 
           const res = await fetch(
             `${API_BASE_URL}/content/posts/${encodeURIComponent(contentPostId)}/`,
@@ -1272,7 +1193,38 @@ export default function FavoritesContent() {
           const data = await res.json()
           const raw = data.data || data
           if (!res.ok || !raw?.id) return
+          const previewAuthorName =
+            typeof preview.author === 'object'
+              ? preview.author?.name ||
+                preview.author?.display_name ||
+                preview.author?.username ||
+                ''
+              : preview.author
+          const fetchedAuthor =
+            typeof raw.author === 'object'
+              ? raw.author
+              : {
+                name:
+                  raw.author ||
+                  raw.author_name ||
+                  raw.author_username ||
+                  previewAuthorName ||
+                  'Người dùng',
+                username:
+                  raw.author_username ||
+                  preview.authorUsername ||
+                  preview.author_username ||
+                  '',
+                avatar_url:
+                  raw.author_avatar ||
+                  raw.author_avatar_url ||
+                  preview.author_avatar ||
+                  preview.author_avatar_url ||
+                  preview.author?.avatar_url ||
+                  '',
+              }
 
+          post = {}
           post = {
             id: raw.id,
             postId: raw.id,
@@ -1296,12 +1248,25 @@ export default function FavoritesContent() {
               post.author?.username ||
               post.author_username ||
               '',
+            author: fetchedAuthor,
+            author_avatar:
+              fetchedAuthor?.avatar_url ||
+              raw.author_avatar ||
+              raw.author_avatar_url ||
+              preview.author_avatar ||
+              '',
+            authorUsername:
+              fetchedAuthor?.username ||
+              raw.author_username ||
+              preview.authorUsername ||
+              '',
             authorId: raw.user_id || raw.author_id,
             user_id: raw.user_id || raw.author_id,
             userId: raw.user_id || raw.author_id,
             isOwner: raw.is_owner || false,
             cover: raw.thumbnail_url || '',
             thumbnail_url: raw.thumbnail_url || '',
+            tags: raw.tags || raw.tag_names || raw.tagNames || preview.tags || [],
             audioUrl: raw.audio?.audio_url || raw.audio_url || '',
             audio_url: raw.audio?.audio_url || raw.audio_url || '',
             durationSeconds: raw.audio?.duration_seconds || raw.duration_seconds || 0,

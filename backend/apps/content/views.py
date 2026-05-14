@@ -801,11 +801,20 @@ class FeedAPIView(APIView):
                 except:
                     tag_ids = None
 
+            topic_ids_param = request.query_params.get("topics", "")
+            topic_ids = None
+            if topic_ids_param:
+                try:
+                    topic_ids = [tid.strip() for tid in topic_ids_param.split(",") if tid.strip()]
+                except:
+                    topic_ids = None
+
             items = FeedService.get_feed(
                 user=request.user,
                 limit=limit,
                 feed_type=feed_type,
                 tag_ids=tag_ids,
+                topic_ids=topic_ids,
             )
             
             hidden_ids = set(
@@ -1506,12 +1515,18 @@ class TopicListView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        topics = Topic.objects.all().order_by("name")
+        topics = Topic.objects.annotate(
+            usage_count=models.Count("topic_posts", distinct=True)
+        ).order_by("-usage_count", "name")
         serializer = TopicSerializer(topics, many=True)
+        data = list(serializer.data)
+        usage_by_id = {str(topic.id): topic.usage_count for topic in topics}
+        for item in data:
+            item["usage_count"] = usage_by_id.get(str(item.get("id")), 0)
         return Response(
             {
                 "message": "Lấy danh sách topics thành công",
-                "data": serializer.data,
+                "data": data,
             },
             status=status.HTTP_200_OK,
         )

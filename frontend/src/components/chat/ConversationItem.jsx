@@ -9,10 +9,21 @@ import { getMessagePreview, formatChatTime } from "../../utils/chat/chatHelpers"
 
 const { Text } = Typography;
 
-export default function ConversationItem({ item, active, onClick, onDelete }) {
+export default function ConversationItem({
+  item,
+  active,
+  onClick,
+  onDelete,
+  onOpenProfile,
+}) {
   const { t } = useTranslation();
   const peer = item.peer;
   const lastMessage = item.last_message;
+
+  const handleOpenProfile = (e) => {
+    e.stopPropagation();
+    onOpenProfile?.(peer);
+  };
 
   const handleDeleteConversation = (e) => {
     e.stopPropagation();
@@ -41,15 +52,32 @@ export default function ConversationItem({ item, active, onClick, onDelete }) {
       <div className="conversation-row">
         <div className="conversation-left">
           <div className="conversation-avatar-wrap">
-            <Avatar icon={<UserOutlined />} src={peer?.avatar_url} />
+            <button
+              type="button"
+              className="conversation-profile-btn conversation-avatar-btn"
+              onClick={handleOpenProfile}
+              aria-label="Mở trang cá nhân"
+            >
+              <Avatar icon={<UserOutlined />} src={peer?.avatar_url} />
+            </button>
 
-            {!!item.unread_count && (
-              <span className="conversation-unread-dot" />
-            )}
+            {!!item.unread_count && <span className="conversation-unread-dot" />}
           </div>
 
           <div className="conversation-content">
-            <Text strong className="conversation-name">
+            <Text
+              strong
+              className="conversation-name conversation-profile-name"
+              role="button"
+              tabIndex={0}
+              onClick={handleOpenProfile}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" || event.key === " ") {
+                  event.preventDefault();
+                  handleOpenProfile(event);
+                }
+              }}
+            >
               {peer?.display_name || peer?.username || "Unknown"}
             </Text>
 

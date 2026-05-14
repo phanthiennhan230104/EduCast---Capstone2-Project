@@ -1,4 +1,5 @@
 import json
+from datetime import timedelta
 from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
@@ -18,7 +19,7 @@ from apps.chat.models import  Message
 from apps.chat.serializers import MessageSerializer
 from apps.chat.services import get_or_create_direct_room
 from apps.chat.services import broadcast_room_snapshot
-from django.db import connection
+from django.db import connection, IntegrityError
 from django.db.models import F
 from django.db.models import Count, Q
 
@@ -148,6 +149,7 @@ def _post_counts(post_id, share_id=None):
             "save_count": save_count,
             "share_count": share_count,
         }
+
     else:
         # For original posts, return counts excluding shares
         try:
@@ -188,6 +190,115 @@ def _post_counts(post_id, share_id=None):
         }
 
 # Chuyển comment thành dict, có thể include replies nếu cần.
+def _profile_display_name(user):
+    profile = getattr(user, "profile", None)
+    if profile and getattr(profile, "display_name", None):
+        return profile.display_name
+    return getattr(user, "username", "") or str(getattr(user, "id", ""))
+
+
+def _profile_avatar_url(user):
+    profile = getattr(user, "profile", None)
+    return getattr(profile, "avatar_url", None) if profile else None
+
+
+def _initials(name):
+    text = str(name or "").strip()
+    if not text:
+        return "U"
+    parts = [p for p in text.split() if p]
+    if len(parts) >= 2:
+        return f"{parts[0][0]}{parts[-1][0]}".upper()
+    return text[:2].upper()
+
+
+def _serialize_community_user(user, current_user_id=None, following_ids=None):
+    following_ids = following_ids or set()
+    name = _profile_display_name(user)
+    return {
+        "id": str(user.id),
+        "username": getattr(user, "username", ""),
+        "display_name": name,
+        "name": name,
+        "avatar_url": _profile_avatar_url(user),
+        "initials": _initials(name),
+        "followers_count": Follow.objects.filter(following_id=user.id).count(),
+        "following_count": Follow.objects.filter(follower_id=user.id).count(),
+        "is_following": str(user.id) in following_ids,
+        "is_current_user": str(user.id) == str(current_user_id) if current_user_id else False,
+    }
+
+
+def _serialize_community_post(post, current_user_id=None, following_ids=None):
+    counts = _post_counts(post.id)
+    following_ids = following_ids or set()
+    tags = [
+        {
+            "id": row.tag_id,
+            "name": row.tag.name,
+            "slug": row.tag.slug,
+        }
+        for row in PostTag.objects.filter(post_id=post.id).select_related("tag")[:5]
+    ]
+    playback = None
+    if current_user_id:
+        playback = PlaybackHistory.objects.filter(
+            user_id=current_user_id,
+            post_id=post.id,
+        ).first()
+
+    return {
+        "id": str(post.id),
+        "post_id": str(post.id),
+        "type": "original",
+        "title": post.title,
+        "description": post.description or "",
+        "thumbnail_url": post.thumbnail_url,
+        "listen_count": post.listen_count or 0,
+        "duration_seconds": post.duration_seconds or 0,
+        "created_at": post.created_at.isoformat() if post.created_at else None,
+        "published_at": post.published_at.isoformat() if post.published_at else None,
+        "is_ai_generated": bool(post.is_ai_generated),
+        "source_type": post.source_type,
+        "tags": tags,
+        "author": {
+            "id": str(post.user.id),
+            "username": post.user.username,
+            "name": _profile_display_name(post.user),
+            "avatar_url": _profile_avatar_url(post.user),
+            "initials": _initials(_profile_display_name(post.user)),
+        },
+        "audio": {
+            "id": f"post-{post.id}",
+            "audio_url": post.audio_url,
+            "duration_seconds": post.duration_seconds or 0,
+        } if post.audio_url else None,
+        "stats": {
+            "likes": counts["like_count"],
+            "comments": counts["comment_count"],
+            "saves": counts["save_count"],
+            "shares": counts["share_count"],
+        },
+        "viewer_state": {
+            "is_liked": PostLike.objects.filter(
+                user_id=current_user_id,
+                post_id=post.id,
+                share_id__isnull=True,
+            ).exists() if current_user_id else False,
+            "is_saved": SavedPost.objects.filter(
+                user_id=current_user_id,
+                post_id=post.id,
+                share_id__isnull=True,
+            ).exists() if current_user_id else False,
+            "is_following_author": str(post.user_id) in following_ids,
+            "progress_seconds": getattr(playback, "progress_seconds", 0) or 0,
+            "duration_seconds": getattr(playback, "duration_seconds", 0) or 0,
+            "completed_ratio": float(getattr(playback, "completed_ratio", 0) or 0),
+            "is_completed": bool(getattr(playback, "is_completed", False)),
+        },
+    }
+
+
 def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None, depth=0):
     liked_comment_ids = liked_comment_ids or set()
     like_count = CommentLike.objects.filter(comment_id=comment.id).count()
@@ -281,27 +392,31 @@ def toggle_like_post(request, post_id):
         if not user:
             return _json_error("Authentication required", 401)
 
-        # Composite share id (share_<shareId>_<postId>) — DB không có UNIQUE theo share_id,
-        # nên like luôn ở cấp bài gốc (share_id NULL), thống nhất với cách Feed/CommentModal
-        # đang tính is_liked.
+        # Composite share id (share_<shareId>_<postId>) means the like belongs
+        # to that share row; plain post ids belong to the original post.
         actual_post_id = post_id
+        share_id = None
         if post_id.startswith('share_'):
             parts = post_id.split('_')
             if len(parts) >= 3:
+                share_id = parts[1]
                 actual_post_id = parts[-1]
 
         post = get_object_or_404(Post, id=actual_post_id)
+        share = None
+        if share_id:
+            share = get_object_or_404(PostShare, id=share_id, post_id=post.id)
 
         existing_like = PostLike.objects.filter(
             post_id=post.id,
             user_id=user.id,
-            share_id__isnull=True,
+            share_id=share_id,
         ).first()
 
         if existing_like:
             existing_like.delete()
             like_count = PostLike.objects.filter(
-                post_id=post.id, share_id__isnull=True
+                post_id=post.id, share_id=share_id
             ).count()
             return _json_success(
                 "Unliked post successfully",
@@ -311,16 +426,31 @@ def toggle_like_post(request, post_id):
                 }
             )
 
-        PostLike.objects.create(
-            id=_generate_id("like"),
-            post=post,
-            user=user,
-            share=None,
-            created_at=timezone.now(),
-        )
+        try:
+            PostLike.objects.create(
+                id=_generate_id("like"),
+                post=post,
+                user=user,
+                share=share,
+                created_at=timezone.now(),
+            )
+        except IntegrityError:
+            # Some local databases may still have the old unique key
+            # on (post_id, user_id). Reuse that row for the requested scope
+            # instead of returning a 500 duplicate-key error.
+            conflicting_like = PostLike.objects.filter(
+                post_id=post.id,
+                user_id=user.id,
+            ).first()
+            if not conflicting_like:
+                raise
+
+            PostLike.objects.filter(id=conflicting_like.id).update(
+                share_id=share_id,
+            )
 
         like_count = PostLike.objects.filter(
-            post_id=post.id, share_id__isnull=True
+            post_id=post.id, share_id=share_id
         ).count()
 
         _create_notification(
@@ -481,25 +611,15 @@ def list_post_comments(request, post_id):
     ]
 
     counts = _post_counts(post.id, share_id)
-    canonical_counts = _post_counts(post.id, None)
-    if share_id:
-        counts = {
-            **counts,
-            "like_count": canonical_counts["like_count"],
-            "save_count": canonical_counts["save_count"],
-            "share_count": canonical_counts.get(
-                "share_count", counts.get("share_count", 0)
-            ),
-        }
 
     viewer_is_liked = False
     viewer_is_saved = False
     if user:
         viewer_is_liked = PostLike.objects.filter(
-            user_id=user.id, post_id=post.id, share_id__isnull=True
+            user_id=user.id, post_id=post.id, share_id=share_id
         ).exists()
         viewer_is_saved = SavedPost.objects.filter(
-            user_id=user.id, post_id=post.id, share_id__isnull=True
+            user_id=user.id, post_id=post.id, share_id=share_id
         ).exists()
 
     return _json_success(
@@ -931,6 +1051,181 @@ def get_following_list(request):
     return _json_success(
         "Following list retrieved successfully",
         {"following": following}
+    )
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def get_followers_list(request):
+    current_user = _get_current_user(request)
+    if not current_user:
+        return _json_error("Authentication required", 401)
+
+    target_user_id = request.GET.get("user_id") or current_user.id
+    current_following_ids = set(
+        str(uid)
+        for uid in Follow.objects.filter(follower_id=current_user.id)
+        .values_list("following_id", flat=True)
+    )
+
+    follows = Follow.objects.filter(
+        following_id=target_user_id
+    ).select_related("follower", "follower__profile").order_by("-created_at")
+
+    followers = [
+        _serialize_community_user(
+            follow.follower,
+            current_user_id=current_user.id,
+            following_ids=current_following_ids,
+        )
+        for follow in follows
+    ]
+
+    return _json_success(
+        "Followers list retrieved successfully",
+        {"followers": followers}
+    )
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def community_overview(request):
+    current_user = _get_current_user(request)
+    if not current_user:
+        return _json_error("Authentication required", 401)
+
+    try:
+        limit = int(request.GET.get("limit", 20))
+    except (TypeError, ValueError):
+        limit = 20
+    limit = max(1, min(limit, 50))
+
+    tab = request.GET.get("tab", "all")
+    since_raw = request.GET.get("since")
+    now = timezone.now()
+
+    following_ids = set(
+        str(uid)
+        for uid in Follow.objects.filter(follower_id=current_user.id)
+        .values_list("following_id", flat=True)
+    )
+
+    following_qs = (
+        Follow.objects.filter(follower_id=current_user.id)
+        .select_related("following", "following__profile")
+        .order_by("-created_at")
+    )
+    following_people = [
+        _serialize_community_user(
+            follow.following,
+            current_user_id=current_user.id,
+            following_ids=following_ids,
+        )
+        for follow in following_qs
+    ]
+
+    hidden_ids = set(
+        str(post_id)
+        for post_id in HiddenPost.objects.filter(user_id=current_user.id)
+        .values_list("post_id", flat=True)
+    )
+
+    posts_qs = Post.objects.filter(
+        status="published",
+        visibility="public",
+    ).exclude(id__in=hidden_ids)
+
+    if following_ids:
+        posts_qs = posts_qs.filter(user_id__in=following_ids)
+
+    if tab == "today":
+        posts_qs = posts_qs.filter(created_at__gte=now - timedelta(days=1))
+    elif tab == "week":
+        posts_qs = posts_qs.filter(created_at__gte=now - timedelta(days=7))
+
+    posts_qs = posts_qs.select_related("user", "user__profile").order_by("-created_at")
+    posts = [
+        _serialize_community_post(
+            post,
+            current_user_id=current_user.id,
+            following_ids=following_ids,
+        )
+        for post in posts_qs[:limit]
+    ]
+
+    new_posts_count = 0
+    if since_raw:
+        try:
+            from django.utils.dateparse import parse_datetime
+
+            since_dt = parse_datetime(since_raw)
+            if since_dt and timezone.is_naive(since_dt):
+                since_dt = timezone.make_aware(since_dt)
+            if since_dt:
+                new_qs = Post.objects.filter(
+                    status="published",
+                    visibility="public",
+                    created_at__gt=since_dt,
+                ).exclude(id__in=hidden_ids)
+                if following_ids:
+                    new_qs = new_qs.filter(user_id__in=following_ids)
+                new_posts_count = new_qs.count()
+        except Exception:
+            new_posts_count = 0
+
+    followed_user_ids = set(following_ids)
+    followed_user_ids.add(str(current_user.id))
+    suggestions_qs = (
+        User.objects.exclude(id__in=followed_user_ids)
+        .select_related("profile")
+        .annotate(
+            followers_total=Count("follower_relations", distinct=True),
+            posts_total=Count(
+                "posts",
+                filter=Q(posts__status="published", posts__visibility="public"),
+                distinct=True,
+            ),
+        )
+        .order_by("-followers_total", "-posts_total", "username")[:5]
+    )
+    suggestions = [
+        _serialize_community_user(
+            user,
+            current_user_id=current_user.id,
+            following_ids=following_ids,
+        )
+        for user in suggestions_qs
+    ]
+
+    activities = []
+    recent_posts = (
+        Post.objects.filter(
+            status="published",
+            visibility="public",
+            user_id__in=following_ids,
+        )
+        .select_related("user", "user__profile")
+        .order_by("-created_at")[:5]
+    ) if following_ids else []
+    for post in recent_posts:
+        activities.append({
+            "id": f"post-{post.id}",
+            "type": "post",
+            "text": f"{_profile_display_name(post.user)} vua dang podcast moi",
+            "created_at": post.created_at.isoformat() if post.created_at else None,
+        })
+
+    return _json_success(
+        "Community overview retrieved successfully",
+        {
+            "following_count": len(following_people),
+            "following_preview": following_people[:8],
+            "following_people": following_people[:5],
+            "suggestions": suggestions,
+            "posts": posts,
+            "new_posts_count": new_posts_count,
+            "activities": activities,
+        }
     )
 
 # Follow / Unfollow user (toggle)

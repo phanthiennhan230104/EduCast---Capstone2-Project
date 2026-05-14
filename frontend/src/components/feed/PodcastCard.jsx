@@ -237,12 +237,20 @@ export default function PodcastCard({
     t('feed.anonymous')
 
   const authorProfileTarget =
+    podcast.authorId ||
+    authorDetails?.id ||
+    podcast.user_id ||
+    podcast.user?.id ||
     authorDetails?.username ||
     authorUsername ||
     podcast.author_username ||
-    podcast.authorId ||
-    authorDetails?.id ||
     ''
+
+  const openAuthorProfile = (event) => {
+    event?.stopPropagation?.()
+    if (!authorProfileTarget) return
+    navigate(`/profile/${authorProfileTarget}`)
+  }
 
   const authorAvatarUrl =
     authorDetails?.avatar_url ||
@@ -851,14 +859,11 @@ export default function PodcastCard({
             className={styles.authorAvatar}
             role="button"
             tabIndex={0}
-            onClick={() => {
-              if (authorProfileTarget) {
-                navigate(`/profile/${authorProfileTarget}`)
-              }
-            }}
+            onClick={openAuthorProfile}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' && authorProfileTarget) {
-                navigate(`/profile/${authorProfileTarget}`)
+              if ((e.key === 'Enter' || e.key === ' ') && authorProfileTarget) {
+                e.preventDefault()
+                openAuthorProfile(e)
               }
             }}
           >
@@ -894,14 +899,11 @@ export default function PodcastCard({
                 className={styles.authorName}
                 role="button"
                 tabIndex={0}
-                onClick={() => {
-                  if (authorProfileTarget) {
-                    navigate(`/profile/${authorProfileTarget}`)
-                  }
-                }}
+                onClick={openAuthorProfile}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && authorProfileTarget) {
-                    navigate(`/profile/${authorProfileTarget}`)
+                  if ((e.key === 'Enter' || e.key === ' ') && authorProfileTarget) {
+                    e.preventDefault()
+                    openAuthorProfile(e)
                   }
                 }}
               >

@@ -1,15 +1,33 @@
 import { Avatar, Button, Space, Typography } from "antd";
 import { InfoCircleOutlined, UserOutlined } from "@ant-design/icons";
+import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 const { Text } = Typography;
 
 export default function ChatHeader({ peer, onToggleInfoPanel, rightPanelOpen }) {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const openPeerProfile = () => {
+    if (!peer?.id) return;
+    navigate(`/profile/${peer.id}`);
+  };
+
   return (
     <div className="chat-header">
       <div className="chat-header-inner">
-        <Space>
+        <Space
+          className="chat-header-profile-link"
+          role={peer?.id ? "button" : undefined}
+          tabIndex={peer?.id ? 0 : undefined}
+          onClick={openPeerProfile}
+          onKeyDown={(event) => {
+            if ((event.key === "Enter" || event.key === " ") && peer?.id) {
+              event.preventDefault();
+              openPeerProfile();
+            }
+          }}
+        >
           <Avatar size={44} src={peer?.avatar_url} icon={<UserOutlined />} />
 
           <div>

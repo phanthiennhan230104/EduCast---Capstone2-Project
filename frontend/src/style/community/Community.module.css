@@ -85,6 +85,7 @@
   color: #fff;
   font-size: 13px;
   font-weight: 700;
+  overflow: hidden;
 }
 
 .followingMore .followingAvatar {
@@ -220,6 +221,36 @@
   flex-shrink: 0;
 }
 
+.avatarButton {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: 2px solid rgba(102, 126, 234, 0.3);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 700;
+  flex-shrink: 0;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 0;
+}
+
+.avatarButton:hover,
+.authorNameButton:hover {
+  filter: brightness(1.08);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .authorMeta {
   flex: 1;
   min-width: 0;
@@ -240,6 +271,17 @@
   font-weight: 650;
   color: var(--text-primary);
   line-height: 1.2;
+}
+
+.authorNameButton {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 13.5px;
+  font-weight: 650;
+  color: var(--text-primary);
+  line-height: 1.2;
+  cursor: pointer;
 }
 
 .dot {
@@ -449,6 +491,18 @@
 
 .savedBtn {
   color: #e8a55a;
+}
+
+.emptyState {
+  min-height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed rgba(255, 255, 255, 0.12);
+  border-radius: var(--radius-lg);
+  color: var(--text-secondary);
+  background: rgba(255, 255, 255, 0.02);
+  font-size: 14px;
 }
 
 @media (max-width: 900px) {

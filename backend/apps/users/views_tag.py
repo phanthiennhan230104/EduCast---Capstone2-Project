@@ -144,8 +144,11 @@ def remove_tag_preference(request, tag_id):
 def get_available_tags(request):
     """Get all available tags"""
     try:
-        # Simple query - just get all tags
-        tags = Tag.objects.all().order_by('name')
+        tags = (
+            Tag.objects
+            .annotate(usage_count=Count('tag_posts', distinct=True))
+            .order_by('-usage_count', 'name')
+        )
         
         return Response({
             'success': True,
@@ -153,6 +156,7 @@ def get_available_tags(request):
                 {
                     'id': str(tag.id),
                     'name': tag.name,
+                    'usage_count': tag.usage_count,
                 }
                 for tag in tags
             ]

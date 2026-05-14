@@ -183,6 +183,19 @@
   color: #fff;
   font-size: 12px;
   font-weight: 700;
+  cursor: pointer;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.authorAvatar:hover {
+  border-color: rgba(125, 211, 252, 0.58);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12), 0 5px 14px rgba(0, 0, 0, 0.22);
+  transform: translateY(-1px);
+}
+
+.authorAvatar:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.72);
+  outline-offset: 3px;
 }
 
 .authorInfo {
@@ -203,6 +216,20 @@
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+
+.authorName:hover {
+  color: #bfdbfe;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.authorName:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.72);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 .authorMetaText {

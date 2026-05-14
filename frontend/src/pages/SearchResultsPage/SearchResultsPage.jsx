@@ -1,5 +1,5 @@
-import { useEffect, useState, useContext, useCallback } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useEffect, useMemo, useState, useContext, useCallback } from 'react'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'react-toastify'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
@@ -36,6 +36,7 @@ function mapSearchPostToDetail(post, currentUser) {
     authorId: post.author_id,
     user_id: post.author_id,
     userId: post.author_id,
+    tags: post.tags || post.tag_names || post.tagNames || [],
     isOwner: String(currentUser?.id) === String(post.author_id),
     cover: post.thumbnail_url || '',
     thumbnail_url: post.thumbnail_url || '',
@@ -57,6 +58,7 @@ function mapSearchPostToDetail(post, currentUser) {
 }
 
 export default function SearchResultsPage() {
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const [searchParams] = useSearchParams()
   const { user: currentUser } = useAuth()
@@ -75,6 +77,13 @@ export default function SearchResultsPage() {
   const [activeTab, setActiveTab] = useState(type || 'all')
   const [followingIds, setFollowingIds] = useState(new Set())
   const [loadingFollow, setLoadingFollow] = useState({})
+  const visiblePosts = useMemo(
+    () =>
+      results.posts.filter(
+        (post) => !isPostHidden(post.id) && !isPostDeleted(post.id)
+      ),
+    [isPostDeleted, isPostHidden, results.posts]
+  )
 
   // State for CommentModal
   const [showPostDetail, setShowPostDetail] = useState(false)
@@ -737,7 +746,7 @@ export default function SearchResultsPage() {
                 className={`${styles.tab} ${activeTab === 'posts' ? styles.active : ''}`}
                 onClick={() => handleTabChange('posts')}
               >
-                {t('searchResults.podcasts', { count: results.posts.length })}
+                {t('searchResults.podcasts', { count: visiblePosts.length })}
               </button>
               <button
                 className={`${styles.tab} ${activeTab === 'authors' ? styles.active : ''}`}
@@ -750,11 +759,11 @@ export default function SearchResultsPage() {
             {/* Podcasts */}
             {(activeTab === 'all' || activeTab === 'posts') && (
               <div className={styles.section}>
-                {results.posts.length === 0 ? (
+                {visiblePosts.length === 0 ? (
                   <p className={styles.noResults}>{t('searchResults.noPodcasts')}</p>
                 ) : (
                   <div className={styles.podcastsGrid}>
-                    {results.posts.filter(post => !isPostHidden(post.id) && !isPostDeleted(post.id)).map((post) => (
+                    {visiblePosts.map((post) => (
                       <SearchPostCard
                         key={post.id}
                         post={{
@@ -790,6 +799,7 @@ export default function SearchResultsPage() {
                         onEdit={handleEditPost}
                         onDelete={handleRequestDeletePost}
                         onHide={handleRequestHidePost}
+                        hideMenu
                         onClick={() =>
                           handleOpenPostDetail(mapSearchPostToDetail(post, currentUser))
                         }
@@ -801,7 +811,7 @@ export default function SearchResultsPage() {
             )}
 
             {/* Divider */}
-            {activeTab === 'all' && results.posts.length > 0 && results.authors.length > 0 && (
+            {activeTab === 'all' && visiblePosts.length > 0 && results.authors.length > 0 && (
               <div className={styles.divider}></div>
             )}
 
@@ -817,7 +827,19 @@ export default function SearchResultsPage() {
                     const avatarUrl = author.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(displayName)}&background=667eea&color=fff&size=96`
 
                     return (
-                      <div key={author.id} className={styles.authorCard}>
+                      <div
+                        key={author.id}
+                        className={styles.authorCard}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => navigate(`/profile/${author.id}`)}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault()
+                            navigate(`/profile/${author.id}`)
+                          }
+                        }}
+                      >
                         {author.avatar_url ? (
                           <img
                             src={avatarUrl}
@@ -849,14 +871,20 @@ export default function SearchResultsPage() {
                         {String(currentUserId) === String(author.id) ? (
                           <button
                             className={styles.followBtn}
-                            disabled
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              navigate(`/profile/${author.id}`)
+                            }}
                           >
                             {t('searchResults.viewProfile')}
                           </button>
                         ) : (
                           <button
                             className={`${styles.followBtn} ${followingIds.has(String(author.id)) ? styles.following : ''}`}
-                            onClick={() => handleFollowClick(author.id)}
+                            onClick={(event) => {
+                              event.stopPropagation()
+                              handleFollowClick(author.id)
+                            }}
                             disabled={loadingFollow[author.id]}
                           >
                             {loadingFollow[author.id]
@@ -873,7 +901,7 @@ export default function SearchResultsPage() {
               </div>
             )}
 
-            {results.posts.length === 0 &&
+            {visiblePosts.length === 0 &&
               results.authors.length === 0 && (
                 <div className={styles.noResults}>
                   <p>{t('searchResults.noResultsFor', { query })}</p>

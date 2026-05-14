@@ -5,6 +5,97 @@
   min-width: 0;
 }
 
+.feedFilters {
+  display: none;
+  flex-direction: column;
+  gap: 10px;
+  margin: 14px 0 12px;
+  padding: 12px;
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.018));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+
+.filterGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.filterHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  color: #e7ebff;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.filterChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  min-height: 30px;
+}
+
+.filterChip {
+  min-height: 30px;
+  max-width: 180px;
+  padding: 6px 10px;
+  border: 1px solid rgba(127, 140, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(127, 140, 255, 0.1);
+  color: #c7d0ff;
+  font-size: 12px;
+  font-weight: 700;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.filterChip:hover {
+  background: rgba(127, 140, 255, 0.18);
+  border-color: rgba(160, 170, 255, 0.42);
+  color: #eef2ff;
+}
+
+.filterChipActive {
+  background: rgba(245, 166, 35, 0.18);
+  border-color: rgba(245, 166, 35, 0.52);
+  color: #ffe4b5;
+}
+
+.clearFiltersBtn {
+  min-height: 28px;
+  padding: 5px 10px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.045);
+  color: #c7d0ff;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clearFiltersBtn:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+}
+
+.filterEmpty {
+  display: inline-flex;
+  align-items: center;
+  min-height: 30px;
+  color: #8f9ac2;
+  font-size: 12px;
+  font-weight: 600;
+}
+
 .tabs {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -192,6 +283,27 @@
   min-width: 0;
 }
 
+.postShareAuthorClickable {
+  cursor: pointer;
+  border-radius: 999px;
+}
+
+.postShareAuthorClickable:hover .postShareAvatarWrapper {
+  border-color: rgba(125, 211, 252, 0.58);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.12), 0 5px 14px rgba(0, 0, 0, 0.22);
+}
+
+.postShareAuthorClickable:hover .postShareAuthorName {
+  color: #bfdbfe;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.postShareAuthorClickable:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.72);
+  outline-offset: 4px;
+}
+
 .postShareAuthorInfo {
   flex: 1;
   min-width: 0;
@@ -217,6 +329,7 @@
   border: 2px solid rgba(102, 126, 234, 0.3);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
   overflow: hidden;
+  transition: border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
 .postShareAvatar {
@@ -244,6 +357,7 @@
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
+  transition: color 0.16s ease;
 }
 
 .postShareMetaDot {

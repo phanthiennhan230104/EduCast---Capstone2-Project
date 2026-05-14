@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
   Sparkles,
   MessageCircle,
@@ -9,95 +10,139 @@ import {
   Heart,
   MoreHorizontal,
 } from 'lucide-react'
+import { apiRequest } from '../../utils/api'
+import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import styles from '../../style/community/Community.module.css'
 
-const FOLLOWING = [
-  { id: 1, name: 'T. Trâm', initials: 'TT', active: true },
-  { id: 2, name: 'P. Nhân', initials: 'PN', active: true },
-  { id: 3, name: 'T. Tín', initials: 'TT', active: false },
-  { id: 4, name: 'M. Hoàng', initials: 'MH', active: true },
-  { id: 5, name: 'B. Thiên', initials: 'BT', active: true },
-  { id: 6, name: 'Y. Nhi', initials: 'YN', active: true },
-  { id: 7, name: 'Rye', initials: 'R', active: false },
-  { id: 8, name: '+5', initials: '+5', active: false, more: true },
-]
+const LAST_VISIT_KEY = 'educast:community:lastVisitAt'
 
-const POSTS = [
-  {
-    id: 1,
-    author: 'Thanh Trâm',
-    initials: 'TT',
-    time: '3 giờ trước',
-    listens: '6.1k lượt nghe',
-    category: '#Lậptrình',
-    tag: '#AI',
-    title: 'Django REST Framework: Xây API chuẩn trong 3 phút',
-    description:
-      'Từ một file 80 trang tài liệu kỹ thuật, AI đã tóm tắt thành podcast ngắn dễ nghe. Bao gồm Serializers, ViewSets, Permissions và Authentication.',
-    likes: 387,
-    comments: 42,
-    saved: false,
-    liked: false,
-    ai: true,
-    current: '05:12',
-    duration: '18:45',
-    cover: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?auto=format&fit=crop&w=300&q=80',
-    progress: 32,
-  },
-  {
-    id: 2,
-    author: 'Yến Nhi',
-    initials: 'YN',
-    time: '5 giờ trước',
-    listens: '2.3k lượt nghe',
-    category: '#Lậptrình',
-    tag: '#AI',
-    title: 'Django REST Framework: Xây API chuẩn trong 3 phút',
-    description:
-      'Từ một file 80 trang tài liệu kỹ thuật, AI đã tóm tắt thành podcast ngắn dễ nghe. Bao gồm Serializers, ViewSets, Permissions và Authentication.',
-    likes: 204,
-    comments: 42,
-    saved: true,
-    liked: false,
-    ai: true,
-    current: '00:42',
-    duration: '03:14',
-    cover: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=300&q=80',
-    progress: 24,
-  },
-]
+function formatSeconds(value) {
+  const total = Math.max(0, Math.floor(Number(value) || 0))
+  const minutes = Math.floor(total / 60)
+  const seconds = total % 60
+  return `${minutes}:${String(seconds).padStart(2, '0')}`
+}
 
-function PostCard({ post, onToggleSave, onToggleLike }) {
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [progress, setProgress] = useState(post.progress ?? 0)
+function formatCount(value) {
+  const n = Number(value) || 0
+  if (n >= 1000000) return `${(n / 1000000).toFixed(1)}M`
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`
+  return String(n)
+}
 
-  const handleSeek = e => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const percent = Math.max(0, Math.min(100, (x / rect.width) * 100))
-    setProgress(percent)
+function formatTimeAgo(raw) {
+  if (!raw) return ''
+  const date = new Date(raw)
+  const diffMs = Date.now() - date.getTime()
+  const diffMinutes = Math.max(0, Math.floor(diffMs / 60000))
+  if (diffMinutes < 1) return 'Vừa xong'
+  if (diffMinutes < 60) return `${diffMinutes} phút trước`
+  const diffHours = Math.floor(diffMinutes / 60)
+  if (diffHours < 24) return `${diffHours} giờ trước`
+  return `${Math.floor(diffHours / 24)} ngày trước`
+}
+
+function PostCard({ post, queue, onToggleSave, onToggleLike }) {
+  const navigate = useNavigate()
+  const {
+    playTrack,
+    togglePlay,
+    isCurrentTrack,
+    playing,
+    currentTime,
+    duration,
+    seekToPercent,
+  } = useAudioPlayer()
+
+  const postId = post.post_id || post.id
+  const isCurrent = isCurrentTrack(postId)
+  const isPlaying = isCurrent && playing
+  const totalDuration = isCurrent
+    ? duration || post.audio?.duration_seconds || post.duration_seconds
+    : post.audio?.duration_seconds || post.duration_seconds
+  const displayCurrent = isCurrent
+    ? currentTime
+    : post.viewer_state?.progress_seconds || 0
+  const progress = totalDuration
+    ? Math.min(100, Math.max(0, (displayCurrent / totalDuration) * 100))
+    : 0
+
+  const author = post.author || {}
+  const tags = Array.isArray(post.tags) ? post.tags.slice(0, 2) : []
+
+  const handlePlay = () => {
+    const audioUrl = post.audio?.audio_url
+    if (!audioUrl) return
+
+    if (isCurrent) {
+      togglePlay()
+      return
+    }
+
+    playTrack(
+      {
+        id: postId,
+        post_id: postId,
+        postId,
+        title: post.title,
+        author: author.name || author.username,
+        cover: post.thumbnail_url,
+        audioUrl,
+        durationSeconds: post.audio?.duration_seconds || post.duration_seconds,
+        liked: post.viewer_state?.is_liked,
+        likeCount: post.stats?.likes || 0,
+      },
+      queue
+    )
+  }
+
+  const handleSeek = (event) => {
+    if (!isCurrent || !totalDuration) return
+    const rect = event.currentTarget.getBoundingClientRect()
+    const x = event.clientX - rect.left
+    seekToPercent(Math.max(0, Math.min(100, (x / rect.width) * 100)))
   }
 
   return (
     <article className={styles.postCard}>
       <div className={styles.postHead}>
         <div className={styles.authorRow}>
-          <div className={styles.avatar}>{post.initials}</div>
+          <button
+            type="button"
+            className={styles.avatarButton}
+            onClick={() => author.id && navigate(`/profile/${author.id}`)}
+            aria-label="Mở trang cá nhân"
+          >
+            {author.avatar_url ? (
+              <img src={author.avatar_url} alt={author.name} className={styles.avatarImg} />
+            ) : (
+              <span>{author.initials || 'U'}</span>
+            )}
+          </button>
 
           <div className={styles.authorMeta}>
             <div className={styles.authorTop}>
-              <span className={styles.authorName}>{post.author}</span>
+              <button
+                type="button"
+                className={styles.authorNameButton}
+                onClick={() => author.id && navigate(`/profile/${author.id}`)}
+              >
+                {author.name || author.username || 'Người dùng'}
+              </button>
               <span className={styles.dot}>•</span>
-              <span>{post.time}</span>
+              <span>{formatTimeAgo(post.created_at)}</span>
               <span className={styles.dot}>•</span>
-              <span>{post.listens}</span>
+              <span>{formatCount(post.listen_count)} lượt nghe</span>
             </div>
 
             <div className={styles.authorTags}>
-              <span className={styles.tag}>{post.category}</span>
-              <span className={styles.tag}>{post.tag}</span>
+              {tags.map((tag) => (
+                <span key={tag.id || tag.slug || tag.name} className={styles.tag}>
+                  #{tag.name}
+                </span>
+              ))}
 
-              {post.ai && (
+              {post.is_ai_generated && (
                 <span className={styles.aiBadgeInline}>
                   <Sparkles size={13} />
                   Được tạo bởi AI
@@ -118,60 +163,62 @@ function PostCard({ post, onToggleSave, onToggleLike }) {
           <p className={styles.postDesc}>{post.description}</p>
         </div>
 
-        {post.cover && (
+        {post.thumbnail_url && (
           <img
-            src={post.cover}
+            src={post.thumbnail_url}
             alt={post.title}
             className={styles.postCover}
           />
         )}
       </div>
 
-      <div className={styles.audioBox}>
-        <button
-          type="button"
-          className={`${styles.audioBtn} ${isPlaying ? styles.audioBtnPlaying : ''}`}
-          onClick={() => setIsPlaying(prev => !prev)}
-          aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
-        >
-          {isPlaying ? <Pause size={16} /> : <Play size={16} />}
-        </button>
-
-        <div className={styles.progressSection}>
-          <span className={styles.audioTime}>{post.current}</span>
-
-          <div
-            className={styles.progressBar}
-            onClick={handleSeek}
-            role="slider"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(progress)}
-            tabIndex={0}
+      {post.audio?.audio_url && (
+        <div className={styles.audioBox}>
+          <button
+            type="button"
+            className={`${styles.audioBtn} ${isPlaying ? styles.audioBtnPlaying : ''}`}
+            onClick={handlePlay}
+            aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
           >
-            <div
-              className={styles.progressFill}
-              style={{ width: `${progress}%` }}
-            />
-        </div>
+            {isPlaying ? <Pause size={16} /> : <Play size={16} />}
+          </button>
 
-          <span className={styles.audioTime}>{post.duration}</span>
+          <div className={styles.progressSection}>
+            <span className={styles.audioTime}>{formatSeconds(displayCurrent)}</span>
+
+            <div
+              className={styles.progressBar}
+              onClick={handleSeek}
+              role="slider"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={Math.round(progress)}
+              tabIndex={0}
+            >
+              <div
+                className={styles.progressFill}
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+
+            <span className={styles.audioTime}>{formatSeconds(totalDuration)}</span>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className={styles.postFooter}>
         <button
           type="button"
-          className={`${styles.actionBtn} ${post.liked ? styles.likedBtn : ''}`}
-          onClick={() => onToggleLike(post.id)}
+          className={`${styles.actionBtn} ${post.viewer_state?.is_liked ? styles.likedBtn : ''}`}
+          onClick={() => onToggleLike(postId)}
         >
-          <Heart size={16} fill={post.liked ? 'currentColor' : 'none'} />
-          <span>{post.likes}</span>
+          <Heart size={16} fill={post.viewer_state?.is_liked ? 'currentColor' : 'none'} />
+          <span>{formatCount(post.stats?.likes)}</span>
         </button>
 
         <button type="button" className={styles.actionBtn}>
           <MessageCircle size={16} />
-          <span>{post.comments} Bình luận</span>
+          <span>{formatCount(post.stats?.comments)} Bình luận</span>
         </button>
 
         <button type="button" className={styles.actionBtn}>
@@ -181,11 +228,11 @@ function PostCard({ post, onToggleSave, onToggleLike }) {
 
         <button
           type="button"
-          className={`${styles.actionBtn} ${styles.saveAction} ${post.saved ? styles.savedBtn : ''}`}
-          onClick={() => onToggleSave(post.id)}
+          className={`${styles.actionBtn} ${styles.saveAction} ${post.viewer_state?.is_saved ? styles.savedBtn : ''}`}
+          onClick={() => onToggleSave(postId)}
         >
-          <Bookmark size={16} fill={post.saved ? 'currentColor' : 'none'} />
-          <span>{post.saved ? 'Đã lưu' : 'Lưu'}</span>
+          <Bookmark size={16} fill={post.viewer_state?.is_saved ? 'currentColor' : 'none'} />
+          <span>{post.viewer_state?.is_saved ? 'Đã lưu' : 'Lưu'}</span>
         </button>
       </div>
     </article>
@@ -194,7 +241,12 @@ function PostCard({ post, onToggleSave, onToggleLike }) {
 
 export default function Community() {
   const [activeTab, setActiveTab] = useState('all')
-  const [posts, setPosts] = useState(POSTS)
+  const [posts, setPosts] = useState([])
+  const [followingPreview, setFollowingPreview] = useState([])
+  const [followingCount, setFollowingCount] = useState(0)
+  const [newPostsCount, setNewPostsCount] = useState(0)
+  const [loading, setLoading] = useState(true)
+  const navigate = useNavigate()
 
   const tabMeta = useMemo(
     () => [
@@ -205,27 +257,171 @@ export default function Community() {
     []
   )
 
-  const toggleSavePost = id => {
-    setPosts(prev =>
-      prev.map(post =>
-        post.id === id ? { ...post, saved: !post.saved } : post
+  useEffect(() => {
+    let cancelled = false
+
+    const loadCommunity = async () => {
+      try {
+        setLoading(true)
+        const since = localStorage.getItem(LAST_VISIT_KEY)
+        const query = new URLSearchParams({ tab: activeTab, limit: '30' })
+        if (since) query.set('since', since)
+
+        const response = await apiRequest(`/social/community/?${query}`)
+        if (cancelled) return
+
+        const data = response.data || {}
+        setPosts(Array.isArray(data.posts) ? data.posts : [])
+        setFollowingPreview(Array.isArray(data.following_preview) ? data.following_preview : [])
+        setFollowingCount(Number(data.following_count || 0))
+        setNewPostsCount(Number(data.new_posts_count || 0))
+        localStorage.setItem(LAST_VISIT_KEY, new Date().toISOString())
+      } catch (error) {
+        if (!cancelled) {
+          console.error('Load community failed:', error)
+          setPosts([])
+          setFollowingPreview([])
+          setFollowingCount(0)
+          setNewPostsCount(0)
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    loadCommunity()
+    return () => {
+      cancelled = true
+    }
+  }, [activeTab])
+
+  const audioQueue = useMemo(
+    () =>
+      posts
+        .filter((post) => post.audio?.audio_url)
+        .map((post) => ({
+          id: post.post_id || post.id,
+          post_id: post.post_id || post.id,
+          postId: post.post_id || post.id,
+          title: post.title,
+          author: post.author?.name || post.author?.username,
+          cover: post.thumbnail_url,
+          audioUrl: post.audio.audio_url,
+          durationSeconds: post.audio.duration_seconds || post.duration_seconds,
+          liked: post.viewer_state?.is_liked,
+          likeCount: post.stats?.likes || 0,
+        })),
+    [posts]
+  )
+
+  const toggleSavePost = async (id) => {
+    const previous = posts
+    setPosts((prev) =>
+      prev.map((post) =>
+        String(post.post_id || post.id) === String(id)
+          ? {
+              ...post,
+              stats: {
+                ...post.stats,
+                saves: Math.max(
+                  0,
+                  Number(post.stats?.saves || 0) +
+                    (post.viewer_state?.is_saved ? -1 : 1)
+                ),
+              },
+              viewer_state: {
+                ...post.viewer_state,
+                is_saved: !post.viewer_state?.is_saved,
+              },
+            }
+          : post
       )
     )
+
+    try {
+      const response = await apiRequest(`/social/posts/${encodeURIComponent(id)}/save/`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+      const saved = Boolean(response.data?.saved)
+      const count = Number(response.data?.save_count || 0)
+      setPosts((prev) =>
+        prev.map((post) =>
+          String(post.post_id || post.id) === String(id)
+            ? {
+                ...post,
+                stats: { ...post.stats, saves: count },
+                viewer_state: { ...post.viewer_state, is_saved: saved },
+              }
+            : post
+        )
+      )
+    } catch (error) {
+      console.error('Community save failed:', error)
+      setPosts(previous)
+    }
   }
 
-  const toggleLikePost = id => {
-  setPosts(prev =>
-    prev.map(post =>
-      post.id === id
-        ? {
-            ...post,
-            liked: !post.liked,
-            likes: post.liked ? post.likes - 1 : post.likes + 1,
-          }
-        : post
+  const toggleLikePost = async (id) => {
+    const previous = posts
+    setPosts((prev) =>
+      prev.map((post) =>
+        String(post.post_id || post.id) === String(id)
+          ? {
+              ...post,
+              stats: {
+                ...post.stats,
+                likes: Math.max(
+                  0,
+                  Number(post.stats?.likes || 0) +
+                    (post.viewer_state?.is_liked ? -1 : 1)
+                ),
+              },
+              viewer_state: {
+                ...post.viewer_state,
+                is_liked: !post.viewer_state?.is_liked,
+              },
+            }
+          : post
+      )
     )
-  )
-}
+
+    try {
+      const response = await apiRequest(`/social/posts/${encodeURIComponent(id)}/like/`, {
+        method: 'POST',
+        body: JSON.stringify({}),
+      })
+      const liked = Boolean(response.data?.liked)
+      const count = Number(response.data?.like_count || 0)
+      setPosts((prev) =>
+        prev.map((post) =>
+          String(post.post_id || post.id) === String(id)
+            ? {
+                ...post,
+                stats: { ...post.stats, likes: count },
+                viewer_state: { ...post.viewer_state, is_liked: liked },
+              }
+            : post
+        )
+      )
+    } catch (error) {
+      console.error('Community like failed:', error)
+      setPosts(previous)
+    }
+  }
+
+  const followingItems = useMemo(() => {
+    const visible = followingPreview.slice(0, 7)
+    if (followingCount > visible.length) {
+      visible.push({
+        id: 'more',
+        name: `+${followingCount - visible.length}`,
+        initials: `+${followingCount - visible.length}`,
+        more: true,
+      })
+    }
+    return visible
+  }, [followingCount, followingPreview])
 
   return (
     <section className={styles.wrapper}>
@@ -237,21 +433,28 @@ export default function Community() {
           </div>
 
           <div className={styles.followingRow}>
-            {FOLLOWING.map(item => (
+            {followingItems.map((item) => (
               <button
                 key={item.id}
                 type="button"
                 className={`${styles.followingItem} ${item.more ? styles.followingMore : ''}`}
+                onClick={() => !item.more && item.id && navigate(`/profile/${item.id}`)}
               >
-                <div className={styles.followingAvatar}>{item.initials}</div>
+                <div className={styles.followingAvatar}>
+                  {item.avatar_url ? (
+                    <img src={item.avatar_url} alt={item.name} className={styles.avatarImg} />
+                  ) : (
+                    item.initials
+                  )}
+                </div>
                 <span className={styles.followingName}>{item.name}</span>
-                {!item.more && item.active && <span className={styles.activeDot} />}
+                {!item.more && item.is_following && <span className={styles.activeDot} />}
               </button>
             ))}
           </div>
 
           <div className={styles.tabs}>
-            {tabMeta.map(tab => (
+            {tabMeta.map((tab) => (
               <button
                 key={tab.key}
                 type="button"
@@ -265,21 +468,27 @@ export default function Community() {
 
           <div className={styles.newPostRow}>
             <span className={styles.newPostHint}>
-              2 bài viết mới từ lần cuối truy cập
+              {newPostsCount} bài viết mới từ lần cuối truy cập
             </span>
             <div className={styles.newPostLine} />
           </div>
         </div>
 
         <div className={styles.feed}>
-          {posts.map(post => (
-            <PostCard
-              key={post.id}
-              post={post}
-              onToggleSave={toggleSavePost}
-              onToggleLike={toggleLikePost}
-            />
-          ))}
+          {loading && <div className={styles.emptyState}>Đang tải cộng đồng...</div>}
+          {!loading && posts.length === 0 && (
+            <div className={styles.emptyState}>Chưa có bài viết cộng đồng</div>
+          )}
+          {!loading &&
+            posts.map((post) => (
+              <PostCard
+                key={post.id}
+                post={post}
+                queue={audioQueue}
+                onToggleSave={toggleSavePost}
+                onToggleLike={toggleLikePost}
+              />
+            ))}
         </div>
       </div>
     </section>

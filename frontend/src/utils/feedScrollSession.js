@@ -13,6 +13,15 @@ export function writeFeedScrollSessionKeys(y) {
   sessionStorage.setItem(FEED_SCROLL_LEGACY_KEY, s)
 }
 
+export function clearFeedScrollSessionKeys() {
+  sessionStorage.removeItem(FEED_MAIN_SCROLL_SESSION_KEY)
+  sessionStorage.removeItem(FEED_SCROLL_LEGACY_KEY)
+  sessionStorage.removeItem('feedScrollPosition')
+  sessionStorage.removeItem('feedFocusPostId')
+  sessionStorage.removeItem('openPostDetailId')
+  sessionStorage.removeItem('openPostDetailNoScroll')
+}
+
 /**
  * Trước khi navigate sang /edit/... — lưu scroll + cờ returnFromEdit + returnToAfterEdit.
  * Ghi cả `feedScrollPosition` và hai key session Feed dùng để restore (tránh nhảy top).

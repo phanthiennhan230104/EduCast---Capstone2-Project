@@ -19,11 +19,23 @@ import { PodcastContext } from '../contexts/PodcastContext'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 
-function Avatar({ src, name, username, className, imageClassName }) {
+function Avatar({ src, name, username, className, imageClassName, onOpenProfile }) {
   const displayName = name || username || 'Người dùng'
 
   return (
-    <div className={className}>
+    <div
+      className={`${className} ${onOpenProfile ? styles.profileAvatarLink : ''}`}
+      role={onOpenProfile ? 'button' : undefined}
+      tabIndex={onOpenProfile ? 0 : undefined}
+      onClick={onOpenProfile}
+      onKeyDown={(event) => {
+        if (!onOpenProfile) return
+        if (event.key === 'Enter' || event.key === ' ') {
+          event.preventDefault()
+          onOpenProfile(event)
+        }
+      }}
+    >
       {src ? (
         <img
           src={src}
@@ -92,6 +104,14 @@ function CommentNode({
   const contentClass = isTopLevel ? styles.commentContent : styles.replyContent
   const metaClass = isTopLevel ? styles.commentMeta : styles.replyMeta
   const isEditingHere = editingCommentId === item.id
+  const commentUserId =
+    item.user_id ?? item.user?.id ?? item.author_id ?? item.author?.id ?? item.created_by_id
+  const openCommentAuthorProfile = (event) => {
+    event?.stopPropagation?.()
+    const target = commentUserId || item.username
+    if (!target) return
+    navigate(`/profile/${target}`)
+  }
 
   return (
     <div
@@ -104,6 +124,7 @@ function CommentNode({
         username={item.username || item.user_id}
         className={avatarClass}
         imageClassName={styles.avatarImage}
+        onOpenProfile={openCommentAuthorProfile}
       />
 
       <div className={mainClass}>
@@ -114,8 +135,13 @@ function CommentNode({
                 className={authorClass}
                 role="button"
                 tabIndex={0}
-                onClick={() => navigate(`/profile/${item.username || item.user_id}`)}
-                onKeyDown={(e) => { if (e.key === 'Enter') navigate(`/profile/${item.username || item.user_id}`) }}
+                onClick={openCommentAuthorProfile}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault()
+                    openCommentAuthorProfile(e)
+                  }
+                }}
               >
                 {item.username || item.user_id}
               </div>
@@ -379,6 +405,37 @@ function formatTimeAgo(date, t) {
   return t('feed.comment.yearsAgo', { count: Math.floor(months / 12) })
 }
 
+function normalizePostTags(post) {
+  const rawTags = [
+    post?.tags,
+    post?.tag_names,
+    post?.tagNames,
+    post?.post_tags,
+    post?.audio?.tags,
+  ]
+    .flatMap((value) => (Array.isArray(value) ? value : value ? [value] : []))
+    .flatMap((value) =>
+      typeof value === 'string' && value.includes(',')
+        ? value.split(',')
+        : [value]
+    )
+
+  const seen = new Set()
+  return rawTags
+    .map((tag) => {
+      if (typeof tag === 'string') return tag
+      return tag?.name || tag?.tag_name || tag?.label || tag?.slug || ''
+    })
+    .map((tag) => String(tag || '').trim().replace(/^#/, ''))
+    .filter((tag) => {
+      if (!tag) return false
+      const key = tag.toLowerCase()
+      if (seen.has(key)) return false
+      seen.add(key)
+      return true
+    })
+}
+
 export default function CommentModal({
   podcast,
   liked,
@@ -448,20 +505,59 @@ export default function CommentModal({
     const handleExternalPostSync = (event) => {
       const d = event.detail || {}
       if (!d.postId) return
-      if (typeof d.title !== 'string' && typeof d.description !== 'string') {
-        return
+      const syncId = isShareCommentModal ? commentsApiPostId : canonicalPostId
+      if (String(d.postId) !== String(syncId)) return
+
+      if (typeof d.title === 'string' || typeof d.description === 'string') {
+        setLivePostMeta((prev) => ({
+          title: typeof d.title === 'string' ? d.title : prev.title,
+          description:
+            typeof d.description === 'string' ? d.description : prev.description,
+        }))
       }
-      if (String(d.postId) !== String(canonicalPostId)) return
-      setLivePostMeta((prev) => ({
-        title: typeof d.title === 'string' ? d.title : prev.title,
-        description:
-          typeof d.description === 'string' ? d.description : prev.description,
-      }))
+
+      if (
+        typeof d.liked === 'boolean' ||
+        typeof d.likeCount === 'number' ||
+        typeof d.saved === 'boolean' ||
+        typeof d.saveCount === 'number' ||
+        typeof d.shareCount === 'number'
+      ) {
+        setOriginalEngagement((prev) => {
+          const base = prev || {
+            liked,
+            likeCount,
+            shareCount,
+            saveCount,
+            saved,
+          }
+          return {
+            ...base,
+            liked: typeof d.liked === 'boolean' ? d.liked : base.liked,
+            likeCount:
+              typeof d.likeCount === 'number' ? d.likeCount : base.likeCount,
+            saved: typeof d.saved === 'boolean' ? d.saved : base.saved,
+            saveCount:
+              typeof d.saveCount === 'number' ? d.saveCount : base.saveCount,
+            shareCount:
+              typeof d.shareCount === 'number' ? d.shareCount : base.shareCount,
+          }
+        })
+      }
     }
     window.addEventListener('post-sync-updated', handleExternalPostSync)
     return () =>
       window.removeEventListener('post-sync-updated', handleExternalPostSync)
-  }, [canonicalPostId])
+  }, [
+    canonicalPostId,
+    commentsApiPostId,
+    isShareCommentModal,
+    liked,
+    likeCount,
+    saved,
+    saveCount,
+    shareCount,
+  ])
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const [postMoreMenuOpen, setPostMoreMenuOpen] = useState(false)
   const [deleteProgress, setDeleteProgress] = useState(0)
@@ -1532,6 +1628,8 @@ export default function CommentModal({
       ? podcast.listens
       : t('feed.listens', { count: Number(podcast.listen_count ?? 0) })
 
+  const displayTags = normalizePostTags(podcast)
+
   const isOwnerPost =
   podcast?.isOwner === true ||
   String(currentUser?.id) === String(podcast.authorId) ||
@@ -1822,6 +1920,15 @@ export default function CommentModal({
           </div>
 
           <div className={styles.postBody}>
+            {displayTags.length > 0 && (
+              <div className={styles.postTags}>
+                {displayTags.map((tag) => (
+                  <span key={tag} className={styles.postTag}>
+                    #{tag}
+                  </span>
+                ))}
+              </div>
+            )}
             <h3 className={styles.title}>{livePostMeta.title}</h3>
             <p className={styles.description}>{livePostMeta.description}</p>
 

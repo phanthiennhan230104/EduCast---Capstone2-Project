@@ -57,6 +57,138 @@
   color: #9ca7ff;
 }
 
+.feedFilterPanel {
+  margin: 10px 12px 0;
+  padding: 10px;
+  border: 1px solid rgba(127, 140, 255, 0.16);
+  border-radius: 14px;
+  background: rgba(18, 27, 58, 0.72);
+}
+
+.feedFilterHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+  color: #e7ebff;
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.clearFilterBtn {
+  min-height: 24px;
+  padding: 3px 8px;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 999px;
+  background: rgba(255,255,255,0.045);
+  color: #c7d0ff;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.clearFilterBtn:hover {
+  color: #fff;
+  background: rgba(255,255,255,0.08);
+}
+
+.filterSection {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.filterSection + .filterSection {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(127, 140, 255, 0.12);
+}
+
+.filterTitle {
+  color: #9ba7cd;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.filterChipList,
+.filterSearchResults {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.filterChip {
+  max-width: 100%;
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid rgba(127, 140, 255, 0.22);
+  border-radius: 999px;
+  background: rgba(127, 140, 255, 0.1);
+  color: #c7d0ff;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.16s ease, border-color 0.16s ease, color 0.16s ease;
+}
+
+.filterChip span {
+  display: block;
+  max-width: 198px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.filterChip:hover {
+  background: rgba(127, 140, 255, 0.18);
+  border-color: rgba(160, 170, 255, 0.42);
+  color: #eef2ff;
+}
+
+.filterChipActive {
+  background: rgba(132, 146, 255, 0.2);
+  border-color: rgba(165, 176, 255, 0.48);
+  color: #f0f3ff;
+  font-weight: 650;
+  box-shadow: inset 0 0 0 1px rgba(132, 146, 255, 0.1);
+}
+
+.filterSearch {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+  padding: 0 8px;
+  border: 1px solid rgba(127, 140, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(7, 12, 30, 0.4);
+  color: #8f9ac2;
+}
+
+.filterSearch input {
+  width: 100%;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: #e7ebff;
+  font-size: 11.5px;
+  font-weight: 600;
+}
+
+.filterSearch input::placeholder {
+  color: #7f89b2;
+}
+
+.filterEmpty {
+  color: #8f9ac2;
+  font-size: 11px;
+  font-weight: 600;
+}
+
 .tagsSection {
   padding: 0 10px;
   margin-top: 4px;

@@ -139,11 +139,40 @@
   flex-shrink: 0;
 }
 
+.conversation-profile-btn {
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.conversation-avatar-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .conversation-avatar-wrap .ant-avatar {
   width: 44px;
   height: 44px;
   min-width: 44px;
   font-size: 17px;
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.conversation-avatar-btn:hover .ant-avatar {
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.14);
+  transform: translateY(-1px);
+}
+
+.conversation-avatar-btn:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.72);
+  outline-offset: 3px;
 }
 
 .conversation-content {
@@ -162,6 +191,23 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.conversation-profile-name {
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+
+.conversation-profile-name:hover {
+  color: #bfdbfe !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.conversation-profile-name:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.72);
+  outline-offset: 3px;
+  border-radius: 4px;
 }
 
 .conversation-preview {
@@ -1184,6 +1230,33 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
+}
+
+.chat-header-profile-link {
+  min-width: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: color 0.16s ease;
+}
+
+.chat-header-profile-link .ant-avatar {
+  transition: box-shadow 0.16s ease, transform 0.16s ease;
+}
+
+.chat-header-profile-link:hover .ant-avatar {
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.14);
+  transform: translateY(-1px);
+}
+
+.chat-header-profile-link:hover .chat-header-name {
+  color: #bfdbfe !important;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.chat-header-profile-link:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.72);
+  outline-offset: 4px;
 }
 
 .chat-header-left {

@@ -116,6 +116,11 @@
   transform: translateY(-1px);
 }
 
+.authorCard:focus-visible {
+  outline: 2px solid rgba(125, 211, 252, 0.72);
+  outline-offset: 4px;
+}
+
 .authorAvatar {
   width: 96px;
   height: 96px;
@@ -165,6 +170,13 @@
   text-overflow: ellipsis;
   white-space: nowrap;
   width: 100%;
+  transition: color 0.16s ease;
+}
+
+.authorCard:hover .authorName {
+  color: #bfdbfe;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .authorUsername {

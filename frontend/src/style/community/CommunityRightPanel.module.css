@@ -64,11 +64,53 @@
   flex-shrink: 0;
 }
 
+.avatarButton {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.18);
+  flex-shrink: 0;
+  border: 0;
+  padding: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.avatarButton:hover {
+  filter: brightness(1.08);
+}
+
+.avatarImg {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .userInfo {
   min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 1px;
+}
+
+.userInfoButton {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  cursor: pointer;
+}
+
+.userInfoButton:hover .name {
+  color: var(--accent-light);
 }
 
 .name {
@@ -168,4 +210,10 @@
   color: var(--text-secondary);
   line-height: 1.4;
   margin-top: 2px;
+}
+
+.emptyText {
+  padding: 10px 0;
+  color: var(--text-secondary);
+  font-size: 12px;
 }

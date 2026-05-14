@@ -600,6 +600,12 @@ export default function ChatPage() {
           audioUrl: raw.audio_url || "",
           duration_seconds: raw.duration_seconds || 0,
           durationSeconds: raw.duration_seconds || 0,
+          tags:
+            raw.tags ||
+            raw.tag_names ||
+            raw.tagNames ||
+            options?.podcastPreview?.tags ||
+            [],
           created_at: raw.created_at,
           timeAgo: raw.timeAgo,
         };
@@ -852,6 +858,9 @@ export default function ChatPage() {
                   item={item}
                   active={item.id === activeRoomId}
                   onClick={() => setActiveRoomId(item.id)}
+                  onOpenProfile={(peer) => {
+                    if (peer?.id) navigate(`/profile/${peer.id}`)
+                  }}
                   onDelete={() => handleDeleteRoom(item.id)}
                 />
               ))

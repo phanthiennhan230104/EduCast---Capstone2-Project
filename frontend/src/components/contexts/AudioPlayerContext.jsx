@@ -426,6 +426,7 @@ export function AudioPlayerProvider({ children }) {
       if (!currentTrack?.id) return
 
       const trackId = currentTrack.id
+      const listenPostId = getCanonicalPostIdForEngagement(currentTrack) || trackId
 
       // save local progress
       saveProgress(trackId, {
@@ -460,7 +461,7 @@ export function AudioPlayerProvider({ children }) {
         const token = getToken()
 
         const response = await fetch(
-          `http://localhost:8000/api/social/posts/${trackId}/listen/`,
+          `http://localhost:8000/api/social/posts/${listenPostId}/listen/`,
           {
             method: 'POST',
             headers: {

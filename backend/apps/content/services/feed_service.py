@@ -5,7 +5,7 @@ from apps.social.models import HiddenPost, PostLike, SavedPost, Follow, Playback
 from apps.social.post_share_compat import post_share_qs, post_shares_has_shared_from_share_id_column
 
 
-def _feed_posts_plain_qs(user_id, published_visible, tag_ids, feed_type, followed_author_ids):
+def _feed_posts_plain_qs(user_id, published_visible, tag_ids, topic_ids, feed_type, followed_author_ids):
     """Queryset bài gốc (chưa annotate) — dùng chung cho fetch và fallback khi annotate lỗi SQL."""
     qs = Post.objects.select_related("user", "user__profile").filter(published_visible)
     try:
@@ -18,6 +18,8 @@ def _feed_posts_plain_qs(user_id, published_visible, tag_ids, feed_type, followe
         print(f"⚠️ Hidden posts table issue: {str(e)}")
     if tag_ids:
         qs = qs.filter(post_tags__tag_id__in=tag_ids).distinct()
+    if topic_ids:
+        qs = qs.filter(post_topics__topic_id__in=topic_ids).distinct()
     if feed_type == "following":
         if not followed_author_ids:
             qs = qs.none()
@@ -110,7 +112,7 @@ def _ensure_original_for_shared_rows(head, ordered, limit):
 
 class FeedService:
     @staticmethod
-    def get_feed(user, limit=20, feed_type="for_you", tag_ids=None):
+    def get_feed(user, limit=20, feed_type="for_you", tag_ids=None, topic_ids=None):
         try:
             # allow anonymous user (e.g. public feed) — protect against None
             user_id = user.id if user else None
@@ -131,7 +133,7 @@ class FeedService:
                 )
 
             posts_plain = _feed_posts_plain_qs(
-                user_id, published_visible, tag_ids, feed_type, followed_author_ids
+                user_id, published_visible, tag_ids, topic_ids, feed_type, followed_author_ids
             )
 
             posts_qs = posts_plain.annotate(
@@ -186,6 +188,8 @@ class FeedService:
             # Filter shared posts by tags (filter by original post's tags)
             if tag_ids:
                 shared_posts_qs = shared_posts_qs.filter(post__post_tags__tag_id__in=tag_ids).distinct()
+            if topic_ids:
+                shared_posts_qs = shared_posts_qs.filter(post__post_topics__topic_id__in=topic_ids).distinct()
             
             # Filter shared posts by feed type
             if feed_type == "following" and followed_author_ids:
@@ -369,6 +373,9 @@ class FeedService:
                 except Exception:
                     share_comments = 0
                 try:
+                    share_likes = PostLike.objects.filter(
+                        post_id=post.id, share_id=share.id
+                    ).count()
                     canonical_likes = PostLike.objects.filter(
                         post_id=post.id, share_id__isnull=True
                     ).count()
@@ -376,7 +383,7 @@ class FeedService:
                         post_id=post.id, share_id__isnull=True
                     ).count()
                 except Exception:
-                    canonical_likes = canonical_saves = 0
+                    share_likes = canonical_likes = canonical_saves = 0
 
                 item = {
                     "id": f"share_{share.id}_{post.id}",
@@ -411,13 +418,13 @@ class FeedService:
                         "duration_seconds": post.duration_seconds,
                     } if post.audio_url else None,
                     "stats": {
-                        "likes": canonical_likes,
+                        "likes": share_likes,
                         "comments": share_comments,
                         "shares": reshare_count,
                         "saves": canonical_saves,
                     },
                     "viewer_state": {
-                        "is_liked": (post.id, None) in like_pairs,
+                        "is_liked": (post.id, share.id) in like_pairs,
                         "is_saved": (post.id, None) in save_pairs,
                         "is_following_author": post.user_id in following_author_ids,
                         "progress_seconds": getattr(playback, "progress_seconds", 0) or 0,

@@ -12,6 +12,7 @@ export default function SearchPostCard({
   onEdit,
   onDelete,
   onHide,
+  hideMenu = false,
 }) {
   const [imageError, setImageError] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
@@ -41,7 +42,7 @@ export default function SearchPostCard({
   const imageSource = post.cover && !imageError ? post.cover : DEFAULT_PLACEHOLDER
 
   const showMenu =
-    (isOwner && (onEdit || onDelete)) || (!isOwner && onHide)
+    !hideMenu && ((isOwner && (onEdit || onDelete)) || (!isOwner && onHide))
 
   return (
     <div className={styles.postCard} onClick={handleClick} style={{ cursor: 'pointer' }}>

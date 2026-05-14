@@ -153,6 +153,12 @@ export default function AudioPlayer() {
           postId: rowId,
           canonicalPostId,
           disableAutoScroll: true,
+          podcastPreview: {
+            ...currentTrack,
+            id: canonicalPostId,
+            postId: canonicalPostId,
+            post_id: canonicalPostId,
+          },
         },
       })
     )

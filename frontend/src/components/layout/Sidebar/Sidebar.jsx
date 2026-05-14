@@ -1,12 +1,22 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import {
-  Rss, Heart, Users, MessageCircle,
-  User, Settings, Plus
+  Heart,
+  MessageCircle,
+  Plus,
+  Rss,
+  Settings,
+  User,
+  Users,
 } from 'lucide-react'
-import styles from '../../../style/layout/Sidebar.module.css'
-import { useTranslation } from "react-i18next";
-import TagSelector from '../../../components/feed/TagSelector'
+import { useTranslation } from 'react-i18next'
 
+import styles from '../../../style/layout/Sidebar.module.css'
+import {
+  clearFeedScrollSessionKeys,
+  readMainScrollTop,
+  writeFeedScrollSessionKeys,
+} from '../../../utils/feedScrollSession'
+import FeedFilterSidebar from './FeedFilterSidebar'
 
 const NAV_MAIN = [
   { icon: Rss, labelKey: 'navigation.main.feed', to: '/feed' },
@@ -15,33 +25,65 @@ const NAV_MAIN = [
 ]
 
 const NAV_OTHER = [
-  { icon: MessageCircle, labelKey: 'navigation.other.messages', to: '/messages' },
-  { icon: User, labelKey: 'navigation.other.profile', to: '/profile' },
-  { icon: Plus, labelKey: 'navigation.other.createAudio', to: '/create-audio' },
-  { icon: Settings, labelKey: 'navigation.other.settings', to: '/settings' },
+  {
+    icon: MessageCircle,
+    labelKey: 'navigation.other.messages',
+    to: '/messages',
+  },
+  {
+    icon: User,
+    labelKey: 'navigation.other.profile',
+    to: '/profile',
+  },
+  {
+    icon: Plus,
+    labelKey: 'navigation.other.createAudio',
+    to: '/create-audio',
+  },
+  {
+    icon: Settings,
+    labelKey: 'navigation.other.settings',
+    to: '/settings',
+  },
 ]
 
 export default function Sidebar() {
-  const { t } = useTranslation();
+  const { t } = useTranslation()
   const location = useLocation()
 
-  const handleFeedClick = (event, to) => {
+  const showFeedFilters = location.pathname.startsWith('/feed')
+
+  const handleSidebarClick = (event, to) => {
     if (location.pathname === to) {
       event.preventDefault()
-      sessionStorage.removeItem(`mainScroll:${to}`)
+
+      if (to === '/feed') {
+        clearFeedScrollSessionKeys()
+      } else {
+        sessionStorage.removeItem(`mainScroll:${to}`)
+      }
+
       window.location.reload()
+      return
+    }
+
+    if (location.pathname.startsWith('/feed') && to !== '/feed') {
+      writeFeedScrollSessionKeys(readMainScrollTop())
     }
   }
 
   return (
     <aside className={styles.sidebar}>
       <nav className={styles.nav}>
-        <p className={styles.sectionLabel}>{t('navigation.main.label')}</p>
+        <p className={styles.sectionLabel}>
+          {t('navigation.main.label')}
+        </p>
+
         {NAV_MAIN.map(({ icon: Icon, labelKey, to }) => (
           <NavLink
             key={to}
             to={to}
-            onClick={(event) => handleFeedClick(event, to)}
+            onClick={(event) => handleSidebarClick(event, to)}
             className={({ isActive }) =>
               `${styles.navItem} ${isActive ? styles.active : ''}`
             }
@@ -51,7 +93,10 @@ export default function Sidebar() {
           </NavLink>
         ))}
 
-        <p className={styles.sectionLabel}>{t('navigation.other.label')}</p>
+        <p className={styles.sectionLabel}>
+          {t('navigation.other.label')}
+        </p>
+
         {NAV_OTHER.map(({ icon: Icon, labelKey, to }) => (
           <NavLink
             key={to}
@@ -66,8 +111,7 @@ export default function Sidebar() {
         ))}
       </nav>
 
-      {/* Favourite tags */}
-      <TagSelector />
+      {showFeedFilters && <FeedFilterSidebar />}
     </aside>
   )
 }

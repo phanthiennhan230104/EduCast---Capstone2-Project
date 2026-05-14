@@ -21,7 +21,9 @@ urlpatterns = [
     path("posts/<str:post_id>/likers/", views.list_post_likers, name="list_post_likers"),
 
     # Follow
+    path("community/", views.community_overview, name="community_overview"),
     path("follow-list/", views.get_following_list, name="get_following_list"),
+    path("followers/", views.get_followers_list, name="get_followers_list"),
     path("users/<str:target_user_id>/follow/", views.toggle_follow_user, name="toggle_follow_user"),
     path("friends/", views.get_friends_list, name="get_friends_list"),
 
