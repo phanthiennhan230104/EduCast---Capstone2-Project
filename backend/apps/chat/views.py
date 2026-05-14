@@ -142,8 +142,23 @@ class ChatUserSearchView(generics.ListAPIView):
     serializer_class = ChatUserSerializer
 
     def get_queryset(self):
+        from apps.social.models import Follow
+
         q = (self.request.query_params.get("q") or "").strip()
-        queryset = User.objects.exclude(id=self.request.user.id)
+        me = self.request.user
+
+        # Lấy danh sách những người tôi đang follow
+        i_follow = set(
+            Follow.objects.filter(follower=me).values_list("following_id", flat=True)
+        )
+        # Lấy danh sách những người đang follow tôi
+        follow_me = set(
+            Follow.objects.filter(following=me).values_list("follower_id", flat=True)
+        )
+        # Mutual follow (bạn bè) = giao 2 tập
+        friend_ids = i_follow & follow_me
+
+        queryset = User.objects.filter(id__in=friend_ids)
 
         if q:
             query = (

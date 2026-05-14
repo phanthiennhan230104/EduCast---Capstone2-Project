@@ -1,0 +1,584 @@
+/* =============================================
+   NEW CHAT MODAL — đồng bộ với chat dark theme
+   ============================================= */
+
+/* Override Ant Modal wrapper */
+.ncm-modal .ant-modal-content {
+  background: linear-gradient(180deg, rgba(11, 22, 42, 0.98) 0%, rgba(8, 18, 36, 1) 100%) !important;
+  border: 1px solid rgba(148, 163, 184, 0.14) !important;
+  border-radius: 24px !important;
+  box-shadow: 0 24px 64px rgba(2, 8, 23, 0.56) !important;
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+.ncm-modal .ant-modal-close {
+  top: 20px;
+  right: 20px;
+  color: #64748b;
+  transition: color 0.18s ease;
+}
+
+.ncm-modal .ant-modal-close:hover {
+  color: #f8fafc;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+/* ---- Header ---- */
+.ncm-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 24px 24px 18px 24px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.1);
+}
+
+.ncm-header-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #ffffff;
+  flex-shrink: 0;
+  box-shadow: 0 8px 22px rgba(99, 102, 241, 0.38);
+}
+
+.ncm-header-title {
+  font-size: 18px;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+/* ---- Search ---- */
+.ncm-search-wrap {
+  padding: 16px 20px 12px 20px;
+}
+
+/* Wrapper toàn bộ search */
+.ncm-search.ant-input-search {
+  width: 100%;
+}
+
+/* Group */
+.ncm-search .ant-input-wrapper.ant-input-group {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 46px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  background: rgba(15, 23, 42, 0.96);
+  box-shadow: none;
+}
+
+/* Input wrapper */
+.ncm-search .ant-input-affix-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 46px;
+  min-height: 46px;
+  padding: 0 16px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* Input */
+.ncm-search .ant-input-affix-wrapper input.ant-input,
+.ncm-search .ant-input {
+  height: 100%;
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  color: #f8fafc;
+  font-size: 14px;
+  padding: 0;
+}
+
+/* Placeholder */
+.ncm-search .ant-input::placeholder,
+.ncm-search .ant-input-affix-wrapper input::placeholder {
+  color: #6b7c98;
+}
+
+/* Remove focus style */
+.ncm-search .ant-input-affix-wrapper:hover,
+.ncm-search .ant-input-affix-wrapper:focus,
+.ncm-search .ant-input-affix-wrapper-focused {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Button wrapper */
+.ncm-search .ant-input-group-addon {
+  width: 58px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+/* Search button */
+.ncm-search .ant-input-search-button.ant-btn {
+  width: 58px;
+  height: 46px;
+  border: none;
+  border-radius: 0;
+  background: linear-gradient(135deg, #e5a11a 0%, #d99012 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none;
+}
+
+/* Hover */
+.ncm-search .ant-input-search-butto.ncm-search-wrap {
+  padding: 16px 20px 12px 20px;
+}
+
+/* Wrapper toàn bộ search */
+.ncm-search.ant-input-search {
+  width: 100%;
+}
+
+/* Search group */
+.ncm-search .ant-input-wrapper.ant-input-group {
+  display: flex;
+  align-items: stretch;
+  width: 100%;
+  height: 46px;
+  border-radius: 16px;
+  overflow: hidden;
+
+  background: #0b1730;
+  border: 1px solid rgba(96, 165, 250, 0.22);
+
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.02),
+    inset 0 1px 0 rgba(255, 255, 255, 0.03),
+    0 6px 18px rgba(0, 0, 0, 0.22);
+
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    transform 0.2s ease;
+}
+
+/* Focus */
+.ncm-search .ant-input-wrapper.ant-input-group:focus-within {
+  border-color: rgba(96, 165, 250, 0.45);
+
+  box-shadow:
+    0 0 0 3px rgba(59, 130, 246, 0.1),
+    0 10px 24px rgba(37, 99, 235, 0.16);
+}
+
+/* Input wrapper */
+.ncm-search .ant-input-affix-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  height: 46px;
+  min-height: 46px;
+
+  padding: 0 16px;
+
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: 0;
+}
+
+/* Input */
+.ncm-search .ant-input-affix-wrapper input.ant-input,
+.ncm-search .ant-input {
+  width: 100%;
+  height: 100%;
+
+  padding: 0;
+
+  background: transparent;
+  border: none;
+  box-shadow: none;
+
+  color: #f8fafc;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* Placeholder */
+.ncm-search .ant-input::placeholder,
+.ncm-search .ant-input-affix-wrapper input::placeholder {
+  color: #7b8ba7;
+}
+
+/* Remove AntD effects */
+.ncm-search .ant-input-affix-wrapper:hover,
+.ncm-search .ant-input-affix-wrapper:focus,
+.ncm-search .ant-input-affix-wrapper-focused {
+  border: none;
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Button wrapper */
+.ncm-search .ant-input-group-addon {
+  width: 58px;
+  padding: 0;
+  border: none;
+  background: transparent;
+}
+
+/* Search button */
+.ncm-search .ant-input-search-button.ant-btn {
+  width: 58px;
+  height: 46px;
+
+  border: none;
+  border-radius: 0;
+
+  background: linear-gradient(135deg,
+      #e9a820 0%,
+      #d99012 100%);
+
+  color: #fff;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  box-shadow: none;
+
+  transition:
+    filter 0.2s ease,
+    transform 0.15s ease;
+}
+
+/* Hover */
+.ncm-search .ant-input-search-button.ant-btn:hover {
+  filter: brightness(1.08);
+}
+
+/* Active */
+.ncm-search .ant-input-search-button.ant-btn:active {
+  transform: scale(0.98);
+}
+
+/* Icon */
+.ncm-search .ant-input-search-button svg {
+  font-size: 16px;
+}
+
+n.ant-btn:hover {
+  background: linear-gradient(135deg, #f2ad24 0%, #e39a18 100%);
+}
+
+/* Button bên phải */
+.ncm-search .ant-input-search-button.ant-btn {
+  height: 46px !important;
+  width: 52px;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%) !important;
+  border: none !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  font-size: 16px;
+  color: #fff !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: filter 0.18s ease;
+}
+
+.ncm-search .ant-input-search-button.ant-btn:hover {
+  filter: brightness(1.12);
+}
+
+/* Xóa border giữa wrapper và button do Ant tự thêm */
+.ncm-search .ant-input-group-addon {
+  background: transparent;
+  border: none;
+  padding: 0;
+  line-height: 1;
+}
+
+/* ---- List wrap ---- */
+.ncm-list-wrap {
+  max-height: 380px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 4px 12px 20px 12px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(99, 102, 241, 0.3) transparent;
+}
+
+.ncm-list-wrap::-webkit-scrollbar {
+  width: 4px;
+}
+
+.ncm-list-wrap::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.ncm-list-wrap::-webkit-scrollbar-thumb {
+  background: rgba(99, 102, 241, 0.3);
+  border-radius: 99px;
+}
+
+/* ---- Section label ---- */
+.ncm-section {
+  margin-top: 8px;
+}
+
+.ncm-section-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #475569;
+  padding: 8px 6px 6px 6px;
+}
+
+/* ---- Friend item ---- */
+.ncm-friend-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  margin-bottom: 6px;
+  cursor: pointer;
+  border: 1px solid rgba(148, 163, 184, 0.07);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.8));
+  transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ncm-friend-item:hover {
+  background: linear-gradient(180deg, rgba(33, 47, 72, 0.88), rgba(17, 27, 45, 0.98));
+  border-color: rgba(99, 102, 241, 0.28);
+  transform: translateY(-1px);
+  box-shadow: 0 8px 22px rgba(2, 8, 23, 0.22);
+}
+
+.ncm-friend-item:active {
+  transform: translateY(0);
+}
+
+/* Đã có room: highlight xanh lá nhẹ */
+.ncm-friend-item--existing {
+  background: linear-gradient(180deg, rgba(20, 47, 35, 0.55), rgba(12, 35, 25, 0.82));
+  border-color: rgba(34, 197, 94, 0.12);
+}
+
+.ncm-friend-item--existing:hover {
+  border-color: rgba(34, 197, 94, 0.32);
+  box-shadow: 0 8px 22px rgba(34, 197, 94, 0.08);
+}
+
+/* ---- Avatar ---- */
+.ncm-avatar-wrap {
+  position: relative;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+}
+
+.ncm-avatar.ant-avatar {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  font-size: 18px;
+}
+
+/* dot xanh lá cho đã có room */
+.ncm-room-dot {
+  position: absolute;
+  bottom: 1px;
+  right: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #22c55e;
+  border: 2px solid rgba(8, 18, 36, 0.95);
+  box-shadow: 0 0 8px rgba(34, 197, 94, 0.45);
+}
+
+/* ---- Info ---- */
+.ncm-friend-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ncm-friend-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.ncm-friend-sub {
+  font-size: 12px;
+  color: #64748b;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.2;
+}
+
+.ncm-friend-sub--green {
+  color: #4ade80;
+}
+
+/* ---- Action icon ---- */
+.ncm-friend-action {
+  flex-shrink: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: rgba(99, 102, 241, 0.14);
+  border: 1px solid rgba(99, 102, 241, 0.22);
+  color: #818cf8;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.ncm-friend-item:hover .ncm-friend-action {
+  background: rgba(99, 102, 241, 0.28);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #a5b4fc;
+}
+
+.ncm-plus-icon {
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1;
+  margin-top: -1px;
+}
+
+/* Action icon cho đã có room */
+.ncm-friend-action--open {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(34, 197, 94, 0.25);
+  color: #4ade80;
+}
+
+.ncm-friend-item--existing:hover .ncm-friend-action--open {
+  background: rgba(34, 197, 94, 0.22);
+  border-color: rgba(34, 197, 94, 0.5);
+  color: #86efac;
+}
+
+/* ---- Empty state ---- */
+.ncm-empty {
+  padding: 36px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  text-align: center;
+}
+
+.ncm-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 20px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(59, 130, 246, 0.12));
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: #6366f1;
+}
+
+.ncm-empty-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.ncm-empty-sub {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+  max-width: 240px;
+}
+
+/* ---- Skeleton loading ---- */
+.ncm-skeleton-list {
+  padding: 8px 0;
+}
+
+.ncm-skeleton-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  margin-bottom: 6px;
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.4), rgba(15, 23, 42, 0.6));
+}
+
+.ncm-skeleton-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(148, 163, 184, 0.1);
+  flex-shrink: 0;
+  animation: ncmShimmer 1.4s ease-in-out infinite;
+}
+
+.ncm-skeleton-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.ncm-skeleton-line {
+  height: 10px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.1);
+  animation: ncmShimmer 1.4s ease-in-out infinite;
+}
+
+.ncm-skeleton-line--name {
+  width: 55%;
+  animation-delay: 0.1s;
+}
+
+.ncm-skeleton-line--sub {
+  width: 75%;
+  animation-delay: 0.2s;
+}
+
+@keyframes ncmShimmer {
+
+  0%,
+  100% {
+    opacity: 0.5;
+  }
+
+  50% {
+    opacity: 1;
+  }
+}

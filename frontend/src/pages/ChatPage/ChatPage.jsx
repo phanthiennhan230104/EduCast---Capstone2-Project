@@ -491,6 +491,16 @@ export default function ChatPage() {
   }, []);
 
   const handleCreateConversation = async (selectedUser) => {
+    // Nếu đã có room với user này, chuyển thẳng vào đó
+    const existing = conversations.find(
+      (c) => c.peer?.id && String(c.peer.id) === String(selectedUser.id)
+    );
+    if (existing) {
+      setOpenNewChat(false);
+      setActiveRoomId(existing.id);
+      return;
+    }
+
     try {
       const data = await startDirectChat(selectedUser.id);
       setOpenNewChat(false);
@@ -513,7 +523,7 @@ export default function ChatPage() {
       if (typeof payload.saved === "boolean") next.saved = payload.saved;
       if (typeof payload.saveCount === "number") next.saveCount = payload.saveCount;
       localStorage.setItem(`post-sync-${payload.postId}`, JSON.stringify(next));
-    } catch (_) {}
+    } catch (_) { }
     window.dispatchEvent(
       new CustomEvent("post-sync-updated", { detail: payload })
     );
@@ -774,7 +784,7 @@ export default function ChatPage() {
     setPostDetail(null);
   }, []);
 
-  
+
   useEffect(() => {
     const handleChatMessageSent = async (event) => {
       const roomId = event.detail?.roomId;
@@ -1018,6 +1028,7 @@ export default function ChatPage() {
         open={openNewChat}
         onClose={() => setOpenNewChat(false)}
         onSelectUser={handleCreateConversation}
+        conversations={conversations}
       />
 
       {postDetailModalOpen && postDetail && (
@@ -1033,7 +1044,7 @@ export default function ChatPage() {
           onCommentCountChange={setPostCommentCount}
           onToggleLike={handleTogglePostLike}
           onToggleSave={handleTogglePostSave}
-          onShare={() => {}}
+          onShare={() => { }}
           onPostDeleted={handlePostDeletedInChat}
           disableAutoScroll={true}
         />
