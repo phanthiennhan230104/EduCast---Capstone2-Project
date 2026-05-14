@@ -169,6 +169,15 @@
   background: linear-gradient(180deg, #f2b84c, #d28a1c);
 }
 
+.admin-week-count {
+  font-size: 10px;
+  font-weight: 700;
+  color: #d4dcff;
+  margin-bottom: 4px;
+  min-height: 14px;
+  line-height: 1;
+}
+
 .admin-week-label {
   font-size: 10px;
   color: #7f8bc0;

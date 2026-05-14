@@ -136,41 +136,41 @@ export default function AdminPage() {
 
   const getWeeklyBars = () => {
     const weekdayLabels = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
+    // Map by day of week: 0=CN, 1=T2, ..., 6=T7
+    const dayMap = {}
+    const todayDayOfWeek = new Date().getDay()
+
+    newPosts7d.forEach((item) => {
+      const date = new Date(item.date)
+      if (!Number.isNaN(date.getTime())) {
+        dayMap[date.getDay()] = item.count || 0
+      }
+    })
+
+    // Order: T2(1), T3(2), T4(3), T5(4), T6(5), T7(6), CN(0)
+    const orderedDays = [1, 2, 3, 4, 5, 6, 0]
 
     const maxValue = Math.max(
-      ...newPosts7d.map((item) => item.count || 0),
+      ...orderedDays.map((d) => dayMap[d] || 0),
       1
     )
 
-    return newPosts7d.map((item, idx) => {
-      const date = new Date(item.date)
-      const label = Number.isNaN(date.getTime())
-        ? `Ngày ${idx + 1}`
-        : weekdayLabels[date.getDay()]
-
-      const height = maxValue > 0 ? ((item.count || 0) / maxValue) * 100 : 0
+    return orderedDays.map((dayIdx) => {
+      const count = dayMap[dayIdx] !== undefined ? dayMap[dayIdx] : 0
+      const height = maxValue > 0 ? (count / maxValue) * 100 : 0
 
       return {
-        label,
-        height: item.count ? Math.max(height, 10) : 6,
-        active: idx === newPosts7d.length - 1,
-        count: item.count || 0,
+        label: weekdayLabels[dayIdx],
+        height: count ? Math.max(height, 10) : 6,
+        active: dayIdx === todayDayOfWeek,
+        count,
       }
     })
   }
 
   const weeklyBars = getWeeklyBars();
 
-  const topPosts = (data.top_posts || []).map((post, idx) => ({
-    title: post.title,
-    slug: post.slug,
-    author: `Podcast #${idx + 1} • ${post.listen_count} lượt nghe`,
-    tags: [
-
-      { label: `❤️ ${post.like_count}`, type: "warning" },
-      { label: `💬 ${post.comment_count}`, type: "dangerOutline" },
-    ],
-  }));
+  const topPosts = data.top_posts || [];
 
   const TOP_POSTS_PER_PAGE = 5;
   const totalTopPostsPages = Math.ceil(topPosts.length / TOP_POSTS_PER_PAGE);
@@ -213,12 +213,13 @@ export default function AdminPage() {
                 {totalNewPosts7d.toLocaleString("vi-VN")}
               </div>
             </div>
-            <div className="admin-panel-date">7 ngày gần đây</div>
+            <div className="admin-panel-date">Tuần này</div>
           </div>
 
           <div className="admin-weekly-chart">
             {weeklyBars.map((bar) => (
               <div key={bar.label} className="admin-week-bar-item" title={`${bar.label}: ${bar.count}`}>
+                <span className="admin-week-count">{bar.count}</span>
                 <div
                   className={`admin-week-bar ${bar.active ? "admin-week-bar-active" : ""}`}
                   style={{ height: `${bar.height}px` }}
@@ -239,28 +240,35 @@ export default function AdminPage() {
         <div className="admin-panel-title">TOP PODCASTS</div>
 
         <div className="admin-report-list">
-          {paginatedTopPosts.map((item) => (
-            <div key={item.slug} className="admin-report-row">
-              <div className="admin-report-left">
-                <div className="admin-report-icon">
-                  <Mic size={14} />
-                </div>
+          {paginatedTopPosts.map((post, index) => {
+  const rank = (topPostsPage - 1) * TOP_POSTS_PER_PAGE + index + 1;
 
-                <div>
-                  <div className="admin-report-title">{item.title}</div>
-                  <div className="admin-report-meta">{item.author}</div>
-                </div>
-              </div>
+  return (
+    <div key={post.slug || post.id} className="admin-report-row">
+      <div className="admin-report-left">
+        <div className="admin-report-icon">
+          <Mic size={14} />
+        </div>
 
-              <div className="admin-report-tags">
-                {item.tags.map((tag) => (
-                  <span key={tag.label} className={`admin-tag admin-tag-${tag.type}`}>
-                    {tag.label}
-                  </span>
-                ))}
-              </div>
-            </div>
-          ))}
+        <div>
+          <div className="admin-report-title">{post.title}</div>
+          <div className="admin-report-meta">
+            Podcast #{rank} • {post.listen_count || 0} lượt nghe
+          </div>
+        </div>
+      </div>
+
+      <div className="admin-report-tags">
+        <span className="admin-tag admin-tag-warning">
+          ❤️ {post.like_count || 0}
+        </span>
+        <span className="admin-tag admin-tag-dangerOutline">
+          💬 {post.comment_count || 0}
+        </span>
+      </div>
+    </div>
+  );
+})}
         </div>
 
 

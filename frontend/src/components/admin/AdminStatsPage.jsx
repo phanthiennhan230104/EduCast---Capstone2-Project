@@ -130,6 +130,9 @@ export default function AdminStatsPage() {
 
       const weekdayLabels = ["CN", "T2", "T3", "T4", "T5", "T6", "T7"]
 
+      const today = new Date()
+      const todayKey = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
+
       const bars = newUsers7d.map((item, index) => {
         const date = new Date(item.date)
         const label = Number.isNaN(date.getTime())
@@ -139,7 +142,7 @@ export default function AdminStatsPage() {
         return {
           label,
           value: item.count || 0,
-          is_today: index === newUsers7d.length - 1,
+          is_today: item.date === todayKey,
         }
       })
 

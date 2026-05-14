@@ -72,7 +72,7 @@ export default function ReportPostModal({
     }
 
     if (description.trim().length < 10) {
-      toast.error('Mô tả phải có ít nhất 10 ký tự')
+      toast.error(t('feed.reportModal.descriptionMin'))
       return
     }
 
@@ -109,7 +109,9 @@ export default function ReportPostModal({
       onReportSuccess?.()
     } catch (err) {
       console.error('Report failed:', err)
-      toast.error(err.message || t('feed.reportModal.failed'))
+      toast.error(t(err.message || 'feed.reportModal.failed', {
+        defaultValue: err.message || t('feed.reportModal.failed'),
+      }))
     } finally {
       setLoading(false)
     }
