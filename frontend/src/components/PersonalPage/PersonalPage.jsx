@@ -446,7 +446,7 @@ export default function PersonalPage() {
         method: 'POST',
         body: JSON.stringify({ user_id: user.id }),
       })
-      
+
       // Thêm delay 500ms để tạo cảm giác chân thực
       await new Promise(resolve => setTimeout(resolve, 500))
 

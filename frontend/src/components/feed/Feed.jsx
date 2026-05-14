@@ -151,9 +151,9 @@ export default function Feed() {
   const feedScrollKey = 'mainScroll:/feed'
   const resetScrollOnBrowserReloadRef = useRef(
     !didHandleFeedReloadScrollReset &&
-      typeof performance !== 'undefined' &&
-      performance.getEntriesByType('navigation')[0]?.type === 'reload' &&
-      sessionStorage.getItem('returnFromEdit') !== 'true'
+    typeof performance !== 'undefined' &&
+    performance.getEntriesByType('navigation')[0]?.type === 'reload' &&
+    sessionStorage.getItem('returnFromEdit') !== 'true'
   )
   const focusPostId = sessionStorage.getItem('feedFocusPostId')
 
@@ -472,8 +472,8 @@ export default function Feed() {
         const mapped = (data.items || []).map((item) => {
           const durationSeconds = Number(
             item.audio?.duration_seconds ||
-              item.viewer_state?.duration_seconds ||
-              0
+            item.viewer_state?.duration_seconds ||
+            0
           )
 
           const progressSeconds = Number(
@@ -489,8 +489,8 @@ export default function Feed() {
 
           const originalCachedSync = item.post_id
             ? JSON.parse(
-                localStorage.getItem(`post-sync-${item.post_id}`) || 'null'
-              )
+              localStorage.getItem(`post-sync-${item.post_id}`) || 'null'
+            )
             : null
 
           const syncState =
@@ -782,8 +782,8 @@ export default function Feed() {
     const token = getToken()
     const currentUser = JSON.parse(
       localStorage.getItem('educast_user') ||
-        sessionStorage.getItem('educast_user') ||
-        'null'
+      sessionStorage.getItem('educast_user') ||
+      'null'
     )
 
     const res = await fetch(`http://localhost:8000/api/social/posts/${apiId}/like/`, {
@@ -853,8 +853,8 @@ export default function Feed() {
     const token = getToken()
     const currentUser = JSON.parse(
       localStorage.getItem('educast_user') ||
-        sessionStorage.getItem('educast_user') ||
-        'null'
+      sessionStorage.getItem('educast_user') ||
+      'null'
     )
 
     const res = await fetch(
@@ -1194,9 +1194,8 @@ export default function Feed() {
         <div className={styles.postShareWrapper}>
           <div className={styles.postShareInfo}>
             <div
-              className={`${styles.postShareAuthor} ${
-                sharedByUserId ? styles.postShareAuthorClickable : ''
-              }`}
+              className={`${styles.postShareAuthor} ${sharedByUserId ? styles.postShareAuthorClickable : ''
+                }`}
               role={sharedByUserId ? 'button' : undefined}
               tabIndex={sharedByUserId ? 0 : undefined}
               onClick={openSharedAuthorProfile}
@@ -1359,9 +1358,8 @@ export default function Feed() {
             <div className={styles.shareStatWrap}>
               <button
                 type="button"
-                className={`${styles.shareActionBtn} ${
-                  podcast.liked ? styles.liked : ''
-                }`}
+                className={`${styles.shareActionBtn} ${podcast.liked ? styles.liked : ''
+                  }`}
                 onClick={(e) => {
                   e.stopPropagation()
                   handleFeedSharedLike(podcast.id)
@@ -1509,9 +1507,8 @@ export default function Feed() {
                 <button
                   key={topic.id}
                   type="button"
-                  className={`${styles.filterChip} ${
-                    active ? styles.filterChipActive : ''
-                  }`}
+                  className={`${styles.filterChip} ${active ? styles.filterChipActive : ''
+                    }`}
                   onClick={() => handleToggleTopicFilter(topic.id)}
                 >
                   {topic.name}
@@ -1550,9 +1547,8 @@ export default function Feed() {
                 <button
                   key={tag.id}
                   type="button"
-                  className={`${styles.filterChip} ${
-                    active ? styles.filterChipActive : ''
-                  }`}
+                  className={`${styles.filterChip} ${active ? styles.filterChipActive : ''
+                    }`}
                   onClick={() => handleToggleTagFilter(tag.id)}
                 >
                   #{tag.name}
@@ -1625,10 +1621,10 @@ export default function Feed() {
                 prev.map((p) =>
                   String(p.id) === String(selectedPodcast.id)
                     ? {
-                        ...p,
-                        comments: newCount,
-                        comment_count: newCount,
-                      }
+                      ...p,
+                      comments: newCount,
+                      comment_count: newCount,
+                    }
                     : p
                 )
               )
@@ -1652,7 +1648,7 @@ export default function Feed() {
             setPodcasts((prev) =>
               prev.map((p) =>
                 feedRowMatchesCanonicalPost(p, canonicalId) &&
-                p.type !== 'shared'
+                  p.type !== 'shared'
                   ? { ...p, comments: newCount, comment_count: newCount }
                   : p
               )
@@ -1709,10 +1705,10 @@ export default function Feed() {
           authorId={reportSharePodcast.authorId}
           authorName={
             typeof reportSharePodcast.author === 'object' &&
-            reportSharePodcast.author != null
+              reportSharePodcast.author != null
               ? reportSharePodcast.author.name ||
-                reportSharePodcast.author.username ||
-                t('feed.anonymous')
+              reportSharePodcast.author.username ||
+              t('feed.anonymous')
               : reportSharePodcast.author || t('feed.anonymous')
           }
           onClose={() => setReportSharePodcast(null)}

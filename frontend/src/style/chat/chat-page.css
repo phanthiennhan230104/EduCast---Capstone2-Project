@@ -448,18 +448,53 @@
   background: rgba(255, 255, 255, 0.9);
 }
 
-.chat-audio-wave span:nth-child(1) { height: 8px; }
-.chat-audio-wave span:nth-child(2) { height: 16px; }
-.chat-audio-wave span:nth-child(3) { height: 10px; }
-.chat-audio-wave span:nth-child(4) { height: 18px; }
-.chat-audio-wave span:nth-child(5) { height: 12px; }
-.chat-audio-wave span:nth-child(6) { height: 20px; }
-.chat-audio-wave span:nth-child(7) { height: 9px; }
-.chat-audio-wave span:nth-child(8) { height: 15px; }
-.chat-audio-wave span:nth-child(9) { height: 11px; }
-.chat-audio-wave span:nth-child(10) { height: 19px; }
-.chat-audio-wave span:nth-child(11) { height: 13px; }
-.chat-audio-wave span:nth-child(12) { height: 17px; }
+.chat-audio-wave span:nth-child(1) {
+  height: 8px;
+}
+
+.chat-audio-wave span:nth-child(2) {
+  height: 16px;
+}
+
+.chat-audio-wave span:nth-child(3) {
+  height: 10px;
+}
+
+.chat-audio-wave span:nth-child(4) {
+  height: 18px;
+}
+
+.chat-audio-wave span:nth-child(5) {
+  height: 12px;
+}
+
+.chat-audio-wave span:nth-child(6) {
+  height: 20px;
+}
+
+.chat-audio-wave span:nth-child(7) {
+  height: 9px;
+}
+
+.chat-audio-wave span:nth-child(8) {
+  height: 15px;
+}
+
+.chat-audio-wave span:nth-child(9) {
+  height: 11px;
+}
+
+.chat-audio-wave span:nth-child(10) {
+  height: 19px;
+}
+
+.chat-audio-wave span:nth-child(11) {
+  height: 13px;
+}
+
+.chat-audio-wave span:nth-child(12) {
+  height: 17px;
+}
 
 .chat-audio-range {
   width: 100%;
@@ -717,10 +752,23 @@
 }
 
 @keyframes messageRowPulse {
-  0% { transform: scale(1); }
-  20% { transform: scale(1.01); }
-  50% { transform: scale(1.01); filter: drop-shadow(0 0 18px rgba(96, 165, 250, 0.26)); }
-  100% { transform: scale(1); filter: none; }
+  0% {
+    transform: scale(1);
+  }
+
+  20% {
+    transform: scale(1.01);
+  }
+
+  50% {
+    transform: scale(1.01);
+    filter: drop-shadow(0 0 18px rgba(96, 165, 250, 0.26));
+  }
+
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
 }
 
 .chat-composer {
@@ -1396,6 +1444,7 @@
   border-color: rgba(96, 165, 250, 0.32) !important;
   transform: translateY(-1px);
 }
+
 .right-panel {
   overflow-y: auto;
   overflow-x: hidden;
