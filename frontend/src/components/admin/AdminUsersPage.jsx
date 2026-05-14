@@ -172,7 +172,7 @@ export default function AdminUsersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedUser, setSelectedUser] = useState(null);
-
+  const [usersPage, setUsersPage] = useState(1);
   const [showLockModal, setShowLockModal] = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
@@ -340,6 +340,15 @@ export default function AdminUsersPage() {
     });
   }, [search, users]);
 
+
+  const USERS_PER_PAGE = 6;
+
+  const totalUsersPages = Math.ceil(filteredUsers.length / USERS_PER_PAGE);
+
+  const paginatedUsers = filteredUsers.slice(
+    (usersPage - 1) * USERS_PER_PAGE,
+    usersPage * USERS_PER_PAGE
+  );
   return (
     <AdminLayout
       title="QUẢN LÝ NGƯỜI DÙNG"
@@ -354,7 +363,10 @@ export default function AdminUsersPage() {
               type="text"
               placeholder="Tìm kiếm người dùng"
               value={search}
-              onChange={(event) => setSearch(event.target.value)}
+              onChange={(event) => {
+                setSearch(event.target.value);
+                setUsersPage(1);
+              }}
             />
           </div>
         </div>
@@ -387,7 +399,7 @@ export default function AdminUsersPage() {
                 </thead>
 
                 <tbody>
-                  {filteredUsers.map((user) => {
+                  {paginatedUsers.map((user) => {
                     const status = mapStatus(user.status);
 
                     return (
@@ -468,6 +480,25 @@ export default function AdminUsersPage() {
                   })}
                 </tbody>
               </table>
+              {filteredUsers.length > 0 && (
+                <div className="admin-users-pagination">
+                  {Array.from({ length: Math.max(totalUsersPages, 1) }, (_, index) => {
+                    const page = index + 1;
+
+                    return (
+                      <button
+                        key={page}
+                        type="button"
+                        className={`admin-users-page-btn ${usersPage === page ? "admin-users-page-btn-active" : ""
+                          }`}
+                        onClick={() => setUsersPage(page)}
+                      >
+                        {page}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </section>

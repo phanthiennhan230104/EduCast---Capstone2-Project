@@ -711,6 +711,7 @@ const resources = {
       },
 
       buttons: {
+        following: 'Đang theo dõi',
         play: 'Phát',
         pause: 'Tạm dừng',
         next: 'Tiếp theo',
@@ -764,6 +765,8 @@ const resources = {
           defaultAudioTitle: 'Bài audio',
         },
         hook: {
+          cancelled: 'Đã dừng quá trình tạo audio',
+          loadDraftDetailError: 'Lỗi tải chi tiết bản nháp',
           demoText: 'Backpropagation là thuật toán cốt lõi để huấn luyện mạng nơ-ron...',
           voices: {
             hoaiMy: {
@@ -1099,6 +1102,10 @@ const resources = {
         reportModal: {
           title: 'Báo cáo bài viết',
           ownPostError: 'Bạn không thể báo cáo bài viết của chính mình.',
+          ownUserError: 'Bạn không thể báo cáo chính mình',
+          duplicateReportError: 'Bạn đã báo cáo nội dung này rồi.',
+          success: 'Báo cáo đã gửi thành công!',
+          failed: 'Báo cáo thất bại. Vui lòng thử lại.',
           post: 'Bài viết:',
           author: 'Tác giả:',
           reasonLabel: 'Lý do báo cáo',
@@ -1855,6 +1862,7 @@ const resources = {
         },
       },
       buttons: {
+        following: 'Following',
         play: 'Play',
         pause: 'Pause',
         next: 'Next',
@@ -1889,7 +1897,8 @@ const resources = {
           cancelText: 'No, continue',
         },
         hook: {
-
+          cancelled: 'Audio generation has been stopped',
+          loadDraftDetailError: 'Load draft detail error',
           demoText: 'Backpropagation is a core algorithm for training neural networks...',
           loadTopicsError: 'Load topics error',
           loadDraftsError: 'Load drafts error',
@@ -2024,6 +2033,7 @@ const resources = {
           topics: 'Topics',
           topicPlaceholder: 'Choose existing topics or AI-suggested topics',
           aiSuggested: 'AI suggested',
+          selectTopics: 'Choose existing topics',
         },
       },
       library: {
@@ -2274,6 +2284,10 @@ const resources = {
         reportModal: {
           title: 'Report post',
           ownPostError: 'You cannot report your own post.',
+          ownUserError: 'You cannot report yourself.',
+          duplicateReportError: 'You have already reported this content.',
+          success: 'Report submitted successfully!',
+          failed: 'Report failed. Please try again.',
           post: 'Post:',
           author: 'Author:',
           reasonLabel: 'Report reason',

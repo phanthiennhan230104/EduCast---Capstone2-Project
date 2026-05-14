@@ -18,6 +18,37 @@
   flex-wrap: wrap;
 }
 
+.admin-users-pagination {
+  padding: 14px;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.admin-users-page-btn {
+  min-width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid rgba(162, 175, 255, 0.22);
+  background: rgba(255, 255, 255, 0.04);
+  color: #d4dcff;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.admin-users-page-btn:hover {
+  background: rgba(255, 255, 255, 0.09);
+}
+
+.admin-users-page-btn-active {
+  background: #ffb545;
+  color: #222a5b;
+  border-color: #ffb545;
+}
+
 .admin-users-tab {
   height: 30px;
   padding: 0 14px;

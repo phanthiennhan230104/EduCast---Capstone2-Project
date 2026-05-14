@@ -84,7 +84,7 @@ function resolvePlaybackAudioUrl(url) {
 }
 
 export default function Feed() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const location = useLocation()
 
   const { selectedTagIds, updateSelectedTags } = useTagFilter()
@@ -571,7 +571,14 @@ postTimeAgo: item.post_created_at
     }
 
     fetchFeed()
-  }, [activeTab, selectedTagIds, focusPostId, setSavedPostIds_batch, feedReloadNonce])
+  }, [
+  activeTab,
+  selectedTagIds,
+  focusPostId,
+  setSavedPostIds_batch,
+  feedReloadNonce,
+  i18n.language,
+])
 
   useLayoutEffect(() => {
     if (loading || podcasts.length === 0) return
@@ -1465,7 +1472,7 @@ postTimeAgo: item.post_created_at
                     onMouseLeave={() => handleSharedRowStatsLeave(podcast)}
                   >
                     {sharedActionHover.loading ? (
-                      <div className={styles.shareSharerEmpty}>Đang tải...</div>
+                      <div className={styles.shareSharerEmpty}>{t('common.loading')}</div>
                     ) : sharedActionHover.items.length > 0 ? (
                       sharedActionHover.items.map((u) => (
                         <div key={u.user_id || u.username} className={styles.shareSharerRow}>
