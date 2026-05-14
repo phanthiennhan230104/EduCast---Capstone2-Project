@@ -10,7 +10,7 @@
   align-items: center;
   justify-content: center;
   box-shadow: 0 16px 40px rgba(245, 166, 35, 0.28);
-  cursor: grab;
+  cursor: pointer;
   z-index: 1200;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
@@ -21,7 +21,6 @@
 }
 
 .bubble:active {
-  cursor: grabbing;
   transform: scale(0.98);
 }
 
