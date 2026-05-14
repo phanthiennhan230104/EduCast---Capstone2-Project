@@ -1,19 +1,11 @@
 import { useState, useEffect } from 'react'
 import {
-  Target, TrendingUp, UserPlus,
-  Bot, Send, CheckCircle2
+  TrendingUp, UserPlus
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useTranslation } from 'react-i18next'
 import styles from '../../../style/layout/RightPanel.module.css'
 import { getToken } from '../../../utils/auth'
-
-const ROADMAP = [
-  { label: 'Python Cơ Bản – Tập 1', done: true },
-  { label: 'Python Cơ Bản – Tập 2', done: true },
-  { label: 'Python cho AI – Tập 3', done: false, active: true },
-  { label: 'NumPy & Pandas – Tập 4', done: false },
-]
 
 const TRENDING = [
   { tag: '#Python', count: '12.4k ' },
@@ -32,10 +24,6 @@ const SUGGESTIONS = [
 export default function RightPanel() {
   const { t } = useTranslation()
   const [followed, setFollowed] = useState({})
-  const [chatInput, setChatInput] = useState('')
-  const [messages, setMessages] = useState([
-    { role: 'ai', textKey: 'rightPanel.aiGreeting' }
-  ])
 
   // Load followed status from localStorage on mount
   useEffect(() => {
@@ -48,16 +36,6 @@ export default function RightPanel() {
       }
     }
   }, [])
-
-  const sendMessage = () => {
-    if (!chatInput.trim()) return
-    setMessages(m => [
-      ...m,
-      { role: 'user', text: chatInput },
-      { role: 'ai', textKey: 'rightPanel.aiReply' }
-    ])
-    setChatInput('')
-  }
 
   const toggleFollow = async (userId, name) => {
     try {
@@ -142,35 +120,6 @@ export default function RightPanel() {
         ))}
       </div>
 
-      {/* AI Learning Assistant */}
-      <div className={`${styles.widget} ${styles.chatWidget}`}>
-        <h4 className={styles.widgetTitle}>
-          <Bot size={15} />
-          AI Learning Assistant
-        </h4>
-        <div className={styles.chatMessages}>
-          {messages.map((msg, i) => (
-            <div
-              key={i}
-              className={`${styles.msg} ${msg.role === 'user' ? styles.msgUser : styles.msgAi}`}
-            >
-              {msg.textKey ? t(msg.textKey) : msg.text}
-            </div>
-          ))}
-        </div>
-        <div className={styles.chatInput}>
-          <input
-            type="text"
-            placeholder={t('rightPanel.aiPlaceholder')}
-            value={chatInput}
-            onChange={e => setChatInput(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && sendMessage()}
-          />
-          <button className={styles.sendBtn} onClick={sendMessage}>
-            <Send size={14} />
-          </button>
-        </div>
-      </div>
     </aside>
   )
 }

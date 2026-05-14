@@ -133,7 +133,7 @@
   height: 46px;
   border: none;
   border-radius: 0;
-  background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
   color: #fff;
   font-size: 16px;
   cursor: pointer;
@@ -216,12 +216,12 @@
   margin-bottom: 6px;
   cursor: pointer;
   border: 1px solid rgba(148, 163, 184, 0.07);
-  background: linear-gradient(180deg, rgba(30, 41, 59, 0.55), rgba(15, 23, 42, 0.8));
+  background: rgba(20, 30, 46, 0.92);
   transition: background 0.2s ease, border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .ncm-friend-item:hover {
-  background: linear-gradient(180deg, rgba(33, 47, 72, 0.88), rgba(17, 27, 45, 0.98));
+  background: rgba(27, 40, 64, 0.96);
   border-color: rgba(99, 102, 241, 0.28);
   transform: translateY(-1px);
   box-shadow: 0 8px 22px rgba(2, 8, 23, 0.22);
