@@ -950,17 +950,6 @@
   color: #e0e7ff;
 }
 
-.followingBadge.notFollowing {
-  background: transparent;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  color: #fff;
-}
-
-.followingBadge.notFollowing:hover {
-  background: rgba(255, 255, 255, 0.05);
-  border-color: rgba(255, 255, 255, 0.3);
-}
-
 .friendActions {
   display: flex;
   gap: 8px;

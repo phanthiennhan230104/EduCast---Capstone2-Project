@@ -93,6 +93,7 @@
 }
 
 .conversation-item {
+  position: relative;
   cursor: pointer;
   padding: 12px;
   margin-bottom: 12px;
@@ -117,7 +118,7 @@
 
 .conversation-row {
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr) 82px;
+  grid-template-columns: 44px minmax(0, 1fr) 72px;
   align-items: center;
   gap: 10px;
   width: 100%;
@@ -175,18 +176,18 @@
 }
 
 .conversation-meta {
-  width: 82px;
-  max-width: 82px;
+  width: 72px;
+  max-width: 72px;
   min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  justify-content: center;
-  gap: 8px;
+  justify-content: space-between;
+  min-height: 44px;
 }
 
 .conversation-time {
-  max-width: 82px;
+  max-width: 100%;
   color: #9aacc8;
   font-size: 11px;
   font-weight: 700;
@@ -195,6 +196,11 @@
   overflow: hidden;
   text-overflow: ellipsis;
   text-align: right;
+  transition: opacity 0.2s ease;
+}
+
+.conversation-item:hover .conversation-time {
+  opacity: 0;
 }
 
 .conversation-unread {
@@ -1341,6 +1347,9 @@
 }
 
 .conversation-delete-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
   width: 24px;
   height: 24px;
   min-width: 24px;
@@ -1348,7 +1357,8 @@
   border-radius: 999px;
   color: #94a3b8;
   opacity: 0;
-  transition: opacity 0.18s ease, color 0.18s ease, background 0.18s ease;
+  z-index: 10;
+  transition: opacity 0.18s ease, color 0.18s ease, background 0.18s ease, transform 0.18s ease;
 }
 
 .conversation-item:hover .conversation-delete-btn {
