@@ -1126,15 +1126,18 @@ class UserPostsAPIView(APIView):
         """Get all posts (published) + shared posts of a user"""
         try:
             target_user_id = user_id or str(request.user.id)
-            
+
+            from django.db.models import Q
             from apps.users.models import User
-            try:
-                target_user = User.objects.get(id=target_user_id)
-            except User.DoesNotExist:
+            target_user = User.objects.filter(
+                Q(id=target_user_id) | Q(username=target_user_id)
+            ).first()
+            if not target_user:
                 return Response({
                     "error": "User not found",
                     "posts": []
                 }, status=status.HTTP_404_NOT_FOUND)
+            target_user_id = str(target_user.id)
             
             # Get current user ID for checking likes/saves
             current_user_id = request.user.id if request.user and request.user.is_authenticated else None

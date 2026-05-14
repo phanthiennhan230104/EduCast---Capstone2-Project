@@ -31,6 +31,13 @@ function FileTypeIcon({ ext }) {
   return <FileOutlined />;
 }
 
+function getInitialsFromName(name) {
+  if (!name) return ""
+  const parts = String(name).trim().split(/\s+/)
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return `${parts[0][0] || ""}${parts[parts.length - 1][0] || ""}`.toUpperCase()
+}
+
 function formatTimeAgo(dateString) {
   if (!dateString) return t("feed.time.justNow")
 
@@ -50,6 +57,7 @@ function formatTimeAgo(dateString) {
 export default function MessageBubble({ message, containerRef }) {
   const [showCommentModal, setShowCommentModal] = useState(false)
   const { t } = useTranslation();
+  const navigate = useNavigate()
   const mine = message.is_mine
   const [podcastData, setPodcastData] = useState(null)
   const [previewOpen, setPreviewOpen] = useState(false)
@@ -139,6 +147,11 @@ export default function MessageBubble({ message, containerRef }) {
     )
   }
 
+  const handleProfileClick = () => {
+    if (!profileTarget) return
+    navigate(`/profile/${profileTarget}`)
+  }
+
   // Parse podcast data on mount or when message changes
   React.useEffect(() => {
     if (!message.content) {
@@ -184,6 +197,34 @@ export default function MessageBubble({ message, containerRef }) {
     Boolean(podcastData?.post_id) &&
     (isPodcast || isText) &&
     !isProfileShareMessage
+
+  const profilePayload = podcastData?.profile || podcastData
+  const profileUsername =
+    profilePayload?.username ||
+    podcastData?.profile_username ||
+    profilePayload?.profile_username ||
+    ""
+  const profileDisplayName =
+    profilePayload?.display_name ||
+    profilePayload?.full_name ||
+    profilePayload?.name ||
+    profileUsername ||
+    senderLabel
+  const profileAvatar =
+    profilePayload?.avatar_url ||
+    profilePayload?.avatar ||
+    profilePayload?.profile_image ||
+    profilePayload?.image ||
+    ""
+  const profileBio = profilePayload?.bio || ""
+  const profileCaption = profilePayload?.caption || podcastData?.caption || ""
+  const profileTarget =
+    profileUsername ||
+    profilePayload?.profile_user_id ||
+    profilePayload?.user_id ||
+    podcastData?.profile_user_id ||
+    podcastData?.user_id ||
+    ""
 
   const sharedAuthor =
     typeof podcastData?.author === "object"
@@ -288,6 +329,50 @@ export default function MessageBubble({ message, containerRef }) {
             </a>
 
             <div className="message-media-time">
+              <Text className="message-time-text">{messageTimeLabel}</Text>
+            </div>
+          </div>
+        )}
+
+        {isProfileShareMessage && profilePayload && (
+          <div className={`message-podcast ${mine ? "mine" : ""}`}>
+            <button
+              type="button"
+              className="shared-post-card shared-profile-card"
+              onClick={handleProfileClick}
+            >
+              {profileAvatar ? (
+                <img
+                  src={profileAvatar}
+                  alt={profileDisplayName}
+                  className="shared-profile-avatar"
+                />
+              ) : (
+                <div className="shared-profile-avatar shared-profile-avatar-placeholder">
+                  {getInitialsFromName(profileDisplayName)}
+                </div>
+              )}
+
+              <div className="shared-post-main">
+                <div className="shared-post-title" title={profileDisplayName}>
+                  {profileDisplayName}
+                </div>
+                {profileUsername ? (
+                  <div className="shared-post-author">@{profileUsername}</div>
+                ) : null}
+                {profileBio ? (
+                  <div className="shared-post-caption" title={profileBio}>
+                    {profileBio}
+                  </div>
+                ) : profileCaption ? (
+                  <div className="shared-post-caption" title={profileCaption}>
+                    {profileCaption}
+                  </div>
+                ) : null}
+              </div>
+            </button>
+
+            <div className="message-time message-podcast-time">
               <Text className="message-time-text">{messageTimeLabel}</Text>
             </div>
           </div>

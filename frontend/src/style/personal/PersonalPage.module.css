@@ -928,21 +928,25 @@
 }
 
 .followingBadge {
-  background: transparent;
-  border: 1.5px solid #00e676;
-  color: #00e676;
-  padding: 4px 14px;
-  border-radius: 20px;
+  width: 100%;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #c7d2fe;
+  padding: 10px 14px;
+  border-radius: 14px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  display: inline-block;
-  margin-top: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   transition: all 0.2s ease;
 }
 
 .followingBadge:hover {
-  background: rgba(0, 230, 118, 0.1);
+  background: rgba(99, 102, 241, 0.25);
+  border-color: rgba(99, 102, 241, 0.55);
+  color: #e0e7ff;
 }
 
 .friendActions {
@@ -1181,17 +1185,16 @@
 /* ==================== FRIENDS GRID ==================== */
 .friendsGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 20px;
 }
 
 .friendCard {
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02)),
-    var(--bg-card);
-  border: 1px solid rgba(255,255,255,0.08);
-  border-radius: 14px;
-  padding: 16px;
+    linear-gradient(180deg, rgba(24, 32, 58, 0.85), rgba(18, 25, 45, 0.92));
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  padding: 22px 20px;
   text-align: center;
   transition: all 0.2s ease;
   display: flex;
@@ -1200,24 +1203,32 @@
 }
 
 .friendCard:hover {
-  border-color: rgba(132, 146, 255, 0.18);
-  transform: translateY(-4px);
+  border-color: rgba(132, 146, 255, 0.28);
+  transform: translateY(-3px);
+  box-shadow: 0 14px 28px rgba(2, 8, 23, 0.28);
 }
 
 .friendAvatar {
-  width: 64px;
-  height: 64px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
   object-fit: cover;
-  margin-bottom: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  margin-bottom: 14px;
+  border: 3px solid rgba(132, 146, 255, 0.6);
+  box-shadow: 0 10px 22px rgba(2, 8, 23, 0.35);
 }
 
 .friendName {
-  margin: 0 0 4px;
-  font-size: 14px;
+  margin: 0 0 6px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text-primary);
+}
+
+.friendUsername {
+  font-size: 13px;
+  color: rgba(203, 213, 225, 0.85);
+  margin-bottom: 14px;
 }
 
 .friendMutual {
@@ -1674,16 +1685,16 @@
 
 /* Friend Avatar Initials */
 .friendAvatarInitials {
-  width: 64px;
-  height: 64px;
+  width: 88px;
+  height: 88px;
   border-radius: 50%;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: #fff;
-  font-size: 24px;
+  font-size: 28px;
   font-weight: 800;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 10px 22px rgba(2, 8, 23, 0.35);
 }

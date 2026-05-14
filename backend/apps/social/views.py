@@ -3,6 +3,7 @@ from django.http import JsonResponse, Http404
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 from django.utils import timezone
 from requests import post
 from asgiref.sync import async_to_sync
@@ -1623,6 +1624,12 @@ def get_friends_list(request):
         return _json_error("Authentication required", 401)
 
     target_user_id = request.GET.get("user_id") or current_user.id
+    target_user = User.objects.filter(
+        Q(id=target_user_id) | Q(username=target_user_id)
+    ).first()
+    if not target_user:
+        return _json_error("User not found", 404)
+    target_user_id = target_user.id
 
     following_ids = Follow.objects.filter(
         follower_id=target_user_id

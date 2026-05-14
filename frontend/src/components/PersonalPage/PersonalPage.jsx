@@ -472,19 +472,13 @@ export default function PersonalPage() {
     navigate('/settings?tab=profile')
   }
 
-  const handleShareProfile = async () => {
-    if (!user?.username) return
-    const profileUrl = `${window.location.origin}/profile/${user.username}`
-    if (navigator.share) {
-      await navigator.share({
-        title: t('personal.profileShareTitle', { username: user.username }),
-        text: t('personal.profileShareText', { username: user.username }),
-        url: profileUrl,
-      })
-    } else {
-      navigator.clipboard.writeText(profileUrl)
-      toast.success(t('personal.copiedLink'))
+  const handleShareProfile = () => {
+    if (!profileUserId) {
+      toast.error(t('personal.userFallback'))
+      return
     }
+
+    setShowProfileShareModal(true)
   }
 
   const handleMoreOptions = () => {
@@ -1181,6 +1175,9 @@ export default function PersonalPage() {
                             )}
                             <div>
                               <h4 className={styles.friendName}>{friend.name || friend.display_name || friend.username}</h4>
+                              {friend.username ? (
+                                <div className={styles.friendUsername}>@{friend.username}</div>
+                              ) : null}
                               <button className={styles.followingBadge}>{t('buttons.following')}</button>                        </div>
                           </div>
                         ))

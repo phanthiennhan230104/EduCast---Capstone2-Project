@@ -50,31 +50,12 @@ export default function ProfileShareModal({
                 `/social/friends/?user_id=${currentUser?.id}`
             )
 
-            const following =
-                data?.data?.following ||
+            const mutualFriends =
                 data?.data?.friends ||
                 data?.data?.results ||
                 []
 
-            const followersRes = await apiRequest(
-                `/social/followers/?user_id=${currentUser?.id}`
-            )
-
-            const followers =
-                followersRes?.data?.followers ||
-                followersRes?.data?.results ||
-                []
-
-            const followerIds = new Set(
-                followers.map((u) => String(u.id || u.user_id))
-            )
-
-            const mutualFriends = following.filter((u) =>
-                followerIds.has(String(u.id || u.user_id))
-            )
-
             setFriends(mutualFriends)
-
         } catch (err) {
             console.error('Failed to fetch friends:', err)
             toast.error('Không thể tải danh sách người nhận')

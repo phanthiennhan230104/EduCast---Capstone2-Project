@@ -524,6 +524,30 @@
   transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
 }
 
+.shared-profile-card {
+  align-items: center;
+}
+
+.shared-profile-avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: rgba(15, 23, 42, 0.8);
+  border: 1px solid rgba(148, 163, 184, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #f8fafc;
+  font-weight: 700;
+  font-size: 16px;
+}
+
+.shared-profile-avatar-placeholder {
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.5), rgba(56, 189, 248, 0.5));
+}
+
 .shared-post-card-no-cover {
   padding: 12px 14px;
 }

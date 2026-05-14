@@ -16,6 +16,7 @@ from django.utils import timezone
 from .permissions import IsAdminRole
 from datetime import timedelta
 from django.shortcuts import get_object_or_404
+from django.db.models import Q
 
 
 from .models import User, UserProfile, UserSettings
@@ -297,7 +298,10 @@ def get_current_user(request):
 def get_user_profile(request, user_id):
     """Get user profile by user_id - respects profile_visibility settings"""
     try:
-        user = User.objects.get(id=user_id)
+        user = User.objects.filter(Q(id=user_id) | Q(username=user_id)).first()
+        if not user:
+            raise User.DoesNotExist
+        user_id = user.id
         profile = getattr(user, "profile", None)
         
         # Get user settings to check profile_visibility
