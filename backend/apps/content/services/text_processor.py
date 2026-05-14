@@ -283,20 +283,20 @@ Original content:
 
     if mode == "title":
         user_prompt = f"""
-Viết một tiêu đề (title) chi tiết và bao quát nhất cho bài audio học tập này.
+Viết MỘT tiêu đề ngắn gọn, sắc bén, đúng trọng tâm cho bài audio dưới đây.
 
-RÀNG BUỘC NGÔN NGỮ (LANGUAGE LOCK):
-- Nhận diện ngôn ngữ của phần "Nội dung" bên dưới.
-- Nếu nội dung bằng TIẾNG ANH, bạn BẮT BUỘC phải viết tiêu đề bằng TIẾNG ANH 100%.
-- Nếu nội dung bằng TIẾNG VIỆT, bạn viết tiêu đề bằng TIẾNG VIỆT.
+RÀNG BUỘC NGÔN NGỮ:
+- Nếu nội dung bằng TIẾNG ANH → tiêu đề bằng TIẾNG ANH.
+- Nếu nội dung bằng TIẾNG VIỆT → tiêu đề bằng TIẾNG VIỆT.
 
-Mục tiêu:
-- Phản ánh chính xác và đầy đủ nội dung cốt lõi của toàn bộ bài.
-- Sử dụng cấu trúc (Tiêu đề chính - Tiêu đề phụ) để làm rõ ý.
-- Độ dài khoảng 15 đến 25 từ (tối đa 150 ký tự).
-
-Yêu cầu định dạng:
-- Không dùng ngoặc kép. Không emoji, không markdown.
+YÊU CẦU VỀ TIÊU ĐỀ:
+- Độ dài: 5 đến 10 từ, tối đa 80 ký tự. TUYỆT ĐỐI không vượt 150 ký tự.
+- Phong cách: Như tiêu đề báo hoặc tên tập podcast — ngắn, gợi tò mò, bắt mắt.
+- Đánh trúng vào chủ đề cốt lõi: người đọc thấy tiêu đề phải hiểu ngay bài nói về gì.
+- Không dùng cấu trúc "Tiêu đề chính: Tiêu đề phụ" — chỉ một cụm duy nhất, liền mạch.
+- Không được bịa hay phóng đại quá mức so với nội dung thực.
+- Không ngoặc kép, không emoji, không markdown.
+- Chỉ trả về DUY NHẤT tiêu đề, không giải thích thêm.
 
 Nội dung:
 {text}
@@ -305,22 +305,23 @@ Nội dung:
 
     if mode == "description":
         user_prompt = f"""
-Viết một đoạn mô tả (show notes/description) chi tiết để giới thiệu trọn vẹn nội dung bài audio này.
+Viết một đoạn mô tả ngắn để giới thiệu bài audio dưới đây — đủ để người đọc hiểu nội dung và muốn nhấn play ngay.
 
-RÀNG BUỘC NGÔN NGỮ (LANGUAGE LOCK):
-- Nhận diện ngôn ngữ của phần "Nội dung" bên dưới. 
-- Nếu nội dung bằng TIẾNG ANH, đoạn mô tả BẮT BUỘC phải được viết bằng TIẾNG ANH 100%.
-- Nếu nội dung bằng TIẾNG VIỆT, viết bằng TIẾNG VIỆT.
+RÀNG BUỘC NGÔN NGỮ:
+- Nếu nội dung bằng TIẾNG ANH → mô tả bằng TIẾNG ANH.
+- Nếu nội dung bằng TIẾNG VIỆT → mô tả bằng TIẾNG VIỆT.
 
-Mục tiêu:
-- Tóm tắt bối cảnh, liệt kê các ý chính và giá trị thực tế người nghe nhận được. Có thể viết hấp dẫn, bay bổng để thu hút người nghe.
-- Đủ dài để bao quát toàn bộ nội dung (viết khoảng 3 đến 5 câu, tối đa 500 ký tự).
-- KHÔNG được bịa thông tin không có trong bài.
-
-Yêu cầu định dạng:
-- Không dùng ngoặc kép, không emoji, không markdown.
-- Không dùng các câu rập khuôn như: "Trong audio này", "Bài viết này nói về".
-- Trình bày thành một đoạn văn duy nhất.
+YÊU CẦU VỀ MÔ TẢ:
+- Độ dài: 2 đến 3 câu, tối đa 400 ký tự. TUYỆT ĐỐI không vượt 500 ký tự.
+- Câu 1: Nêu rõ chủ đề trọng tâm và tại sao nó quan trọng hoặc thú vị — tạo ngay sự kéo hút.
+- Câu 2: Điểm qua 2–3 điểm kiến thức/giá trị cụ thể mà người nghe sẽ nhận được.
+- Câu 3 (tuỳ chọn): Một câu kết mang tính gợi mở, khiến người đọc tò mò muốn nghe hết.
+- Giọng văn: Tự nhiên, có nhiệt huyết — như lời giới thiệu của một người bạn đang kể về nội dung hay, không phải như tóm tắt học thuật.
+- KHÔNG được bịa thông tin ngoài nội dung gốc.
+- Không ngoặc kép, không emoji, không markdown, không bullet.
+- Không dùng các mẫu câu cứng nhắc như: "Trong audio này", "Bài viết này nói về", "Đây là bài viết về".
+- Trình bày thành một đoạn văn liền mạch duy nhất.
+- Chỉ trả về DUY NHẤT đoạn mô tả, không giải thích thêm.
 
 Nội dung:
 {text}
@@ -413,6 +414,30 @@ def generate_ai_title(text: str) -> str:
         return generate_short_title(text)
 
 
+def _truncate_at_sentence(text: str, max_length: int = 450) -> str:
+    """Cắt text tại ranh giới câu hoàn chỉnh gần nhất dưới max_length."""
+    if len(text) <= max_length:
+        return text
+
+    # Tách câu theo dấu kết thúc câu phổ biến
+    import re
+    sentences = re.split(r'(?<=[.!?])\s+', text)
+
+    result = ""
+    for sentence in sentences:
+        candidate = (result + " " + sentence).strip() if result else sentence
+        if len(candidate) <= max_length:
+            result = candidate
+        else:
+            break
+
+    # Nếu không cắt được theo câu (câu đầu đã quá dài), cắt theo từ
+    if not result:
+        result = text[:max_length].rsplit(" ", 1)[0].strip()
+
+    return result
+
+
 def generate_ai_description(text: str) -> str:
     text = _clean_text(text)
     if not text:
@@ -425,8 +450,8 @@ def generate_ai_description(text: str) -> str:
         result = _clean_text(result)
         result = result.strip('"').strip("'").strip()
 
-        if len(result) > 500:
-            result = result[:500].rsplit(" ", 1)[0].strip() + "..."
+        # Cắt tại ranh giới câu, giữ trong 450 ký tự
+        result = _truncate_at_sentence(result, max_length=450)
 
         return result or generate_short_description(text)
     except Exception:

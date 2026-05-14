@@ -1,12 +1,20 @@
+/* ── GenerateSection — matches PublishPostPage design system ── */
+
 .wrapper {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
 }
 
+/* ── Generate button ── */
 .generateBtn {
-  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 50px;
   border-radius: 16px;
   border: none;
   background: linear-gradient(135deg, #f4a227, #ff6a3d);
@@ -14,17 +22,26 @@
   font-weight: 800;
   font-size: 15px;
   letter-spacing: -0.01em;
+  cursor: pointer;
   box-shadow: 0 10px 24px rgba(244, 162, 39, 0.24);
-  transition: transform 0.22s ease, box-shadow 0.22s ease, filter 0.22s ease;
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    filter 0.22s ease;
 }
 
-.generateBtn:hover {
-  filter: brightness(1.05);
+.generateBtnIcon {
+  display: inline-flex;
+  align-items: center;
+}
+
+.generateBtn:hover:not(:disabled) {
+  filter: brightness(1.06);
   transform: translateY(-2px);
   box-shadow: 0 14px 30px rgba(244, 162, 39, 0.32);
 }
 
-.generateBtn:active {
+.generateBtn:active:not(:disabled) {
   transform: translateY(0);
 }
 
@@ -32,134 +49,351 @@
   opacity: 0.65;
   cursor: not-allowed;
   transform: none;
-  box-shadow: 0 8px 18px rgba(244, 162, 39, 0.16);
 }
 
+/* ── Shared card ── */
 .card {
   border-radius: 22px;
-  background: linear-gradient(
-    180deg,
-    rgba(39, 45, 88, 0.98) 0%,
-    rgba(30, 35, 68, 0.98) 100%
-  );
+  background: linear-gradient(180deg, rgba(39, 45, 88, 0.98) 0%, rgba(30, 35, 68, 0.98) 100%);
   border: 1px solid rgba(245, 240, 232, 0.08);
+  padding: 20px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
-  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.card :global(.ant-card-body) {
-  padding: 18px;
+/* ── Card header row ── */
+.cardRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.title {
-  margin: 0;
-  color: #f5f0e8;
+.doneHeader {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cardTitle {
   font-size: 16px;
   font-weight: 700;
-  letter-spacing: -0.01em;
-  line-height: 1.35;
+  color: #f5f0e8;
+  margin: 0;
 }
 
+.successBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(32, 215, 189, 0.14);
+  color: #20d7bd;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+/* ── Cancel button ── */
+.cancelBtn {
+  width: 30px;
+  height: 30px;
+  border: none;
+  border-radius: 8px;
+  background: rgba(255, 80, 80, 0.1);
+  color: #ff6b6b;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.cancelBtn:hover {
+  background: rgba(255, 80, 80, 0.2);
+  color: #ff4f4f;
+}
+
+/* ── Progress bar ── */
+.progressWrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.progressTrack {
+  flex: 1;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(245, 240, 232, 0.1);
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #f4a227 0%, #ff6a3d 100%);
+  box-shadow: 0 0 10px rgba(244, 162, 39, 0.2);
+  transition: width 0.3s ease;
+}
+
+.progressLabel {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f4a227;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Sub text / hint ── */
 .subText {
-  color: rgba(245, 240, 232, 0.66);
+  color: rgba(245, 240, 232, 0.55);
   font-size: 13px;
   line-height: 1.55;
+  margin: 0;
 }
 
-.successText {
-  display: inline-block;
-  margin-top: 4px;
-  color: #20d7bd;
+/* ── Custom audio player ── */
+.audioBox {
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(11, 16, 34, 0.96), rgba(9, 13, 28, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.customPlayer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 48px;
+}
+
+.playerPlayBtn {
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8f9cff 0%, #6f7cff 100%);
+  color: #f8fbff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(111, 124, 255, 0.28);
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.playerPlayBtn:hover {
+  transform: scale(1.06);
+  filter: brightness(1.08);
+}
+
+.playerCenter {
+  flex: 1;
+  min-width: 0;
+}
+
+.playerProgressRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.playerTime {
+  font-size: 11px;
+  color: #9aa4c7;
+  min-width: 34px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.playerProgressBar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  flex: 1;
+  cursor: pointer;
+}
+
+.playerProgressFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8c97ff 0%, #b8beff 100%);
+  box-shadow: 0 0 8px rgba(140, 151, 255, 0.18);
+  pointer-events: none;
+  transition: width 0.08s linear;
+}
+
+.playerRange {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.playerVolumeRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  color: #a8b1d3;
+}
+
+.playerVolumeBar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  width: 56px;
+  cursor: pointer;
+}
+
+/* ── Field / Input / Textarea ── */
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.label {
+  font-size: 14px;
   font-weight: 700;
-  font-size: 13px;
-  line-height: 1.4;
+  color: #f5f0e8;
 }
 
-.audio {
+.hint {
+  font-size: 12px;
+  color: rgba(245, 240, 232, 0.52);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.input {
   width: 100%;
   min-height: 44px;
-  border-radius: 50px;
-  overflow: hidden;
-  background: rgba(9, 11, 22, 0.45);
-  border: 1px solid rgba(255, 255, 255, 0.07);
-  padding: 2px;
-}
-
-.card :global(audio::-webkit-media-controls-panel) {
-  background: rgba(245, 240, 232, 0.96);
-}
-
-.card :global(.ant-progress) {
-  margin-top: 2px;
-}
-
-.card :global(.ant-progress-bg) {
-  background: linear-gradient(90deg, #f4a227, #ff6a3d);
-}
-
-.card :global(.ant-progress-inner) {
-  background: rgba(245, 240, 232, 0.12);
-}
-
-.card :global(.ant-input-textarea textarea) {
-  background: rgba(0, 0, 0, 0.28);
-  border: 1px solid rgba(245, 240, 232, 0.08);
+  border: 1px solid rgba(245, 240, 232, 0.11);
   border-radius: 14px;
+  background: rgba(8, 12, 27, 0.74);
   color: #f5f0e8;
-  padding: 12px 14px;
-  line-height: 1.6;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease,
-    background 0.2s ease;
+  padding: 10px 14px;
+  outline: none;
+  font-size: 14px;
+  font-weight: 500;
+  box-sizing: border-box;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background 0.18s ease;
 }
 
-.card :global(.ant-input-textarea textarea::placeholder) {
+.input::placeholder {
+  color: rgba(245, 240, 232, 0.35);
+}
+
+.input:hover {
+  border-color: rgba(244, 162, 39, 0.28);
+  background: rgba(12, 17, 36, 0.82);
+}
+
+.input:focus {
+  border-color: #f4a227;
+  box-shadow: 0 0 0 3px rgba(244, 162, 39, 0.1);
+  background: rgba(8, 12, 27, 0.86);
+}
+
+.textarea {
+  resize: vertical;
+  min-height: 100px;
+}
+
+.charCount {
+  text-align: right;
+  font-size: 11px;
   color: rgba(245, 240, 232, 0.38);
 }
 
-.card :global(.ant-input-textarea textarea:hover) {
-  border-color: rgba(244, 162, 39, 0.28);
+/* ── Action buttons row ── */
+.actionRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
 }
 
-.card :global(.ant-input-textarea textarea:focus) {
-  border-color: rgba(244, 162, 39, 0.42);
-  box-shadow: 0 0 0 3px rgba(244, 162, 39, 0.08);
-  background: rgba(0, 0, 0, 0.34);
-}
-
-.card :global(.ant-input-data-count) {
-  color: rgba(245, 240, 232, 0.52);
-}
-
-.card :global(.ant-space-item .ant-btn) {
+.primaryButton,
+.secondaryButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+  padding: 0 16px;
   border-radius: 12px;
-  height: 38px;
-  font-weight: 600;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    opacity 0.16s ease,
+    background 0.16s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
 }
 
-.card :global(.ant-btn-default) {
+.primaryButton {
+  background: linear-gradient(135deg, #f4a227, #ff6a3d);
+  color: #1c203f;
+  box-shadow: 0 8px 18px rgba(244, 162, 39, 0.22);
+}
+
+.primaryButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.06);
+  box-shadow: 0 12px 24px rgba(244, 162, 39, 0.3);
+}
+
+.primaryButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.secondaryButton {
   background: rgba(255, 255, 255, 0.04);
-  border-color: rgba(245, 240, 232, 0.1);
   color: #f5f0e8;
-  box-shadow: none;
+  border: 1px solid rgba(245, 240, 232, 0.11);
 }
 
-.card :global(.ant-btn-default:hover) {
+.secondaryButton:hover:not(:disabled) {
+  transform: translateY(-1px);
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(244, 162, 39, 0.3);
   color: #f4a227;
 }
 
-.card :global(.ant-btn-default:disabled) {
-  background: rgba(255, 255, 255, 0.03);
-  color: rgba(245, 240, 232, 0.35);
-  border-color: rgba(245, 240, 232, 0.06);
+.secondaryButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
 }
 
-@media (max-width: 768px) {
-  .wrapper {
-    gap: 12px;
-  }
-
+/* ── Responsive ── */
+@media (max-width: 640px) {
   .generateBtn {
     height: 46px;
     border-radius: 14px;
@@ -168,18 +402,18 @@
 
   .card {
     border-radius: 18px;
+    padding: 16px;
+    gap: 14px;
   }
 
-  .card :global(.ant-card-body) {
-    padding: 14px;
+  .actionRow {
+    gap: 8px;
   }
 
-  .title {
-    font-size: 15px;
-  }
-
-  .audio {
-    min-height: 40px;
-    border-radius: 12px;
+  .primaryButton,
+  .secondaryButton {
+    min-height: 38px;
+    font-size: 13px;
+    padding: 0 13px;
   }
 }
