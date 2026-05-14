@@ -513,7 +513,7 @@ export function useCreateAudio() {
       const resolvedAudioUrl = preview.audio_url || ''
       const resolvedDurationSeconds = Number(preview.duration_seconds || 0)
       const generatedTitle =
-        (preview.title || '').trim() ||
+        (preview.generated_title || '').trim() ||
         inputText.slice(0, 80).trim() ||
         t('createAudio.hook.draftTitleFallback')
 

@@ -1,164 +1,229 @@
+/* ── VoiceConfigCard — matches PublishPostPage design system ── */
+
 .card {
-  border-radius: 20px;
-  background: linear-gradient(180deg, rgba(37, 42, 80, 0.96) 0%, rgba(32, 37, 70, 0.96) 100%);
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(39, 45, 88, 0.98) 0%, rgba(30, 35, 68, 0.98) 100%);
   border: 1px solid rgba(245, 240, 232, 0.08);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
+  padding: 22px;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
 
-.card :global(.ant-card-body) {
-  padding: 16px;
+.cardHeader {
+  margin-bottom: 20px;
 }
 
-.head {
-  color: #f5f0e8;
-  font-size: 15px;
+.cardTitle {
+  margin: 0;
+  font-size: 20px;
   font-weight: 700;
-  letter-spacing: -0.01em;
+  color: #f5f0e8;
 }
 
-.sectionTitle {
-  color: #f5f0e8;
+/* ── Section spacing ── */
+.section {
+  margin-bottom: 20px;
+}
+
+.section:last-child {
+  margin-bottom: 0;
+}
+
+.label {
+  display: block;
+  margin-bottom: 10px;
   font-size: 14px;
-  font-weight: 600;
-}
-
-.sliderBlock {
-  width: 100%;
-}
-
-.sliderHeader {
-  width: 100%;
-  display: flex;
-  justify-content: space-between;
-}
-
-.sliderLabel {
-  color: rgba(245, 240, 232, 0.65);
-  font-size: 13px;
-}
-
-.sliderValue {
-  color: #f4a227;
-  font-weight: 600;
-  font-size: 13px;
-}
-
-.voiceGroup {
-  width: 100%;
-  margin-top: 12px;
-}
-
-.voiceButton {
-  width: 100%;
-  height: auto;
-  padding: 12px;
-  border-radius: 12px;
-  text-align: left;
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(245, 240, 232, 0.08);
+  font-weight: 700;
   color: #f5f0e8;
-  transition: all 0.2s ease;
 }
 
-.voiceButton:hover {
+/* ── Voice buttons grid ── */
+.voiceGrid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.voiceBtn {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(245, 240, 232, 0.11);
+  background: rgba(8, 12, 27, 0.74);
+  color: #f5f0e8;
+  text-align: left;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.voiceBtn:hover:not(:disabled) {
   border-color: rgba(244, 162, 39, 0.35);
   background: rgba(244, 162, 39, 0.06);
 }
 
-.topicTag {
-  cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(245, 240, 232, 0.04);
-  border: 1px solid rgba(245, 240, 232, 0.08);
-  color: rgba(245, 240, 232, 0.72);
-  font-size: 12px;
-  transition: all 0.2s ease;
-}
-
-.topicTag:hover {
-  border-color: rgba(244, 162, 39, 0.35);
-  color: #f4a227;
-  background: rgba(244, 162, 39, 0.08);
-}
-
-.select {
-  width: 100%;
-  margin-top: 12px;
-}
-
-.select :global(.ant-select-selector) {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(245, 240, 232, 0.08);
-  border-radius: 12px;
-  color: #f5f0e8;
-  box-shadow: none;
-  transition: all 0.2s ease;
-}
-
-.select :global(.ant-select-selector:hover) {
-  border-color: rgba(244, 162, 39, 0.25);
-}
-
-.select :global(.ant-select-selection-placeholder) {
-  color: rgba(245, 240, 232, 0.42);
-}
-
-.select :global(.ant-select-arrow) {
-  color: rgba(245, 240, 232, 0.58);
-}
-
-.topicButtons {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
-.topicButton {
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.03);
-  color: #aeb2cf;
-  font-size: 11px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
-
-.topicButton:hover {
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-}
-
-.topicButtonActive {
-  background: rgba(240, 168, 76, 0.18);
-  color: #ffcb6e;
-  border-color: rgba(240, 168, 76, 0.4);
-}
-
-.topicButton:disabled {
-  opacity: 0.6;
+.voiceBtn:disabled {
+  opacity: 0.55;
   cursor: not-allowed;
 }
 
-.topicEmpty {
-  margin-top: 12px;
-  color: rgba(245, 240, 232, 0.45);
+.voiceBtnActive {
+  border-color: #f4a227;
+  background: rgba(244, 162, 39, 0.12);
+  box-shadow: 0 0 0 3px rgba(244, 162, 39, 0.1);
+}
+
+.voiceName {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f5f0e8;
+}
+
+.voiceBtnActive .voiceName {
+  color: #f4a227;
+}
+
+.voiceTag {
   font-size: 12px;
+  color: rgba(245, 240, 232, 0.52);
 }
 
-.sliderBlock :global(.ant-slider-rail) {
-  background: rgba(245, 240, 232, 0.09);
+/* ── Format select ── */
+.select {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid rgba(245, 240, 232, 0.11);
+  border-radius: 14px;
+  background: rgba(8, 12, 27, 0.74);
+  color: #f5f0e8;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 600;
+  outline: none;
+  appearance: none;
+  cursor: pointer;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(245,240,232,0.5)' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 14px center;
+  padding-right: 36px;
 }
 
-.sliderBlock :global(.ant-slider-track) {
-  background: linear-gradient(90deg, #f4a227, #ff5f3d);
+.select:hover {
+  border-color: rgba(244, 162, 39, 0.35);
+  background-color: rgba(12, 17, 36, 0.82);
 }
 
-.sliderBlock :global(.ant-slider-handle::after) {
-  box-shadow: 0 0 0 2px #f4a227;
+.select:focus {
+  border-color: #f4a227;
+  box-shadow: 0 0 0 3px rgba(244, 162, 39, 0.1);
+  background-color: rgba(8, 12, 27, 0.86);
 }
 
+.select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.select option {
+  background: #1a2442;
+  color: #f5f0e8;
+}
+
+/* ── Topic chips ── */
+.topicList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.topicChip {
+  padding: 7px 13px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 240, 232, 0.12);
+  background: rgba(255, 255, 255, 0.04);
+  color: rgba(245, 240, 232, 0.68);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    transform 0.16s ease,
+    border-color 0.16s ease,
+    background 0.16s ease,
+    color 0.16s ease;
+}
+
+.topicChip:hover:not(:disabled) {
+  transform: translateY(-1px);
+  border-color: rgba(244, 162, 39, 0.3);
+  background: rgba(244, 162, 39, 0.1);
+  color: #f4a227;
+}
+
+.topicChip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.topicChipActive {
+  background: linear-gradient(135deg, rgba(244, 162, 39, 0.22), rgba(255, 106, 61, 0.22));
+  border-color: #f4a227;
+  color: #f4a227;
+  box-shadow: 0 6px 14px rgba(244, 162, 39, 0.14);
+}
+
+.topicEmpty {
+  color: rgba(245, 240, 232, 0.38);
+  font-size: 13px;
+}
+
+/* ── Ant Design Select wrapper cho Topics ── */
+.topicSelect :global(.ant-select-selector) {
+  min-height: 44px !important;
+  border-radius: 14px !important;
+  border: 1px solid rgba(245, 240, 232, 0.11) !important;
+  background: rgba(8, 12, 27, 0.74) !important;
+  color: #f5f0e8 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease !important;
+  padding: 6px 10px !important;
+}
+
+.topicSelect:hover :global(.ant-select-selector) {
+  border-color: #f4a227 !important;
+  background: rgba(12, 17, 36, 0.82) !important;
+}
+
+.topicSelect:global(.ant-select-focused) :global(.ant-select-selector),
+.topicSelect :global(.ant-select-selector:focus-within) {
+  border-color: #f4a227 !important;
+  background: rgba(8, 12, 27, 0.86) !important;
+  box-shadow:
+    0 0 0 3px rgba(244, 162, 39, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .voiceGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: 18px;
+  }
+
+  .cardTitle {
+    font-size: 18px;
+  }
+}

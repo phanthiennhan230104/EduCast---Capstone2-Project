@@ -1,5 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
-import { useRef } from 'react'
+import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
 import { Select, ConfigProvider, theme as antTheme } from 'antd'
@@ -26,6 +25,98 @@ const VISIBILITY_OPTIONS = [
 
 const MAX_TAGS = 5
 const MAX_TOPICS = 5
+
+// ===== GLOBAL COLOR SCHEMA =====
+const COLOR_SCHEMA = {
+  // Primary brand colors
+  primary: '#f4a227',
+  primaryHover: '#ffb84d',
+  primaryActive: '#ff9d1d',
+  primaryLight: '#ff6a3d',
+  
+  // Text colors
+  textPrimary: '#f5f0e8',
+  textSecondary: 'rgba(245, 240, 232, 0.66)',
+  textTertiary: 'rgba(245, 240, 232, 0.52)',
+  textMuted: 'rgba(245, 240, 232, 0.38)',
+  textDisabled: 'rgba(245, 240, 232, 0.25)',
+  
+  // Chip/Tag colors
+  chipText: '#ffca72',
+  chipBg: 'rgba(244, 162, 39, 0.16)',
+  chipBorder: 'rgba(244, 162, 39, 0.24)',
+  chipBgHover: 'rgba(244, 162, 39, 0.22)',
+  chipTextHover: '#ffde99',
+  
+  // Border colors
+  borderPrimary: 'rgba(245, 240, 232, 0.11)',
+  borderSecondary: 'rgba(245, 240, 232, 0.08)',
+  borderTertiary: 'rgba(255, 255, 255, 0.06)',
+  
+  // Background colors
+  bgInput: 'rgba(8, 12, 27, 0.74)',
+  bgInputHover: 'rgba(12, 17, 36, 0.82)',
+  bgInputActive: 'rgba(8, 12, 27, 0.86)',
+  bgCard: 'linear-gradient(180deg, rgba(39, 45, 88, 0.98) 0%, rgba(30, 35, 68, 0.98) 100%)',
+  bgCardDark: 'linear-gradient(180deg, rgba(20, 25, 50, 0.95) 0%, rgba(15, 18, 40, 0.92) 100%)',
+  bgButtonSecondary: 'rgba(255, 255, 255, 0.04)',
+  bgButtonSecondaryHover: 'rgba(255, 255, 255, 0.08)',
+  bgOverlay: 'rgba(9, 11, 22, 0.45)',
+  bgElevated: '#1a2442',
+  
+  // Interactive states
+  hoverOverlay: 'rgba(255, 255, 255, 0.06)',
+  focusRing: 'rgba(244, 162, 39, 0.1)',
+  shadowSecondary: '0 0 0 3px rgba(244, 162, 39, 0.1)',
+}
+
+// ===== ANT DESIGN THEME CONFIG =====
+const ANT_SELECT_THEME = {
+  token: {
+    colorBgContainer: COLOR_SCHEMA.bgInput,
+    colorBgElevated: COLOR_SCHEMA.bgElevated,
+    colorBgElevatedSecondary: 'rgba(15, 18, 40, 0.92)',
+    colorBorder: COLOR_SCHEMA.borderPrimary,
+    colorBorderSecondary: COLOR_SCHEMA.borderSecondary,
+    colorText: COLOR_SCHEMA.textPrimary,
+    colorTextPlaceholder: COLOR_SCHEMA.textMuted,
+    colorTextSecondary: COLOR_SCHEMA.textSecondary,
+    colorPrimary: COLOR_SCHEMA.primary,
+    colorPrimaryHover: COLOR_SCHEMA.primaryHover,
+    colorPrimaryActive: COLOR_SCHEMA.primaryActive,
+    colorPrimaryBorder: COLOR_SCHEMA.chipBorder,
+    borderRadius: 14,
+    borderRadiusLG: 16,
+    controlHeight: 44,
+    controlPaddingHorizontal: 14,
+    fontSize: 14,
+    fontWeightStrong: 700,
+    lineHeight: 1.4,
+    lineHeightLG: 1.5,
+    boxShadowSecondary: COLOR_SCHEMA.shadowSecondary,
+  },
+  components: {
+    Select: {
+      selectorBg: COLOR_SCHEMA.bgInput,
+      controlHeight: 44,
+      multipleItemBg: COLOR_SCHEMA.chipBg,
+      multipleItemBorderColor: COLOR_SCHEMA.chipBorder,
+      multipleItemHeight: 28,
+      multipleItemHeightSm: 28,
+      multipleItemColorBgEllipsis: 'rgba(244, 162, 39, 0.12)',
+      multipleItemColorTextEllipsis: COLOR_SCHEMA.chipText,
+      optionSelectedBg: 'rgba(244, 162, 39, 0.18)',
+      optionSelectedFontWeight: 700,
+      optionActiveBg: COLOR_SCHEMA.hoverOverlay,
+      optionPadding: '8px 12px',
+      optionFontSize: 14,
+      optionLineHeight: 1.5,
+      optionBorderRadius: 8,
+      controlItemBgHover: COLOR_SCHEMA.chipBgHover,
+      colorTextPlaceholder: COLOR_SCHEMA.textMuted,
+    },
+  },
+}
 
 function formatDuration(seconds) {
   if (!seconds || Number.isNaN(Number(seconds))) return '—'
@@ -127,6 +218,47 @@ export default function PublishPostPage() {
   const [loadingDrafts, setLoadingDrafts] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [uploadingThumbnail, setUploadingThumbnail] = useState(false)
+
+  // ===== CUSTOM AUDIO PLAYER STATE =====
+  const audioRef = useRef(null)
+  const [audioPlaying, setAudioPlaying] = useState(false)
+  const [audioProgress, setAudioProgress] = useState(0)
+  const [audioCurrentTime, setAudioCurrentTime] = useState('0:00')
+  const [audioDurationDisplay, setAudioDurationDisplay] = useState('0:00')
+  const [audioVolume, setAudioVolume] = useState(80)
+
+  const fmtTime = (sec) => {
+    if (!sec || isNaN(sec)) return '0:00'
+    const m = Math.floor(sec / 60)
+    const s = Math.floor(sec % 60)
+    return `${m}:${String(s).padStart(2, '0')}`
+  }
+
+  const handleAudioToggle = useCallback(() => {
+    const el = audioRef.current
+    if (!el) return
+    if (el.paused) { el.play() } else { el.pause() }
+  }, [])
+
+  const handleAudioSeek = useCallback((e) => {
+    const el = audioRef.current
+    if (!el || !el.duration) return
+    const pct = Number(e.target.value)
+    el.currentTime = (pct / 100) * el.duration
+  }, [])
+
+  const handleAudioVolumeChange = useCallback((e) => {
+    const val = Number(e.target.value)
+    setAudioVolume(val)
+    if (audioRef.current) audioRef.current.volume = val / 100
+  }, [])
+
+  useEffect(() => {
+    setAudioPlaying(false)
+    setAudioProgress(0)
+    setAudioCurrentTime('0:00')
+    setAudioDurationDisplay('0:00')
+  }, [form.audioUrl])
 
   const hasDraftWork = useMemo(() => {
     return Boolean(
@@ -642,27 +774,7 @@ export default function PublishPostPage() {
                   </span>
                 </label>
 
-                <ConfigProvider
-                  theme={{
-                    token: {
-                      colorBgContainer: 'rgba(8, 12, 27, 0.74)',
-                      colorBgElevated: '#101828',
-                      colorBorder: 'rgba(245, 240, 232, 0.11)',
-                      colorText: '#f5f0e8',
-                      colorTextPlaceholder: 'rgba(245, 240, 232, 0.38)',
-                      colorPrimary: '#f4a227',
-                      borderRadius: 14,
-                    },
-                    components: {
-                      Select: {
-                        selectorBg: 'rgba(8, 12, 27, 0.74)',
-                        multipleItemBg: 'rgba(244, 162, 39, 0.17)',
-                        optionSelectedBg: 'rgba(244, 162, 39, 0.18)',
-                        optionActiveBg: 'rgba(255, 255, 255, 0.06)',
-                      },
-                    },
-                  }}
-                >
+                <ConfigProvider theme={ANT_SELECT_THEME}>
                   <Select
                     className={styles.topicAntSelect}
                     mode="multiple"
@@ -689,27 +801,7 @@ export default function PublishPostPage() {
                   </span>
                 </label>
 
-                <ConfigProvider
-                  theme={{
-                    token: {
-                      colorBgContainer: 'rgba(8, 12, 27, 0.74)',
-                      colorBgElevated: '#101828',
-                      colorBorder: 'rgba(245, 240, 232, 0.11)',
-                      colorText: '#f5f0e8',
-                      colorTextPlaceholder: 'rgba(245, 240, 232, 0.38)',
-                      colorPrimary: '#f4a227',
-                      borderRadius: 14,
-                    },
-                    components: {
-                      Select: {
-                        selectorBg: 'rgba(8, 12, 27, 0.74)',
-                        multipleItemBg: 'rgba(244, 162, 39, 0.17)',
-                        optionSelectedBg: 'rgba(244, 162, 39, 0.18)',
-                        optionActiveBg: 'rgba(255, 255, 255, 0.06)',
-                      },
-                    },
-                  }}
-                >
+                <ConfigProvider theme={ANT_SELECT_THEME}>
                   <Select
                     className={styles.tagAntSelect}
                     mode="tags"
@@ -977,13 +1069,107 @@ export default function PublishPostPage() {
               </p>
 
               <div className={styles.audioBox}>
+                {/* Hidden real audio element */}
+                {form.audioUrl && (
+                  <audio
+                    ref={audioRef}
+                    src={form.audioUrl}
+                    style={{ display: 'none' }}
+                    onPlay={() => setAudioPlaying(true)}
+                    onPause={() => setAudioPlaying(false)}
+                    onEnded={() => { setAudioPlaying(false); setAudioProgress(0) }}
+                    onTimeUpdate={() => {
+                      const el = audioRef.current
+                      if (!el) return
+                      setAudioCurrentTime(fmtTime(el.currentTime))
+                      setAudioProgress(el.duration ? (el.currentTime / el.duration) * 100 : 0)
+                    }}
+                    onLoadedMetadata={() => {
+                      const el = audioRef.current
+                      if (!el) return
+                      setAudioDurationDisplay(fmtTime(el.duration))
+                      el.volume = audioVolume / 100
+                    }}
+                  />
+                )}
+
                 {form.audioUrl ? (
-                  <audio controls className={styles.audioPlayer}>
-                    <source src={form.audioUrl} type="audio/mpeg" />
-                    {t('publishPost.browserNotSupportAudio')}
-                  </audio>
+                  <div className={styles.customPlayer}>
+                    {/* Play / Pause */}
+                    <button
+                      type="button"
+                      className={styles.playerPlayBtn}
+                      onClick={handleAudioToggle}
+                      aria-label={audioPlaying ? t('buttons.pause') : t('buttons.play')}
+                    >
+                      {audioPlaying ? (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <rect x="6" y="4" width="4" height="16" rx="1"/>
+                          <rect x="14" y="4" width="4" height="16" rx="1"/>
+                        </svg>
+                      ) : (
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+                          <polygon points="5,3 19,12 5,21"/>
+                        </svg>
+                      )}
+                    </button>
+
+                    {/* Progress section */}
+                    <div className={styles.playerCenter}>
+                      <div className={styles.playerProgressRow}>
+                        <span className={styles.playerTime}>{audioCurrentTime}</span>
+                        <div className={styles.playerProgressBar}>
+                          <div
+                            className={styles.playerProgressFill}
+                            style={{ width: `${audioProgress}%` }}
+                          />
+                          <input
+                            type="range"
+                            min={0}
+                            max={100}
+                            step={0.1}
+                            value={audioProgress}
+                            onChange={handleAudioSeek}
+                            className={styles.playerRange}
+                            aria-label="Seek"
+                          />
+                        </div>
+                        <span className={styles.playerTime}>{audioDurationDisplay}</span>
+                      </div>
+                    </div>
+
+                    {/* Volume */}
+                    <div className={styles.playerVolumeRow}>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className={styles.playerVolIcon}>
+                        <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/>
+                        <path d="M15.54 8.46a5 5 0 0 1 0 7.07"/>
+                      </svg>
+                      <div className={styles.playerVolumeBar}>
+                        <div
+                          className={styles.playerProgressFill}
+                          style={{ width: `${audioVolume}%` }}
+                        />
+                        <input
+                          type="range"
+                          min={0}
+                          max={100}
+                          value={audioVolume}
+                          onChange={handleAudioVolumeChange}
+                          className={styles.playerRange}
+                          aria-label="Volume"
+                        />
+                      </div>
+                    </div>
+                  </div>
                 ) : (
-                  <div className={styles.audioEmpty}>{t('publishPost.noAudioToPlay')}</div>
+                  <div className={styles.audioEmpty}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" style={{ marginRight: 8, opacity: 0.5 }}>
+                      <path d="M9 18V5l12-2v13"/>
+                      <circle cx="6" cy="18" r="3"/>
+                      <circle cx="18" cy="16" r="3"/>
+                    </svg>
+                    {t('publishPost.noAudioToPlay')}
+                  </div>
                 )}
               </div>
 

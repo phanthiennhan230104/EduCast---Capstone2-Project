@@ -243,7 +243,7 @@ const resources = {
       },
       hook: {
 
-        demoText: 'Backpropagation là thuật toán cốt lõi để huấn luyện mạng nơ-ron...',
+        demoText: 'AI Agent là một dạng trí tuệ nhân tạo có thể tự thực hiện nhiệm vụ theo mục tiêu được giao. Khác với chatbot thông thường chỉ trả lời câu hỏi, AI Agent có thể phân tích yêu cầu, lập kế hoạch, chia nhỏ công việc và sử dụng công cụ để hoàn thành nhiệm vụ.Ví dụ, khi bạn yêu cầu AI Agent lập kế hoạch học tiếng Anh, nó có thể tạo lịch học, gợi ý tài liệu, nhắc bạn luyện tập và điều chỉnh nội dung theo tiến độ. Trong công việc, AI Agent có thể hỗ trợ viết báo cáo, phân tích dữ liệu, chăm sóc khách hàng hoặc tự động hóa các thao tác lặp lại.Lợi ích lớn nhất của AI Agent là giúp tiết kiệm thời gian và tăng hiệu quả làm việc. Tuy nhiên, người dùng vẫn cần kiểm tra kết quả vì AI có thể hiểu sai yêu cầu hoặc đưa ra thông tin chưa chính xác.Tóm lại, AI Agent là bước phát triển mới của trí tuệ nhân tạo. Nếu được sử dụng đúng cách, nó sẽ trở thành một trợ lý hữu ích trong học tập, công việc và cuộc sống hằng ngày.',
         loadTopicsError: 'Lỗi khi tải chủ đề',
         loadDraftsError: 'Lỗi khi tải bản nháp',
         voices: {
@@ -767,7 +767,7 @@ const resources = {
         hook: {
           cancelled: 'Đã dừng quá trình tạo audio',
           loadDraftDetailError: 'Lỗi tải chi tiết bản nháp',
-          demoText: 'Backpropagation là thuật toán cốt lõi để huấn luyện mạng nơ-ron...',
+          demoText: 'AI Agent là một dạng trí tuệ nhân tạo có thể tự thực hiện nhiệm vụ theo mục tiêu được giao. Khác với chatbot thông thường chỉ trả lời câu hỏi, AI Agent có thể phân tích yêu cầu, lập kế hoạch, chia nhỏ công việc và sử dụng công cụ để hoàn thành nhiệm vụ.Ví dụ, khi bạn yêu cầu AI Agent lập kế hoạch học tiếng Anh, nó có thể tạo lịch học, gợi ý tài liệu, nhắc bạn luyện tập và điều chỉnh nội dung theo tiến độ. Trong công việc, AI Agent có thể hỗ trợ viết báo cáo, phân tích dữ liệu, chăm sóc khách hàng hoặc tự động hóa các thao tác lặp lại.Lợi ích lớn nhất của AI Agent là giúp tiết kiệm thời gian và tăng hiệu quả làm việc. Tuy nhiên, người dùng vẫn cần kiểm tra kết quả vì AI có thể hiểu sai yêu cầu hoặc đưa ra thông tin chưa chính xác.Tóm lại, AI Agent là bước phát triển mới của trí tuệ nhân tạo. Nếu được sử dụng đúng cách, nó sẽ trở thành một trợ lý hữu ích trong học tập, công việc và cuộc sống hằng ngày.',
           voices: {
             hoaiMy: {
               name: 'Hoài My',
@@ -892,7 +892,7 @@ const resources = {
           characters: 'ký tự',
           estimate: 'Ước tính',
           uploadText: 'Kéo thả hoặc bấm để tải file lên',
-          uploadHint: 'Hỗ trợ PDF, DOCX, TXT. Tối đa 25MB.',
+          uploadHint: 'Hỗ trợ PDF, DOCX, TXT. Tối đa 10MB.',
           uploading: 'Đang tải và phân tích...',
           analyzed: 'Đã phân tích xong',
           notReady: 'Chưa sẵn sàng',

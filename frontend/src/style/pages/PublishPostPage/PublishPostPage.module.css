@@ -1,6 +1,49 @@
+/* ===== GLOBAL CSS VARIABLES FOR COLOR SCHEMA ===== */
+:root {
+  /* Primary colors */
+  --color-primary: #f4a227;
+  --color-primary-hover: #ffb84d;
+  --color-primary-active: #ff9d1d;
+  --color-primary-light: #ff6a3d;
+  
+  /* Text colors */
+  --color-text-primary: #f5f0e8;
+  --color-text-secondary: rgba(245, 240, 232, 0.66);
+  --color-text-tertiary: rgba(245, 240, 232, 0.52);
+  --color-text-muted: rgba(245, 240, 232, 0.38);
+  --color-text-disabled: rgba(245, 240, 232, 0.25);
+  
+  /* Chip/Tag colors */
+  --color-chip-text: #ffca72;
+  --color-chip-bg: rgba(244, 162, 39, 0.16);
+  --color-chip-border: rgba(244, 162, 39, 0.24);
+  --color-chip-bg-hover: rgba(244, 162, 39, 0.22);
+  --color-chip-text-hover: #ffde99;
+  
+  /* Border colors */
+  --color-border-primary: rgba(245, 240, 232, 0.11);
+  --color-border-secondary: rgba(245, 240, 232, 0.08);
+  --color-border-tertiary: rgba(255, 255, 255, 0.06);
+  
+  /* Background colors */
+  --color-bg-input: rgba(8, 12, 27, 0.74);
+  --color-bg-input-hover: rgba(12, 17, 36, 0.82);
+  --color-bg-input-active: rgba(8, 12, 27, 0.86);
+  --color-bg-card: linear-gradient(180deg, rgba(39, 45, 88, 0.98) 0%, rgba(30, 35, 68, 0.98) 100%);
+  --color-bg-button-secondary: rgba(255, 255, 255, 0.04);
+  --color-bg-button-secondary-hover: rgba(255, 255, 255, 0.08);
+  --color-bg-overlay: rgba(9, 11, 22, 0.45);
+  --color-bg-elevated: #1a2442;
+  
+  /* Interactive states */
+  --color-hover-overlay: rgba(255, 255, 255, 0.06);
+  --color-focus-ring: rgba(244, 162, 39, 0.1);
+  --color-badge-bg: rgba(244, 162, 39, 0.12);
+}
+
 .page {
   padding: 24px;
-  color: #f5f0e8;
+  color: var(--color-text-primary);
   background: #0b1020;
 }
 
@@ -14,7 +57,7 @@
 
 .kicker {
   margin: 0 0 8px;
-  color: #f4a227;
+  color: var(--color-primary);
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -32,7 +75,7 @@
 .subtitle {
   margin: 10px 0 0;
   max-width: 760px;
-  color: rgba(245, 240, 232, 0.66);
+  color: var(--color-text-secondary);
   font-size: 15px;
   line-height: 1.6;
 }
@@ -65,8 +108,8 @@
   align-items: center;
   justify-content: center;
   background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(245, 240, 232, 0.06);
-  color: #f5f0e8;
+  border: 1px solid var(--color-border-secondary);
+  color: var(--color-text-primary);
   cursor: pointer;
   padding: 6px;
 }
@@ -91,8 +134,8 @@
 
 .card {
   border-radius: 22px;
-  background: linear-gradient(180deg, rgba(39, 45, 88, 0.98) 0%, rgba(30, 35, 68, 0.98) 100%);
-  border: 1px solid rgba(245, 240, 232, 0.08);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-secondary);
   padding: 22px;
   box-shadow: 0 12px 28px rgba(0, 0, 0, 0.22);
 }
@@ -120,12 +163,12 @@
   margin: 0;
   font-size: 20px;
   font-weight: 700;
-  color: #f5f0e8;
+  color: var(--color-text-primary);
 }
 
 .cardDesc {
   margin: 8px 0 0;
-  color: rgba(245, 240, 232, 0.52);
+  color: var(--color-text-tertiary);
   font-size: 14px;
   line-height: 1.55;
 }
@@ -145,23 +188,24 @@
   margin-bottom: 10px;
   font-size: 14px;
   font-weight: 700;
-  color: #f5f0e8;
+  color: var(--color-text-primary);
 }
 
 .helper {
-  color: rgba(245, 240, 232, 0.42);
+  color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 500;
 }
 
 .input,
+.input,
 .select {
   width: 100%;
   min-height: 44px;
-  border: 1px solid rgba(245, 240, 232, 0.1);
+  border: 1px solid var(--color-border-primary);
   border-radius: 14px;
-  background: rgba(0, 0, 0, 0.28);
-  color: #f5f0e8;
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
   padding: 10px 14px;
   outline: none;
   transition:
@@ -173,15 +217,15 @@
 
 .input::placeholder,
 .select::placeholder {
-  color: rgba(245, 240, 232, 0.38);
+  color: var(--color-text-muted);
 }
 
 .input:focus,
 .select:focus,
 .tagInput:focus {
-  border-color: rgba(244, 162, 39, 0.42);
-  box-shadow: 0 0 0 3px rgba(244, 162, 39, 0.08);
-  background: rgba(0, 0, 0, 0.34);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-focus-ring);
+  background: var(--color-bg-input-active);
 }
 
 .textarea {
@@ -310,14 +354,14 @@
 }
 
 .tagInput::placeholder {
-  color: rgba(245, 240, 232, 0.38);
+  color: var(--color-text-muted);
 }
 
 .tagAddButton {
   border: none;
   border-radius: 12px;
   background: rgba(244, 162, 39, 0.14);
-  color: #f4a227;
+  color: var(--color-primary);
   padding: 0 18px;
   min-width: 88px;
   font-weight: 700;
@@ -363,7 +407,7 @@
 }
 
 .emptyText {
-  color: rgba(245, 240, 232, 0.38);
+  color: var(--color-text-muted);
   font-size: 14px;
 }
 
@@ -377,13 +421,13 @@
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  color: rgba(245, 240, 232, 0.68);
+  color: var(--color-text-secondary);
   font-size: 14px;
   cursor: pointer;
 }
 
 .radioItem input[type="radio"] {
-  accent-color: #f4a227;
+  accent-color: var(--color-primary);
 }
 
 .previewTop {
@@ -398,8 +442,8 @@
   display: inline-flex;
   align-items: center;
   border-radius: 999px;
-  background: rgba(244, 162, 39, 0.12);
-  color: #f4a227;
+  background: var(--color-badge-bg);
+  color: var(--color-primary);
   padding: 7px 12px;
   font-size: 12px;
   font-weight: 800;
@@ -408,7 +452,7 @@
 }
 
 .previewDuration {
-  color: rgba(245, 240, 232, 0.68);
+  color: var(--color-text-secondary);
   font-size: 13px;
   font-weight: 700;
 }
@@ -417,44 +461,159 @@
   margin: 0;
   font-size: 24px;
   line-height: 1.25;
-  color: #f5f0e8;
+  color: var(--color-text-primary);
   font-weight: 800;
 }
 
 .previewDescription {
   margin: 10px 0 0;
-  color: rgba(245, 240, 232, 0.66);
+  color: var(--color-text-secondary);
   font-size: 14px;
   line-height: 1.65;
 }
 
 .audioBox {
   margin-top: 18px;
-  padding: 16px;
-  border-radius: 16px;
-  background: rgba(9, 11, 22, 0.45);
-  border: 1px solid rgba(245, 240, 232, 0.08);
+  padding: 12px 14px;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(11, 16, 34, 0.96), rgba(9, 13, 28, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.24),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(12px);
 }
 
-.audioPlayer {
+/* ===== CUSTOM AUDIO PLAYER ===== */
+.customPlayer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+}
+
+.playerPlayBtn {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #8f9cff 0%, #6f7cff 100%);
+  color: #f8fbff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(111, 124, 255, 0.28);
+  transition: transform 0.18s ease, filter 0.18s ease;
+}
+
+.playerPlayBtn:hover {
+  transform: scale(1.06);
+  filter: brightness(1.08);
+}
+
+.playerCenter {
+  flex: 1;
+  min-width: 0;
+}
+
+.playerProgressRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
   width: 100%;
 }
 
+.playerTime {
+  font-size: 11px;
+  color: #9aa4c7;
+  min-width: 36px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.playerProgressBar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  flex: 1;
+  cursor: pointer;
+}
+
+.playerProgressBar:hover .playerProgressFill {
+  box-shadow: 0 0 12px rgba(140, 151, 255, 0.35);
+}
+
+.playerProgressFill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #8c97ff 0%, #b8beff 100%);
+  box-shadow: 0 0 8px rgba(140, 151, 255, 0.18);
+  pointer-events: none;
+  transition: width 0.08s linear;
+}
+
+.playerRange {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  margin: 0;
+}
+
+.playerVolumeRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+}
+
+.playerVolIcon {
+  color: #a8b1d3;
+  flex-shrink: 0;
+}
+
+.playerVolumeBar {
+  position: relative;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.10);
+  overflow: hidden;
+  width: 64px;
+  cursor: pointer;
+}
+
+/* Khi chưa có audio */
 .audioEmpty {
-  color: rgba(245, 240, 232, 0.46);
-  font-size: 14px;
+  min-height: 52px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: rgba(168, 177, 211, 0.7);
+  font-size: 13px;
+  font-weight: 600;
+  background: rgba(255, 255, 255, 0.025);
+  border: 1px dashed rgba(255, 255, 255, 0.08);
 }
 
 .thumbnailBox {
   margin-top: 18px;
   padding: 16px;
   border-radius: 16px;
-  background: rgba(9, 11, 22, 0.45);
-  border: 1px solid rgba(245, 240, 232, 0.08);
+  background: rgba(8, 12, 27, 0.74);
+  border: 1px solid var(--color-border-secondary);
 }
 
 .thumbnailLabel {
-  color: rgba(245, 240, 232, 0.66);
+  color: var(--color-text-secondary);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -474,7 +633,7 @@
   height: 200px;
   object-fit: cover;
   border-radius: 12px;
-  border: 1px solid rgba(245, 240, 232, 0.08);
+  border: 1px solid var(--color-border-secondary);
 }
 
 .thumbnailActions {
@@ -487,9 +646,9 @@
   flex: 1;
   padding: 10px 16px;
   border-radius: 8px;
-  border: 1px solid rgba(245, 240, 232, 0.12);
+  border: 1px solid var(--color-border-tertiary);
   background: rgba(255, 255, 255, 0.06);
-  color: #f5f0e8;
+  color: var(--color-text-primary);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -499,7 +658,7 @@
 .thumbnailChangeBtn:hover:not(:disabled),
 .thumbnailRemoveBtn:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.1);
-  border-color: rgba(245, 240, 232, 0.2);
+  border-color: var(--color-border-primary);
 }
 
 .thumbnailChangeBtn:disabled,
@@ -522,9 +681,9 @@
   width: 100%;
   padding: 40px 16px;
   border-radius: 12px;
-  border: 2px dashed rgba(245, 240, 232, 0.2);
+  border: 2px dashed var(--color-border-primary);
   background: rgba(255, 255, 255, 0.02);
-  color: #f5f0e8;
+  color: var(--color-text-primary);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -532,8 +691,8 @@
 }
 
 .thumbnailUploadBtn:hover:not(:disabled) {
-  border-color: rgba(245, 240, 232, 0.4);
-  background: rgba(255, 255, 255, 0.06);
+  border-color: var(--color-text-secondary);
+  background: var(--color-hover-overlay);
 }
 
 .thumbnailUploadBtn:disabled {
@@ -555,7 +714,7 @@
 }
 
 .metaLabel {
-  color: rgba(245, 240, 232, 0.38);
+  color: var(--color-text-muted);
   font-size: 12px;
   font-weight: 700;
   text-transform: uppercase;
@@ -563,7 +722,7 @@
 }
 
 .metaValue {
-  color: #f5f0e8;
+  color: var(--color-text-primary);
   font-size: 14px;
   font-weight: 600;
 }
@@ -576,8 +735,8 @@
 
 .metaTopicTag {
   border-radius: 999px;
-  background: rgba(244, 162, 39, 0.12);
-  color: #f4a227;
+  background: var(--color-chip-bg);
+  color: var(--color-chip-text);
   padding: 7px 10px;
   font-size: 12px;
   font-weight: 700;
@@ -613,7 +772,7 @@
 }
 
 .primaryButton {
-  background: linear-gradient(135deg, #f4a227, #ff6a3d);
+  background: linear-gradient(135deg, var(--color-primary), var(--color-primary-light));
   color: #1c203f;
   box-shadow: 0 10px 24px rgba(244, 162, 39, 0.24);
 }
@@ -629,14 +788,14 @@
 }
 
 .secondaryButton {
-  background: rgba(255, 255, 255, 0.04);
-  color: #f5f0e8;
-  border: 1px solid rgba(245, 240, 232, 0.1);
+  background: var(--color-bg-button-secondary);
+  color: var(--color-text-primary);
+  border: 1px solid var(--color-border-primary);
 }
 
 .secondaryButton:hover:not(:disabled) {
   transform: translateY(-2px);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--color-bg-button-secondary-hover);
   border-color: rgba(244, 162, 39, 0.3);
 }
 
@@ -648,17 +807,14 @@
 
 
 
+/* ===== ANT SELECT STYLING - Simplified ===== */
 /* Input lĩnh vực học tập: dùng cùng kích cỡ và màu với Select */
 .field .input:not(textarea),
-.field .select,
-.topicAntSelect :global(.ant-select-selector),
-.tagAntSelect :global(.ant-select-selector) {
-  min-height: 48px !important;
-  border-radius: 16px !important;
+.field .select {
+  min-height: 44px !important;
+  border-radius: 14px !important;
   border: 1px solid rgba(245, 240, 232, 0.11) !important;
-  background: linear-gradient(180deg,
-      rgba(8, 12, 27, 0.74) 0%,
-      rgba(5, 8, 19, 0.58) 100%) !important;
+  background: rgba(8, 12, 27, 0.74) !important;
   color: #f5f0e8 !important;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
   transition:
@@ -669,124 +825,116 @@
 }
 
 .field .input:not(textarea) {
-  height: 48px;
-  padding: 0 15px;
+  height: 44px;
+  padding: 0 14px;
   font-size: 14px;
   font-weight: 600;
 }
 
 .field .input:not(textarea)::placeholder {
-  color: rgba(245, 240, 232, 0.38);
+  color: var(--color-text-muted);
   font-weight: 500;
 }
 
 .field .input:not(textarea):hover,
-.topicAntSelect:hover :global(.ant-select-selector),
-.tagAntSelect:hover :global(.ant-select-selector) {
-  border-color: rgba(244, 162, 39, 0.34) !important;
-  background: linear-gradient(180deg,
-      rgba(12, 17, 36, 0.82) 0%,
-      rgba(8, 11, 24, 0.68) 100%) !important;
+.topicAntSelect:hover,
+.tagAntSelect:hover {
+  border-color: var(--color-primary) !important;
+  background: var(--color-bg-input-hover) !important;
 }
 
 .field .input:not(textarea):focus,
-.topicAntSelect:global(.ant-select-focused) :global(.ant-select-selector),
-.tagAntSelect:global(.ant-select-focused) :global(.ant-select-selector),
-.topicAntSelect:global(.ant-select-open) :global(.ant-select-selector),
-.tagAntSelect:global(.ant-select-open) :global(.ant-select-selector) {
-  border-color: rgba(244, 162, 39, 0.58) !important;
-  background: rgba(8, 12, 27, 0.86) !important;
+.topicAntSelect:focus-within,
+.tagAntSelect:focus-within {
+  border-color: var(--color-primary) !important;
+  background: var(--color-bg-input-active) !important;
   box-shadow:
-    0 0 0 3px rgba(244, 162, 39, 0.1),
+    0 0 0 3px var(--color-focus-ring),
     inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
 }
 
-/* Ant Select wrapper */
+/* Ant Select container wrapper */
 .topicAntSelect,
 .tagAntSelect {
   width: 100%;
-  min-height: 48px;
-  line-height: 1.4;
   --ant-color-bg-container: transparent !important;
-  --ant-select-selector-bg: transparent !important;
 }
 
+/* Tất cả các selector của Ant Select */
 .topicAntSelect :global(.ant-select-selector),
-.tagAntSelect :global(.ant-select-selector) {
+.tagAntSelect :global(.ant-select-selector),
+.topicAntSelect :global(.ant-select) :global(.ant-select-selector),
+.tagAntSelect :global(.ant-select) :global(.ant-select-selector) {
+  min-height: 44px !important;
   height: auto !important;
-  padding: 7px 42px 7px 12px !important;
+  padding: 6px 40px 6px 12px !important;
+  border-radius: 14px !important;
+  border: 1px solid var(--color-border-primary) !important;
+  background: var(--color-bg-input) !important;
+  color: var(--color-text-primary) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+  transition: all 0.18s ease !important;
   display: flex !important;
   align-items: center !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
 }
 
+.topicAntSelect:hover :global(.ant-select-selector),
+.tagAntSelect:hover :global(.ant-select-selector) {
+  border-color: var(--color-primary) !important;
+  background: var(--color-bg-input-hover) !important;
+}
+
+.topicAntSelect :global(.ant-select-focused) :global(.ant-select-selector),
+.tagAntSelect :global(.ant-select-focused) :global(.ant-select-selector),
+.topicAntSelect :global(.ant-select-open) :global(.ant-select-selector),
+.tagAntSelect :global(.ant-select-open) :global(.ant-select-selector) {
+  border-color: var(--color-primary) !important;
+  background: var(--color-bg-input-active) !important;
+  box-shadow:
+    0 0 0 3px var(--color-focus-ring),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+/* Selection items (chips) */
 .topicAntSelect :global(.ant-select-selection-overflow),
 .tagAntSelect :global(.ant-select-selection-overflow) {
   display: flex !important;
   align-items: center !important;
   flex-wrap: wrap !important;
-  gap: 7px !important;
-  min-height: 32px !important;
-}
-
-.topicAntSelect :global(.ant-select-selection-search),
-.tagAntSelect :global(.ant-select-selection-search) {
-  margin-inline-start: 0 !important;
-}
-
-.topicAntSelect :global(.ant-select-selection-search-input),
-.tagAntSelect :global(.ant-select-selection-search-input) {
-  height: 32px !important;
-  color: #f5f0e8 !important;
-  font-size: 14px !important;
-  font-weight: 600 !important;
-}
-
-.topicAntSelect :global(.ant-select-selection-placeholder),
-.tagAntSelect :global(.ant-select-selection-placeholder) {
-  color: rgba(245, 240, 232, 0.38) !important;
-  font-size: 14px !important;
-  font-weight: 500 !important;
-  line-height: 32px !important;
-  inset-inline-start: 12px !important;
-  inset-inline-end: 42px !important;
-}
-
-/* Chip đã chọn của Chủ đề / Tag */
-.topicAntSelect :global(.ant-select-selection-item),
-.tagAntSelect :global(.ant-select-selection-item),
-.metaTopicTag,
-.tagChip {
+  gap: 6px !important;
   min-height: 30px !important;
-  height: 30px !important;
-  line-height: 28px !important;
+}
+
+.topicAntSelect :global(.ant-select-selection-item),
+.tagAntSelect :global(.ant-select-selection-item) {
+  min-height: 28px !important;
+  height: 28px !important;
+  line-height: 26px !important;
   display: inline-flex !important;
   align-items: center !important;
-  gap: 7px !important;
+  gap: 6px !important;
   border-radius: 999px !important;
-  border: 1px solid rgba(244, 162, 39, 0.24) !important;
-  background: linear-gradient(135deg,
-      rgba(244, 162, 39, 0.17),
-      rgba(255, 106, 61, 0.1)) !important;
-  color: #ffca72 !important;
-  padding: 0 11px !important;
+  border: 1px solid var(--color-chip-border) !important;
+  background: var(--color-chip-bg) !important;
+  color: var(--color-chip-text) !important;
+  padding: 0 10px !important;
   margin: 0 !important;
   font-size: 12px !important;
-  font-weight: 800 !important;
+  font-weight: 700 !important;
   letter-spacing: 0.01em !important;
-  box-shadow: 0 6px 14px rgba(244, 162, 39, 0.08) !important;
-}
-
-.topicAntSelect :global(.ant-select-selection-item-content),
-.tagAntSelect :global(.ant-select-selection-item-content) {
-  margin-inline-end: 2px !important;
+  box-shadow: 0 4px 10px rgba(244, 162, 39, 0.06) !important;
 }
 
 .topicAntSelect :global(.ant-select-selection-item-remove),
 .tagAntSelect :global(.ant-select-selection-item-remove) {
-  color: rgba(255, 202, 114, 0.78) !important;
+  color: var(--color-text-secondary) !important;
   display: inline-flex !important;
   align-items: center !important;
-  font-size: 11px !important;
+  font-size: 10px !important;
+  cursor: pointer !important;
+  margin-left: 2px !important;
 }
 
 .topicAntSelect :global(.ant-select-selection-item-remove:hover),
@@ -794,19 +942,41 @@
   color: #ffffff !important;
 }
 
+/* Placeholder text */
+.topicAntSelect :global(.ant-select-selection-placeholder),
+.tagAntSelect :global(.ant-select-selection-placeholder) {
+  color: var(--color-text-muted) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 1.4 !important;
+  inset-inline-start: 12px !important;
+}
+
+/* Search input inside Select */
+.topicAntSelect :global(.ant-select-selection-search-input),
+.tagAntSelect :global(.ant-select-selection-search-input) {
+  height: 28px !important;
+  color: var(--color-text-primary) !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  background: transparent !important;
+}
+
+/* Arrow and clear button */
 .topicAntSelect :global(.ant-select-arrow),
 .tagAntSelect :global(.ant-select-arrow),
 .topicAntSelect :global(.ant-select-clear),
 .tagAntSelect :global(.ant-select-clear) {
-  color: rgba(245, 240, 232, 0.58) !important;
-  inset-inline-end: 15px !important;
+  color: var(--color-text-secondary) !important;
+  inset-inline-end: 12px !important;
+  font-size: 14px !important;
 }
 
 .topicAntSelect :global(.ant-select-arrow:hover),
 .tagAntSelect :global(.ant-select-arrow:hover),
 .topicAntSelect :global(.ant-select-clear:hover),
 .tagAntSelect :global(.ant-select-clear:hover) {
-  color: #f4a227 !important;
+  color: var(--color-primary) !important;
 }
 
 /* Danh sách topic kiểu button/chip nếu màn khác còn dùng lại */
@@ -814,37 +984,46 @@
 .topicList,
 .metaTopicWrap,
 .tagList {
-  gap: 9px;
+  gap: 8px;
 }
 
+/* Chip styles - consistent with Ant Select items */
 .topicButton,
-.topicChip {
-  min-height: 34px;
+.topicChip,
+.metaTopicTag,
+.tagChip {
+  min-height: 28px;
+  height: 28px;
+  line-height: 26px;
   border-radius: 999px;
-  border: 1px solid rgba(245, 240, 232, 0.11);
-  background: rgba(255, 255, 255, 0.035);
-  color: rgba(245, 240, 232, 0.7);
-  padding: 7px 13px;
+  border: 1px solid var(--color-chip-border);
+  background: var(--color-chip-bg);
+  color: var(--color-chip-text);
+  padding: 0 10px;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 4px 10px rgba(244, 162, 39, 0.06);
 }
 
 .topicButton:hover,
 .topicChip:hover {
   transform: translateY(-1px);
-  border-color: rgba(244, 162, 39, 0.34);
-  background: rgba(244, 162, 39, 0.12);
-  color: #ffca72;
+  border-color: var(--color-chip-bg-hover);
+  background: var(--color-chip-bg-hover);
+  color: var(--color-chip-text-hover);
 }
 
 .topicButtonActive,
 .topicChipActive {
-  border-color: rgba(244, 162, 39, 0.58) !important;
+  border-color: var(--color-primary) !important;
   background: linear-gradient(135deg,
-      rgba(244, 162, 39, 0.22),
-      rgba(255, 106, 61, 0.16)) !important;
-  color: #ffca72 !important;
-  box-shadow: 0 10px 22px rgba(244, 162, 39, 0.14) !important;
+      rgba(244, 162, 39, 0.24),
+      rgba(255, 106, 61, 0.14)) !important;
+  color: var(--color-chip-text-hover) !important;
+  box-shadow: 0 8px 18px rgba(244, 162, 39, 0.14) !important;
 }
 
 @media (max-width: 768px) {
