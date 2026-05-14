@@ -5,6 +5,7 @@ import { toast } from 'react-toastify'
 import { apiRequest } from '../../utils/api'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { getInitials } from '../../utils/getInitials'
+import styles from '../../style/feed/ProfileShareModal.module.css'
 
 export default function ProfileShareModal({
     profileUser,
@@ -167,45 +168,20 @@ export default function ProfileShareModal({
             width={520}
             closeIcon={<X size={18} />}
             title="Chia sẻ trang cá nhân"
+            wrapClassName="profile-share-modal"
         >
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-                <div
-                    style={{
-                        display: 'flex',
-                        gap: 12,
-                        padding: 12,
-                        borderRadius: 14,
-                        background: 'rgba(255,255,255,0.06)',
-                        border: '1px solid rgba(255,255,255,0.08)',
-                    }}
-                >
+            <div className={styles.modal}>
+                <div className={styles.profileCard}>
                     {avatarUrl ? (
-                        <img
-                            src={avatarUrl}
-                            alt={displayName}
-                            style={{
-                                width: 56,
-                                height: 56,
-                                borderRadius: '50%',
-                                objectFit: 'cover',
-                                flexShrink: 0,
-                            }}
-                        />
+                        <div className={styles.avatarWrap}>
+                            <img
+                                src={avatarUrl}
+                                alt={displayName}
+                                className={styles.avatarImg}
+                            />
+                        </div>
                     ) : (
-                        <div
-                            style={{
-                                width: 56,
-                                height: 56,
-                                borderRadius: '50%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: '#6366f1',
-                                color: '#fff',
-                                fontWeight: 700,
-                                flexShrink: 0,
-                            }}
-                        >
+                        <div className={styles.avatarWrap}>
                             {getInitials({
                                 username,
                                 display_name: displayName,
@@ -214,67 +190,56 @@ export default function ProfileShareModal({
                         </div>
                     )}
 
-                    <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 700, fontSize: 16 }}>
+                    <div className={styles.profileInfo}>
+                        <div className={styles.profileName}>
                             {displayName}
                         </div>
 
                         {username ? (
-                            <div style={{ opacity: 0.75, fontSize: 13 }}>
+                            <div className={styles.profileUsername}>
                                 @{username}
                             </div>
                         ) : null}
 
                         {bio ? (
-                            <div
-                                style={{
-                                    marginTop: 4,
-                                    fontSize: 13,
-                                    opacity: 0.85,
-                                    display: '-webkit-box',
-                                    WebkitLineClamp: 2,
-                                    WebkitBoxOrient: 'vertical',
-                                    overflow: 'hidden',
-                                }}
-                            >
+                            <div className={styles.profileBio}>
                                 {bio}
                             </div>
                         ) : null}
                     </div>
                 </div>
 
-                <Input.TextArea
-                    value={caption}
-                    onChange={(e) => setCaption(e.target.value)}
-                    placeholder="Viết lời nhắn..."
-                    rows={3}
-                    maxLength={300}
-                    showCount
-                />
+                <div style={{ marginTop: 16 }}>
+                    <textarea
+                        className={styles.textarea}
+                        value={caption}
+                        onChange={(e) => setCaption(e.target.value)}
+                        placeholder="Viết lời nhắn..."
+                        rows={3}
+                        maxLength={300}
+                    />
+                    <div style={{ fontSize: 12, color: '#64748b', textAlign: 'right', marginTop: 4 }}>
+                        {caption.length} / 300
+                    </div>
+                </div>
 
-                <Input
-                    value={searchText}
-                    onChange={(e) => setSearchText(e.target.value)}
-                    placeholder="Tìm người nhận..."
-                    prefix={<Search size={16} />}
-                    allowClear
-                />
+                <div style={{ marginTop: 16 }}>
+                    <Input
+                        value={searchText}
+                        onChange={(e) => setSearchText(e.target.value)}
+                        placeholder="Tìm người nhận..."
+                        prefix={<Search size={16} />}
+                        allowClear
+                    />
+                </div>
 
-                <div
-                    style={{
-                        maxHeight: 300,
-                        overflowY: 'auto',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: 8,
-                    }}
-                >
+                <div className={styles.friendsList} style={{ marginTop: 16 }}>
                     {loading ? (
                         <div style={{ display: 'flex', justifyContent: 'center', padding: 24 }}>
                             <Spin />
                         </div>
                     ) : filteredFriends.length === 0 ? (
-                        <Empty description="Không có người nhận" />
+                        <Empty description="Không có người nhận" image={Empty.PRESENTED_IMAGE_SIMPLE} />
                     ) : (
                         filteredFriends.map((friend) => {
                             const friendId = String(friend.id || friend.user_id || friend.username || '')
@@ -294,48 +259,18 @@ export default function ProfileShareModal({
                                     key={friendId}
                                     type="button"
                                     onClick={() => toggleUser(friend)}
-                                    style={{
-                                        width: '100%',
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 12,
-                                        padding: 10,
-                                        borderRadius: 12,
-                                        border: checked
-                                            ? '1px solid #6366f1'
-                                            : '1px solid rgba(255,255,255,0.08)',
-                                        background: checked
-                                            ? 'rgba(99,102,241,0.16)'
-                                            : 'rgba(255,255,255,0.04)',
-                                        cursor: 'pointer',
-                                        textAlign: 'left',
-                                    }}
+                                    className={`${styles.friendItem} ${checked ? styles.friendItemSelected : ''}`}
                                 >
                                     {friendAvatar ? (
-                                        <img
-                                            src={friendAvatar}
-                                            alt={friendName}
-                                            style={{
-                                                width: 42,
-                                                height: 42,
-                                                borderRadius: '50%',
-                                                objectFit: 'cover',
-                                            }}
-                                        />
+                                        <div className={styles.friendAvatarWrap}>
+                                            <img
+                                                src={friendAvatar}
+                                                alt={friendName}
+                                                className={styles.friendAvatarImg}
+                                            />
+                                        </div>
                                     ) : (
-                                        <div
-                                            style={{
-                                                width: 42,
-                                                height: 42,
-                                                borderRadius: '50%',
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                justifyContent: 'center',
-                                                background: '#334155',
-                                                color: '#fff',
-                                                fontWeight: 700,
-                                            }}
-                                        >
+                                        <div className={styles.friendAvatarWrap}>
                                             {getInitials({
                                                 username: friendUsername,
                                                 display_name: friendName,
@@ -344,13 +279,13 @@ export default function ProfileShareModal({
                                         </div>
                                     )}
 
-                                    <div style={{ flex: 1, minWidth: 0 }}>
-                                        <div style={{ fontWeight: 600 }}>
+                                    <div className={styles.friendInfo}>
+                                        <div className={styles.friendName}>
                                             {friendName}
                                         </div>
 
                                         {friendUsername ? (
-                                            <div style={{ fontSize: 12, opacity: 0.7 }}>
+                                            <div className={styles.friendUsername}>
                                                 @{friendUsername}
                                             </div>
                                         ) : null}
@@ -360,7 +295,7 @@ export default function ProfileShareModal({
                                         type="checkbox"
                                         checked={checked}
                                         readOnly
-                                        style={{ width: 18, height: 18 }}
+                                        style={{ width: 18, height: 18, accentColor: '#6366f1', cursor: 'pointer' }}
                                     />
                                 </button>
                             )
@@ -368,25 +303,19 @@ export default function ProfileShareModal({
                     )}
                 </div>
 
-                <div
-                    style={{
-                        display: 'flex',
-                        justifyContent: 'flex-end',
-                        gap: 10,
-                        paddingTop: 8,
-                    }}
-                >
-                    <Button onClick={onClose}>
+                <div className={styles.actions}>
+                    <Button className={styles.cancelBtn} type="text" onClick={onClose}>
                         Hủy
                     </Button>
 
                     <Button
+                        className={styles.sendBtn}
                         type="primary"
-                        icon={<Send size={16} />}
                         loading={sending}
                         disabled={selectedUserIds.length === 0}
                         onClick={handleSend}
                     >
+                        <Send size={16} />
                         Gửi
                     </Button>
                 </div>
