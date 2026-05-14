@@ -90,7 +90,7 @@ export default function Feed() {
   const { selectedTagIds, updateSelectedTags } = useTagFilter()
   const selectedTagIdsRef = useRef(selectedTagIds)
   selectedTagIdsRef.current = selectedTagIds
-  const { setSavedPostIds_batch, deletePost, hidePost } =
+  const { setSavedPostIds_batch, deletePost, hidePost, addSavedPost, removeSavedPost } =
     useContext(PodcastContext)
 
   const { pauseTrackIfDeleted } = useAudioPlayer()
@@ -116,6 +116,8 @@ export default function Feed() {
   const sharedSaveBtnRef = useRef(null)
   const [editShareCaptionPodcast, setEditShareCaptionPodcast] = useState(null)
   const [feedReloadNonce, setFeedReloadNonce] = useState(0)
+  const [showCollectionModal, setShowCollectionModal] = useState(false)
+  const [collectionTargetPodcast, setCollectionTargetPodcast] = useState(null)
   const [sharedActionHover, setSharedActionHover] = useState({
     rowKey: null,
     kind: null,
@@ -947,7 +949,7 @@ postTimeAgo: item.post_created_at
     }
   }
 
-  const handleFeedCollectionSave = () => {
+  const handleFeedCollectionSave = async () => {
     const target = collectionTargetPodcast
     if (!target) return
     const rowId = target.id
@@ -955,8 +957,7 @@ postTimeAgo: item.post_created_at
       target.type === 'shared' ? target.id : engagementPostId(target)
     if (!apiId) return
 
-    const prevCount =
-      podcasts.find((p) => p.id === rowId)?.saveCount || 0
+    const prevCount = podcasts.find((p) => p.id === rowId)?.saveCount || 0
     const newSaveCount = prevCount + 1
 
     setPodcasts((prev) =>
@@ -976,6 +977,7 @@ postTimeAgo: item.post_created_at
     setShowCollectionModal(false)
     setCollectionTargetPodcast(null)
   }
+
 
   const handleFeedShareSuccess = (sourcePodcast, data) => {
     const newShareCount = Number(data?.share_count ?? NaN)
@@ -1703,6 +1705,22 @@ cancelText={t('common.cancel')}
           if (m === 'unshare') void executeUnshareFeedPost(p)
           else if (m === 'hide') void executeHideSharedFeedRow(p)
         }}
+      />
+
+      <SaveCollectionModal
+        isOpen={showCollectionModal}
+        onClose={() => {
+          setShowCollectionModal(false)
+          setCollectionTargetPodcast(null)
+        }}
+        postId={
+          collectionTargetPodcast
+            ? collectionTargetPodcast.type === 'shared'
+              ? collectionTargetPodcast.id
+              : engagementPostId(collectionTargetPodcast)
+            : null
+        }
+        onSave={handleFeedCollectionSave}
       />
     </section>
   )
