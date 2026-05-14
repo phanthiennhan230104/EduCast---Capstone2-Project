@@ -3,6 +3,7 @@ from .models import (
     Post,
     PostAudioVersion,
     PostDocument,
+    Tag,
     Topic,
 )
 
@@ -160,6 +161,7 @@ class DraftDetailSerializer(serializers.ModelSerializer):
     audio_versions = PostAudioVersionSerializer(many=True, read_only=True)
     documents = PostDocumentSerializer(many=True, read_only=True)
     topics = serializers.SerializerMethodField()
+    tags = serializers.SerializerMethodField()
 
     class Meta:
         model = Post
@@ -187,12 +189,19 @@ class DraftDetailSerializer(serializers.ModelSerializer):
             "audio_versions",
             "documents",
             "topics",
+            "tags",
         ]
 
     def get_topics(self, obj):
         return [
             {"id": pt.topic_id, "name": pt.topic.name}
             for pt in obj.post_topics.all()
+        ]
+
+    def get_tags(self, obj):
+        return [
+            {"id": pt.tag_id, "name": pt.tag.name}
+            for pt in obj.post_tags.all()
         ]
 
 
@@ -384,3 +393,9 @@ class TopicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topic
         fields = ["id", "name", "slug", "description"]
+
+
+class TagSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ["id", "name", "slug"]

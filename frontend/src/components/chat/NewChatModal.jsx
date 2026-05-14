@@ -1,17 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
-import { Avatar, Input, Modal } from "antd";
-import { MessageOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
+import { Avatar, Modal } from "antd";
+import { MessageOutlined, SearchOutlined, TeamOutlined, UserOutlined } from "@ant-design/icons";
 import { toast } from "react-toastify";
 import { searchChatUsers } from "../../utils/chatApi";
 import { useTranslation } from "react-i18next";
 import "../../style/chat/new-chat-modal.css";
 
-const { Search } = Input;
-
 export default function NewChatModal({ open, onClose, onSelectUser, conversations = [] }) {
   const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [users, setUsers] = useState([]);
+  const [searchValue, setSearchValue] = useState("");
 
   const handleSearch = async (value) => {
     try {
@@ -25,8 +24,26 @@ export default function NewChatModal({ open, onClose, onSelectUser, conversation
     }
   };
 
+  const handleInputChange = (e) => {
+    const val = e.target.value;
+    setSearchValue(val);
+    if (!val) handleSearch("");
+  };
+
+  const handleClear = () => {
+    setSearchValue("");
+    handleSearch("");
+  };
+
+  const handleKeyDown = (e) => {
+    if (e.key === "Enter") handleSearch(searchValue);
+  };
+
   useEffect(() => {
-    if (open) handleSearch("");
+    if (open) {
+      setSearchValue("");
+      handleSearch("");
+    }
   }, [open]);
 
   const existingPeerIds = useMemo(
@@ -97,15 +114,36 @@ export default function NewChatModal({ open, onClose, onSelectUser, conversation
 
       {/* Search */}
       <div className="ncm-search-wrap">
-        <Search
-          className="ncm-search"
-          placeholder={t("newChatModal.searchPlaceholder", "Tìm theo username hoặc email")}
-          onSearch={handleSearch}
-          onChange={(e) => !e.target.value && handleSearch("")}
-          allowClear
-          enterButton
-          loading={loading}
-        />
+        <div className="ncm-search-box">
+          <span className="ncm-search-icon">
+            <SearchOutlined />
+          </span>
+          <input
+            className="ncm-search-input"
+            type="text"
+            placeholder={t("newChatModal.searchPlaceholder", "Tìm theo username hoặc email")}
+            value={searchValue}
+            onChange={handleInputChange}
+            onKeyDown={handleKeyDown}
+          />
+          {searchValue && (
+            <button className="ncm-search-clear" onClick={handleClear} type="button">
+              ×
+            </button>
+          )}
+          <button
+            className="ncm-search-btn"
+            onClick={() => handleSearch(searchValue)}
+            type="button"
+            disabled={loading}
+          >
+            {loading ? (
+              <span className="ncm-search-spinner" />
+            ) : (
+              <SearchOutlined />
+            )}
+          </button>
+        </div>
       </div>
 
       {/* List */}

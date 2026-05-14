@@ -78,8 +78,8 @@ export default function GenerateSection({ vm }) {
         className={styles.generateBtn}
       >
         {vm.genState === 'processing'
-  ? t('createAudio.generate.processing')
-  : t('createAudio.generate.generateButton')}
+          ? t('createAudio.generate.processing')
+          : t('createAudio.generate.generateButton')}
       </Button>
 
       {vm.genState === 'processing' && (
@@ -139,16 +139,14 @@ export default function GenerateSection({ vm }) {
               <Input
                 value={vm.title}
                 onChange={(e) => vm.setTitle(e.target.value)}
-                maxLength={120}
-                placeholder={t('createAudio.generate.titlePlaceholder')}
                 maxLength={150}
-                placeholder="Nhập tiêu đề cho bài audio..."
+                placeholder={t('createAudio.generate.titlePlaceholder')}
                 style={{ marginTop: 12 }}
               />
 
               <div style={{ marginTop: 6, textAlign: 'right' }}>
                 <Text className={styles.subText}>
-                  {(vm.title || '').length}/120 {t('createAudio.generate.characters')}
+                  {(vm.title || '').length}/150 {t('createAudio.generate.characters')}
                 </Text>
               </div>
             </div>

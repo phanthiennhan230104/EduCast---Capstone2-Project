@@ -75,6 +75,12 @@ export const getTopics = async () => {
   return await apiRequest('/content/topics/')
 }
 
+// Lấy tags có sẵn (hỗ trợ tìm kiếm ?q=keyword)
+export const getTags = async (q = '') => {
+  const query = q ? `?q=${encodeURIComponent(q)}` : ''
+  return await apiRequest(`/content/tags/${query}`)
+}
+
 // Publish post
 export const publishPost = async (payload) => {
   return await apiRequest('/content/posts/publish/', {

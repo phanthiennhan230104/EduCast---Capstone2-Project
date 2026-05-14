@@ -112,7 +112,7 @@ const currentLang = (i18n.resolvedLanguage || i18n.language || 'vi').split('-')[
             aria-label={t('header.chooseLanguage')}
           >
             <span className={styles.flag}>
-              {currentLang === 'en' ? 'EN' : 'VI'}
+              {currentLang === 'en' ? '🇺🇸' : '🇻🇳'}
             </span>
           </button>
 
@@ -130,7 +130,7 @@ const currentLang = (i18n.resolvedLanguage || i18n.language || 'vi').split('-')[
               className={`${styles.langOption} ${i18n.language === 'en' ? styles.langOptionActive : ''}`}
               onClick={() => handleLanguageChange('en')}
             >
-              <span>EN</span>
+              <span>🇺🇸</span>
               <span>English</span>
             </button>
           </div>

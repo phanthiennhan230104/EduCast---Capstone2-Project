@@ -2,12 +2,13 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRef } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { toast } from 'react-toastify'
-import { Select } from 'antd'
+import { Select, ConfigProvider, theme as antTheme } from 'antd'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import { useTranslation } from 'react-i18next'
 import {
   createDraft,
   getTopics,
+  getTags,
   publishPost,
   saveDraftWithAudio,
   updateDraft,
@@ -115,8 +116,8 @@ export default function PublishPostPage() {
   )
 
   const [form, setForm] = useState(initialForm)
-  const [tagInput, setTagInput] = useState('')
   const [topics, setTopics] = useState([])
+  const [availableTags, setAvailableTags] = useState([])
   const [loadingMeta, setLoadingMeta] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const fileInputRef = useRef(null)
@@ -156,48 +157,26 @@ export default function PublishPostPage() {
     setForm((prev) => ({ ...prev, [key]: value }))
   }
 
-  const normalizeTag = (raw) => {
-    if (!raw) return null
+  const handleTagChange = (selectedTags) => {
+    const normalized = selectedTags
+      .map((raw) =>
+        (raw || '')
+          .replace(/^#+/, '')
+          .trim()
+          .toLowerCase()
+          .replace(/\s+/g, ' ')
+      )
+      .filter((t) => t && t.length <= 30)
 
-    const cleaned = raw
-      .replace(/^#+/, '')
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
+    const unique = [...new Set(normalized)]
 
-    if (!cleaned) return null
-    if (cleaned.length > 30) return null
-
-    return cleaned
-  }
-
-  const addTag = () => {
-    const normalized = normalizeTag(tagInput)
-
-    if (!normalized) {
-      if (tagInput.trim()) toast.info(t('publishPost.invalidTag'))
-      return
-    }
-
-    if (form.tags.length >= MAX_TAGS) {
+    if (unique.length > MAX_TAGS) {
       toast.info(t('publishPost.maxTags', { count: MAX_TAGS }))
+      updateField('tags', unique.slice(0, MAX_TAGS))
       return
     }
 
-    if (form.tags.includes(normalized)) {
-      setTagInput('')
-      return
-    }
-
-    updateField('tags', [...form.tags, normalized])
-    setTagInput('')
-  }
-
-  const removeTag = (tag) => {
-    updateField(
-      'tags',
-      form.tags.filter((item) => item !== tag)
-    )
+    updateField('tags', unique)
   }
 
   const toggleTopic = (topicId) => {
@@ -233,11 +212,18 @@ export default function PublishPostPage() {
     const fetchMeta = async () => {
       try {
         setLoadingMeta(true)
-        const topicRes = await getTopics()
+        const [topicRes, tagRes] = await Promise.all([getTopics(), getTags()])
 
         if (!mounted) return
 
         setTopics(normalizeTopicList(topicRes))
+
+        const tagList = tagRes?.data ?? tagRes ?? []
+        setAvailableTags(
+          (Array.isArray(tagList) ? tagList : [])
+            .map((item) => ({ value: item?.name ?? '', label: item?.name ?? '' }))
+            .filter((item) => item.value)
+        )
       } catch (error) {
         console.error(error)
         toast.error(t('publishPost.loadTopicsFailed'))
@@ -253,12 +239,6 @@ export default function PublishPostPage() {
     }
   }, [])
 
-  const handleTagKeyDown = (e) => {
-    if (e.key === 'Enter' || e.key === ',') {
-      e.preventDefault()
-      addTag()
-    }
-  }
 
   const resolveAudioSource = async () => {
     let audioUrl = form.audioUrl
@@ -662,21 +642,43 @@ export default function PublishPostPage() {
                   </span>
                 </label>
 
-                <Select
-                  className={styles.topicAntSelect}
-                  mode="multiple"
-                  allowClear
-                  showSearch={{ optionFilterProp: 'label' }}
-                  placeholder={t('publishPost.topicPlaceholder')}
-                  value={form.topicIds}
-                  onChange={handleTopicChange}
-                  disabled={loadingMeta}
-                  style={{ width: '100%' }}
-                  options={topics.map((topic) => ({
-                    value: topic.id,
-                    label: topic.name,
-                  }))}
-                />
+                <ConfigProvider
+                  theme={{
+                    token: {
+                      colorBgContainer: 'rgba(8, 12, 27, 0.74)',
+                      colorBgElevated: '#101828',
+                      colorBorder: 'rgba(245, 240, 232, 0.11)',
+                      colorText: '#f5f0e8',
+                      colorTextPlaceholder: 'rgba(245, 240, 232, 0.38)',
+                      colorPrimary: '#f4a227',
+                      borderRadius: 14,
+                    },
+                    components: {
+                      Select: {
+                        selectorBg: 'rgba(8, 12, 27, 0.74)',
+                        multipleItemBg: 'rgba(244, 162, 39, 0.17)',
+                        optionSelectedBg: 'rgba(244, 162, 39, 0.18)',
+                        optionActiveBg: 'rgba(255, 255, 255, 0.06)',
+                      },
+                    },
+                  }}
+                >
+                  <Select
+                    className={styles.topicAntSelect}
+                    mode="multiple"
+                    allowClear
+                    showSearch={{ optionFilterProp: 'label' }}
+                    placeholder={t('publishPost.topicPlaceholder')}
+                    value={form.topicIds}
+                    onChange={handleTopicChange}
+                    disabled={loadingMeta}
+                    style={{ width: '100%' }}
+                    options={topics.map((topic) => ({
+                      value: topic.id,
+                      label: topic.name,
+                    }))}
+                  />
+                </ConfigProvider>
               </div>
 
               <div className={styles.field}>
@@ -687,43 +689,44 @@ export default function PublishPostPage() {
                   </span>
                 </label>
 
-                <div className={styles.tagComposer}>
-                  <input
-                    className={styles.tagInput}
-                    type="text"
+                <ConfigProvider
+                  theme={{
+                    token: {
+                      colorBgContainer: 'rgba(8, 12, 27, 0.74)',
+                      colorBgElevated: '#101828',
+                      colorBorder: 'rgba(245, 240, 232, 0.11)',
+                      colorText: '#f5f0e8',
+                      colorTextPlaceholder: 'rgba(245, 240, 232, 0.38)',
+                      colorPrimary: '#f4a227',
+                      borderRadius: 14,
+                    },
+                    components: {
+                      Select: {
+                        selectorBg: 'rgba(8, 12, 27, 0.74)',
+                        multipleItemBg: 'rgba(244, 162, 39, 0.17)',
+                        optionSelectedBg: 'rgba(244, 162, 39, 0.18)',
+                        optionActiveBg: 'rgba(255, 255, 255, 0.06)',
+                      },
+                    },
+                  }}
+                >
+                  <Select
+                    className={styles.tagAntSelect}
+                    mode="tags"
+                    allowClear
+                    tokenSeparators={[',']}
                     placeholder={t('publishPost.tagPlaceholder')}
-                    value={tagInput}
-                    onChange={(e) => setTagInput(e.target.value)}
-                    onKeyDown={handleTagKeyDown}
+                    value={form.tags}
+                    onChange={handleTagChange}
+                    disabled={loadingMeta}
+                    style={{ width: '100%' }}
+                    maxCount={MAX_TAGS}
+                    options={availableTags}
+                    filterOption={(input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
                   />
-                  <button
-                    type="button"
-                    className={styles.tagAddButton}
-                    onClick={addTag}
-                  >
-                    {t('publishPost.add')}
-                  </button>
-                </div>
-
-                <div className={styles.tagList}>
-                  {form.tags.length === 0 ? (
-                    <span className={styles.emptyText}>{t('publishPost.noTags')}</span>
-                  ) : (
-                    form.tags.map((tag) => (
-                      <span key={`tag-${tag}`} className={styles.tagChip}>
-                        #{tag}
-                        <button
-                          type="button"
-                          className={styles.tagRemove}
-                          onClick={() => removeTag(tag)}
-                          aria-label={t('publishPost.removeTagAria', { tag })}
-                        >
-                          ×
-                        </button>
-                      </span>
-                    ))
-                  )}
-                </div>
+                </ConfigProvider>
               </div>
 
               <div className={styles.field}>

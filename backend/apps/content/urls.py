@@ -11,6 +11,7 @@ from .views import (
     UploadDocumentView,
     PublishPostView,
     TopicListView,
+    TagListView,
 )
 from .admin_views import (
     AdminPostsListView,
@@ -69,5 +70,6 @@ urlpatterns = [
     path("admin/notifications/<str:notification_id>/", AdminNotificationDetailView.as_view(), name="admin-notification-detail"),
     
     path("topics/", TopicListView.as_view(), name="topic-list"),
+    path("tags/", TagListView.as_view(), name="tag-list"),
 
 ]

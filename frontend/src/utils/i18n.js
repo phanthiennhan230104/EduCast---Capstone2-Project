@@ -766,21 +766,21 @@ const resources = {
         hook: {
           demoText: 'Backpropagation là thuật toán cốt lõi để huấn luyện mạng nơ-ron...',
           voices: {
-            minhTuan: {
-              name: 'Minh Tuấn',
-              tag: 'Nam · Ấm · Miền Nam',
+            hoaiMy: {
+              name: 'Hoài My',
+              tag: 'Nữ · Việt Nam · Kể chuyện tự nhiên',
             },
-            lanAnh: {
-              name: 'Lan Anh',
-              tag: 'Nữ · Sáng · Miền Bắc',
+            namMinh: {
+              name: 'Nam Minh',
+              tag: 'Nam · Việt Nam · Rõ ràng học thuật',
             },
-            hung: {
-              name: 'Hùng',
-              tag: 'Nam · Trầm · Miền Bắc',
+            andrew: {
+              name: 'Andrew',
+              tag: 'Nam · Tiếng Anh Mỹ · Kể chuyện',
             },
-            thuHa: {
-              name: 'Thu Hà',
-              tag: 'Nữ · Dịu · Miền Trung',
+            ava: {
+              name: 'Ava',
+              tag: 'Nữ · Tiếng Anh Mỹ · Hướng dẫn',
             },
           },
           topics: {

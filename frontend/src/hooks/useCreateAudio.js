@@ -356,6 +356,71 @@ export function useCreateAudio() {
     }
   }, [])
 
+  const handleFile = useCallback(async (file) => {
+    if (!file) return
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'text/plain',
+    ]
+    if (!allowedTypes.includes(file.type)) {
+      toast.error(t('createAudio.hook.invalidFileType', { defaultValue: 'Chỉ hỗ trợ PDF, DOC, DOCX, TXT' }))
+      return
+    }
+
+    const maxSize = 10 * 1024 * 1024 // 10MB
+    if (file.size > maxSize) {
+      toast.error(t('createAudio.hook.fileTooLarge', { defaultValue: 'File quá lớn. Tối đa 10MB' }))
+      return
+    }
+
+    setFile(file)
+    setFileReady(false)
+    setIsUploadingFile(true)
+    setUploadedExtractedText('')
+    setUploadedDocUrl('')
+    setUploadedDocPublicId('')
+    resetGenerateState()
+
+    try {
+      const formData = new FormData()
+      formData.append('file', file)
+
+      const res = await uploadDocument(formData)
+      const data = res?.data || res || {}
+
+      const extractedText = data.extracted_text || ''
+      const docUrl = data.document_url || ''
+      const docPublicId = data.public_id || ''
+
+      setUploadedExtractedText(extractedText)
+      setUploadedDocUrl(docUrl)
+      setUploadedDocPublicId(docPublicId)
+      setFileReady(true)
+
+      toast.success(t('createAudio.hook.fileUploadSuccess', { defaultValue: 'Tải tài liệu thành công' }))
+    } catch (error) {
+      console.error('Upload document error:', error)
+      toast.error(error?.message || t('createAudio.hook.fileUploadFailed', { defaultValue: 'Tải tài liệu thất bại' }))
+      setFile(null)
+      setFileReady(false)
+    } finally {
+      setIsUploadingFile(false)
+    }
+  }, [resetGenerateState, t])
+
+  const removeFile = useCallback(() => {
+    setFile(null)
+    setFileReady(false)
+    setIsUploadingFile(false)
+    setUploadedExtractedText('')
+    setUploadedDocUrl('')
+    setUploadedDocPublicId('')
+    resetGenerateState()
+  }, [resetGenerateState])
+
   const clearText = useCallback(() => {
     setText('')
     setUploadedExtractedText('')
@@ -437,7 +502,7 @@ export function useCreateAudio() {
         {
           original_text: inputText,
           mode: aiMode,
-          voice_name: voice,
+          voice_name: selectedVoiceName,
         },
         controller.signal
       )
@@ -597,6 +662,8 @@ export function useCreateAudio() {
     words,
     clearText,
     fillDemoText,
+    handleFile,
+    removeFile,
     setRecentDrafts,
     loadRecentDrafts,
     estLabel,

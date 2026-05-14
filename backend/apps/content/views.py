@@ -25,6 +25,7 @@ from .serializers import (
     FeedItemSerializer,
     PublishPostSerializer,
     TopicSerializer,
+    TagSerializer,
 )
 from .services.cloudinary_service import (
     upload_file_to_cloudinary,
@@ -1507,6 +1508,28 @@ class TopicListView(APIView):
         return Response(
             {
                 "message": "Lấy danh sách topics thành công",
+                "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class TagListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        """
+        Trả về danh sách tất cả tags trong hệ thống, sắp xếp theo tên.
+        Hỗ trợ tìm kiếm qua query param ?q=<keyword>.
+        """
+        q = (request.query_params.get("q") or "").strip().lower()
+        tags = Tag.objects.all().order_by("name")
+        if q:
+            tags = tags.filter(name__icontains=q)
+        serializer = TagSerializer(tags, many=True)
+        return Response(
+            {
+                "message": "Lấy danh sách tags thành công",
                 "data": serializer.data,
             },
             status=status.HTTP_200_OK,
