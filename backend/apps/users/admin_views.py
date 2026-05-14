@@ -7,7 +7,7 @@ from django.db import transaction
 from django.db.models import Count, Sum, Q, OuterRef, Subquery, IntegerField, Value
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
-from datetime import timedelta
+from datetime import timedelta, datetime, time
 from .permissions import IsAdminRole
 from .models import UserSettings
 
@@ -270,7 +270,24 @@ class AdminOverviewView(APIView):
         unlock_expired_locks()
 
         today = timezone.localdate()
-        seven_days_ago = today - timedelta(days=6)
+
+        # Tuần hiện tại: T2 -> CN
+        start_of_week = today - timedelta(days=today.weekday())
+        end_of_week = start_of_week + timedelta(days=6)
+
+        tz = timezone.get_current_timezone()
+
+        # Lọc bằng datetime range, không dùng __date
+        start_of_week_dt = timezone.make_aware(
+            datetime.combine(start_of_week, time.min),
+            tz
+        )
+
+        next_week_dt = timezone.make_aware(
+            datetime.combine(end_of_week + timedelta(days=1), time.min),
+            tz
+        )
+
         thirty_days_ago = timezone.now() - timedelta(days=30)
 
         users_qs = User.objects.all()
@@ -369,7 +386,7 @@ class AdminOverviewView(APIView):
         )
 
         top_posts = list(
-            Post.objects.filter(status="published",visibility="public",)
+            Post.objects.filter(status="published", visibility="public")
             .annotate(
                 db_like_count=Coalesce(
                     Subquery(like_count_subquery, output_field=IntegerField()),
@@ -390,61 +407,142 @@ class AdminOverviewView(APIView):
                 "db_like_count",
                 "db_comment_count",
             )
-            .order_by("-listen_count", "-view_count")[:5]
+            .order_by("-listen_count", "-view_count")
         )
+        
 
         for post in top_posts:
             post["like_count"] = post.pop("db_like_count", 0)
             post["comment_count"] = post.pop("db_comment_count", 0)
 
-        def fill_daily_series(rows):
-            mapped = {str(row["day"]): row["count"] for row in rows}
+        def fill_weekly_series(rows):
+            mapped = {}
+
+            for row in rows:
+                day_value = row["day"]
+
+                if hasattr(day_value, "date"):
+                    day_key = day_value.date().isoformat()
+                elif hasattr(day_value, "isoformat"):
+                    day_key = day_value.isoformat()
+                else:
+                    day_key = str(day_value)[:10]
+
+                mapped[day_key[:10]] = row["count"]
+
             result = []
 
+            # T2 -> CN
             for i in range(7):
-                day = seven_days_ago + timedelta(days=i)
+                day = start_of_week + timedelta(days=i)
+                key = day.isoformat()
+
                 result.append({
-                    "date": day.isoformat(),
-                    "count": mapped.get(day.isoformat(), 0),
+                    "date": key,
+                    "count": mapped.get(key, 0),
                 })
 
             return result
 
-        new_users_7d = fill_daily_series(
-        User.objects.filter(
+        weekly_user_counts = {
+            (start_of_week + timedelta(days=i)).isoformat(): 0
+            for i in range(7)
+        }
+
+        weekly_users = User.objects.filter(
             role="user",
             status="active",
-            created_at__date__gte=seven_days_ago,
-        )
-        .annotate(day=TruncDate("created_at"))
-        .values("day")
-        .annotate(count=Count("id"))
-        .order_by("day")
-)
+            created_at__gte=start_of_week_dt,
+            created_at__lt=next_week_dt,
+        ).only("id", "username", "email", "created_at")
 
-        new_posts_7d = fill_daily_series(
-            Post.objects.filter(created_at__date__gte=seven_days_ago)
-            .annotate(day=TruncDate("created_at"))
+        for user in weekly_users:
+            local_created_at = timezone.localtime(user.created_at, tz)
+            day_key = local_created_at.date().isoformat()
+
+            if day_key in weekly_user_counts:
+                weekly_user_counts[day_key] += 1
+
+        new_users_7d = [
+            {
+                "date": day,
+                "count": count,
+            }
+            for day, count in weekly_user_counts.items()
+        ]
+
+        print("NEW USERS WEEK:", new_users_7d)
+        
+
+        weekly_post_counts = {
+            (start_of_week + timedelta(days=i)).isoformat(): 0
+            for i in range(7)
+        }
+
+        weekly_posts = Post.objects.filter(
+            visibility="public",
+            status="published",
+            created_at__gte=start_of_week_dt,
+            created_at__lt=next_week_dt,
+        ).only("id", "title", "created_at")
+
+        for post in weekly_posts:
+            local_created_at = timezone.localtime(post.created_at, tz)
+            day_key = local_created_at.date().isoformat()
+
+            if day_key in weekly_post_counts:
+                weekly_post_counts[day_key] += 1
+
+        new_posts_7d = [
+            {
+                "date": day,
+                "count": count,
+            }
+            for day, count in weekly_post_counts.items()
+        ]
+
+        
+
+        reports_7d = fill_weekly_series(
+            Report.objects.filter(
+                created_at__date__gte=start_of_week,
+                created_at__date__lte=end_of_week,
+            )
+            .annotate(day=TruncDate("created_at", tzinfo=timezone.get_current_timezone()))
             .values("day")
             .annotate(count=Count("id"))
             .order_by("day")
         )
 
-        reports_7d = fill_daily_series(
-            Report.objects.filter(created_at__date__gte=seven_days_ago)
-            .annotate(day=TruncDate("created_at"))
+        messages_7d = fill_weekly_series(
+            Message.objects.filter(
+                created_at__date__gte=start_of_week,
+                created_at__date__lte=end_of_week,
+                is_deleted=False,
+            )
+            .annotate(day=TruncDate("created_at", tzinfo=timezone.get_current_timezone()))
             .values("day")
             .annotate(count=Count("id"))
             .order_by("day")
         )
 
-        messages_7d = fill_daily_series(
-            Message.objects.filter(created_at__date__gte=seven_days_ago, is_deleted=False)
-            .annotate(day=TruncDate("created_at"))
-            .values("day")
-            .annotate(count=Count("id"))
-            .order_by("day")
+        direct_posts = Post.objects.filter(
+            visibility="public",
+            status="published",
+            created_at__gte=start_of_week_dt,
+            created_at__lt=next_week_dt,
         )
+
+        print("DIRECT POSTS COUNT:", direct_posts.count())
+        print(list(direct_posts.values(
+            "id",
+            "title",
+            "visibility",
+            "status",
+            "created_at",
+        )))
+        print("NEW POSTS WEEK:", new_posts_7d)
+        print("================================")
 
         return Response(
             {

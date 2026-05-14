@@ -2558,16 +2558,16 @@ def create_report(request):
     if target_type == "post":
         post = get_object_or_404(Post, id=target_id)
         if post.user_id == reporter.id:
-            return _json_error("Bạn không thể báo cáo bài viết của chính mình", 400)
+            return _json_error("feed.reportModal.ownPostError", 400)
         # Ensure the post exists and is accessible
     elif target_type == "comment":
         comment = get_object_or_404(Comment, id=target_id)
         if comment.user_id == reporter.id:
-            return _json_error("Bạn không thể báo cáo bình luận của chính mình", 400)
+            return _json_error("feed.reportModal.ownCommentError", 400)
     elif target_type == "user":
         target_user = get_object_or_404(User, id=target_id)
         if target_user.id == reporter.id:
-            return _json_error("Bạn không thể báo cáo chính mình", 400)
+            return _json_error("feed.reportModal.ownUserError", 400)
     
     # Check if user already reported this content (prevent duplicate reports)
     existing_report = Report.objects.filter(
@@ -2578,7 +2578,7 @@ def create_report(request):
     ).first()
     
     if existing_report:
-        return _json_error("Bạn đã báo cáo nội dung này rồi", 400)
+        return _json_error("feed.reportModal.duplicateReportError", 400)
     
     # Create the report
     try:
@@ -2595,7 +2595,7 @@ def create_report(request):
         )
         
         return _json_success(
-            "Báo cáo đã được gửi thành công",
+    "feed.reportModal.success",
             {
                 "report_id": report.id,
                 "status": report.status,
@@ -2604,4 +2604,4 @@ def create_report(request):
             201
         )
     except Exception as e:
-        return _json_error(f"Lỗi khi tạo báo cáo: {str(e)}", 500)
+        return _json_error("feed.reportModal.failed", 500)
