@@ -31,3 +31,5 @@ yarn-error.log*
 coverage/
 htmlcov/
 .pytest_cache/
+frontend/vite-dev.err.log
+frontend/vite-dev.out.log
