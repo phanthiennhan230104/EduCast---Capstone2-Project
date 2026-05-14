@@ -64,8 +64,8 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: rgba(255,255,255,0.03);
-  border: 1px solid rgba(245,240,232,0.06);
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(245, 240, 232, 0.06);
   color: #f5f0e8;
   cursor: pointer;
   padding: 6px;
@@ -73,8 +73,8 @@
 
 .iconButton:hover {
   transform: translateY(-2px);
-  background: rgba(255,255,255,0.06);
-  border-color: rgba(244,162,39,0.28);
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(244, 162, 39, 0.28);
 }
 
 .layout {
@@ -157,12 +157,12 @@
 .input,
 .select {
   width: 100%;
-  min-height: 48px;
+  min-height: 44px;
   border: 1px solid rgba(245, 240, 232, 0.1);
   border-radius: 14px;
   background: rgba(0, 0, 0, 0.28);
   color: #f5f0e8;
-  padding: 12px 14px;
+  padding: 10px 14px;
   outline: none;
   transition:
     border-color 0.18s ease,
@@ -645,130 +645,224 @@
   gap: 10px;
   margin-top: 12px;
 }
-.topicAntSelect {
-  width: 100%;
-  min-height: 48px;
 
-  --ant-select-selector-bg: rgba(0, 0, 0, 0.28) !important;
+
+
+/* Input lĩnh vực học tập: dùng cùng kích cỡ và màu với Select */
+.field .input:not(textarea),
+.field .select,
+.topicAntSelect :global(.ant-select-selector),
+.tagAntSelect :global(.ant-select-selector) {
+  min-height: 48px !important;
+  border-radius: 16px !important;
+  border: 1px solid rgba(245, 240, 232, 0.11) !important;
+  background: linear-gradient(180deg,
+      rgba(8, 12, 27, 0.74) 0%,
+      rgba(5, 8, 19, 0.58) 100%) !important;
+  color: #f5f0e8 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035) !important;
+  transition:
+    border-color 0.18s ease,
+    background 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease !important;
 }
 
-.topicAntSelect :global(.ant-select-selector) {
-  min-height: 48px !important;
-  height: 48px !important;
-  border: 1px solid rgba(245, 240, 232, 0.1) !important;
-  border-radius: 14px !important;
-  background: rgba(0, 0, 0, 0.28) !important;
-  color: #f5f0e8 !important;
-  padding: 12px 14px !important;
-  box-shadow: none !important;
+.field .input:not(textarea) {
+  height: 48px;
+  padding: 0 15px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.field .input:not(textarea)::placeholder {
+  color: rgba(245, 240, 232, 0.38);
+  font-weight: 500;
+}
+
+.field .input:not(textarea):hover,
+.topicAntSelect:hover :global(.ant-select-selector),
+.tagAntSelect:hover :global(.ant-select-selector) {
+  border-color: rgba(244, 162, 39, 0.34) !important;
+  background: linear-gradient(180deg,
+      rgba(12, 17, 36, 0.82) 0%,
+      rgba(8, 11, 24, 0.68) 100%) !important;
+}
+
+.field .input:not(textarea):focus,
+.topicAntSelect:global(.ant-select-focused) :global(.ant-select-selector),
+.tagAntSelect:global(.ant-select-focused) :global(.ant-select-selector),
+.topicAntSelect:global(.ant-select-open) :global(.ant-select-selector),
+.tagAntSelect:global(.ant-select-open) :global(.ant-select-selector) {
+  border-color: rgba(244, 162, 39, 0.58) !important;
+  background: rgba(8, 12, 27, 0.86) !important;
+  box-shadow:
+    0 0 0 3px rgba(244, 162, 39, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.045) !important;
+}
+
+/* Ant Select wrapper */
+.topicAntSelect,
+.tagAntSelect {
+  width: 100%;
+  min-height: 48px;
+  line-height: 1.4;
+  --ant-color-bg-container: transparent !important;
+  --ant-select-selector-bg: transparent !important;
+}
+
+.topicAntSelect :global(.ant-select-selector),
+.tagAntSelect :global(.ant-select-selector) {
+  height: auto !important;
+  padding: 7px 42px 7px 12px !important;
   display: flex !important;
   align-items: center !important;
 }
 
-.topicAntSelect :global(.ant-select-selection-overflow) {
-  min-height: auto !important;
-  height: 100% !important;
+.topicAntSelect :global(.ant-select-selection-overflow),
+.tagAntSelect :global(.ant-select-selection-overflow) {
+  display: flex !important;
   align-items: center !important;
+  flex-wrap: wrap !important;
+  gap: 7px !important;
+  min-height: 32px !important;
 }
 
-.topicAntSelect :global(.ant-select-selection-placeholder) {
-  position: static !important;
-  transform: none !important;
-  margin: 0 !important;
-  color: rgba(245, 240, 232, 0.38) !important;
-  font-size: 15px !important;
-  line-height: normal !important;
+.topicAntSelect :global(.ant-select-selection-search),
+.tagAntSelect :global(.ant-select-selection-search) {
+  margin-inline-start: 0 !important;
 }
 
-.topicAntSelect :global(.ant-select-selection-search-input) {
-  height: 24px !important;
+.topicAntSelect :global(.ant-select-selection-search-input),
+.tagAntSelect :global(.ant-select-selection-search-input) {
+  height: 32px !important;
   color: #f5f0e8 !important;
-  font-size: 15px !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
 }
 
-.topicAntSelect :global(.ant-select-selection-item) {
-  height: 28px !important;
+.topicAntSelect :global(.ant-select-selection-placeholder),
+.tagAntSelect :global(.ant-select-selection-placeholder) {
+  color: rgba(245, 240, 232, 0.38) !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  line-height: 32px !important;
+  inset-inline-start: 12px !important;
+  inset-inline-end: 42px !important;
+}
+
+/* Chip đã chọn của Chủ đề / Tag */
+.topicAntSelect :global(.ant-select-selection-item),
+.tagAntSelect :global(.ant-select-selection-item),
+.metaTopicTag,
+.tagChip {
+  min-height: 30px !important;
+  height: 30px !important;
   line-height: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
   border-radius: 999px !important;
-  background: rgba(244, 162, 39, 0.12) !important;
-  border: none !important;
-  color: #f4a227 !important;
-  font-weight: 700;
+  border: 1px solid rgba(244, 162, 39, 0.24) !important;
+  background: linear-gradient(135deg,
+      rgba(244, 162, 39, 0.17),
+      rgba(255, 106, 61, 0.1)) !important;
+  color: #ffca72 !important;
+  padding: 0 11px !important;
+  margin: 0 !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  letter-spacing: 0.01em !important;
+  box-shadow: 0 6px 14px rgba(244, 162, 39, 0.08) !important;
+}
+
+.topicAntSelect :global(.ant-select-selection-item-content),
+.tagAntSelect :global(.ant-select-selection-item-content) {
+  margin-inline-end: 2px !important;
+}
+
+.topicAntSelect :global(.ant-select-selection-item-remove),
+.tagAntSelect :global(.ant-select-selection-item-remove) {
+  color: rgba(255, 202, 114, 0.78) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  font-size: 11px !important;
+}
+
+.topicAntSelect :global(.ant-select-selection-item-remove:hover),
+.tagAntSelect :global(.ant-select-selection-item-remove:hover) {
+  color: #ffffff !important;
 }
 
 .topicAntSelect :global(.ant-select-arrow),
+.tagAntSelect :global(.ant-select-arrow),
 .topicAntSelect :global(.ant-select-clear),
-.topicAntSelect :global(.ant-select-selection-item-remove) {
-  color: rgba(245, 240, 232, 0.68) !important;
+.tagAntSelect :global(.ant-select-clear) {
+  color: rgba(245, 240, 232, 0.58) !important;
+  inset-inline-end: 15px !important;
 }
 
-.topicAntSelect:hover :global(.ant-select-selector),
-.topicAntSelect:global(.ant-select-focused) :global(.ant-select-selector) {
-  border-color: rgba(244, 162, 39, 0.42) !important;
-  box-shadow: 0 0 0 3px rgba(244, 162, 39, 0.08) !important;
-  background: rgba(0, 0, 0, 0.34) !important;
-}
-.topicAntSelect {
-  width: 100%;
-  min-height: 48px;
-
-  --ant-select-selector-bg: rgba(0, 0, 0, 0.28) !important;
-  --ant-select-multiple-item-bg: rgba(244, 162, 39, 0.12) !important;
-  --ant-select-multiple-item-color: #f4a227 !important;
-  --ant-select-color-text-placeholder: rgba(245, 240, 232, 0.38) !important;
-}
-
-.topicAntSelect :global(.ant-select-selector) {
-  min-height: 48px !important;
-  height: 48px !important;
-  border: 1px solid rgba(245, 240, 232, 0.1) !important;
-  border-radius: 14px !important;
-  background: rgba(0, 0, 0, 0.28) !important;
-  color: #f5f0e8 !important;
-  padding: 0 14px !important;
-  box-shadow: none !important;
-  display: flex !important;
-  align-items: center !important;
-}
-
-.topicAntSelect :global(.ant-select-selection-overflow) {
-  height: 100% !important;
-  display: flex !important;
-  align-items: center !important;
-}
-
-.topicAntSelect :global(.ant-select-selection-placeholder) {
-  color: rgba(245, 240, 232, 0.38) !important;
-  font-size: 15px !important;
-  line-height: 48px !important;
-}
-
-.topicAntSelect :global(.ant-select-selection-search-input) {
-  height: 48px !important;
-  color: #f5f0e8 !important;
-  font-size: 15px !important;
-}
-
-.topicAntSelect :global(.ant-select-selection-item) {
-  background: rgba(244, 162, 39, 0.12) !important;
-  border: none !important;
-  border-radius: 999px !important;
+.topicAntSelect :global(.ant-select-arrow:hover),
+.tagAntSelect :global(.ant-select-arrow:hover),
+.topicAntSelect :global(.ant-select-clear:hover),
+.tagAntSelect :global(.ant-select-clear:hover) {
   color: #f4a227 !important;
-  font-weight: 700;
 }
 
-.topicAntSelect :global(.ant-select-arrow),
-.topicAntSelect :global(.ant-select-clear),
-.topicAntSelect :global(.ant-select-selection-item-remove) {
-  color: rgba(245, 240, 232, 0.68) !important;
+/* Danh sách topic kiểu button/chip nếu màn khác còn dùng lại */
+.topicButtons,
+.topicList,
+.metaTopicWrap,
+.tagList {
+  gap: 9px;
 }
 
-.topicAntSelect:hover :global(.ant-select-selector),
-.topicAntSelect:global(.ant-select-focused) :global(.ant-select-selector) {
-  border-color: rgba(244, 162, 39, 0.42) !important;
-  box-shadow: 0 0 0 3px rgba(244, 162, 39, 0.08) !important;
-  background: rgba(0, 0, 0, 0.34) !important;
+.topicButton,
+.topicChip {
+  min-height: 34px;
+  border-radius: 999px;
+  border: 1px solid rgba(245, 240, 232, 0.11);
+  background: rgba(255, 255, 255, 0.035);
+  color: rgba(245, 240, 232, 0.7);
+  padding: 7px 13px;
+  font-size: 12px;
+  font-weight: 800;
 }
+
+.topicButton:hover,
+.topicChip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(244, 162, 39, 0.34);
+  background: rgba(244, 162, 39, 0.12);
+  color: #ffca72;
+}
+
+.topicButtonActive,
+.topicChipActive {
+  border-color: rgba(244, 162, 39, 0.58) !important;
+  background: linear-gradient(135deg,
+      rgba(244, 162, 39, 0.22),
+      rgba(255, 106, 61, 0.16)) !important;
+  color: #ffca72 !important;
+  box-shadow: 0 10px 22px rgba(244, 162, 39, 0.14) !important;
+}
+
+@media (max-width: 768px) {
+
+  .field .input:not(textarea),
+  .topicAntSelect,
+  .tagAntSelect,
+  .topicAntSelect :global(.ant-select-selector),
+  .tagAntSelect :global(.ant-select-selector) {
+    min-height: 46px !important;
+  }
+
+  .topicAntSelect :global(.ant-select-selector),
+  .tagAntSelect :global(.ant-select-selector) {
+    padding: 7px 38px 7px 11px !important;
+  }
+}
+
 @media (max-width: 768px) {
   .newTopicComposer {
     flex-direction: column;
@@ -799,7 +893,7 @@
     width: 100%;
   }
 
-  .heroActions > button {
+  .heroActions>button {
     flex: 1;
   }
 
