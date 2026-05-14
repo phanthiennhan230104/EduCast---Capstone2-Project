@@ -33,27 +33,27 @@ export function useCreateAudio() {
   
   const demoText = t('createAudio.hook.demoText')
   const voices = [
-  {
-    id: 'vi-hoai-my',
-    name: t('createAudio.hook.voices.hoaiMy.name'),
-    tag: t('createAudio.hook.voices.hoaiMy.tag'),
-  },
-  {
-    id: 'vi-nam-minh',
-    name: t('createAudio.hook.voices.namMinh.name'),
-    tag: t('createAudio.hook.voices.namMinh.tag'),
-  },
-  {
-    id: 'en-andrew',
-    name: t('createAudio.hook.voices.andrew.name'),
-    tag: t('createAudio.hook.voices.andrew.tag'),
-  },
-  {
-    id: 'en-ava',
-    name: t('createAudio.hook.voices.ava.name'),
-    tag: t('createAudio.hook.voices.ava.tag'),
-  },
-]
+    {
+      id: 'vi-hoai-my',
+      name: t('createAudio.hook.voices.hoaiMy.name'),
+      tag: t('createAudio.hook.voices.hoaiMy.tag'),
+    },
+    {
+      id: 'vi-nam-minh',
+      name: t('createAudio.hook.voices.namMinh.name'),
+      tag: t('createAudio.hook.voices.namMinh.tag'),
+    },
+    {
+      id: 'en-andrew',
+      name: t('createAudio.hook.voices.andrew.name'),
+      tag: t('createAudio.hook.voices.andrew.tag'),
+    },
+    {
+      id: 'en-ava',
+      name: t('createAudio.hook.voices.ava.name'),
+      tag: t('createAudio.hook.voices.ava.tag'),
+    },
+  ]
 
   const formats = ['MP3', 'WAV', 'OGG', 'AAC']
 
@@ -613,7 +613,7 @@ export function useCreateAudio() {
       console.error('Save draft error:', error)
       toast.error(error?.message || t('createAudio.hook.saveDraftFailed'))
     }
-  
+
   }, [
     aiMode,
     audioUrl,

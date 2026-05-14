@@ -1,25 +1,34 @@
 .admin-layout {
-  min-height: 100vh;
+  width: 100%;
+  height: 100dvh;
+  min-height: 100dvh;
+
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
+
   background:
     radial-gradient(circle at top left, rgba(73, 88, 180, 0.15), transparent 28%),
     linear-gradient(180deg, #1a2047 0%, #1b2148 100%);
+
   color: #f5f7ff;
   overflow: hidden;
   font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .admin-layout-content {
+  height: 100dvh;
+  min-width: 0;
+
   display: flex;
   flex-direction: column;
-  min-width: 0;
   overflow: hidden;
 }
 
 .admin-layout-main {
-  padding: 16px 28px 28px;
+  flex: 1;
   min-width: 0;
+
+  padding: 16px 28px 28px;
   overflow: auto;
 }
 

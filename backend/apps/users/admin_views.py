@@ -664,3 +664,48 @@ class AdminSystemNotificationSettingsView(APIView):
             },
             status=status.HTTP_200_OK
         )
+    
+class AdminRepublishPostView(APIView):
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Không tìm thấy bài viết."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if post.status != "hidden":
+            return Response(
+                {"error": "Chỉ có thể đăng lại bài viết đang bị ẩn."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        post.status = "published"
+        post.visibility = "public"
+        post.published_at = timezone.now()
+        post.save(
+            update_fields=[
+                "status",
+                "visibility",
+                "published_at",
+                "updated_at",
+            ]
+        )
+
+        return Response(
+            {
+                "message": "Bài viết đã được đăng lại.",
+                "post": {
+                    "id": post.id,
+                    "title": post.title,
+                    "status": post.status,
+                    "visibility": post.visibility,
+                    "published_at": post.published_at.isoformat() if post.published_at else None,
+                    "updated_at": post.updated_at.isoformat() if post.updated_at else None,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )

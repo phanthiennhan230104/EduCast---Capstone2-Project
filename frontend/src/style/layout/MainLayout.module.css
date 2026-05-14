@@ -35,3 +35,15 @@
   left: 0;
   right: 0;
 }
+
+.main {
+  overflow: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.main::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+  display: none;
+}

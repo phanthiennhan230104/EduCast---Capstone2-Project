@@ -22,23 +22,82 @@ function formatSubtitle() {
 
 
 function DonutChart({ data }) {
-  const total = Object.values(data || {}).reduce((sum, val) => sum + val, 0);
-  const entries = Object.entries(data || {}).map(([label, value]) => ({
-    label,
+  const labelMap = {
+    draft_posts: 'Bản nháp',
+    processing_posts: 'Chờ duyệt',
+    published_posts: 'Đã đăng',
+    failed_posts: 'Lỗi',
+    archived_posts: 'Đã lưu trữ',
+    hidden_posts: 'Đã ẩn',
+  };
+
+  const colors = [
+  '#f2b233', // vàng - Bản nháp
+  '#19c7b3', // xanh ngọc - Chờ duyệt
+  '#7c5cff', // tím xanh - Đã đăng
+  '#ff4d5c', // đỏ - Lỗi
+  '#b998ff', // tím nhạt - Đã lưu trữ
+  '#4facfe', // xanh dương - Đã ẩn
+];
+
+  const chartKeys = [
+    'draft_posts',
+    'processing_posts',
+    'published_posts',
+    'failed_posts',
+    'archived_posts',
+    'hidden_posts',
+  ];
+
+  const filteredData = chartKeys.map((key) => [
+    key,
+    Number(data?.[key] || 0),
+  ]);
+
+  const total = filteredData.reduce((sum, [, value]) => sum + value, 0);
+
+  const entries = filteredData.map(([key, value], idx) => ({
+    label: labelMap[key],
     value,
-    percentage: total > 0 ? ((value / total) * 100).toFixed(1) : 0,
+    color: colors[idx],
+    percentage: total > 0 ? ((value / total) * 100).toFixed(1) : '0.0',
   }));
+
+  let currentDegree = 0;
+
+  const gradientParts = entries
+    .filter((item) => item.value > 0)
+    .map((item) => {
+      const degree = total > 0 ? (item.value / total) * 360 : 0;
+      const start = currentDegree;
+      const end = currentDegree + degree;
+
+      currentDegree = end;
+
+      return `${item.color} ${start}deg ${end}deg`;
+    });
+
+  const donutBackground =
+    gradientParts.length > 0
+      ? `conic-gradient(${gradientParts.join(', ')})`
+      : 'rgba(255, 255, 255, 0.08)';
 
   return (
     <div className="admin-donut-wrap">
-      <div className="admin-donut-chart">
+      <div
+        className="admin-donut-chart"
+        style={{ background: donutBackground }}
+      >
         <div className="admin-donut-inner" />
       </div>
 
       <div className="admin-donut-legend">
-        {entries.slice(0, 5).map((item, idx) => (
+        {entries.map((item) => (
           <div key={item.label} className="admin-legend-item">
-            <span className={`admin-legend-dot admin-c${(idx % 5) + 1}`} />
+            <span
+              className="admin-legend-dot"
+              style={{ background: item.color }}
+            />
             <span className="admin-legend-label">{item.label}</span>
             <span className="admin-legend-value">{item.percentage}%</span>
           </div>

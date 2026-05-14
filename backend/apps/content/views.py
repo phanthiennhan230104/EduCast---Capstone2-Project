@@ -1472,8 +1472,8 @@ class PublishPostView(APIView):
             
             post.learning_field = data.get("learning_field")
             post.visibility = data.get("visibility", "public")
-            post.status = Post.StatusChoices.PUBLISHED
-            post.published_at = timezone.now()
+            post.status = Post.StatusChoices.PROCESSING
+            post.published_at = None
             post.updated_at = timezone.now()
             post.slug = generate_unique_slug(post.title)
 
@@ -1494,7 +1494,7 @@ class PublishPostView(APIView):
 
             return Response(
                 {
-                    "message": "Đăng bài thành công",
+                    "message": "Bài viết đã được lưu và gửi cho admin kiểm duyệt",
                     "post_id": post.id,
                 },
                 status=status.HTTP_200_OK,

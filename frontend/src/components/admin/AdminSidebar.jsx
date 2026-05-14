@@ -23,6 +23,11 @@ const menuItems = [
     path: "/admin/users",
   },
   {
+    label: "Kiểm duyệt nội dung",
+    icon: ShieldCheck,
+    path: "/admin/content-moderation",
+  },
+  {
     label: "Kiểm duyệt báo cáo",
     icon: ShieldCheck,
     path: "/admin/moderation",

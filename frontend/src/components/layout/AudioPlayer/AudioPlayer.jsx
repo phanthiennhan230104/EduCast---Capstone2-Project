@@ -108,28 +108,28 @@ export default function AudioPlayer() {
     if (!fromSharedRow) return
 
     let cancelled = false
-    ;(async () => {
-      try {
-        const token = getToken()
-        const user = getCurrentUser()
-        const res = await fetch(
-          `http://localhost:8000/api/social/posts/${syncId}/comments/?user_id=${encodeURIComponent(
-            user?.id || ''
-          )}`,
-          {
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token ? { Authorization: `Bearer ${token}` } : {}),
-            },
-          }
-        )
-        const data = await res.json()
-        if (cancelled || !res.ok || !data.success) return
-        setLiked(Boolean(data.data?.is_liked))
-      } catch (e) {
-        console.error('Player like state fetch failed:', e)
-      }
-    })()
+      ; (async () => {
+        try {
+          const token = getToken()
+          const user = getCurrentUser()
+          const res = await fetch(
+            `http://localhost:8000/api/social/posts/${syncId}/comments/?user_id=${encodeURIComponent(
+              user?.id || ''
+            )}`,
+            {
+              headers: {
+                'Content-Type': 'application/json',
+                ...(token ? { Authorization: `Bearer ${token}` } : {}),
+              },
+            }
+          )
+          const data = await res.json()
+          if (cancelled || !res.ok || !data.success) return
+          setLiked(Boolean(data.data?.is_liked))
+        } catch (e) {
+          console.error('Player like state fetch failed:', e)
+        }
+      })()
 
     return () => {
       cancelled = true
@@ -223,7 +223,7 @@ export default function AudioPlayer() {
         liked: Boolean(data.data?.liked),
         likeCount: Number(data.data?.like_count || 0),
       })
-      
+
       // Gọi callback nếu track có onLikeChange handler, truyền cả liked state và likeCount
       if (currentTrack?.onLikeChange) {
         currentTrack.onLikeChange({
@@ -245,7 +245,7 @@ export default function AudioPlayer() {
         <div className={styles.trackInfo}>
           <div className={styles.meta}>
             <span className={styles.title}>{t('audioPlayer.noAudioPlaying')}</span>
-<span className={styles.author}>{t('audioPlayer.choosePodcast')}</span>
+            <span className={styles.author}>{t('audioPlayer.choosePodcast')}</span>
           </div>
         </div>
       </footer>
@@ -377,7 +377,7 @@ export default function AudioPlayer() {
             setCollapsed(prev => !prev)
           }}
           aria-label={collapsed ? t('audioPlayer.expandPlayer') : t('audioPlayer.collapsePlayer')}
-title={collapsed ? t('audioPlayer.expand') : t('audioPlayer.collapse')}
+          title={collapsed ? t('audioPlayer.expand') : t('audioPlayer.collapse')}
         >
           {collapsed ? <ChevronUp size={15} /> : <ChevronDown size={15} />}
         </button>

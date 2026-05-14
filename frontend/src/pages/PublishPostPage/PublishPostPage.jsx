@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, useRef, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
-import { toast } from 'react-toastify'
+import { toast, ToastContainer } from 'react-toastify'
 import { Select, ConfigProvider, theme as antTheme } from 'antd'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import { useTranslation } from 'react-i18next'
@@ -133,10 +133,10 @@ function cleanText(text) {
 function getDisplayScript(draftData) {
   return cleanText(
     draftData?.summary_text ||
-      draftData?.dialogue_script ||
-      draftData?.transcript_text ||
-      draftData?.original_text ||
-      ''
+    draftData?.dialogue_script ||
+    draftData?.transcript_text ||
+    draftData?.original_text ||
+    ''
   )
 }
 
@@ -192,13 +192,13 @@ export default function PublishPostPage() {
         0,
       topicIds: Array.isArray(draftData?.topics)
         ? draftData.topics
-            .map((item) => item?.id ?? item?.topic_id ?? '')
-            .filter(Boolean)
+          .map((item) => item?.id ?? item?.topic_id ?? '')
+          .filter(Boolean)
         : [],
       tags: Array.isArray(draftData?.tags)
         ? draftData.tags
-            .map((item) => (typeof item === 'string' ? item : item?.name || ''))
-            .filter(Boolean)
+          .map((item) => (typeof item === 'string' ? item : item?.name || ''))
+          .filter(Boolean)
         : [],
       learningField: draftData?.learning_field || '',
       visibility: draftData?.visibility || 'public',
@@ -263,15 +263,15 @@ export default function PublishPostPage() {
   const hasDraftWork = useMemo(() => {
     return Boolean(
       form.audioUrl ||
-        form.title.trim() ||
-        form.description.trim() ||
-        form.originalText.trim() ||
-        form.script.trim() ||
-        form.tags.length ||
-        form.topicIds.length ||
-        form.learningField.trim() ||
-        form.ageGroup ||
-        form.thumbnailUrl
+      form.title.trim() ||
+      form.description.trim() ||
+      form.originalText.trim() ||
+      form.script.trim() ||
+      form.tags.length ||
+      form.topicIds.length ||
+      form.learningField.trim() ||
+      form.ageGroup ||
+      form.thumbnailUrl
     )
   }, [
     form.audioUrl,
@@ -416,7 +416,7 @@ export default function PublishPostPage() {
           t('publishPost.uploadAudioFailedWithMessage', {
             message: error?.message || t('publishPost.unknownError'),
           })
-       )
+        )
       }
     } else if (!durationSeconds) {
       durationSeconds = toIntegerDuration(await getAudioDuration(audioUrl))
@@ -466,18 +466,22 @@ export default function PublishPostPage() {
 
       await publishPost(payload)
 
-      navigate('/feed', {
-        state: {
-          toast: {
-            type: 'success',
-            message: t('publishPost.publishSuccess'),
-          },
-          refreshFeed: true,
-        },
+      toast.success(t('publishPost.publishSuccessPendingReview'), {
+        position: 'top-right',
+        autoClose: 2200,
+        theme: 'dark',
       })
+
+      setTimeout(() => {
+        navigate('/feed', {
+          state: {
+            refreshFeed: true,
+          },
+        })
+      }, 1200)
     } catch (error) {
       console.error(t('publishPost.publishErrorLog'), error)
-       toast.error(error?.message || t('publishPost.publishFailed'))
+      toast.error(error?.message || t('publishPost.publishFailed'))
     } finally {
       setSubmitting(false)
     }
@@ -632,7 +636,7 @@ export default function PublishPostPage() {
     // revoke object URL if any
     try {
       if (form.audioUrl && form.audioUrl.startsWith('blob:')) URL.revokeObjectURL(form.audioUrl)
-    } catch (e) {}
+    } catch (e) { }
     setForm((prev) => ({ ...prev, audioUrl: '', durationSeconds: 0 }))
   }
 
@@ -658,14 +662,14 @@ export default function PublishPostPage() {
     try {
       setUploadingThumbnail(true)
       toast.info(t('publishPost.uploadingThumbnail'))
-      
+
       const result = await uploadThumbnail(file)
-      
+
       setForm((prev) => ({
         ...prev,
         thumbnailUrl: result.thumbnail_url,
       }))
-      
+
       toast.success(t('publishPost.uploadThumbnailSuccess'))
     } catch (error) {
       console.error(t('publishPost.thumbnailUploadErrorLog'), error)
@@ -680,393 +684,436 @@ export default function PublishPostPage() {
   }
 
   return (
-    <MainLayout rightPanel={null}>
-      <div className={styles.page}>
-        <div className={styles.hero}>
-          <div>
-            <h1 className={styles.title}>{t('publishPost.pageTitle')}</h1>
-            <p className={styles.subtitle}>
-              {t('publishPost.pageSubtitle')}
-            </p>
-          </div>
+    <>
+      <ToastContainer position="top-right" autoClose={2200} theme="dark" />
 
-          <div className={styles.heroActions}>
-            <button
-              type="button"
-              className={styles.secondaryButton}
-              onClick={requestLeave}
-            >
-              {t('publishPost.back')}
-            </button>
-
-            <button
-              type="button"
-              className={styles.primaryButton}
-              onClick={handleSubmit}
-              disabled={submitting}
-            >
-              {submitting ? t('publishPost.publishingShort') : t('publishPost.publishPost')}
-            </button>
-          </div>
-        </div>
-
-        <div className={styles.layout}>
-          <section className={styles.leftColumn}>
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <div>
-                  <h2 className={styles.cardTitle}>{t('publishPost.contentTitle')}</h2>
-                  <p className={styles.cardDesc}>
-                    {t('publishPost.contentDesc')}
-                  </p>
-                </div>
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label}>{t('publishPost.titleLabel')}</label>
-                <input
-                  className={styles.input}
-                  type="text"
-                  placeholder={t('publishPost.titlePlaceholder')}
-                  value={form.title}
-                  onChange={(e) => updateField('title', e.target.value)}
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label}>{t('publishPost.descriptionLabel')}</label>
-                <textarea
-                  className={`${styles.input} ${styles.textarea}`}
-                  rows={4}
-                  placeholder={t('publishPost.descriptionPlaceholder')}
-                  value={form.description}
-                  onChange={(e) => updateField('description', e.target.value)}
-                />
-              </div>
+      <MainLayout rightPanel={null}>
+        <div className={styles.page}>
+          <div className={styles.hero}>
+            <div>
+              <h1 className={styles.title}>{t('publishPost.pageTitle')}</h1>
+              <p className={styles.subtitle}>
+                {t('publishPost.pageSubtitle')}
+              </p>
             </div>
 
-            <div className={styles.card}>
-              <div className={styles.cardHeader}>
-                <div>
-                  <h2 className={styles.cardTitle}>{t('publishPost.categoryTitle')}</h2>
-                  <p className={styles.cardDesc}>
-                    {t('publishPost.categoryDesc')}
-                  </p>
-                </div>
-              </div>
+            <div className={styles.heroActions}>
+              <button
+                type="button"
+                className={styles.secondaryButton}
+                onClick={requestLeave}
+              >
+                {t('publishPost.back')}
+              </button>
 
-              <div className={styles.field}>
-                <label className={styles.label}>{t('publishPost.learningFieldLabel')}</label>
-                <input
-                  className={styles.input}
-                  type="text"
-                  placeholder={t('publishPost.learningFieldPlaceholder')}
-                  value={form.learningField}
-                  onChange={(e) => updateField('learningField', e.target.value)}
-                />
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label}>
-                  {t('publishPost.topicLabel')}{' '}
-                  <span className={styles.helper}>
-                    {t('publishPost.maxCount', { count: MAX_TOPICS })}
-                  </span>
-                </label>
-
-                <ConfigProvider theme={ANT_SELECT_THEME}>
-                  <Select
-                    className={styles.topicAntSelect}
-                    mode="multiple"
-                    allowClear
-                    showSearch={{ optionFilterProp: 'label' }}
-                    placeholder={t('publishPost.topicPlaceholder')}
-                    value={form.topicIds}
-                    onChange={handleTopicChange}
-                    disabled={loadingMeta}
-                    style={{ width: '100%' }}
-                    options={topics.map((topic) => ({
-                      value: topic.id,
-                      label: topic.name,
-                    }))}
-                  />
-                </ConfigProvider>
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label}>
-                  {t('publishPost.tagLabel')}{' '}
-                  <span className={styles.helper}>
-                    {t('publishPost.maxCount', { count: MAX_TAGS })}
-                  </span>
-                </label>
-
-                <ConfigProvider theme={ANT_SELECT_THEME}>
-                  <Select
-                    className={styles.tagAntSelect}
-                    mode="tags"
-                    allowClear
-                    tokenSeparators={[',']}
-                    placeholder={t('publishPost.tagPlaceholder')}
-                    value={form.tags}
-                    onChange={handleTagChange}
-                    disabled={loadingMeta}
-                    style={{ width: '100%' }}
-                    maxCount={MAX_TAGS}
-                    options={availableTags}
-                    filterOption={(input, option) =>
-                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
-                    }
-                  />
-                </ConfigProvider>
-              </div>
-
-              <div className={styles.field}>
-                <label className={styles.label}>{t('publishPost.privacyLabel')}</label>
-                <div className={styles.radioGroup}>
-                  {VISIBILITY_OPTIONS.map((item) => (
-                    <label key={`visibility-${item.value}`} className={styles.radioItem}>
-                      <input
-                        type="radio"
-                        name="visibility"
-                        value={item.value}
-                        checked={form.visibility === item.value}
-                        onChange={(e) => updateField('visibility', e.target.value)}
-                      />
-                      <span>{t(item.labelKey)}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={handleSubmit}
+                disabled={submitting}
+              >
+                {submitting ? t('publishPost.publishingShort') : t('publishPost.publishPost')}
+              </button>
             </div>
-          </section>
+          </div>
 
-          <aside className={styles.rightColumn}>
-            <div className={`${styles.card} ${styles.stickyCard}`}>
-              <div className={styles.previewTop}>
-                <span className={styles.previewBadge}>{t('publishPost.audioPreview')}</span>
-                <div className={styles.previewTopActions}>
-                  
-                  {/* <span className={styles.previewDuration}>
+          <div className={styles.layout}>
+            <section className={styles.leftColumn}>
+              <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <h2 className={styles.cardTitle}>{t('publishPost.contentTitle')}</h2>
+                    <p className={styles.cardDesc}>
+                      {t('publishPost.contentDesc')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.label}>{t('publishPost.titleLabel')}</label>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    placeholder={t('publishPost.titlePlaceholder')}
+                    value={form.title}
+                    onChange={(e) => updateField('title', e.target.value)}
+                  />
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.label}>{t('publishPost.descriptionLabel')}</label>
+                  <textarea
+                    className={`${styles.input} ${styles.textarea}`}
+                    rows={4}
+                    placeholder={t('publishPost.descriptionPlaceholder')}
+                    value={form.description}
+                    onChange={(e) => updateField('description', e.target.value)}
+                  />
+                </div>
+              </div>
+
+              <div className={styles.card}>
+                <div className={styles.cardHeader}>
+                  <div>
+                    <h2 className={styles.cardTitle}>{t('publishPost.categoryTitle')}</h2>
+                    <p className={styles.cardDesc}>
+                      {t('publishPost.categoryDesc')}
+                    </p>
+                  </div>
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.label}>{t('publishPost.learningFieldLabel')}</label>
+                  <input
+                    className={styles.input}
+                    type="text"
+                    placeholder={t('publishPost.learningFieldPlaceholder')}
+                    value={form.learningField}
+                    onChange={(e) => updateField('learningField', e.target.value)}
+                  />
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.label}>
+                    {t('publishPost.topicLabel')}{' '}
+                    <span className={styles.helper}>
+                      {t('publishPost.maxCount', { count: MAX_TOPICS })}
+                    </span>
+                  </label>
+
+                  <ConfigProvider
+                    theme={{
+                      token: {
+                        colorBgContainer: 'rgba(8, 12, 27, 0.74)',
+                        colorBgElevated: '#101828',
+                        colorBorder: 'rgba(245, 240, 232, 0.11)',
+                        colorText: '#f5f0e8',
+                        colorTextPlaceholder: 'rgba(245, 240, 232, 0.38)',
+                        colorPrimary: '#f4a227',
+                        borderRadius: 14,
+                      },
+                      components: {
+                        Select: {
+                          selectorBg: 'rgba(8, 12, 27, 0.74)',
+                          multipleItemBg: 'rgba(244, 162, 39, 0.17)',
+                          optionSelectedBg: 'rgba(244, 162, 39, 0.18)',
+                          optionActiveBg: 'rgba(255, 255, 255, 0.06)',
+                        },
+                      },
+                    }}
+                  >
+                    <Select
+                      className={styles.topicAntSelect}
+                      mode="multiple"
+                      allowClear
+                      showSearch={{ optionFilterProp: 'label' }}
+                      placeholder={t('publishPost.topicPlaceholder')}
+                      value={form.topicIds}
+                      onChange={handleTopicChange}
+                      disabled={loadingMeta}
+                      style={{ width: '100%' }}
+                      options={topics.map((topic) => ({
+                        value: topic.id,
+                        label: topic.name,
+                      }))}
+                    />
+                  </ConfigProvider>
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.label}>
+                    {t('publishPost.tagLabel')}{' '}
+                    <span className={styles.helper}>
+                      {t('publishPost.maxCount', { count: MAX_TAGS })}
+                    </span>
+                  </label>
+
+                  <ConfigProvider
+                    theme={{
+                      token: {
+                        colorBgContainer: 'rgba(8, 12, 27, 0.74)',
+                        colorBgElevated: '#101828',
+                        colorBorder: 'rgba(245, 240, 232, 0.11)',
+                        colorText: '#f5f0e8',
+                        colorTextPlaceholder: 'rgba(245, 240, 232, 0.38)',
+                        colorPrimary: '#f4a227',
+                        borderRadius: 14,
+                      },
+                      components: {
+                        Select: {
+                          selectorBg: 'rgba(8, 12, 27, 0.74)',
+                          multipleItemBg: 'rgba(244, 162, 39, 0.17)',
+                          optionSelectedBg: 'rgba(244, 162, 39, 0.18)',
+                          optionActiveBg: 'rgba(255, 255, 255, 0.06)',
+                        },
+                      },
+                    }}
+                  >
+                    <Select
+                      className={styles.tagAntSelect}
+                      mode="tags"
+                      allowClear
+                      tokenSeparators={[',']}
+                      placeholder={t('publishPost.tagPlaceholder')}
+                      value={form.tags}
+                      onChange={handleTagChange}
+                      disabled={loadingMeta}
+                      style={{ width: '100%' }}
+                      maxCount={MAX_TAGS}
+                      options={availableTags}
+                      filterOption={(input, option) =>
+                        (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                      }
+                    />
+                  </ConfigProvider>
+                </div>
+
+                <div className={styles.field}>
+                  <label className={styles.label}>{t('publishPost.privacyLabel')}</label>
+                  <div className={styles.radioGroup}>
+                    {VISIBILITY_OPTIONS.map((item) => (
+                      <label key={`visibility-${item.value}`} className={styles.radioItem}>
+                        <input
+                          type="radio"
+                          name="visibility"
+                          value={item.value}
+                          checked={form.visibility === item.value}
+                          onChange={(e) => updateField('visibility', e.target.value)}
+                        />
+                        <span>{t(item.labelKey)}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </section>
+
+            <aside className={styles.rightColumn}>
+              <div className={`${styles.card} ${styles.stickyCard}`}>
+                <div className={styles.previewTop}>
+                  <span className={styles.previewBadge}>{t('publishPost.audioPreview')}</span>
+                  <div className={styles.previewTopActions}>
+
+                    {/* <span className={styles.previewDuration}>
                     {formatDuration(form.durationSeconds)}
                   </span> */}
 
-                  <div className={styles.topCornerActions}>
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      onClick={handleUploadClick}
-                      title={t('publishPost.uploadAudioTitle')}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6" />
-                        <path d="M12 2v7M9 6l3 3 3-3" />
-                      </svg>
-                    </button>
-
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      onClick={handleDraftsClick}
-                      title={t('publishPost.chooseDraftTitle')}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                        <polyline points="14 2 14 8 20 8" />
-                        <line x1="12" y1="19" x2="12" y2="13" />
-                        <line x1="9" y1="16" x2="15" y2="16" />
-                      </svg>
-                    </button>
-
-                    <button
-                      type="button"
-                      className={styles.iconButton}
-                      onClick={() => navigate('/create')}
-                      title={t('publishPost.createAudioTitle')}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              {/* Hidden file input for upload in publish page */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="audio/*"
-                style={{ display: 'none' }}
-                onChange={handleFileSelect}
-              />
-
-              {showLeaveConfirm && (
-                <div
-                  style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(0,0,0,0.62)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1400,
-                  }}
-                  onClick={() => setShowLeaveConfirm(false)}
-                >
-                  <div
-                    style={{
-                      width: 'min(92vw, 460px)',
-                      borderRadius: 16,
-                      padding: 20,
-                      background: '#11172d',
-                      border: '1px solid rgba(255,255,255,0.08)',
-                      boxShadow: '0 24px 60px rgba(0, 0, 0, 0.42)',
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <h3 style={{ margin: 0, color: '#fff', fontSize: 20 }}>
-                      {t('publishPost.leaveConfirmTitle')}
-                    </h3>
-                    <p style={{ margin: '10px 0 0', color: 'rgba(245,240,232,0.72)', lineHeight: 1.6 }}>
-{t('publishPost.leaveConfirmMessage')}                    </p>
-
-                    <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, flexWrap: 'wrap' }}>
+                    <div className={styles.topCornerActions}>
                       <button
                         type="button"
-                        className={styles.secondaryButton}
-                        onClick={() => {
-                          setShowLeaveConfirm(false)
-                          navigate(-1)
-                        }}
-                        disabled={submitting}
+                        className={styles.iconButton}
+                        onClick={handleUploadClick}
+                        title={t('publishPost.uploadAudioTitle')}
                       >
-                        {t('publishPost.leave')}
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M19 13v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6" />
+                          <path d="M12 2v7M9 6l3 3 3-3" />
+                        </svg>
                       </button>
 
                       <button
                         type="button"
-                        className={styles.secondaryButton}
-                        onClick={() => setShowLeaveConfirm(false)}
-                        disabled={submitting}
+                        className={styles.iconButton}
+                        onClick={handleDraftsClick}
+                        title={t('publishPost.chooseDraftTitle')}
                       >
-                        {t('publishPost.stay')}
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                          <polyline points="14 2 14 8 20 8" />
+                          <line x1="12" y1="19" x2="12" y2="13" />
+                          <line x1="9" y1="16" x2="15" y2="16" />
+                        </svg>
                       </button>
 
                       <button
                         type="button"
-                        className={styles.primaryButton}
-                        onClick={saveCurrentDraft}
-                        disabled={submitting}
+                        className={styles.iconButton}
+                        onClick={() => navigate('/create')}
+                        title={t('publishPost.createAudioTitle')}
                       >
-                        {submitting ? t('publishPost.saving') : t('publishPost.saveDraft')}
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M12 5v14M5 12h14" />
+                        </svg>
                       </button>
                     </div>
                   </div>
                 </div>
-              )}
 
-              {showDraftModal && (
-                <div
-                  style={{
-                    position: 'fixed',
-                    inset: 0,
-                    background: 'rgba(0,0,0,0.6)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    zIndex: 1200,
-                  }}
-                  onClick={() => setShowDraftModal(false)}
-                >
+                {/* Hidden file input for upload in publish page */}
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="audio/*"
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                />
+
+                {showLeaveConfirm && (
                   <div
                     style={{
-                      width: '90%',
-                      maxWidth: 760,
-                      maxHeight: '80vh',
-                      overflow: 'auto',
-                      background: '#0e1224',
-                      borderRadius: 12,
-                      padding: 18,
-                      border: '1px solid rgba(255,255,255,0.06)',
+                      position: 'fixed',
+                      inset: 0,
+                      background: 'rgba(0,0,0,0.62)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1400,
                     }}
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={() => setShowLeaveConfirm(false)}
                   >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <h3 style={{ margin: 0 }}>{t('publishPost.chooseDraft')}</h3>
-                      <button
-                        onClick={() => setShowDraftModal(false)}
-                        style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer' }}
-                      >
-                        ✕
-                      </button>
+                    <div
+                      style={{
+                        width: 'min(92vw, 460px)',
+                        borderRadius: 16,
+                        padding: 20,
+                        background: '#11172d',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        boxShadow: '0 24px 60px rgba(0, 0, 0, 0.42)',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <h3 style={{ margin: 0, color: '#fff', fontSize: 20 }}>
+                        {t('publishPost.leaveConfirmTitle')}
+                      </h3>
+                      <p style={{ margin: '10px 0 0', color: 'rgba(245,240,232,0.72)', lineHeight: 1.6 }}>
+                        {t('publishPost.leaveConfirmMessage')}                    </p>
+
+                      <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20, flexWrap: 'wrap' }}>
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          onClick={() => {
+                            setShowLeaveConfirm(false)
+                            navigate(-1)
+                          }}
+                          disabled={submitting}
+                        >
+                          {t('publishPost.leave')}
+                        </button>
+
+                        <button
+                          type="button"
+                          className={styles.secondaryButton}
+                          onClick={() => setShowLeaveConfirm(false)}
+                          disabled={submitting}
+                        >
+                          {t('publishPost.stay')}
+                        </button>
+
+                        <button
+                          type="button"
+                          className={styles.primaryButton}
+                          onClick={saveCurrentDraft}
+                          disabled={submitting}
+                        >
+                          {submitting ? t('publishPost.saving') : t('publishPost.saveDraft')}
+                        </button>
+                      </div>
                     </div>
+                  </div>
+                )}
 
-                    <div style={{ marginTop: 12 }}>
-                      {loadingDrafts ? (
-<div style={{ color: 'rgba(255,255,255,0.7)' }}>
-                          {t('publishPost.loadingDrafts')}
-                        </div>                      ) : drafts.length === 0 ? (
-                        <div style={{ color: 'rgba(255,255,255,0.7)' }}>
-                          {t('publishPost.noDrafts')}
-                          <div style={{ marginTop: 12 }}>
-                            <button
-                              className={styles.primaryButton}
-                              onClick={() => {
-                                setShowDraftModal(false)
-                                navigate('/create')
-                              }}
-                            >
-                              + {t('publishPost.createDraft')}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                          {drafts.map((draft) => (
-                            <div
-                              key={`modal-draft-${draft.id}`}
-                              onClick={() => handleDraftSelect(draft)}
-                              style={{
-                                cursor: 'pointer',
-                                padding: 12,
-                                borderRadius: 8,
-                                background: 'rgba(255,255,255,0.02)',
-                                border: '1px solid rgba(255,255,255,0.04)',
-                                display: 'flex',
-                                gap: 12,
-                                alignItems: 'center',
-                              }}
-                            >
-                              <div style={{ width: 56, height: 56, borderRadius: 8, background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                {draft.thumbnail_url ? (
-                                  <img src={draft.thumbnail_url} alt={draft.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
-                                ) : (
-                                  <div style={{ fontSize: 22 }}>🎙️</div>
-                                )}
-                              </div>
+                {showDraftModal && (
+                  <div
+                    style={{
+                      position: 'fixed',
+                      inset: 0,
+                      background: 'rgba(0,0,0,0.6)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      zIndex: 1200,
+                    }}
+                    onClick={() => setShowDraftModal(false)}
+                  >
+                    <div
+                      style={{
+                        width: '90%',
+                        maxWidth: 760,
+                        maxHeight: '80vh',
+                        overflow: 'auto',
+                        background: '#0e1224',
+                        borderRadius: 12,
+                        padding: 18,
+                        border: '1px solid rgba(255,255,255,0.06)',
+                      }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <h3 style={{ margin: 0 }}>{t('publishPost.chooseDraft')}</h3>
+                        <button
+                          onClick={() => setShowDraftModal(false)}
+                          style={{ background: 'transparent', border: 'none', color: '#fff', fontSize: 20, cursor: 'pointer' }}
+                        >
+                          ✕
+                        </button>
+                      </div>
 
-                              <div style={{ flex: 1 }}>
-<div style={{ fontWeight: 700, color: '#fff' }}>
-                                  {draft.title || t('publishPost.untitled')}
-                                </div>                                <div style={{ color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>{draft.status || ''}</div>
+                      <div style={{ marginTop: 12 }}>
+                        {loadingDrafts ? (
+                          <div style={{ color: 'rgba(255,255,255,0.7)' }}>
+                            {t('publishPost.loadingDrafts')}
+                          </div>) : drafts.length === 0 ? (
+                            <div style={{ color: 'rgba(255,255,255,0.7)' }}>
+                              {t('publishPost.noDrafts')}
+                              <div style={{ marginTop: 12 }}>
+                                <button
+                                  className={styles.primaryButton}
+                                  onClick={() => {
+                                    setShowDraftModal(false)
+                                    navigate('/create')
+                                  }}
+                                >
+                                  + {t('publishPost.createDraft')}
+                                </button>
                               </div>
                             </div>
-                          ))}
-                        </div>
-                      )}
+                          ) : (
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                            {drafts.map((draft) => (
+                              <div
+                                key={`modal-draft-${draft.id}`}
+                                onClick={() => handleDraftSelect(draft)}
+                                style={{
+                                  cursor: 'pointer',
+                                  padding: 12,
+                                  borderRadius: 8,
+                                  background: 'rgba(255,255,255,0.02)',
+                                  border: '1px solid rgba(255,255,255,0.04)',
+                                  display: 'flex',
+                                  gap: 12,
+                                  alignItems: 'center',
+                                }}
+                              >
+                                <div style={{ width: 56, height: 56, borderRadius: 8, background: 'rgba(255,255,255,0.03)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                  {draft.thumbnail_url ? (
+                                    <img src={draft.thumbnail_url} alt={draft.title} style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: 8 }} />
+                                  ) : (
+                                    <div style={{ fontSize: 22 }}>🎙️</div>
+                                  )}
+                                </div>
+
+                                <div style={{ flex: 1 }}>
+                                  <div style={{ fontWeight: 700, color: '#fff' }}>
+                                    {draft.title || t('publishPost.untitled')}
+                                  </div>                                <div style={{ color: 'rgba(255,255,255,0.6)', marginTop: 6 }}>{draft.status || ''}</div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              <h3 className={styles.previewTitle}>
-                {form.title || t('publishPost.untitled')}
-              </h3>
+                <h3 className={styles.previewTitle}>
+                  {form.title || t('publishPost.untitled')}
+                </h3>
 
-              <p className={styles.previewDescription}>
-                {form.description || t('publishPost.noDescription')}
-              </p>
+                <p className={styles.previewDescription}>
+                  {form.description || t('publishPost.noDescription')}
+                </p>
 
               <div className={styles.audioBox}>
                 {/* Hidden real audio element */}
@@ -1173,116 +1220,117 @@ export default function PublishPostPage() {
                 )}
               </div>
 
-              <div className={styles.thumbnailBox}>
-                <div className={styles.thumbnailLabel}>{t('publishPost.thumbnailLabel')}</div>
-                {form.thumbnailUrl ? (
-                  <div className={styles.thumbnailPreview}>
-                    <img 
-                      src={form.thumbnailUrl} 
-                      alt={t('publishPost.thumbnailAlt')} 
-                      className={styles.thumbnailImage}
-                    />
-                    <div className={styles.thumbnailActions}>
-                      <button
-                        type="button"
-                        className={styles.thumbnailChangeBtn}
-                        onClick={handleThumbnailClick}
-                        disabled={uploadingThumbnail}
-                      >
-                        {t('publishPost.change')}
-                      </button>
-                      <button
-                        type="button"
-                        className={styles.thumbnailRemoveBtn}
-                        onClick={handleRemoveThumbnail}
-                        disabled={uploadingThumbnail}
-                      >
-                        {t('publishPost.remove')}
-                      </button>
+                <div className={styles.thumbnailBox}>
+                  <div className={styles.thumbnailLabel}>{t('publishPost.thumbnailLabel')}</div>
+                  {form.thumbnailUrl ? (
+                    <div className={styles.thumbnailPreview}>
+                      <img
+                        src={form.thumbnailUrl}
+                        alt={t('publishPost.thumbnailAlt')}
+                        className={styles.thumbnailImage}
+                      />
+                      <div className={styles.thumbnailActions}>
+                        <button
+                          type="button"
+                          className={styles.thumbnailChangeBtn}
+                          onClick={handleThumbnailClick}
+                          disabled={uploadingThumbnail}
+                        >
+                          {t('publishPost.change')}
+                        </button>
+                        <button
+                          type="button"
+                          className={styles.thumbnailRemoveBtn}
+                          onClick={handleRemoveThumbnail}
+                          disabled={uploadingThumbnail}
+                        >
+                          {t('publishPost.remove')}
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.thumbnailUploadBtn}
+                      onClick={handleThumbnailClick}
+                      disabled={uploadingThumbnail}
+                    >
+                      {uploadingThumbnail
+                        ? t('publishPost.uploading')
+                        : t('publishPost.addThumbnail')}
+                    </button>
+                  )}
+                </div>
+
+                <input
+                  ref={thumbnailInputRef}
+                  type="file"
+                  accept="image/*"
+                  style={{ display: 'none' }}
+                  onChange={handleThumbnailSelect}
+                />
+
+                <div className={styles.previewMeta}>
+                  <div className={styles.metaRow}>
+                    <span className={styles.metaLabel}>{t('publishPost.topicLabel')}</span>
+                    <div className={styles.metaTopicWrap}>
+                      {form.topicIds.length === 0 ? (
+                        <span className={styles.metaValue}>—</span>
+                      ) : (
+                        <>
+                          {form.topicIds.map((id) => {
+                            const topic = topics.find((item) => item?.id === id)
+                            return (
+                              <span key={`preview-topic-${id}`} className={styles.metaTopicTag}>
+                                {topic?.name || id}
+                              </span>
+                            )
+                          })}
+                        </>
+                      )}
                     </div>
                   </div>
-                ) : (
+
+                  <div className={styles.metaRow}>
+                    <span className={styles.metaLabel}>{t('publishPost.tagLabel')}</span>
+                    <div className={styles.metaTopicWrap}>
+                      {form.tags.length === 0 ? (
+                        <span className={styles.metaValue}>—</span>
+                      ) : (
+                        form.tags.map((tag) => (
+                          <span key={`preview-tag-${tag}`} className={styles.metaTopicTag}>
+                            #{tag}
+                          </span>
+                        ))
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                <div className={styles.submitBox}>
                   <button
                     type="button"
-                    className={styles.thumbnailUploadBtn}
-                    onClick={handleThumbnailClick}
-                    disabled={uploadingThumbnail}
+                    className={styles.primaryButton}
+                    onClick={handleSubmit}
+                    disabled={submitting}
                   >
-                    {uploadingThumbnail
-                      ? t('publishPost.uploading')
-                      : t('publishPost.addThumbnail')}
+                    {submitting ? t('publishPost.publishingShort') : t('publishPost.publishNow')}
                   </button>
-                )}
-              </div>
 
-              <input
-                ref={thumbnailInputRef}
-                type="file"
-                accept="image/*"
-                style={{ display: 'none' }}
-                onChange={handleThumbnailSelect}
-              />
-
-              <div className={styles.previewMeta}>
-                <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>{t('publishPost.topicLabel')}</span>
-                  <div className={styles.metaTopicWrap}>
-                    {form.topicIds.length === 0 ? (
-                      <span className={styles.metaValue}>—</span>
-                    ) : (
-                      <>
-                        {form.topicIds.map((id) => {
-                          const topic = topics.find((item) => item?.id === id)
-                          return (
-                            <span key={`preview-topic-${id}`} className={styles.metaTopicTag}>
-                              {topic?.name || id}
-                            </span>
-                          )
-                        })}
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div className={styles.metaRow}>
-                  <span className={styles.metaLabel}>{t('publishPost.tagLabel')}</span>
-                  <div className={styles.metaTopicWrap}>
-                    {form.tags.length === 0 ? (
-                      <span className={styles.metaValue}>—</span>
-                    ) : (
-                      form.tags.map((tag) => (
-                        <span key={`preview-tag-${tag}`} className={styles.metaTopicTag}>
-                          #{tag}
-                        </span>
-                      ))
-                    )}
-                  </div>
+                  <button
+                    type="button"
+                    className={styles.secondaryButton}
+                    onClick={requestLeave}
+                    disabled={submitting}
+                  >
+                    {t('publishPost.cancel')}
+                  </button>
                 </div>
               </div>
-
-              <div className={styles.submitBox}>
-                <button
-                  type="button"
-                  className={styles.primaryButton}
-                  onClick={handleSubmit}
-                  disabled={submitting}
-                >
-                  {submitting ? t('publishPost.publishingShort') : t('publishPost.publishNow')}
-                </button>
-
-                <button
-                  type="button"
-                  className={styles.secondaryButton}
-                  onClick={requestLeave}
-                  disabled={submitting}
-                >
-                  {t('publishPost.cancel')}
-                </button>
-              </div>
-            </div>
-          </aside>
+            </aside>
+          </div>
         </div>
-      </div>
-    </MainLayout>
+      </MainLayout>
+    </>
   )
 }

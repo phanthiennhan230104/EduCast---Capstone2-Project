@@ -1,33 +1,35 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { sendAssistantMessage } from '../utils/aiServicesApi'
 import { useTranslation } from 'react-i18next'
 
-const INITIAL_ASSISTANT_MESSAGE = {
-  id: 'assistant-welcome',
-  role: 'assistant',
-  content: {
-    type: 'welcome',
-    summary: 'Xin chào, mình là EduCast Assistant.',
+function buildInitialAssistantMessage(t) {
+  return {
+    id: 'assistant-welcome',
+    role: 'assistant',
     content: {
-      title: 'Mình có thể giúp bạn',
-      bullets: [
-        'Tạo bài học tiếng Anh cho người mới bắt đầu',
-        'Giải thích lập trình bằng ví dụ dễ hiểu',
-        'Tạo nội dung kỹ năng mềm và lối sống',
-        'Gợi ý bài tập sức khỏe an toàn cho người lớn tuổi',
-        'Soạn script podcast giáo dục ngắn',
+      type: 'welcome',
+      summary: t('assistant.welcome.summary'),
+      content: {
+        title: t('assistant.welcome.title'),
+        bullets: [
+          t('assistant.welcome.bullets.englishLesson'),
+          t('assistant.welcome.bullets.programmingExplain'),
+          t('assistant.welcome.bullets.softSkills'),
+          t('assistant.welcome.bullets.elderExercise'),
+          t('assistant.welcome.bullets.podcastScript'),
+        ],
+        description: '',
+        body: '',
+        hashtags: [],
+      },
+      suggestions: [
+        t('assistant.welcome.suggestions.englishLesson'),
+        t('assistant.welcome.suggestions.asyncAwait'),
+        t('assistant.welcome.suggestions.communicationPodcast'),
+        t('assistant.welcome.suggestions.elderExercise'),
       ],
-      description: '',
-      body: '',
-      hashtags: [],
     },
-    suggestions: [
-      'Tạo bài học tiếng Anh giao tiếp cho beginner',
-      'Giải thích async await trong JavaScript',
-      'Viết script podcast 2 phút về kỹ năng giao tiếp',
-      'Gợi ý bài tập nhẹ cho người lớn tuổi',
-    ],
-  },
+  }
 }
 
 function normalizeContent(content) {
@@ -50,18 +52,18 @@ function normalizeContent(content) {
 
   const posts = Array.isArray(content?.content?.posts)
     ? content.content.posts
-        .map((post) => {
-          const postTitle = post?.title || ''
-          const postDescription = post?.description || ''
-          const author = post?.author?.username
-            ? `Tác giả: ${post.author.username}`
-            : ''
+      .map((post) => {
+        const postTitle = post?.title || ''
+        const postDescription = post?.description || ''
+        const author = post?.author?.username
+          ? `Tác giả: ${post.author.username}`
+          : ''
 
-          return [postTitle, postDescription, author]
-            .filter(Boolean)
-            .join('\n')
-        })
-        .join('\n\n')
+        return [postTitle, postDescription, author]
+          .filter(Boolean)
+          .join('\n')
+      })
+      .join('\n\n')
     : ''
 
   return [summary, title, description, body, bullets, posts]
@@ -85,8 +87,10 @@ function buildHistoryPayload(messages) {
 }
 
 export function useChatAssistant() {
-  const [messages, setMessages] = useState([
-    INITIAL_ASSISTANT_MESSAGE,
+  const { t, i18n } = useTranslation()
+
+  const [messages, setMessages] = useState(() => [
+    buildInitialAssistantMessage(t),
   ])
 
   const [isLoading, setIsLoading] = useState(false)
@@ -135,7 +139,7 @@ export function useChatAssistant() {
 
             length: 'medium',
 
-            language: 'vi',
+            language: (i18n.resolvedLanguage || i18n.language || 'vi').split('-')[0],
           },
         })
 
@@ -152,12 +156,11 @@ export function useChatAssistant() {
             assistantPayload || {
               type: 'generate',
               intent: 'fallback',
-              summary:
-                'AI chưa thể tạo phản hồi phù hợp.',
+              summary: t('assistant.fallback.summary'),
               content: {
                 title: '',
                 description: '',
-                body: 'Vui lòng thử lại.',
+                body: t('assistant.fallback.body'),
                 bullets: [],
                 hashtags: [],
               },
@@ -176,7 +179,7 @@ export function useChatAssistant() {
           requestError?.response?.data?.detail ||
           requestError?.response?.data?.message ||
           requestError?.message ||
-          'Không thể gửi tin nhắn tới AI Assistant.'
+          t('assistant.error.sendFailed')
 
         setError(errorMessage)
 
@@ -185,18 +188,18 @@ export function useChatAssistant() {
           role: 'assistant',
           content: {
             type: 'error',
-            summary: 'AI Assistant gặp lỗi',
+            summary: t('assistant.error.summary'),
             content: {
-              title: 'Không thể xử lý yêu cầu',
+              title: t('assistant.error.title'),
               description: '',
               body: errorMessage,
               bullets: [],
               hashtags: [],
             },
             suggestions: [
-              'Thử lại',
-              'Viết ngắn gọn hơn',
-              'Đổi chủ đề khác',
+              t('assistant.error.suggestions.retry'),
+              t('assistant.error.suggestions.shorten'),
+              t('assistant.error.suggestions.changeTopic'),
             ],
           },
         }
@@ -214,7 +217,7 @@ export function useChatAssistant() {
 
   const canSend = useMemo(
     () => !isLoading,
-    [isLoading],
+    [isLoading, messages, t, i18n.language, i18n.resolvedLanguage],
   )
 
   return {
@@ -225,4 +228,20 @@ export function useChatAssistant() {
     canSend,
     sendMessage,
   }
+  useEffect(() => {
+    setMessages((previousMessages) => {
+      if (previousMessages.length === 0) {
+        return [buildInitialAssistantMessage(t)]
+      }
+
+      if (previousMessages[0]?.id !== 'assistant-welcome') {
+        return previousMessages
+      }
+
+      return [
+        buildInitialAssistantMessage(t),
+        ...previousMessages.slice(1),
+      ]
+    })
+  }, [t, i18n.language])
 }

@@ -51,6 +51,7 @@ const resources = {
         attachment: 'attachment',
       },
       publishPost: {
+        publishSuccessPendingReview: 'Đã đăng thành công, bạn hãy chờ kiểm duyệt',
         visibility: {
           public: 'Công khai',
           private: 'Riêng tư',
@@ -574,7 +575,7 @@ const resources = {
           linkAccount: 'Liên kết tài khoản',
           linked: 'Đã liên kết',
           unlink: 'Hủy liên kết',
-          dangerZone: 'Vùng nguy hiểm',
+          dangerZone: 'Vô hiệu hóa',
           deleteAccount: 'Xóa tài khoản',
           deleteAccountWarning: 'Hành động này không thể hoàn tác',
           deleteConfirm: 'Bạn chắc chắn muốn xóa tài khoản? Hành động này không thể hoàn tác',
@@ -664,7 +665,7 @@ const resources = {
         other: {
           title: 'Khác',
           language: 'Ngôn ngữ',
-          dangerZone: 'Vùng nguy hiểm',
+          dangerZone: 'Vô hiệu hóa',
           deleteAccount: 'Xóa tài khoản',
           deleteAccountWarning: 'Hành động này không thể hoàn tác',
           deleteConfirm:
@@ -1257,6 +1258,37 @@ const resources = {
         errorPrefix: 'Lỗi: ',
       },
       assistant: {
+        welcome: {
+          summary: 'Xin chào, mình là EduCast Assistant.',
+          title: 'Mình có thể giúp bạn',
+          bullets: {
+            englishLesson: 'Tạo bài học tiếng Anh cho người mới bắt đầu',
+            programmingExplain: 'Giải thích lập trình bằng ví dụ dễ hiểu',
+            softSkills: 'Tạo nội dung kỹ năng mềm và lối sống',
+            elderExercise: 'Gợi ý bài tập sức khỏe an toàn cho người lớn tuổi',
+            podcastScript: 'Soạn script podcast giáo dục ngắn',
+          },
+          suggestions: {
+            englishLesson: 'Tạo bài học tiếng Anh giao tiếp cho beginner',
+            asyncAwait: 'Giải thích async await trong JavaScript',
+            communicationPodcast: 'Viết script podcast 2 phút về kỹ năng giao tiếp',
+            elderExercise: 'Gợi ý bài tập nhẹ cho người lớn tuổi',
+          },
+        },
+        fallback: {
+          summary: 'AI chưa thể tạo phản hồi phù hợp.',
+          body: 'Vui lòng thử lại.',
+        },
+        error: {
+          sendFailed: 'Không thể gửi tin nhắn tới AI Assistant.',
+          summary: 'AI Assistant gặp lỗi',
+          title: 'Không thể xử lý yêu cầu',
+          suggestions: {
+            retry: 'Thử lại',
+            shorten: 'Viết ngắn gọn hơn',
+            changeTopic: 'Đổi chủ đề khác',
+          },
+        },
         title: 'EduCast Assistant',
         subtitle: 'AI Learning Assistant',
         greeting: 'Xin chào, mình là EduCast Assistant. Mình có thể giúp bạn tìm nội dung học, tóm tắt chủ đề hoặc gợi ý lộ trình học.',
@@ -1322,6 +1354,7 @@ const resources = {
         attachment: 'attachment',
       },
       publishPost: {
+        publishSuccessPendingReview: 'Posted successfully. Please wait for review.',
         visibility: {
           public: 'Public',
           private: 'Private',
@@ -1899,7 +1932,7 @@ const resources = {
         hook: {
           cancelled: 'Audio generation has been stopped',
           loadDraftDetailError: 'Load draft detail error',
-          demoText: 'Backpropagation is a core algorithm for training neural networks...',
+          demoText: 'An AI Agent is a type of artificial intelligence that can automatically perform tasks according to transactional goals. Unlike conventional chatbots that only answer questions, AI Agents analyze requests, plan, break down tasks into smaller parts, and use tools to complete the task. For example, when you ask an AI Agent to set up an English learning plan, it can create a study schedule, provide study tips, remind you to practice, and adjust content according to the process. In the workplace, AI Agents can assist in report writing, data analysis, customer service, or automating repetitive tasks. The biggest benefit of AI Agents is saving time and increasing work efficiency. However, users still need to check the results because AI can misinterpret requests or provide inaccurate information. Nevertheless, AI Agents represent a new development in artificial intelligence. If used correctly, they can become a useful aid in learning, work, and daily life.',
           loadTopicsError: 'Load topics error',
           loadDraftsError: 'Load drafts error',
           voices: {
@@ -2480,6 +2513,37 @@ const resources = {
 
 
       assistant: {
+        welcome: {
+          summary: 'Hello, I’m EduCast Assistant.',
+          title: 'I can help you',
+          bullets: {
+            englishLesson: 'Create English lessons for beginners',
+            programmingExplain: 'Explain programming with easy examples',
+            softSkills: 'Create soft skills and lifestyle content',
+            elderExercise: 'Suggest safe light exercises for older adults',
+            podcastScript: 'Write short educational podcast scripts',
+          },
+          suggestions: {
+            englishLesson: 'Create a beginner English conversation lesson',
+            asyncAwait: 'Explain async await in JavaScript',
+            communicationPodcast: 'Write a 2-minute podcast script about communication skills',
+            elderExercise: 'Suggest light exercises for older adults',
+          },
+        },
+        fallback: {
+          summary: 'AI could not generate a suitable response.',
+          body: 'Please try again.',
+        },
+        error: {
+          sendFailed: 'Could not send the message to AI Assistant.',
+          summary: 'AI Assistant encountered an error',
+          title: 'Unable to process the request',
+          suggestions: {
+            retry: 'Try again',
+            shorten: 'Write it shorter',
+            changeTopic: 'Try another topic',
+          },
+        },
         title: 'EduCast Assistant',
         subtitle: 'AI Learning Assistant',
         greeting:

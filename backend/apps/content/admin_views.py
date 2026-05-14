@@ -24,7 +24,12 @@ class AdminPostsListView(APIView):
         page_size = int(request.query_params.get('page_size', 20))
 
         # Start with all posts
-        posts_qs = Post.objects.select_related('user').all()
+        # Start with all posts, but hide private draft posts
+        posts_qs = (
+            Post.objects
+            .select_related('user')
+            .exclude(visibility='private', status='draft')
+        )
 
         # Apply filters
         if status_filter and status_filter in dict(Post.StatusChoices.choices):
@@ -76,8 +81,14 @@ class AdminPostsListView(APIView):
                 continue
 
             # Get audio versions for this post
+            # Get audio versions for this post
             audio_versions = []
-            audio_versions_qs = PostAudioVersion.objects.filter(post_id=post.id).order_by('-is_default', 'created_at')
+            audio_versions_qs = (
+                PostAudioVersion.objects
+                .filter(post_id=post.id)
+                .order_by('-is_default', 'created_at')
+            )
+
             for audio in audio_versions_qs:
                 audio_versions.append({
                     'id': audio.id,
@@ -90,6 +101,23 @@ class AdminPostsListView(APIView):
                     'created_at': audio.created_at.isoformat() if audio.created_at else None,
                 })
 
+            default_audio = next(
+                (item for item in audio_versions if item.get('is_default')),
+                audio_versions[0] if audio_versions else None
+            )
+
+            resolved_audio_url = (
+                default_audio.get('audio_url')
+                if default_audio and default_audio.get('audio_url')
+                else post.audio_url
+            )
+
+            resolved_duration_seconds = (
+                default_audio.get('duration_seconds')
+                if default_audio and default_audio.get('duration_seconds') is not None
+                else post.duration_seconds
+            )
+
             posts_data.append({
                 'id': post.id,
                 'title': post.title,
@@ -100,9 +128,10 @@ class AdminPostsListView(APIView):
                 'is_ai_generated': post.is_ai_generated,
                 'user_id': post.user_id,
                 'username': post.user.username if post.user else 'Unknown',
+                'display_name': post.user.profile.display_name if post.user and hasattr(post.user, 'profile') and post.user.profile else (post.user.username if post.user else 'Unknown'),
                 'user_avatar': post.user.profile.avatar_url if post.user and hasattr(post.user, 'profile') else None,
                 'description': post.description[:100] + '...' if post.description and len(post.description) > 100 else post.description,
-                'duration_seconds': post.duration_seconds,
+                'duration_seconds': resolved_duration_seconds,
                 'view_count': post.view_count,
                 'listen_count': post.listen_count,
                 'like_count': post.like_count,
@@ -113,7 +142,14 @@ class AdminPostsListView(APIView):
                 'created_at': post.created_at.isoformat() if post.created_at else None,
                 'updated_at': post.updated_at.isoformat() if post.updated_at else None,
                 'thumbnail_url': post.thumbnail_url,
-                'audio_url': post.audio_url,
+                'audio_url': resolved_audio_url,
+                'audio': {
+                    'id': default_audio.get('id') if default_audio else None,
+                    'audio_url': resolved_audio_url,
+                    'duration_seconds': resolved_duration_seconds,
+                    'voice_name': default_audio.get('voice_name') if default_audio else '',
+                    'format': default_audio.get('format') if default_audio else 'mp3',
+                } if resolved_audio_url else None,
                 'audio_versions': audio_versions,
                 'reports': reports_list,
                 'report_count': len(reports_list),
@@ -317,6 +353,86 @@ class AdminRejectReportView(APIView):
 
         return Response(
             {'message': 'Đã từ chối báo cáo và công khai bài viết.', 'post_status': post.status, 'visibility': post.visibility},
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminPostPublishView(APIView):
+    """
+    Approve and publish a post from processing status to published.
+    Admin can set visibility (public, private, unlisted).
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get visibility from request (default to public)
+        visibility = request.data.get('visibility', 'public')
+        
+        if visibility not in dict(Post.VisibilityChoices.choices):
+            return Response(
+                {'error': f'Mức độ hiển thị không hợp lệ: {visibility}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Update post status and visibility
+        post.status = 'published'
+        post.visibility = visibility
+        post.published_at = timezone.now()
+        post.updated_at = timezone.now()
+        post.save()
+
+        return Response(
+            {
+                'message': 'Đã duyệt và công bố bài viết.',
+                'post': {
+                    'id': post.id,
+                    'status': post.status,
+                    'visibility': post.visibility,
+                    'published_at': post.published_at.isoformat() if post.published_at else None,
+                }
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminPostRejectView(APIView):
+    """
+    Reject a post - set status to hidden (do not publish).
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        reason = request.data.get('reason', 'Bài viết không tuân thủ tiêu chuẩn.')
+        
+        # Update post status to hidden
+        post.status = 'hidden'
+        post.updated_at = timezone.now()
+        post.save()
+
+        return Response(
+            {
+                'message': 'Đã từ chối bài viết.',
+                'post': {
+                    'id': post.id,
+                    'status': post.status,
+                }
+            },
             status=status.HTTP_200_OK,
         )
 

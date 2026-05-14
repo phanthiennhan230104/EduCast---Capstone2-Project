@@ -196,14 +196,6 @@
   width: 84px;
   height: 84px;
   border-radius: 50%;
-  background:
-    conic-gradient(
-      #f2b233 0deg 79deg,
-      #19c7b3 79deg 144deg,
-      #6f7cff 144deg 194deg,
-      #ff8b39 194deg 237deg,
-      #b998ff 237deg 360deg
-    );
   display: grid;
   place-items: center;
 }

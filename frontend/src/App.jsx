@@ -20,6 +20,7 @@ import SettingsPage from "./pages/SettingsPage/SettingsPage";
 import PersonalPageComponent from "./components/PersonalPage/PersonalPage";
 import AdminStatsPage from "./components/admin/AdminStatsPage";
 import AdminContentModerationPage from "./components/admin/AdminModeration";
+import AdminContentModeration from "./components/admin/AdminContentModeration";
 import AdminSystemPage from "./components/admin/AdminSystemPage";
 import AssistantWidget from "./components/assistant/AssistantWidget";
 
@@ -93,6 +94,15 @@ function AppRoutes() {
                   element={
                     <ProtectedRoute requireAdmin>
                       <AdminStatsPage />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="/admin/content-moderation"
+                  element={
+                    <ProtectedRoute requireAdmin>
+                      <AdminContentModeration />
                     </ProtectedRoute>
                   }
                 />
