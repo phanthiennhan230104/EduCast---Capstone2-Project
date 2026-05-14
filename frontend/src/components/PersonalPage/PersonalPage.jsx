@@ -912,7 +912,8 @@ export default function PersonalPage() {
           </div>
 
           <p className={styles.bio}>
-            {userProfile?.bio || user?.bio || t('personal.defaultBio')}          </p>
+            {userProfile?.bio || t('personal.defaultBio')}
+          </p>
         </div>
 
         <div className={styles.tabsContainer}>
