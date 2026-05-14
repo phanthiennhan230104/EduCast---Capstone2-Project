@@ -413,7 +413,11 @@ export default function PersonalPage() {
         data.data?.results ||
         []
 
-      setFriends(following)
+      const followingWithStatus = following.map((f) => ({
+        ...f,
+        is_following: true,
+      }))
+      setFriends(followingWithStatus)
     } catch (err) {
       console.error(t('personal.fetchFriendsFailed'), err)
       setFriends([])
@@ -492,18 +496,64 @@ export default function PersonalPage() {
         toast.error(t('personal.loginRequired'))
         return
       }
-      // Call follow API with correct endpoint: /social/users/{id}/follow/
+
       const response = await apiRequest(`/social/users/${profileUserId}/follow/`, {
         method: 'POST',
         body: JSON.stringify({
           user_id: currentUser.id,
         }),
       })
-      toast.success(t('personal.followedSuccessfully'))
-      // Refresh profile after follow
-      await fetchUserProfile()
+
+      if (response.success) {
+        const isNowFollowed = response.data?.followed
+        if (isNowFollowed) {
+          toast.success(t('personal.followedSuccessfully'))
+        } else {
+          toast.success(t('buttons.unfollow'))
+        }
+        await fetchUserProfile()
+      }
     } catch (err) {
       console.error('Follow user error:', err)
+      toast.error(t('personal.followFailed'))
+    }
+  }
+
+  const handleToggleFollowFriend = async (friendId) => {
+    try {
+      const currentUser = getCurrentUser()
+      if (!currentUser) {
+        toast.error(t('personal.loginRequired'))
+        return
+      }
+
+      const response = await apiRequest(`/social/users/${friendId}/follow/`, {
+        method: 'POST',
+        body: JSON.stringify({
+          user_id: currentUser.id,
+        }),
+      })
+
+      if (response.success) {
+        const isNowFollowed = response.data?.followed
+
+        setFriends((prev) =>
+          prev.map((f) => {
+            if (String(f.id) === String(friendId)) {
+              return { ...f, is_following: isNowFollowed }
+            }
+            return f
+          })
+        )
+
+        if (isNowFollowed) {
+          toast.success(t('personal.followedSuccessfully'))
+        } else {
+          toast.info(t('buttons.unfollow'))
+        }
+      }
+    } catch (err) {
+      console.error('Toggle follow friend error:', err)
       toast.error(t('personal.followFailed'))
     }
   }
@@ -961,8 +1011,8 @@ export default function PersonalPage() {
 
       {/* Tab Content - Only show if profile is accessible */}
       {!profileAccessErrorType && (
-  <>
-    <div className={styles.contentWrapper}>
+        <>
+          <div className={styles.contentWrapper}>
             <AnimatePresence mode="wait">
               <motion.div
                 key={activeTab}
@@ -1178,7 +1228,14 @@ export default function PersonalPage() {
                               {friend.username ? (
                                 <div className={styles.friendUsername}>@{friend.username}</div>
                               ) : null}
-                              <button className={styles.followingBadge}>{t('buttons.following')}</button>                        </div>
+                              {String(friend.id) !== String(user?.id) && (
+                                <button
+                                  className={`${styles.followingBadge} ${!friend.is_following ? styles.notFollowing : ''}`}
+                                  onClick={() => handleToggleFollowFriend(friend.id)}
+                                >
+                                  {friend.is_following ? t('buttons.following') : t('buttons.follow')}
+                                </button>
+                              )}                        </div>
                           </div>
                         ))
                       ) : (
