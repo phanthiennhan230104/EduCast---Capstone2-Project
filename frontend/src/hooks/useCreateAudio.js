@@ -25,9 +25,12 @@ const VOICE_ID_BY_NAME = {
   'en-US-AvaNeural': 'en-ava',
 }
 
+import { useLocation } from 'react-router-dom'
+
 export function useCreateAudio() {
   const { t } = useTranslation()
-
+  const location = useLocation()
+  
   const demoText = t('createAudio.hook.demoText')
   const voices = [
   {
@@ -70,7 +73,9 @@ export function useCreateAudio() {
   const [sourceTab, setSourceTab] = useState('text')
   const [aiMode, setAiMode] = useState('summary')
 
-  const [text, setText] = useState('')
+  const initialText = location.state?.initialText || ''
+
+  const [text, setText] = useState(initialText)
   const [file, setFile] = useState(null)
   const [fileReady, setFileReady] = useState(false)
   const [isUploadingFile, setIsUploadingFile] = useState(false)

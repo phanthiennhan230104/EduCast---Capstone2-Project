@@ -279,6 +279,14 @@
   border: 1px solid rgba(245, 166, 35, 0.18);
 }
 
+.searchResultCard .tagChip,
+.postPreviewModal .tagChip {
+  background: rgba(245, 166, 35, 0.15);
+  color: #d97706;
+  border-color: rgba(245, 166, 35, 0.3);
+  font-weight: 500;
+}
+
 .quickActions {
   display: flex;
   flex-wrap: wrap;
@@ -457,4 +465,26 @@
 
 .openPostBtn:hover {
   background: #4338ca;
+}
+
+.createPodcastFromAiBtn {
+  width: 100%;
+  margin-top: 14px;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #f5a623, #ff8a00);
+  color: #ffffff;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.createPodcastFromAiBtn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(245, 166, 35, 0.25);
 }

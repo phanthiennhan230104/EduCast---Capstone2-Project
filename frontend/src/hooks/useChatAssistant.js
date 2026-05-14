@@ -81,7 +81,7 @@ function buildHistoryPayload(messages) {
       content: normalizeContent(message.content),
     }))
     .filter((item) => item.content)
-    .slice(-20)  // Tăng lên 20 item để giữ lâu hơn context
+    .slice(-6)  // Giữ lại 6 tin nhắn gần nhất để tránh vượt quá limit token của Groq
 }
 
 export function useChatAssistant() {

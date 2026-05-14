@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import styles from '../../style/assistant/AssistantWidget.module.css'
 import { useTranslation } from 'react-i18next'
 
@@ -37,6 +38,7 @@ function getPostTags(post) {
 
 export default function AssistantMessage({ message, onQuickAction }) {
   const { t } = useTranslation()
+  const navigate = useNavigate()
   const [previewPost, setPreviewPost] = useState(null)
   const isUser = message.role === 'user'
 
@@ -107,6 +109,25 @@ export default function AssistantMessage({ message, onQuickAction }) {
             </div>
           )}
 
+        {!isSearchResult && payload.type !== 'error' && content.body && (
+          <button
+            type="button"
+            className={styles.createPodcastFromAiBtn}
+            onClick={() => {
+              const parts = []
+              if (content.title) parts.push(content.title)
+              if (content.description) parts.push(content.description)
+              if (content.body) parts.push(content.body)
+              if (Array.isArray(content.bullets) && content.bullets.length > 0) {
+                parts.push(content.bullets.map((b) => `- ${b}`).join('\n'))
+              }
+              navigate('/create-audio', { state: { initialText: parts.join('\n\n') } })
+            }}
+          >
+            {t('assistant.createPodcastFromThis', { defaultValue: 'Tạo podcast từ nội dung này' })}
+          </button>
+        )}
+
         {posts.length > 0 && (
           <div className={styles.searchResultList}>
             {posts.map((post) => {
@@ -135,11 +156,14 @@ export default function AssistantMessage({ message, onQuickAction }) {
 
                     {tags.length > 0 && (
                       <div className={styles.postTags}>
-                        {tags.map((tag, index) => (
-                          <span key={`${tag}-${index}`} className={styles.tagChip}>
-                            {String(tag).startsWith('#') ? tag : `#${tag}`}
-                          </span>
-                        ))}
+                        {tags.map((tag, index) => {
+                          const tagStr = typeof tag === 'object' ? (tag.name || tag.slug || '') : String(tag);
+                          return (
+                            <span key={`${tag.id || index}`} className={styles.tagChip}>
+                              {tagStr.startsWith('#') ? tagStr : `#${tagStr}`}
+                            </span>
+                          )
+                        })}
                       </div>
                     )}
                   </div>
@@ -209,11 +233,14 @@ export default function AssistantMessage({ message, onQuickAction }) {
 
             {getPostTags(previewPost).length > 0 && (
               <div className={styles.postPreviewTags}>
-                {getPostTags(previewPost).map((tag, index) => (
-                  <span key={`${tag}-${index}`} className={styles.tagChip}>
-                    {String(tag).startsWith('#') ? tag : `#${tag}`}
-                  </span>
-                ))}
+                {getPostTags(previewPost).map((tag, index) => {
+                  const tagStr = typeof tag === 'object' ? (tag.name || tag.slug || '') : String(tag);
+                  return (
+                    <span key={`${tag.id || index}`} className={styles.tagChip}>
+                      {tagStr.startsWith('#') ? tagStr : `#${tagStr}`}
+                    </span>
+                  )
+                })}
               </div>
             )}
 

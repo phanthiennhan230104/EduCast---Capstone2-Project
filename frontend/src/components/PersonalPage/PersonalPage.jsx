@@ -7,6 +7,7 @@ import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { apiRequest } from '../../utils/api'
 import { getInitials } from '../../utils/getInitials'
 import { toast } from 'react-toastify'
+import { message } from 'antd'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { EDUCAST_PERSONAL_SHARE_SUCCESS } from '../../utils/appEvents'
 import PodcastCard from '../feed/PodcastCard'
@@ -60,6 +61,8 @@ export default function PersonalPage() {
   const [editPostModalPost, setEditPostModalPost] = useState(null)
   const [selectedPost, setSelectedPost] = useState(null)
   const [showCollectionModal, setShowCollectionModal] = useState(false)
+  const [followingIds, setFollowingIds] = useState(new Set())
+  const [loadingFollow, setLoadingFollow] = useState({})
 
   const saveBookmarkRef = useRef(null)
   const { user } = useAuth()
@@ -417,6 +420,52 @@ export default function PersonalPage() {
     } catch (err) {
       console.error(t('personal.fetchFriendsFailed'), err)
       setFriends([])
+    }
+  }
+
+  const fetchFollowing = async () => {
+    if (!user?.id) return
+    try {
+      const data = await apiRequest('/social/follow-list/')
+      const followingList = data.data?.following || []
+      setFollowingIds(new Set(followingList.map(item => String(item.id))))
+    } catch (err) {
+      console.error('Fetch following error:', err)
+    }
+  }
+
+  React.useEffect(() => {
+    fetchFollowing()
+  }, [user?.id])
+
+  const handleToggleFollowFriend = async (authorId) => {
+    if (!user?.id) return
+    setLoadingFollow(prev => ({ ...prev, [authorId]: true }))
+    try {
+      const response = await apiRequest(`/social/users/${authorId}/follow/`, {
+        method: 'POST',
+        body: JSON.stringify({ user_id: user.id }),
+      })
+      
+      // Thêm delay 500ms để tạo cảm giác chân thực
+      await new Promise(resolve => setTimeout(resolve, 500))
+
+      if (response.success || response.data) {
+        setFollowingIds(prev => {
+          const newSet = new Set(prev)
+          const followed = response.data?.followed ?? response.followed
+          if (followed) {
+            newSet.add(String(authorId))
+          } else {
+            newSet.delete(String(authorId))
+          }
+          return newSet
+        })
+      }
+    } catch (err) {
+      console.error('Toggle follow friend error:', err)
+    } finally {
+      setLoadingFollow(prev => ({ ...prev, [authorId]: false }))
     }
   }
 
@@ -948,7 +997,7 @@ export default function PersonalPage() {
             </p>
             <div className={styles.accessErrorActions}>
               {!isOwnProfile && (
-                <button className={styles.followBtn} onClick={handleFollowUser}>
+                <button className={styles.accessFollowBtn} onClick={handleFollowUser}>
                   {t('personal.followUser')}
                 </button>
               )}
@@ -1179,7 +1228,30 @@ export default function PersonalPage() {
                               {friend.username ? (
                                 <div className={styles.friendUsername}>@{friend.username}</div>
                               ) : null}
-                              <button className={styles.followingBadge}>{t('buttons.following')}</button>                        </div>
+                              {String(user?.id) === String(friend.id) ? (
+                                <button
+                                  className={styles.followBtn}
+                                  onClick={() => {
+                                    navigate(`/profile/${friend.id}`)
+                                    window.scrollTo(0, 0)
+                                  }}
+                                >
+                                  Xem trang cá nhân
+                                </button>
+                              ) : (
+                                <button
+                                  className={`${styles.followBtn} ${followingIds.has(String(friend.id)) ? styles.following : ''}`}
+                                  onClick={() => handleToggleFollowFriend(friend.id)}
+                                  disabled={loadingFollow[friend.id]}
+                                >
+                                  {loadingFollow[friend.id]
+                                    ? '...'
+                                    : followingIds.has(String(friend.id))
+                                      ? t('buttons.following')
+                                      : t('buttons.follow')}
+                                </button>
+                              )}
+                            </div>
                           </div>
                         ))
                       ) : (

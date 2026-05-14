@@ -104,6 +104,40 @@
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
 }
 
+.followBtn {
+  padding: 8px 16px;
+  background: transparent;
+  border: 1px solid rgba(102, 126, 234, 0.4);
+  color: rgba(255, 255, 255, 0.8);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: auto;
+}
+
+.followBtn:hover {
+  background: rgba(102, 126, 234, 0.1);
+  border-color: rgba(102, 126, 234, 0.6);
+  color: #667eea;
+}
+
+.followBtn:active {
+  background: rgba(102, 126, 234, 0.15);
+}
+
+.followBtn.following {
+  background: rgba(102, 126, 234, 0.2);
+  border-color: rgba(102, 126, 234, 0.5);
+  color: #667eea;
+}
+
+.followBtn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 .editAvatarBtn {
   position: absolute;
   bottom: 8px;
@@ -1474,7 +1508,7 @@
   flex-wrap: wrap;
 }
 
-.followBtn,
+.accessFollowBtn,
 .backBtn {
   padding: 10px 20px;
   border-radius: 20px;
@@ -1487,7 +1521,7 @@
   transition: all 0.2s ease;
 }
 
-.followBtn:hover {
+.accessFollowBtn:hover {
   background: #667eea;
   color: white;
   border-color: #667eea;

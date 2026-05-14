@@ -58,7 +58,7 @@ def build_fallback_generate_payload(raw_content: str, intent: str) -> dict[str, 
     Nếu vẫn thất bại, trả về error message thân thiện.
     """
     return {
-        "type": "generate",
+        "type": "error",
         "intent": intent,
         "summary": "Có lỗi xảy ra khi xử lý yêu cầu của bạn.",
         "content": {
