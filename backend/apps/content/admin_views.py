@@ -1,4 +1,5 @@
 from rest_framework import status
+import ulid
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,6 +9,10 @@ from .models import Post, PostAudioVersion
 from apps.users.permissions import IsAdminRole
 from apps.users.models import User
 from apps.social.models import Report, Notification
+
+
+def _generate_id(prefix="obj"):
+    return str(ulid.new())
 
 
 class AdminPostsListView(APIView):
@@ -24,7 +29,12 @@ class AdminPostsListView(APIView):
         page_size = int(request.query_params.get('page_size', 20))
 
         # Start with all posts
-        posts_qs = Post.objects.select_related('user').all()
+        # Start with all posts, but hide private draft posts
+        posts_qs = (
+            Post.objects
+            .select_related('user')
+            .exclude(visibility='private', status='draft')
+        )
 
         # Apply filters
         if status_filter and status_filter in dict(Post.StatusChoices.choices):
@@ -76,8 +86,14 @@ class AdminPostsListView(APIView):
                 continue
 
             # Get audio versions for this post
+            # Get audio versions for this post
             audio_versions = []
-            audio_versions_qs = PostAudioVersion.objects.filter(post_id=post.id).order_by('-is_default', 'created_at')
+            audio_versions_qs = (
+                PostAudioVersion.objects
+                .filter(post_id=post.id)
+                .order_by('-is_default', 'created_at')
+            )
+
             for audio in audio_versions_qs:
                 audio_versions.append({
                     'id': audio.id,
@@ -90,6 +106,23 @@ class AdminPostsListView(APIView):
                     'created_at': audio.created_at.isoformat() if audio.created_at else None,
                 })
 
+            default_audio = next(
+                (item for item in audio_versions if item.get('is_default')),
+                audio_versions[0] if audio_versions else None
+            )
+
+            resolved_audio_url = (
+                default_audio.get('audio_url')
+                if default_audio and default_audio.get('audio_url')
+                else post.audio_url
+            )
+
+            resolved_duration_seconds = (
+                default_audio.get('duration_seconds')
+                if default_audio and default_audio.get('duration_seconds') is not None
+                else post.duration_seconds
+            )
+
             posts_data.append({
                 'id': post.id,
                 'title': post.title,
@@ -100,9 +133,10 @@ class AdminPostsListView(APIView):
                 'is_ai_generated': post.is_ai_generated,
                 'user_id': post.user_id,
                 'username': post.user.username if post.user else 'Unknown',
+                'display_name': post.user.profile.display_name if post.user and hasattr(post.user, 'profile') and post.user.profile else (post.user.username if post.user else 'Unknown'),
                 'user_avatar': post.user.profile.avatar_url if post.user and hasattr(post.user, 'profile') else None,
                 'description': post.description[:100] + '...' if post.description and len(post.description) > 100 else post.description,
-                'duration_seconds': post.duration_seconds,
+                'duration_seconds': resolved_duration_seconds,
                 'view_count': post.view_count,
                 'listen_count': post.listen_count,
                 'like_count': post.like_count,
@@ -113,7 +147,14 @@ class AdminPostsListView(APIView):
                 'created_at': post.created_at.isoformat() if post.created_at else None,
                 'updated_at': post.updated_at.isoformat() if post.updated_at else None,
                 'thumbnail_url': post.thumbnail_url,
-                'audio_url': post.audio_url,
+                'audio_url': resolved_audio_url,
+                'audio': {
+                    'id': default_audio.get('id') if default_audio else None,
+                    'audio_url': resolved_audio_url,
+                    'duration_seconds': resolved_duration_seconds,
+                    'voice_name': default_audio.get('voice_name') if default_audio else '',
+                    'format': default_audio.get('format') if default_audio else 'mp3',
+                } if resolved_audio_url else None,
                 'audio_versions': audio_versions,
                 'reports': reports_list,
                 'report_count': len(reports_list),
@@ -223,6 +264,38 @@ class AdminPostRestoreView(APIView):
         )
 
 
+class AdminPostRequestRepublishView(APIView):
+    """
+    Admin moves a rejected post (status 'failed') back to 'processing' queue.
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Move back to processing
+        post.status = 'processing'
+        post.updated_at = timezone.now()
+        post.save()
+
+        return Response(
+            {
+                'message': 'Đã chuyển bài viết về hàng đợi kiểm duyệt.',
+                'post': {
+                    'id': post.id,
+                    'status': post.status
+                }
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class AdminUpdateReportStatusView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
@@ -317,6 +390,114 @@ class AdminRejectReportView(APIView):
 
         return Response(
             {'message': 'Đã từ chối báo cáo và công khai bài viết.', 'post_status': post.status, 'visibility': post.visibility},
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminPostPublishView(APIView):
+    """
+    Approve and publish a post from processing status to published.
+    Admin can set visibility (public, private, unlisted).
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get visibility from request (default to public)
+        visibility = request.data.get('visibility', 'public')
+        
+        if visibility not in dict(Post.VisibilityChoices.choices):
+            return Response(
+                {'error': f'Mức độ hiển thị không hợp lệ: {visibility}'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Update post status and visibility
+        post.status = 'published'
+        post.visibility = visibility
+        post.published_at = timezone.now()
+        post.updated_at = timezone.now()
+        post.save()
+
+        return Response(
+            {
+                'message': 'Đã duyệt và công bố bài viết.',
+                'post': {
+                    'id': post.id,
+                    'status': post.status,
+                    'visibility': post.visibility,
+                    'published_at': post.published_at.isoformat() if post.published_at else None,
+                }
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class AdminPostRejectView(APIView):
+    """
+    Reject a post - set status to failed (rejected by admin).
+    Supports two-stage rejection.
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Get current rejection count from learning_field
+        current_count = 0
+        try:
+            if post.learning_field and post.learning_field.isdigit():
+                current_count = int(post.learning_field)
+        except (ValueError, TypeError):
+            current_count = 0
+
+        new_count = current_count + 1
+        
+        # Update post status to failed (rejected by admin)
+        post.status = 'failed'
+        post.learning_field = str(new_count)
+        post.updated_at = timezone.now()
+        post.save()
+
+        # Notify user
+        rejection_msg = "Bài viết của bạn đã bị người kiểm duyệt từ chối"
+        if new_count >= 2:
+            rejection_msg += " lần 2"
+
+        Notification.objects.create(
+            id=_generate_id("noti"),
+            user=post.user,
+            actor_user=request.user,
+            type='system',
+            title='Bài viết bị từ chối',
+            body=f"{rejection_msg}: {post.title}",
+            reference_type='post',
+            reference_id=post.id,
+            is_read=False
+        )
+
+        return Response(
+            {
+                'message': 'Đã từ chối bài viết.',
+                'post': {
+                    'id': post.id,
+                    'status': post.status,
+                    'rejection_count': new_count
+                }
+            },
             status=status.HTTP_200_OK,
         )
 

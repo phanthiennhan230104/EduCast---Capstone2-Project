@@ -156,7 +156,7 @@ function CommentNode({
                       onChange={(e) => setEditingInput(e.target.value)}
                       className={styles.editInput}
                       placeholder={t('feed.comment.editPlaceholder')}
-                      placeholder="Nhập nội dung mới..."
+
                       autoComplete="off"
                       autoCorrect="off"
                       autoCapitalize="off"
@@ -226,7 +226,7 @@ function CommentNode({
                       className={styles.commentDropdownItem}
                       onClick={() => openEditComment(item)}
                     >
-                      Chỉnh sửa
+                      {t('feed.comment.edit')}
                     </button>
 
                     <button
@@ -234,7 +234,7 @@ function CommentNode({
                       className={`${styles.commentDropdownItem} ${styles.commentDropdownItemDanger}`}
                       onClick={() => handleDeleteComment(item)}
                     >
-                      Xóa
+                      {t('feed.comment.delete')}
                     </button>
                   </>
                 ) : (
@@ -802,7 +802,7 @@ export default function CommentModal({
     } catch (err) {
       setModalEngagement(previous)
       console.error('Toggle like failed:', err)
-      toast.error(err.message || 'Không thể thích bài viết')
+      toast.error(err.message || t('feed.comment.likePostFailed'))
     } finally {
       setEngagementBusy((prev) => ({ ...prev, like: false }))
     }
@@ -836,7 +836,7 @@ export default function CommentModal({
     } catch (err) {
       setModalEngagement(previous)
       console.error('Toggle save failed:', err)
-      toast.error(err.message || 'Không thể lưu bài viết')
+      toast.error(err.message || t('feed.comment.savePostFailed'))
     } finally {
       setEngagementBusy((prev) => ({ ...prev, save: false }))
     }
@@ -1031,38 +1031,38 @@ export default function CommentModal({
     }) || t('feed.comment.user')
 
   const formatCommentTime = (comment) => {
-  if (comment.time_ago && typeof comment.time_ago === 'string') {
-    return comment.time_ago
+    if (comment.time_ago && typeof comment.time_ago === 'string') {
+      return comment.time_ago
+    }
+
+    const raw = comment.created_at
+    if (!raw) return t('feed.comment.justNow')
+
+    const created = new Date(raw)
+    if (Number.isNaN(created.getTime())) return t('feed.comment.justNow')
+
+    const now = new Date()
+    const diffMs = now - created
+    const diffMinutes = Math.floor(diffMs / 60000)
+
+    if (diffMinutes < 1) return t('feed.comment.justNow')
+    if (diffMinutes < 60) return t('feed.comment.minutesAgo', { count: diffMinutes })
+
+    const diffHours = Math.floor(diffMinutes / 60)
+    if (diffHours < 24) return t('feed.comment.hoursAgo', { count: diffHours })
+
+    const diffDays = Math.floor(diffHours / 24)
+    if (diffDays < 7) return t('feed.comment.daysAgo', { count: diffDays })
+
+    const diffWeeks = Math.floor(diffDays / 7)
+    if (diffWeeks < 5) return t('feed.comment.weeksAgo', { count: diffWeeks })
+
+    const diffMonths = Math.floor(diffDays / 30)
+    if (diffMonths < 12) return t('feed.comment.monthsAgo', { count: diffMonths })
+
+    const diffYears = Math.floor(diffDays / 365)
+    return t('feed.comment.yearsAgo', { count: diffYears })
   }
-
-  const raw = comment.created_at
-  if (!raw) return t('feed.comment.justNow')
-
-  const created = new Date(raw)
-  if (Number.isNaN(created.getTime())) return t('feed.comment.justNow')
-
-  const now = new Date()
-  const diffMs = now - created
-  const diffMinutes = Math.floor(diffMs / 60000)
-
-  if (diffMinutes < 1) return t('feed.comment.justNow')
-  if (diffMinutes < 60) return t('feed.comment.minutesAgo', { count: diffMinutes })
-
-  const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) return t('feed.comment.hoursAgo', { count: diffHours })
-
-  const diffDays = Math.floor(diffHours / 24)
-  if (diffDays < 7) return t('feed.comment.daysAgo', { count: diffDays })
-
-  const diffWeeks = Math.floor(diffDays / 7)
-  if (diffWeeks < 5) return t('feed.comment.weeksAgo', { count: diffWeeks })
-
-  const diffMonths = Math.floor(diffDays / 30)
-  if (diffMonths < 12) return t('feed.comment.monthsAgo', { count: diffMonths })
-
-  const diffYears = Math.floor(diffDays / 365)
-  return t('feed.comment.yearsAgo', { count: diffYears })
-}
 
   const updateCommentTree = (items, targetId, updater) =>
     items.map((item) => {
@@ -1755,12 +1755,12 @@ export default function CommentModal({
   const displayTags = normalizePostTags(podcast)
 
   const isOwnerPost =
-  podcast?.isOwner === true ||
-  String(currentUser?.id) === String(podcast.authorId) ||
-  String(currentUser?.id) === String(podcast.author_id) ||
-  String(currentUser?.id) === String(podcast.userId) ||
-  String(currentUser?.id) === String(podcast.user_id) ||
-  String(currentUser?.username) === String(podcast.authorUsername)
+    podcast?.isOwner === true ||
+    String(currentUser?.id) === String(podcast.authorId) ||
+    String(currentUser?.id) === String(podcast.author_id) ||
+    String(currentUser?.id) === String(podcast.userId) ||
+    String(currentUser?.id) === String(podcast.user_id) ||
+    String(currentUser?.username) === String(podcast.authorUsername)
 
   const sharedByUserId =
     sharedBy?.id ?? sharedBy?.user_id ?? sharedBy?.pk ?? sharedBy?.userId
@@ -1821,13 +1821,13 @@ export default function CommentModal({
       if (!res.ok) {
         throw new Error(data.message || `HTTP ${res.status}`)
       }
-      toast.success('Đã xóa bài viết')
+      toast.success(t('feed.comment.deletePostSuccess'))
       setDeleteShareConfirmOpen(false)
       onPostDeleted?.(podcast.id)
       handleClose()
     } catch (err) {
       console.error('Unshare failed:', err)
-      toast.error(err.message || 'Xóa bài viết thất bại')
+      toast.error(err.message || t('feed.comment.deletePostFailed'))
     }
   }
 
@@ -1847,64 +1847,166 @@ export default function CommentModal({
       : podcast.author_avatar || ''
 
   return [
-      createPortal(
-        <div className={styles.overlay} onClick={handleClose}>
-          <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
-        <div className={styles.topBar}>
-          <h2 className={styles.modalTitle}>
-            {isShareCommentModal
-              ? `Bài chia sẻ của ${shareAuthorLabel}`
-              : `Bài viết của ${authorName}`}
-          </h2>
-          <div className={styles.topBarRight}>
-            <button className={styles.closeBtn} type="button" onClick={handleClose}>
-              <X size={22} />
-            </button>
+    createPortal(
+      <div className={styles.overlay} onClick={handleClose}>
+        <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.topBar}>
+            <h2 className={styles.modalTitle}>
+              {isShareCommentModal
+                ? t('feed.comment.sharedPostBy', { author: shareAuthorLabel })
+                : t('feed.comment.postBy', { author: authorName })}
+            </h2>
+            <div className={styles.topBarRight}>
+              <button className={styles.closeBtn} type="button" onClick={handleClose}>
+                <X size={22} />
+              </button>
+            </div>
           </div>
-        </div>
 
-        <div ref={contentScrollRef} className={styles.contentScroll}>
-          {isShareCommentModal && (
-            <div
-              className={[
-                styles.shareIntroBlock,
-                liveShareCaption?.trim()
-                  ? ''
-                  : styles.shareIntroBlockNoCaption,
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
-              <div className={styles.shareIntroRow}>
-                <Avatar
-                  src={sharedBy.avatar_url}
-                  name={shareAuthorLabel}
-                  username={sharedBy.username || sharedBy.user_id}
-                  className={styles.avatar}
-                  imageClassName={styles.avatarImage}
-                />
-                <div className={styles.shareIntroInfo}>
-                  <div
-                    className={styles.shareIntroName}
-                    role="button"
-                    tabIndex={0}
-                    onClick={() =>
-                      navigate(`/profile/${sharedBy.username || sharedBy.user_id || ''}`)
-                    }
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
+          <div ref={contentScrollRef} className={styles.contentScroll}>
+            {isShareCommentModal && (
+              <div
+                className={[
+                  styles.shareIntroBlock,
+                  liveShareCaption?.trim()
+                    ? ''
+                    : styles.shareIntroBlockNoCaption,
+                ]
+                  .filter(Boolean)
+                  .join(' ')}
+              >
+                <div className={styles.shareIntroRow}>
+                  <Avatar
+                    src={sharedBy.avatar_url}
+                    name={shareAuthorLabel}
+                    username={sharedBy.username || sharedBy.user_id}
+                    className={styles.avatar}
+                    imageClassName={styles.avatarImage}
+                  />
+                  <div className={styles.shareIntroInfo}>
+                    <div
+                      className={styles.shareIntroName}
+                      role="button"
+                      tabIndex={0}
+                      onClick={() =>
                         navigate(`/profile/${sharedBy.username || sharedBy.user_id || ''}`)
                       }
-                    }}
-                  >
-                    {shareAuthorLabel}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          navigate(`/profile/${sharedBy.username || sharedBy.user_id || ''}`)
+                        }
+                      }}
+                    >
+                      {shareAuthorLabel}
+                    </div>
+                    <div className={styles.shareIntroMeta}>
+                      {podcast.sharedTimeAgo || podcast.timeAgo || t('feed.comment.justNow')}
+                    </div>
                   </div>
-                  <div className={styles.shareIntroMeta}>
-                    {podcast.sharedTimeAgo || podcast.timeAgo || 'Vừa xong'}
+
+                  {isShareOwner && (
+                    <div className={styles.postMenuWrap} ref={postMenuRef}>
+                      <button
+                        className={styles.moreBtn}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setPostMenuOpen(!postMenuOpen)
+                        }}
+                      >
+                        <MoreHorizontal size={20} />
+                      </button>
+
+                      {postMenuOpen && (
+                        <div className={styles.postDropdown}>
+                          <button
+                            type="button"
+                            className={styles.postDropdownItem}
+                            onClick={(e) => handleEditShareCaption(e)}
+                          >
+                            <Edit size={14} />
+                            <span>{t('feed.edit')}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.postDropdownItem} ${styles.postDropdownItemDanger}`}
+                            onClick={(e) => handleDeleteShareClick(e)}
+                          >
+                            <Trash2 size={14} />
+                            <span>{t('feed.delete')}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {isShareCommentModal && !isShareOwner && (
+                    <div className={styles.postMenuWrap} ref={postMoreMenuRef}>
+                      <button
+                        className={styles.moreBtn}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setPostMenuOpen(false)
+                          setPostMoreMenuOpen(!postMoreMenuOpen)
+                        }}
+                      >
+                        <MoreHorizontal size={20} />
+                      </button>
+
+                      {postMoreMenuOpen && (
+                        <div className={styles.postDropdown}>
+                          <button
+                            type="button"
+                            className={styles.postDropdownItem}
+                            onClick={handleHide}
+                          >
+                            <EyeOff size={14} />
+                            <span>{t('feed.hidePost')}</span>
+                          </button>
+                          <button
+                            type="button"
+                            className={`${styles.postDropdownItem} ${styles.postDropdownItemDanger}`}
+                            onClick={handleReport}
+                          >
+                            <Flag size={14} />
+                            <span>{t('feed.report')}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {liveShareCaption && (
+                  <p className={styles.shareIntroCaption}>{liveShareCaption}</p>
+                )}
+              </div>
+            )}
+
+            <div className={isShareCommentModal ? styles.sharedPostCard : undefined}>
+              <div className={styles.postHeader}>
+                <div className={styles.authorBlock}>
+                  <Avatar
+                    src={authorAvatarUrl}
+                    name={authorName}
+                    username={authorUsername}
+                    className={styles.avatar}
+                    imageClassName={styles.avatarImage}
+                  />
+                  <div>
+                    <div className={styles.author}>{authorName}</div>
+                    <div className={styles.meta}>
+                      {(isShareCommentModal ? podcast.postTimeAgo : podcast.timeAgo) ||
+                        formatTimeAgo(podcast.created_at, t)}
+                      {isShareCommentModal && Number(podcast.listen_count ?? 0) > 0 && (
+                        <> · {listensDisplay}</>
+                      )}
+                    </div>
                   </div>
                 </div>
 
-                {isShareOwner && (
+                {isOwnerPost && !isShareCommentModal && (
                   <div className={styles.postMenuWrap} ref={postMenuRef}>
                     <button
                       className={styles.moreBtn}
@@ -1922,7 +2024,7 @@ export default function CommentModal({
                         <button
                           type="button"
                           className={styles.postDropdownItem}
-                          onClick={(e) => handleEditShareCaption(e)}
+                          onClick={handleEditPost}
                         >
                           <Edit size={14} />
                           <span>Chỉnh sửa</span>
@@ -1930,7 +2032,7 @@ export default function CommentModal({
                         <button
                           type="button"
                           className={`${styles.postDropdownItem} ${styles.postDropdownItemDanger}`}
-                          onClick={(e) => handleDeleteShareClick(e)}
+                          onClick={handleDeletePost}
                         >
                           <Trash2 size={14} />
                           <span>{t('feed.delete')}</span>
@@ -1940,14 +2042,14 @@ export default function CommentModal({
                   </div>
                 )}
 
-                {isShareCommentModal && !isShareOwner && (
+
+                {!isOwnerPost && !isShareCommentModal && (
                   <div className={styles.postMenuWrap} ref={postMoreMenuRef}>
                     <button
                       className={styles.moreBtn}
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        setPostMenuOpen(false)
                         setPostMoreMenuOpen(!postMoreMenuOpen)
                       }}
                     >
@@ -1978,141 +2080,24 @@ export default function CommentModal({
                 )}
               </div>
 
-              {liveShareCaption && (
-                <p className={styles.shareIntroCaption}>{liveShareCaption}</p>
-              )}
-            </div>
-          )}
+              <div className={styles.postBody}>
+                {displayTags.length > 0 && (
+                  <div className={styles.postTags}>
+                    {displayTags.map((tag) => (
+                      <span key={tag} className={styles.postTag}>
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <h3 className={styles.title}>{livePostMeta.title}</h3>
+                <p className={styles.description}>{livePostMeta.description}</p>
 
-          <div className={isShareCommentModal ? styles.sharedPostCard : undefined}>
-          <div className={styles.postHeader}>
-            <div className={styles.authorBlock}>
-              <Avatar
-                src={authorAvatarUrl}
-                name={authorName}
-                username={authorUsername}
-                className={styles.avatar}
-                imageClassName={styles.avatarImage}
-              />
-              <div>
-                <div className={styles.author}>{authorName}</div>
-                <div className={styles.meta}>
-                  {(isShareCommentModal ? podcast.postTimeAgo : podcast.timeAgo) ||
-                    formatTimeAgo(podcast.created_at, t)}
-                  {isShareCommentModal && Number(podcast.listen_count ?? 0) > 0 && (
-                    <> · {listensDisplay}</>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {isOwnerPost && !isShareCommentModal && (
-            <div className={styles.postMenuWrap} ref={postMenuRef}>
-              <button 
-                className={styles.moreBtn} 
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setPostMenuOpen(!postMenuOpen)
-                }}
-              >
-                <MoreHorizontal size={20} />
-              </button>
-              
-              {postMenuOpen && (
-                <div className={styles.postDropdown}>
-                  <button
-                    type="button"
-                    className={styles.postDropdownItem}
-                    onClick={handleEditPost}
-                  >
-                    <Edit size={14} />
-                    <span>Chỉnh sửa</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.postDropdownItem} ${styles.postDropdownItemDanger}`}
-                    onClick={handleDeletePost}
-                  >
-                    <Trash2 size={14} />
-                    <span>Xóa</span>
-                  </button>
-                </div>
-              )}
-            </div>
-            )}
-
-
-            {!isOwnerPost && !isShareCommentModal && (
-            <div className={styles.postMenuWrap} ref={postMoreMenuRef}>
-              <button 
-                className={styles.moreBtn} 
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setPostMoreMenuOpen(!postMoreMenuOpen)
-                }}
-              >
-                <MoreHorizontal size={20} />
-              </button>
-              
-              {postMoreMenuOpen && (
-                <div className={styles.postDropdown}>
-                  <button
-                    type="button"
-                    className={styles.postDropdownItem}
-                    onClick={handleHide}
-                  >
-                    <EyeOff size={14} />
-                    <span>{t('feed.hidePost')}</span>
-                  </button>
-                  <button
-                    type="button"
-                    className={`${styles.postDropdownItem} ${styles.postDropdownItemDanger}`}
-                    onClick={handleReport}
-                  >
-                    <Flag size={14} />
-                    <span>{t('feed.report')}</span>
-                  </button>
-                </div>
-              )}
-            </div>
-            )}
-          </div>
-
-          <div className={styles.postBody}>
-            {displayTags.length > 0 && (
-              <div className={styles.postTags}>
-                {displayTags.map((tag) => (
-                  <span key={tag} className={styles.postTag}>
-                    #{tag}
-                  </span>
-                ))}
-              </div>
-            )}
-            <h3 className={styles.title}>{livePostMeta.title}</h3>
-            <p className={styles.description}>{livePostMeta.description}</p>
-
-              {coverImage ? (
-                <div className={styles.mediaWrap}>
-                  {(durationSeconds || audioUrl) && (
-                    <>
-                      {!isCurrentTrack && (
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.preventDefault()
-                            e.stopPropagation()
-                            handlePlayClick()
-                          }}
-                          className={styles.centerPlayBtn}
-                        >
-                          <Play size={34} />
-                        </button>
-                      )}
-
-                      {isCurrentTrack && (
-                        <div className={styles.youtubeControls}>
+                {coverImage ? (
+                  <div className={styles.mediaWrap}>
+                    {(durationSeconds || audioUrl) && (
+                      <>
+                        {!isCurrentTrack && (
                           <button
                             type="button"
                             onClick={(e) => {
@@ -2120,76 +2105,91 @@ export default function CommentModal({
                               e.stopPropagation()
                               handlePlayClick()
                             }}
-                            className={styles.youtubePlayBtn}
+                            className={styles.centerPlayBtn}
                           >
-                            {isCurrentPlaying ? <Pause size={18} /> : <Play size={18} />}
+                            <Play size={34} />
                           </button>
+                        )}
 
-                          <span className={styles.youtubeTime}>
-                            {String(Math.floor(displayTime / 60)).padStart(2, '0')}:
-                            {String(Math.floor(displayTime) % 60).padStart(2, '0')}
-                          </span>
-
-                          <div ref={progressBarRef} onClick={handleProgressBarClick} className={styles.youtubeProgressBar}>
-                            <div
-                              className={styles.youtubeProgressFill}
-                              style={{
-                                width: `${displayProgress}%`,
-                                transition: isSeeking ? 'none' : 'width 0.1s linear',
+                        {isCurrentTrack && (
+                          <div className={styles.youtubeControls}>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault()
+                                e.stopPropagation()
+                                handlePlayClick()
                               }}
-                            />
+                              className={styles.youtubePlayBtn}
+                            >
+                              {isCurrentPlaying ? <Pause size={18} /> : <Play size={18} />}
+                            </button>
+
+                            <span className={styles.youtubeTime}>
+                              {String(Math.floor(displayTime / 60)).padStart(2, '0')}:
+                              {String(Math.floor(displayTime) % 60).padStart(2, '0')}
+                            </span>
+
+                            <div ref={progressBarRef} onClick={handleProgressBarClick} className={styles.youtubeProgressBar}>
+                              <div
+                                className={styles.youtubeProgressFill}
+                                style={{
+                                  width: `${displayProgress}%`,
+                                  transition: isSeeking ? 'none' : 'width 0.1s linear',
+                                }}
+                              />
+                            </div>
+
+                            <span className={styles.youtubeTime}>
+                              {String(Math.floor(displayDuration / 60)).padStart(2, '0')}:
+                              {String(Math.floor(displayDuration) % 60).padStart(2, '0')}
+                            </span>
                           </div>
+                        )}
+                      </>
+                    )}
 
-                          <span className={styles.youtubeTime}>
-                            {String(Math.floor(displayDuration / 60)).padStart(2, '0')}:
-                            {String(Math.floor(displayDuration) % 60).padStart(2, '0')}
-                          </span>
-                        </div>
-                      )}
-                    </>
-                  )}
-
-                  <img src={coverImage} alt={podcast.title} className={styles.cover} />
-                </div>
-              ) : (
-                (durationSeconds || audioUrl) && (
-                  <div className={styles.audioOnlyPlayer}>
-                    <button
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        e.stopPropagation()
-                        handlePlayClick()
-                      }}
-                      className={styles.audioOnlyPlayBtn}
-                    >
-                      {isCurrentPlaying ? <Pause size={18} /> : <Play size={18} />}
-                    </button>
-
-                    <span className={styles.audioOnlyTime}>
-                      {String(Math.floor(displayTime / 60)).padStart(2, '0')}:
-                      {String(Math.floor(displayTime) % 60).padStart(2, '0')}
-                    </span>
-
-                    <div ref={progressBarRef} onClick={handleProgressBarClick} className={styles.audioOnlyProgress}>
-                      <div
-                        className={styles.audioOnlyProgressFill}
-                        style={{
-                          width: `${displayProgress}%`,
-                          transition: isSeeking ? 'none' : 'width 0.1s linear',
+                    <img src={coverImage} alt={podcast.title} className={styles.cover} />
+                  </div>
+                ) : (
+                  (durationSeconds || audioUrl) && (
+                    <div className={styles.audioOnlyPlayer}>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          e.stopPropagation()
+                          handlePlayClick()
                         }}
-                      />
-                    </div>
+                        className={styles.audioOnlyPlayBtn}
+                      >
+                        {isCurrentPlaying ? <Pause size={18} /> : <Play size={18} />}
+                      </button>
 
-                  <span className={styles.audioOnlyTime}>
-                    {String(Math.floor(displayDuration / 60)).padStart(2, '0')}:
-                    {String(Math.floor(displayDuration) % 60).padStart(2, '0')}
-                  </span>
-                </div>
-              )
-            )}
-          </div>
-          </div>
+                      <span className={styles.audioOnlyTime}>
+                        {String(Math.floor(displayTime / 60)).padStart(2, '0')}:
+                        {String(Math.floor(displayTime) % 60).padStart(2, '0')}
+                      </span>
+
+                      <div ref={progressBarRef} onClick={handleProgressBarClick} className={styles.audioOnlyProgress}>
+                        <div
+                          className={styles.audioOnlyProgressFill}
+                          style={{
+                            width: `${displayProgress}%`,
+                            transition: isSeeking ? 'none' : 'width 0.1s linear',
+                          }}
+                        />
+                      </div>
+
+                      <span className={styles.audioOnlyTime}>
+                        {String(Math.floor(displayDuration / 60)).padStart(2, '0')}:
+                        {String(Math.floor(displayDuration) % 60).padStart(2, '0')}
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
 
             <div className={`${styles.statsRow} ${isShareCommentModal ? styles.statsRowShareFeed : ''}`}>
               <div className={styles.leftStats}>
@@ -2270,55 +2270,55 @@ export default function CommentModal({
                   )}
                 </div>
 
-              {!isShareCommentModal && (
-              <div
-                className={styles.statHoverWrap}
-              >
-                <button type="button" className={styles.statTextButton}>
-                  <span
-                    onMouseEnter={() => handleStatsMouseEnter('shares')}
-                    onMouseLeave={handleStatsMouseLeave}
-                    className={styles.statsText}
+                {!isShareCommentModal && (
+                  <div
+                    className={styles.statHoverWrap}
                   >
-                    {displayShareCount ?? 0} lượt chia sẻ
-                  </span>
-                </button>
+                    <button type="button" className={styles.statTextButton}>
+                      <span
+                        onMouseEnter={() => handleStatsMouseEnter('shares')}
+                        onMouseLeave={handleStatsMouseLeave}
+                        className={styles.statsText}
+                      >
+                        {displayShareCount ?? 0} lượt chia sẻ
+                      </span>
+                    </button>
 
-                  {statsHoverType === 'shares' && (
-                    <div
-                      className={`${styles.statsPopup} ${styles.statsPopupRight}`}
-                      onMouseEnter={() => handleStatsMouseEnter('shares')}
-                      onMouseLeave={handleStatsMouseLeave}
-                    >
+                    {statsHoverType === 'shares' && (
+                      <div
+                        className={`${styles.statsPopup} ${styles.statsPopupRight}`}
+                        onMouseEnter={() => handleStatsMouseEnter('shares')}
+                        onMouseLeave={handleStatsMouseLeave}
+                      >
 
-                    {statsPopupLoading ? (
-                      <div className={styles.statsPopupEmpty}>Đang tải...</div>
-                    ) : getUniqueUsersById(statsPopupData.shares).length > 0 ? (
-                      getUniqueUsersById(statsPopupData.shares).map((user) => (
-                        <div key={user.user_id || user.username} className={styles.statsPopupItem}>
-                          <div className={styles.statsPopupName}>
-                            {publicDisplayName(user)}
-                          </div>
-                        </div>
-                      ))
-                    ) : (
-                      <div className={styles.statsPopupEmpty}>{t('feed.noShares')}</div>
+                        {statsPopupLoading ? (
+                          <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                        ) : getUniqueUsersById(statsPopupData.shares).length > 0 ? (
+                          getUniqueUsersById(statsPopupData.shares).map((user) => (
+                            <div key={user.user_id || user.username} className={styles.statsPopupItem}>
+                              <div className={styles.statsPopupName}>
+                                {publicDisplayName(user)}
+                              </div>
+                            </div>
+                          ))
+                        ) : (
+                          <div className={styles.statsPopupEmpty}>{t('feed.noShares')}</div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
               </div>
-              )}
             </div>
-          </div>
 
             <div className={`${styles.actionRow} ${isShareCommentModal ? styles.actionRowShareFeed : ''}`}>
-            <button
-              type="button"
-              className={`${styles.actionBtn} ${displayLiked ? styles.activeLike : ''}`}
-              disabled={engagementBusy.like}
-              onClick={(e) => {
-                e.preventDefault()
-                e.stopPropagation()
+              <button
+                type="button"
+                className={`${styles.actionBtn} ${displayLiked ? styles.activeLike : ''}`}
+                disabled={engagementBusy.like}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
                   handleLikeWithRefetch(e)
                 }}
               >
@@ -2331,34 +2331,34 @@ export default function CommentModal({
                 <span>{t('feed.commentAction')}</span>
               </button>
 
-            {!isShareCommentModal && (
-              <button type="button" className={styles.actionBtn} onClick={() => setShowShareModal(true)}>
-                <Share2 size={17} />
-                <span>{t('shareModal.title')}</span>
-              </button>
-            )}
+              {!isShareCommentModal && (
+                <button type="button" className={styles.actionBtn} onClick={() => setShowShareModal(true)}>
+                  <Share2 size={17} />
+                  <span>{t('shareModal.title')}</span>
+                </button>
+              )}
 
-            {!isShareCommentModal && (
-              <button
-                ref={saveButtonRef}
-                type="button"
-                className={`${styles.actionBtn} ${displaySaved ? styles.activeSave : ''}`}
-                disabled={engagementBusy.save}
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
-                  if (displaySaved) {
-                    handleSaveWithRefetch(e)
-                  } else {
-                    setShowCollectionModal(true)
-                  }
-                }}
-              >
-                <Bookmark size={17} fill={displaySaved ? 'currentColor' : 'none'} />
-                <span>{t('library.postDetail.save')}</span>
-              </button>
-            )}
-          </div>
+              {!isShareCommentModal && (
+                <button
+                  ref={saveButtonRef}
+                  type="button"
+                  className={`${styles.actionBtn} ${displaySaved ? styles.activeSave : ''}`}
+                  disabled={engagementBusy.save}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    e.stopPropagation()
+                    if (displaySaved) {
+                      handleSaveWithRefetch(e)
+                    } else {
+                      setShowCollectionModal(true)
+                    }
+                  }}
+                >
+                  <Bookmark size={17} fill={displaySaved ? 'currentColor' : 'none'} />
+                  <span>{t('library.postDetail.save')}</span>
+                </button>
+              )}
+            </div>
 
             <div
               className={
@@ -2433,78 +2433,76 @@ export default function CommentModal({
               imageClassName={styles.avatarImage}
             />
 
-          <div className={styles.inputWrap}>
-            <input
-              ref={commentInputRef}
-              id={`comment-input-${podcast.id}`}
-              type="text"
-              value={commentInput}
-              onChange={(e) => setCommentInput(e.target.value)}
-              placeholder={t('feed.comment.writeComment')}
-              className={styles.commentInput}
-              autoComplete="off"
-              autoCorrect="off"
-              autoCapitalize="off"
-              spellCheck={false}
-              name={`comment-input-${podcast.id}`}
-            />
-            <button
-              type="submit"
-              className={styles.sendBtn}
-              disabled={submitting || !commentInput.trim()}
-            >
-              Gửi
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>,
-        document.body
-      ),
-      createPortal(
-        <ConfirmModal
-          isOpen={deleteModalOpen}
-          title="Xóa bình luận"
-          message={`Bạn có chắc muốn xóa bình luận này không?
-Hành động này không thể hoàn tác.`}
-          confirmText="Xóa"
-          cancelText="Hủy"
-          isDangerous={true}
-          onConfirm={confirmDeleteComment}
-          onCancel={() => {
-            setDeleteModalOpen(false)
-            setCommentToDelete(null)
-          }}
-        />,
-        document.body
-      ),
-      createPortal(
-        <ConfirmModal
-          isOpen={deletePostModalOpen}
-          title="Xóa bài viết"
-          message={`Bạn chắc chắn muốn xóa bài viết này?
-Hành động này không thể hoàn tác.`}
-          confirmText="Xóa"
-          cancelText="Hủy"
-          isDangerous={true}
-          isLoading={isDeleting}
-          progress={deleteProgress}
-          onConfirm={confirmDeletePost}
-          onCancel={() => {
-            setDeletePostModalOpen(false);
-            setCommentToDelete(null);
-          }}
-        />,
-        document.body
-      ),
-      showShareModal ? createPortal(
-        <ShareModal
-          podcast={podcast}
-          onClose={() => setShowShareModal(false)}
-          onShareSuccess={(data) => {}}
-        />,
-        document.body
-      ) : null,
+            <div className={styles.inputWrap}>
+              <input
+                ref={commentInputRef}
+                id={`comment-input-${podcast.id}`}
+                type="text"
+                value={commentInput}
+                onChange={(e) => setCommentInput(e.target.value)}
+                placeholder={t('feed.comment.writeComment')}
+                className={styles.commentInput}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                name={`comment-input-${podcast.id}`}
+              />
+              <button
+                type="submit"
+                className={styles.sendBtn}
+                disabled={submitting || !commentInput.trim()}
+              >
+                Gửi
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>,
+      document.body
+    ),
+    createPortal(
+      <ConfirmModal
+        isOpen={deleteModalOpen}
+        title={t('feed.confirm.deleteCommentTitle')}
+        message={t('feed.confirm.deleteCommentMessage')}
+        confirmText={t('feed.comment.delete')}
+        cancelText={t('feed.confirm.cancel')}
+        isDangerous={true}
+        onConfirm={confirmDeleteComment}
+        onCancel={() => {
+          setDeleteModalOpen(false)
+          setCommentToDelete(null)
+        }}
+      />,
+      document.body
+    ),
+    createPortal(
+      <ConfirmModal
+        isOpen={deletePostModalOpen}
+        title={t('feed.confirm.deletePostTitle')}
+        message={t('feed.confirm.deletePostMessage')}
+        confirmText={t('feed.comment.delete')}
+        cancelText={t('feed.confirm.cancel')}
+        isDangerous={true}
+        isLoading={isDeleting}
+        progress={deleteProgress}
+        onConfirm={confirmDeletePost}
+        onCancel={() => {
+          setDeletePostModalOpen(false);
+          setCommentToDelete(null);
+        }}
+      />,
+      document.body
+    ),
+    showShareModal ? createPortal(
+      <ShareModal
+        podcast={podcast}
+        onClose={() => setShowShareModal(false)}
+        onShareSuccess={(data) => { }}
+      />,
+      document.body
+    ) : null,
 
     createPortal(
       <ConfirmModal
@@ -2519,60 +2517,57 @@ Hành động này không thể hoàn tác.`}
       document.body
     ),
 
-      createPortal(
-        <SaveCollectionModal
-          isOpen={showCollectionModal}
-          onClose={() => setShowCollectionModal(false)}
-          postId={saveApiPostId}
-          onSave={handleCollectionModalSave}
-          triggerRef={saveButtonRef}
-          isPopup={false}
-        />,
-        document.body
-      ),
+    createPortal(
+      <SaveCollectionModal
+        isOpen={showCollectionModal}
+        onClose={() => setShowCollectionModal(false)}
+        postId={saveApiPostId}
+        onSave={handleCollectionModalSave}
+        triggerRef={saveButtonRef}
+        isPopup={false}
+      />,
+      document.body
+    ),
 
-      reportPostModalOpen ? createPortal(
-        <ReportPostModal
-          postId={canonicalPostId}
-          postTitle={livePostMeta.title}
-          authorId={podcast.authorId || podcast.author_id || podcast.userId || podcast.user_id}
-          authorName={authorName}
-          onClose={() => setReportPostModalOpen(false)}
-        />,
-        document.body
-      ) : null,
-
-      <EditPostModal
-        key="edit-post-modal"
-        isOpen={editPostModalOpen}
+    reportPostModalOpen ? createPortal(
+      <ReportPostModal
         postId={canonicalPostId}
-        onClose={() => setEditPostModalOpen(false)}
-        onSaved={handlePostEdited}
+        postTitle={livePostMeta.title}
+        authorId={podcast.authorId || podcast.author_id || podcast.userId || podcast.user_id}
+        authorName={authorName}
+        onClose={() => setReportPostModalOpen(false)}
       />,
+      document.body
+    ) : null,
 
-      <EditShareCaptionModal
-        key="edit-share-caption-modal"
-        isOpen={editShareCaptionOpen}
-        compositeRowId={podcast?.id}
-        initialCaption={liveShareCaption}
-        onClose={() => setEditShareCaptionOpen(false)}
-        onSaved={handleShareCaptionSaved}
+    <EditPostModal
+      key="edit-post-modal"
+      isOpen={editPostModalOpen}
+      postId={canonicalPostId}
+      onClose={() => setEditPostModalOpen(false)}
+      onSaved={handlePostEdited}
+    />,
+
+    <EditShareCaptionModal
+      key="edit-share-caption-modal"
+      isOpen={editShareCaptionOpen}
+      compositeRowId={podcast?.id}
+      initialCaption={liveShareCaption}
+      onClose={() => setEditShareCaptionOpen(false)}
+      onSaved={handleShareCaptionSaved}
+    />,
+
+    createPortal(
+      <ConfirmModal
+        title={t('feed.confirm.deletePostTitle')}
+        message={t('feed.confirm.deletePostMessage')}
+        confirmText={t('feed.comment.delete')}
+        cancelText={t('feed.confirm.cancel')}
+        isDangerous={true}
+        onConfirm={confirmDeleteShare}
+        onCancel={() => setDeleteShareConfirmOpen(false)}
       />,
-
-      createPortal(
-        <ConfirmModal
-          key="delete-share-confirm"
-          isOpen={deleteShareConfirmOpen}
-          title="Xóa bài viết"
-          message={`Bạn chắc chắn muốn xóa bài viết này?
-Hành động này không thể hoàn tác.`}
-          confirmText="Xóa"
-          cancelText="Hủy"
-          isDangerous={true}
-          onConfirm={confirmDeleteShare}
-          onCancel={() => setDeleteShareConfirmOpen(false)}
-        />,
-        document.body
-      ),
-    ].filter(Boolean)
+      document.body
+    ),
+  ].filter(Boolean)
 }

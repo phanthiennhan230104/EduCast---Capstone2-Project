@@ -126,14 +126,14 @@ export default function AdminSystemPage() {
       <div className="adminsystem-page">
         <Section title="CẤU HÌNH AI">
           <SettingRow label="Thời lượng Podcast tối đa" value="3 phút" />
-          <SettingRow label="Mô hình giọng AI" value="ElevenLabs v2" />
+          <SettingRow label="Mô hình giọng AI" value="Edge" />
           <SettingRow label="Độ nhạy kiểm duyệt tự động" value="Medium" />
         </Section>
 
         <Section title="QUY TẮC NỀN TẢNG">
-          <SettingRow label="Độ tuổi tối thiểu" value="16" />
+          <SettingRow label="Nội dung phải được kiểm duyệt trước khi công khai" value="Bật" />
           <SettingRow label="Dung lượng tải lên tối đa" value="25 MB" />
-          <SettingRow label="Ngưỡng báo cáo tự động đánh dấu" value="10" />
+          <SettingRow label="Nội dung phù hợp cho cộng đồng" value="Công khai" />
         </Section>
 
         <Section title="THÔNG BÁO">

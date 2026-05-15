@@ -115,7 +115,7 @@ export default function HashtagPage() {
     <MainLayout>
       <div className={styles.container}>
         {loading ? (
-          <div className={styles.loading}>{t('common.loading', 'Đang tải...')}</div>
+          <div className={styles.loading}>{t('common.loading')}</div>
         ) : tagInfo ? (
           <>
             <header className={styles.header}>
@@ -125,7 +125,7 @@ export default function HashtagPage() {
               <div className={styles.tagMeta}>
                 <h1 className={styles.tagName}>#{tagInfo.name}</h1>
                 <p className={styles.tagStats}>
-                  <strong>{formatCount(tagInfo.usage_count)}</strong> {t('hashtag.posts', 'bài viết')}
+                  <strong>{formatCount(tagInfo.usage_count)}</strong> {t('hashtag.posts')}
                 </p>
               </div>
             </header>
@@ -173,12 +173,12 @@ export default function HashtagPage() {
                   </div>
                 ))
               ) : (
-                <div className={styles.empty}>{t('hashtag.noPosts', 'Chưa có bài viết nào với hashtag này')}</div>
+                <div className={styles.empty}>{t('hashtag.noPosts')}</div>
               )}
             </div>
           </>
         ) : (
-          <div className={styles.error}>{t('hashtag.notFound', 'Không tìm thấy hashtag')}</div>
+          <div className={styles.error}>{t('hashtag.notFound')}</div>
         )}
       </div>
 

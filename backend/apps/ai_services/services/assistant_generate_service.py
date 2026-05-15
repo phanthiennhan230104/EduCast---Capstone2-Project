@@ -42,18 +42,18 @@ def build_fallback_generate_payload(raw_content: str, intent: str) -> dict[str, 
     return {
         "type": "error",
         "intent": intent,
-        "summary": "Có lỗi xảy ra khi xử lý yêu cầu của bạn.",
+        "summary": "chatAssistant.error.fallback.summary",
         "content": {
             "title": "",
             "description": "",
-            "body": "Xin lỗi, AI Assistant không thể xử lý yêu cầu này. Vui lòng thử lại với yêu cầu khác.",
+            "body": "chatAssistant.error.fallback.body",
             "bullets": [],
             "hashtags": [],
         },
         "suggestions": [
-            "Viết lại yêu cầu đơn giản hơn",
-            "Thử với chủ đề khác",
-            "Kiểm tra kết nối mạng",
+            "chatAssistant.error.fallback.suggestions.shorter",
+            "chatAssistant.error.fallback.suggestions.changeTopic",
+            "chatAssistant.error.fallback.suggestions.network",
         ],
     }
 

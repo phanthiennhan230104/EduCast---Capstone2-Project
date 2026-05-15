@@ -24,6 +24,21 @@ function formatTime(seconds) {
   const secs = total % 60
   return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
 }
+function getTrackProgressKey(track) {
+  if (!track) return null
+
+  if (track.audioId) return `audio:${track.audioId}`
+  if (track.audio_id) return `audio:${track.audio_id}`
+
+  if (track.id && track.audioUrl) {
+    return `track:${track.id}:${track.audioUrl}`
+  }
+
+  if (track.audioUrl) return `url:${track.audioUrl}`
+  if (track.id) return `track:${track.id}`
+
+  return null
+}
 
 export function AudioPlayerProvider({ children }) {
   const authCtx = useContext(AuthContext)
@@ -76,22 +91,23 @@ export function AudioPlayerProvider({ children }) {
   }, [user?.id])
 
   const getSavedProgress = useCallback((track) => {
-    if (!track?.id) return null
-    return progressRef.current[track.id] || null
-  }, [])
+  const key = getTrackProgressKey(track)
+  if (!key) return null
+  return progressRef.current[key] || null
+}, [])
 
-  const saveProgress = useCallback((trackId, data) => {
-    if (!trackId) return
+  const saveProgress = useCallback((trackKey, data) => {
+  if (!trackKey) return
 
-    progressRef.current[trackId] = {
-      ...(progressRef.current[trackId] || {}),
-      ...data,
-    }
+  progressRef.current[trackKey] = {
+    ...(progressRef.current[trackKey] || {}),
+    ...data,
+  }
 
-    setTrackProgressMap((prev) => ({
-      ...prev,
-      [trackId]: progressRef.current[trackId],
-    }))
+  setTrackProgressMap((prev) => ({
+    ...prev,
+    [trackKey]: progressRef.current[trackKey],
+  }))
 
     try {
       const progressKey = getProgressKey()
@@ -190,7 +206,7 @@ export function AudioPlayerProvider({ children }) {
             audio.src = ''
             audio.load()
           }
-        } catch (_) {}
+        } catch (_) { }
         setPlaying(false)
         setCurrentTime(0)
         setDuration(0)
@@ -210,7 +226,8 @@ export function AudioPlayerProvider({ children }) {
   }, [])
 
   const trackedListenRef = useRef({})
-  const lastProgressUpdateRef = useRef({}) // Track last update time for throttling
+const pendingSeekPercentRef = useRef(null)
+const lastProgressUpdateRef = useRef({})
 
   const playTrack = useCallback((track, trackQueue = []) => {
     if (!track?.audioUrl) return
@@ -321,14 +338,26 @@ export function AudioPlayerProvider({ children }) {
     audio.currentTime = nextTime
     setCurrentTime(nextTime)
 
-    saveProgress(currentTrack.id, {
+    saveProgress(getTrackProgressKey(currentTrack), {
       currentTime: nextTime,
       duration: audioDuration,
       progressPercent: (nextTime / audioDuration) * 100,
       hasPlayed: nextTime > 0,
     })
   }, [duration, currentTrack, saveProgress])
+const seekTrackToPercent = useCallback((track, percent, trackQueue = []) => {
+  if (!track?.audioUrl) return
 
+  const isSameTrack = sameTrackId(currentTrack?.id, track.id)
+
+  if (isSameTrack) {
+    seekToPercent(percent)
+    return
+  }
+
+  pendingSeekPercentRef.current = Number(percent)
+  playTrack(track, trackQueue)
+}, [currentTrack, seekToPercent, playTrack])
   const seekToTime = useCallback((time) => {
     const audio = audioRef.current
     if (!audio || !currentTrack?.id) return
@@ -337,7 +366,7 @@ export function AudioPlayerProvider({ children }) {
     audio.currentTime = nextTime
     setCurrentTime(nextTime)
 
-    saveProgress(currentTrack.id, {
+    saveProgress(getTrackProgressKey(currentTrack), {
       currentTime: nextTime,
       duration,
       progressPercent: duration ? (nextTime / duration) * 100 : 0,
@@ -373,7 +402,7 @@ export function AudioPlayerProvider({ children }) {
       return
     }
 
-    
+
     const currentIndex = queue.findIndex((item) =>
       sameTrackId(item.id, currentTrack.id)
     )
@@ -407,7 +436,7 @@ export function AudioPlayerProvider({ children }) {
           audio.currentTime = resumeTime
         }
 
-        saveProgress(currentTrack.id, {
+        saveProgress(getTrackProgressKey(currentTrack), {
           duration: nextDuration,
           progressPercent: nextDuration
             ? ((resumeTime || 0) / nextDuration) * 100
@@ -429,7 +458,7 @@ export function AudioPlayerProvider({ children }) {
       const listenPostId = getCanonicalPostIdForEngagement(currentTrack) || trackId
 
       // save local progress
-      saveProgress(trackId, {
+      saveProgress(getTrackProgressKey(currentTrack), {
         currentTime,
         duration,
         progressPercent: duration ? (currentTime / duration) * 100 : 0,
@@ -451,7 +480,7 @@ export function AudioPlayerProvider({ children }) {
       if (!shouldUpdate) return
 
       lastProgressUpdateRef.current[trackId] = now
-      
+
       // Nếu lần đầu tiên nghe được 50%, mark để không tính lượt nghe lại
       if (progressPercent >= 50 && !trackedListenRef.current[trackId]) {
         trackedListenRef.current[trackId] = true
@@ -468,8 +497,8 @@ export function AudioPlayerProvider({ children }) {
               'Content-Type': 'application/json',
               ...(token
                 ? {
-                    Authorization: `Bearer ${token}`,
-                  }
+                  Authorization: `Bearer ${token}`,
+                }
                 : {}),
             },
             body: JSON.stringify({
@@ -496,7 +525,7 @@ export function AudioPlayerProvider({ children }) {
 
     const handleEnded = () => {
       if (currentTrack?.id) {
-        saveProgress(currentTrack.id, {
+        saveProgress(getTrackProgressKey(currentTrack), {
           currentTime: duration,
           duration,
           progressPercent: 100,
@@ -551,18 +580,42 @@ export function AudioPlayerProvider({ children }) {
     const audio = audioRef.current
     if (!audio || !currentTrack?.audioUrl || currentTrack?.id == null) return
 
-    const savedProgress = getSavedProgress({ id: currentTrack.id })
+    const savedProgress = getSavedProgress(currentTrack)
     const resumeTime = Number(savedProgress?.currentTime || 0)
 
     audio.src = currentTrack.audioUrl
     audio.load()
 
     const handleLoaded = () => {
-      if (resumeTime > 0 && Math.abs(audio.currentTime - resumeTime) > 0.3) {
-        audio.currentTime = resumeTime
-      }
+  const audioDuration =
+    Number(audio.duration) ||
+    Number(currentTrack?.durationSeconds) ||
+    0
 
-      audio.play().catch((err) => {
+  const pendingPercent = pendingSeekPercentRef.current
+
+  if (pendingPercent != null && audioDuration > 0) {
+    const nextTime = Math.max(
+      0,
+      Math.min(audioDuration, (pendingPercent / 100) * audioDuration)
+    )
+
+    audio.currentTime = nextTime
+    setCurrentTime(nextTime)
+
+    saveProgress(getTrackProgressKey(currentTrack), {
+      currentTime: nextTime,
+      duration: audioDuration,
+      progressPercent: pendingPercent,
+      hasPlayed: nextTime > 0,
+    })
+
+    pendingSeekPercentRef.current = null
+  } else if (resumeTime > 0 && Math.abs(audio.currentTime - resumeTime) > 0.3) {
+    audio.currentTime = resumeTime
+  }
+
+  audio.play().catch((err) => {
         if (err.name === 'AbortError') {
           console.warn('Autoplay interrupted - audio element may have been removed from DOM')
         } else {
@@ -577,7 +630,7 @@ export function AudioPlayerProvider({ children }) {
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoaded)
     }
-  }, [currentTrack?.id, currentTrack?.audioUrl, getSavedProgress])
+ }, [currentTrack, getSavedProgress, saveProgress])
 
   const progressPercent = duration
     ? Math.min(100, (currentTime / duration) * 100)
@@ -605,6 +658,8 @@ export function AudioPlayerProvider({ children }) {
     seekToTime,
     playNext,
     playPrev,
+    getTrackProgressKey,
+seekTrackToPercent,
     isCurrentTrack: (id) => sameTrackId(currentTrack?.id, id),
   }), [
     queue,

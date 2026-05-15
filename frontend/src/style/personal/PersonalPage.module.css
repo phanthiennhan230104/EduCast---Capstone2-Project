@@ -1735,3 +1735,99 @@
   font-weight: 800;
   box-shadow: 0 10px 22px rgba(2, 8, 23, 0.35);
 }
+
+/* ==================== REJECTED POST ==================== */
+.rejectedBanner {
+  background: rgba(255, 123, 123, 0.08);
+  border-bottom: 1px solid rgba(255, 123, 123, 0.15);
+  border-top-left-radius: 14px;
+  border-top-right-radius: 14px;
+  padding: 10px 16px;
+  margin-bottom: 12px; /* Small gap inside the card before header */
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  backdrop-filter: blur(10px);
+}
+
+/* When inside PodcastCard, we want to override some layout */
+.postCard :global(.PodcastCard_card__3j2kL) { /* This is tricky due to hashing */
+}
+
+/* Actually, since it's now INSIDE the PodcastCard article, it will naturally be inside its border if I didn't add a border to the banner itself */
+.rejectedBanner {
+  background: rgba(255, 123, 123, 0.12);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  margin: -16px -16px 16px -16px; /* Offset PodcastCard's padding */
+  padding: 12px 16px;
+  border-top-left-radius: 16px;
+  border-top-right-radius: 16px;
+}
+
+.rejectedText {
+  color: #ff8e8e;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.rejectedActions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.republishRequestBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(46, 213, 115, 0.12);
+  border: 1px solid rgba(46, 213, 115, 0.25);
+  border-radius: 10px;
+  color: #2ed573;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.republishRequestBtn:hover {
+  background: rgba(46, 213, 115, 0.2);
+  border-color: rgba(46, 213, 115, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(46, 213, 115, 0.15);
+}
+
+.republishRequestBtn:active {
+  transform: translateY(0);
+}
+
+.rejectedDeleteBtn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background: rgba(255, 123, 123, 0.12);
+  border: 1px solid rgba(255, 123, 123, 0.25);
+  border-radius: 10px;
+  color: #ff8e8e;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.rejectedDeleteBtn:hover {
+  background: rgba(255, 123, 123, 0.2);
+  border-color: rgba(255, 123, 123, 0.4);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(255, 123, 123, 0.15);
+}
+
+.rejectedDeleteBtn:active {
+  transform: translateY(0);
+}

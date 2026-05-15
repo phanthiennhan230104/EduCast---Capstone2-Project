@@ -798,7 +798,7 @@ class DraftDeleteView(APIView):
             # Chỉ chuyển status sang archived, không xóa file vật lý trên Cloudinary
             # để đảm bảo toàn vẹn dữ liệu nếu muốn khôi phục.
 
-            post.status = "archived"
+            post.status = "hidden"
             post.updated_at = timezone.now()
             post.save(update_fields=["status", "updated_at"])
 
@@ -1204,6 +1204,7 @@ class UserPostsAPIView(APIView):
             "language_code": post.language_code,
             "source_type": post.source_type,
             "is_ai_generated": post.is_ai_generated,
+            "status": post.status,
             "created_at": post.created_at.isoformat(),
             "published_at": post.published_at.isoformat() if post.published_at else None,
             "updated_at": post.updated_at.isoformat() if post.updated_at else None,
@@ -1251,13 +1252,23 @@ class UserPostsAPIView(APIView):
                 )
             
             # Get user's published posts (exclude hidden posts)
-            posts_qs = (
-                Post.objects
-                .filter(user_id=target_user_id, status="published", visibility="public")
-                .exclude(id__in=hidden_post_ids)
-                .select_related("user", "user__profile")
-                .order_by("-created_at")
-            )
+            if str(current_user_id) == str(target_user_id):
+                # If viewing own profile, show processing, published, and failed (rejected) posts
+                posts_qs = (
+                    Post.objects
+                    .filter(user_id=target_user_id)
+                    .filter(status__in=["published", "processing", "failed"])
+                    .select_related("user", "user__profile")
+                    .order_by("-created_at")
+                )
+            else:
+                posts_qs = (
+                    Post.objects
+                    .filter(user_id=target_user_id, status="published", visibility="public")
+                    .exclude(id__in=hidden_post_ids)
+                    .select_related("user", "user__profile")
+                    .order_by("-created_at")
+                )
             
             limit = int(request.query_params.get("limit", 100))
             posts = list(posts_qs[:limit])
@@ -1563,8 +1574,8 @@ class PublishPostView(APIView):
             
             post.learning_field = data.get("learning_field")
             post.visibility = data.get("visibility", "public")
-            post.status = Post.StatusChoices.PUBLISHED
-            post.published_at = timezone.now()
+            post.status = Post.StatusChoices.PROCESSING
+            post.published_at = None
             post.updated_at = timezone.now()
             post.slug = generate_unique_slug(post.title)
 
@@ -1585,7 +1596,7 @@ class PublishPostView(APIView):
 
             return Response(
                 {
-                    "message": "Đăng bài thành công",
+                    "message": "Bài viết đã được lưu và gửi cho admin kiểm duyệt",
                     "post_id": post.id,
                 },
                 status=status.HTTP_200_OK,
@@ -1640,6 +1651,58 @@ class TagListView(APIView):
             {
                 "message": "Lấy danh sách tags thành công",
                 "data": serializer.data,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+class PostRequestRepublishView(APIView):
+    """
+    User requests to republish a rejected post (status 'failed').
+    Only allowed if rejection_count (learning_field) is 1.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id, user=request.user)
+        except Post.DoesNotExist:
+            return Response(
+                {"error": "Không tìm thấy bài viết."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if post.status != Post.StatusChoices.FAILED:
+            return Response(
+                {"error": "Chỉ có thể yêu cầu đăng lại bài viết bị từ chối."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            rejection_count = int(post.learning_field or "0")
+        except (ValueError, TypeError):
+            rejection_count = 0
+
+        if rejection_count >= 2:
+            return Response(
+                {"error": "Bài viết này đã bị từ chối 2 lần và không thể yêu cầu đăng lại."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Set status back to processing for admin to review again
+        post.status = Post.StatusChoices.PROCESSING
+        post.updated_at = timezone.now()
+        post.save()
+
+        # Create notification for admins
+        create_new_post_notifications_for_admins(post, request.user)
+
+        return Response(
+            {
+                "message": "Đã gửi yêu cầu đăng lại bài viết.",
+                "post": {
+                    "id": post.id,
+                    "status": post.status,
+                }
             },
             status=status.HTTP_200_OK,
         )

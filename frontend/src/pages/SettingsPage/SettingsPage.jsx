@@ -8,7 +8,7 @@ import {
   Flame,
   Home,
   Link2,
-  Lock,
+  
   LogOut,
   Settings,
   ShieldAlert,
@@ -29,7 +29,7 @@ const TABS = [
   { id: 'account', labelKey: 'settings.tabs.account', icon: UserRound },
   // { id: 'notifications', labelKey: 'settings.tabs.notifications', icon: Bell },
   // { id: 'ai', labelKey: 'settings.tabs.ai', icon: BrainCircuit },
-  { id: 'privacy', labelKey: 'settings.tabs.privacy', icon: Lock },
+  // { id: 'privacy', labelKey: 'settings.tabs.privacy', icon: Lock },
   { id: 'other', labelKey: 'settings.tabs.other', icon: Settings },
 ]
 
@@ -594,79 +594,79 @@ function AccountSettings({ profile, onProfileUpdate }) {
 //   )
 // }
 
-function PrivacySettings() {
-  const { t } = useTranslation()
-  const [settings, setSettings] = useState({
-    profile_visibility: 'private',
-  })
+// function PrivacySettings() {
+//   const { t } = useTranslation()
+//   const [settings, setSettings] = useState({
+//     profile_visibility: 'private',
+//   })
 
-  const visibilityOptions = [
-    {
-      value: 'public',
-      label: t('settings.privacy.options.public.label'),
-      description: t('settings.privacy.options.public.description'),
-    },
-    {
-      value: 'followers_only',
-      label: t('settings.privacy.options.followersOnly.label'),
-      description: t('settings.privacy.options.followersOnly.description'),
-    },
-    {
-      value: 'private',
-      label: t('settings.privacy.options.private.label'),
-      description: t('settings.privacy.options.private.description'),
-    },
-  ]
+//   const visibilityOptions = [
+//     {
+//       value: 'public',
+//       label: t('settings.privacy.options.public.label'),
+//       description: t('settings.privacy.options.public.description'),
+//     },
+//     {
+//       value: 'followers_only',
+//       label: t('settings.privacy.options.followersOnly.label'),
+//       description: t('settings.privacy.options.followersOnly.description'),
+//     },
+//     {
+//       value: 'private',
+//       label: t('settings.privacy.options.private.label'),
+//       description: t('settings.privacy.options.private.description'),
+//     },
+//   ]
 
-  const handleProfileVisibilityChange = async (newValue) => {
-    setSettings(prev => ({ ...prev, profile_visibility: newValue }))
-    try {
-      const result = await updateUserSettings({
-        profile_visibility: newValue
-      })
-      if (result) {
-        showToast(t('settings.privacy.visibilityUpdated'), 'success')
-      }
-    } catch (error) {
-      setSettings(prev => ({ ...prev, profile_visibility: settings.profile_visibility }))
-      showToast(t('settings.privacy.updateFailed'), 'error')
-    }
-  }
+//   const handleProfileVisibilityChange = async (newValue) => {
+//     setSettings(prev => ({ ...prev, profile_visibility: newValue }))
+//     try {
+//       const result = await updateUserSettings({
+//         profile_visibility: newValue
+//       })
+//       if (result) {
+//         showToast(t('settings.privacy.visibilityUpdated'), 'success')
+//       }
+//     } catch (error) {
+//       setSettings(prev => ({ ...prev, profile_visibility: settings.profile_visibility }))
+//       showToast(t('settings.privacy.updateFailed'), 'error')
+//     }
+//   }
 
-  return (
-    <section className={styles.card}>
-      <div className={styles.cardTitle}>
-        <div className={styles.cardIcon}>
-          <Lock size={16} />
-        </div>
-        <h3>{t('settings.privacy.title')}</h3>
-      </div>
+//   return (
+//     <section className={styles.card}>
+//       <div className={styles.cardTitle}>
+//         <div className={styles.cardIcon}>
+//           <Lock size={16} />
+//         </div>
+//         <h3>{t('settings.privacy.title')}</h3>
+//       </div>
 
-      <div className={styles.infoTable}>
-        {visibilityOptions.map(option => (
-          <div key={option.value} className={styles.infoRow} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
-              <input
-                type="radio"
-                name="profile_visibility"
-                value={option.value}
-                checked={settings.profile_visibility === option.value}
-                onChange={() => handleProfileVisibilityChange(option.value)}
-                style={{ cursor: 'pointer' }}
-              />
-              <label style={{ cursor: 'pointer', flex: 1 }}>
-                <strong>{option.label}</strong>
-              </label>
-            </div>
-            <p style={{ margin: 0, marginLeft: '28px', fontSize: '12px', color: '#666' }}>
-              {option.description}
-            </p>
-          </div>
-        ))}
-      </div>
-    </section>
-  )
-}
+//       <div className={styles.infoTable}>
+//         {visibilityOptions.map(option => (
+//           <div key={option.value} className={styles.infoRow} style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '8px' }}>
+//             <div style={{ display: 'flex', alignItems: 'center', gap: '10px', width: '100%' }}>
+//               <input
+//                 type="radio"
+//                 name="profile_visibility"
+//                 value={option.value}
+//                 checked={settings.profile_visibility === option.value}
+//                 onChange={() => handleProfileVisibilityChange(option.value)}
+//                 style={{ cursor: 'pointer' }}
+//               />
+//               <label style={{ cursor: 'pointer', flex: 1 }}>
+//                 <strong>{option.label}</strong>
+//               </label>
+//             </div>
+//             <p style={{ margin: 0, marginLeft: '28px', fontSize: '12px', color: '#666' }}>
+//               {option.description}
+//             </p>
+//           </div>
+//         ))}
+//       </div>
+//     </section>
+//   )
+// }
 
 function OtherSettings() {
   const { t, i18n } = useTranslation()
@@ -792,25 +792,19 @@ export default function SettingsPage() {
   }
 
   const renderContent = () => {
-    if (!profile) {
-      return <div className={styles.loading}>{t('common.loading')}</div>
-    }
-
-    switch (activeTab) {
-      case 'account':
-        return <AccountSettings profile={profile} onProfileUpdate={handleProfileUpdate} />
-      // case 'notifications':
-      //   return <NotificationSettings />
-      // case 'ai':
-      //   return <AISettings />
-      case 'privacy':
-        return <PrivacySettings />
-      case 'other':
-        return <OtherSettings />
-      default:
-        return <AccountSettings profile={profile} onProfileUpdate={handleProfileUpdate} />
-    }
+  if (!profile) {
+    return <div className={styles.loading}>{t('common.loading')}</div>
   }
+
+  switch (activeTab) {
+    case 'account':
+      return <AccountSettings profile={profile} onProfileUpdate={handleProfileUpdate} />
+    case 'other':
+      return <OtherSettings />
+    default:
+      return <AccountSettings profile={profile} onProfileUpdate={handleProfileUpdate} />
+  }
+}
 
   return (
     <MainLayout rightPanel={<SettingsRightPanel onLogout={handleLogout} />}>

@@ -79,6 +79,31 @@ export async function rejectReportWithPublish(postId, reportId) {
   })
 }
 
+export async function publishPost(postId, visibility = 'public') {
+  return apiRequest(`/content/admin/posts/${postId}/publish/`, {
+    method: 'POST',
+    body: JSON.stringify({ visibility }),
+  })
+}
+
+export async function republishPost(postId) {
+  return apiRequest(`/auth/posts/${postId}/republish/`, {
+    method: 'POST',
+  })
+}
+export async function rejectPost(postId, reason = '') {
+  return apiRequest(`/content/admin/posts/${postId}/reject/`, {
+    method: 'POST',
+    body: JSON.stringify({ reason }),
+  })
+}
+
+export async function requestRepublishByAdmin(postId) {
+  return apiRequest(`/content/admin/posts/${postId}/request-republish/`, {
+    method: 'POST',
+  })
+}
+
 // Reports endpoints
 export async function getAdminReports(filters = {}) {
   const params = new URLSearchParams()
