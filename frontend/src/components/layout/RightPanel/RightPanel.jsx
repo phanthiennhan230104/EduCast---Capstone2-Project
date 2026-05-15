@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import {
   TrendingUp, UserPlus, X
 } from 'lucide-react'
@@ -8,20 +9,13 @@ import styles from '../../../style/layout/RightPanel.module.css'
 import { getToken } from '../../../utils/auth'
 import { API_BASE_URL } from '../../../config/apiBase'
 
-const TRENDING = [
-  { tag: '#Python', count: '12.4k ' },
-  { tag: '#AIViệtNam', count: '8.7k ' },
-  { tag: '#MachineLearning', count: '6.2k ' },
-  { tag: '#ReactJS', count: '5.9k ' },
-  { tag: '#StartupVN', count: '4.1k ' },
-]
-
 const FOLLOW_SYNC_EVENT = 'follow-sync-updated'
 
 export default function RightPanel() {
   const { t } = useTranslation()
   const [followed, setFollowed] = useState({})
   const [suggestions, setSuggestions] = useState([])
+  const [trending, setTrending] = useState([])
   const [showModal, setShowModal] = useState(false)
 
   // Load followed status from localStorage on mount
@@ -74,6 +68,28 @@ export default function RightPanel() {
       }
     }
     fetchSuggestions()
+  }, [])
+
+  // Fetch trending tags
+  useEffect(() => {
+    const fetchTrending = async () => {
+      try {
+        const token = getToken()
+        const res = await fetch(`${API_BASE_URL}/content/trending-tags/`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        })
+        const data = await res.json()
+        if (data.success) {
+          setTrending(data.data)
+        }
+      } catch (err) {
+        console.error('Fetch trending tags failed:', err)
+      }
+    }
+    fetchTrending()
   }, [])
 
   const toggleFollow = async (userId, name) => {
@@ -131,14 +147,18 @@ export default function RightPanel() {
           <TrendingUp size={15} />
           {t('rightPanel.trendingTitle')}
         </h4>
-        {TRENDING.map(({ tag, count }) => (
-          <div key={tag} className={styles.trendItem}>
+        {trending.length > 0 ? trending.map(({ tag, count, slug }) => (
+          <Link to={`/hashtag/${slug}`} key={tag} className={styles.trendItem}>
             <span className={styles.trendTag}>{tag}</span>
             <span className={styles.trendCount}>
               {t('rightPanel.posts', { count })}
             </span>
+          </Link>
+        )) : (
+          <div style={{ color: '#7f89b2', fontSize: '11px', padding: '5px 0' }}>
+            {t('rightPanel.noTrending', 'Chưa có xu hướng nào')}
           </div>
-        ))}
+        )}
       </div>
 
       {/* Gợi ý theo dõi */}

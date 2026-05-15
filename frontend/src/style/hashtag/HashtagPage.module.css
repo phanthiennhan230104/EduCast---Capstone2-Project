@@ -1,0 +1,199 @@
+.container {
+  padding: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  color: #fff;
+}
+
+.loading, .error, .empty {
+  text-align: center;
+  padding: 100px 0;
+  color: #94a3b8;
+  font-size: 16px;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  margin-bottom: 40px;
+  background: rgba(255, 255, 255, 0.03);
+  padding: 30px;
+  border-radius: 24px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(10px);
+}
+
+.tagIconWrap {
+  width: 100px;
+  height: 100px;
+  background: linear-gradient(135deg, #a9b3ff 0%, #7c88ff 100%);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #0f1530;
+  box-shadow: 0 10px 30px rgba(124, 136, 255, 0.3);
+}
+
+.tagMeta {
+  flex: 1;
+}
+
+.tagName {
+  font-size: 36px;
+  font-weight: 800;
+  margin: 0 0 8px 0;
+  letter-spacing: -0.5px;
+}
+
+.tagStats {
+  font-size: 18px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.tagStats strong {
+  color: #fff;
+  font-weight: 700;
+}
+
+/* Grid Layout */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+}
+
+.postCard {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  cursor: pointer;
+  position: relative;
+}
+
+.postCard:hover {
+  transform: translateY(-8px);
+  border-color: rgba(169, 179, 255, 0.3);
+  box-shadow: 0 15px 30px rgba(0, 0, 0, 0.3);
+}
+
+.thumbnailWrap {
+  position: relative;
+  aspect-ratio: 1 / 1.2;
+  overflow: hidden;
+}
+
+.thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s;
+}
+
+.postCard:hover .thumbnail {
+  transform: scale(1.1);
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.8) 0%, transparent 40%, transparent 60%, rgba(0, 0, 0, 0.4) 100%);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 12px;
+  opacity: 0.9;
+  transition: opacity 0.3s;
+}
+
+.overlayTop {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.viewCount {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  font-weight: 700;
+  background: rgba(0, 0, 0, 0.4);
+  padding: 4px 8px;
+  border-radius: 99px;
+  backdrop-filter: blur(4px);
+}
+
+.overlayBottom {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.engagement {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.engagement span {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.postInfo {
+  padding: 12px;
+}
+
+.postTitle {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 10px 0;
+  line-height: 1.4;
+  height: 40px;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  color: #f1f5f9;
+}
+
+.postAuthor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+.authorAvatar {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  
+  .header {
+    flex-direction: column;
+    text-align: center;
+    padding: 20px;
+  }
+  
+  .tagName {
+    font-size: 28px;
+  }
+}

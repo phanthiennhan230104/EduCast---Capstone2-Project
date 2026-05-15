@@ -152,6 +152,11 @@ const resources = {
         search: 'Tìm kiếm',
         loading_more: 'Đang tải thêm...',
       },
+      hashtag: {
+        posts: "bài viết",
+        noPosts: "Chưa có bài viết nào với hashtag này",
+        notFound: "Không tìm thấy hashtag",
+      },
       ctaSection: {
         titleLine1: 'Sẵn sàng biến',
         titleHighlight: 'thời gian rảnh',

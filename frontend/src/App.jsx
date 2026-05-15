@@ -23,6 +23,7 @@ import AdminStatsPage from "./components/admin/AdminStatsPage";
 import AdminContentModerationPage from "./components/admin/AdminModeration";
 import AdminSystemPage from "./components/admin/AdminSystemPage";
 import AssistantWidget from "./components/assistant/AssistantWidget";
+import HashtagPage from "./pages/HashtagPage/HashtagPage";
 
 function RootRedirect() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -206,6 +207,15 @@ function AppRoutes() {
               element={
                 <ProtectedRoute>
                   <PublishPostPage />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="/hashtag/:slug"
+              element={
+                <ProtectedRoute>
+                  <HashtagPage />
                 </ProtectedRoute>
               }
             />

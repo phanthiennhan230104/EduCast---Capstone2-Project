@@ -34,6 +34,70 @@ from .services.cloudinary_service import (
 )
 
 
+class TrendingTagsView(APIView):
+    def get(self, request):
+        try:
+            # Count posts for each tag and sort by usage count descending
+            # We filter out tags with 0 posts to keep the trending list relevant
+            trending_tags = Tag.objects.annotate(
+                usage_count=models.Count('tag_posts')
+            ).filter(usage_count__gt=0).order_by('-usage_count')[:10]
+            
+            data = []
+            for tag in trending_tags:
+                # Format counts nicely for UI (e.g. 1.2k)
+                usage_count = tag.usage_count
+                formatted_count = str(usage_count)
+                if usage_count >= 1000:
+                    formatted_count = f"{usage_count / 1000:.1f}k".replace(".0", "")
+                
+                data.append({
+                    'tag': f"#{tag.name}",
+                    'slug': tag.slug,
+                    'count': formatted_count,
+                    'raw_count': usage_count
+                })
+                
+            return Response({
+                'success': True,
+                'data': data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class TagDetailView(APIView):
+    def get(self, request, slug):
+        try:
+            tag = Tag.objects.annotate(
+                usage_count=models.Count('tag_posts')
+            ).filter(slug=slug).first()
+            
+            if not tag:
+                return Response({
+                    'success': False,
+                    'message': 'Tag not found'
+                }, status=status.HTTP_404_NOT_FOUND)
+            
+            return Response({
+                'success': True,
+                'data': {
+                    'id': tag.id,
+                    'name': tag.name,
+                    'slug': tag.slug,
+                    'usage_count': tag.usage_count
+                }
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                'success': False,
+                'message': str(e)
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
 class TestCloudinaryUploadView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -809,12 +873,21 @@ class FeedAPIView(APIView):
                 except:
                     topic_ids = None
 
+            tag_slugs_param = request.query_params.get("tag_slugs", "")
+            tag_slugs = None
+            if tag_slugs_param:
+                try:
+                    tag_slugs = [s.strip() for s in tag_slugs_param.split(",") if s.strip()]
+                except:
+                    tag_slugs = None
+
             items = FeedService.get_feed(
                 user=request.user,
                 limit=limit,
                 feed_type=feed_type,
                 tag_ids=tag_ids,
                 topic_ids=topic_ids,
+                tag_slugs=tag_slugs,
             )
             
             hidden_ids = set(

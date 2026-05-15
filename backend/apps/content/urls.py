@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView, UserPostsAPIView, PostDetailView, ThumbnailUploadView
+from .views import FeedAPIView, TestCloudinaryUploadView, SearchAPIView, UserPostsAPIView, PostDetailView, ThumbnailUploadView, TrendingTagsView, TagDetailView
 from .views import (
     DraftCreateView,
     AudioPreviewView,
@@ -71,5 +71,7 @@ urlpatterns = [
     
     path("topics/", TopicListView.as_view(), name="topic-list"),
     path("tags/", TagListView.as_view(), name="tag-list"),
+    path("trending-tags/", TrendingTagsView.as_view(), name="trending-tags"),
+    path("tags/<str:slug>/detail/", TagDetailView.as_view(), name="tag-detail"),
 
 ]
