@@ -194,15 +194,9 @@
 }
 
 .conversation-profile-name {
-  cursor: pointer;
   transition: color 0.16s ease;
 }
 
-.conversation-profile-name:hover {
-  color: #bfdbfe !important;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
 
 .conversation-profile-name:focus-visible {
   outline: 2px solid rgba(125, 211, 252, 0.72);
@@ -1297,9 +1291,7 @@
 }
 
 .chat-header-profile-link:hover .chat-header-name {
-  color: #bfdbfe !important;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  color: #f8fafc !important;
 }
 
 .chat-header-profile-link:focus-visible {

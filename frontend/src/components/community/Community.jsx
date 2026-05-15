@@ -178,13 +178,11 @@ function PostCard({
 
           <div className={styles.authorMeta}>
             <div className={styles.authorTop}>
-              <button
-                type="button"
-                className={styles.authorNameButton}
-                onClick={() => author.id && navigate(`/profile/${author.id}`)}
+              <span
+                className={styles.authorNameText}
               >
                 {author.name || author.username || 'Người dùng'}
-              </button>
+              </span>
               <span className={styles.dot}>•</span>
               <span>{formatTimeAgo(post.created_at)}</span>
               <span className={styles.dot}>•</span>
@@ -700,13 +698,23 @@ export default function Community() {
 
           <div className={styles.followingRow}>
             {followingItems.map((item) => (
-              <button
+              <div
                 key={item.id}
-                type="button"
                 className={`${styles.followingItem} ${item.more ? styles.followingMore : ''}`}
-                onClick={() => !item.more && item.id && navigate(`/profile/${item.id}`)}
               >
-                <div className={styles.followingAvatar}>
+                <div 
+                  className={styles.followingAvatar}
+                  style={{ cursor: (!item.more && item.id) ? 'pointer' : 'default' }}
+                  role={(!item.more && item.id) ? 'button' : undefined}
+                  tabIndex={(!item.more && item.id) ? 0 : undefined}
+                  onClick={() => !item.more && item.id && navigate(`/profile/${item.id}`)}
+                  onKeyDown={(event) => {
+                    if ((event.key === 'Enter' || event.key === ' ') && !item.more && item.id) {
+                      event.preventDefault()
+                      navigate(`/profile/${item.id}`)
+                    }
+                  }}
+                >
                   {item.avatar_url ? (
                     <img src={item.avatar_url} alt={item.name} className={styles.avatarImg} />
                   ) : (
@@ -715,7 +723,7 @@ export default function Community() {
                 </div>
                 <span className={styles.followingName}>{item.name}</span>
                 {!item.more && item.is_following && <span className={styles.activeDot} />}
-              </button>
+              </div>
             ))}
           </div>
 

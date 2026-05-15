@@ -134,15 +134,6 @@ function CommentNode({
             <div className={bubbleClass}>
               <div
                 className={authorClass}
-                role="button"
-                tabIndex={0}
-                onClick={openCommentAuthorProfile}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault()
-                    openCommentAuthorProfile(e)
-                  }
-                }}
               >
                 {item.username || item.user_id}
               </div>

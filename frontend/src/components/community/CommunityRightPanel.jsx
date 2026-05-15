@@ -43,14 +43,12 @@ function UserRow({ item, onToggle }) {
         )}
       </button>
 
-      <button
-        type="button"
+      <div
         className={styles.userInfoButton}
-        onClick={() => item.id && navigate(`/profile/${item.id}`)}
       >
         <div className={styles.name}>{item.name || item.display_name || item.username}</div>
         <div className={styles.meta}>{item.followers_count || 0} người theo dõi</div>
-      </button>
+      </div>
 
       <button
         type="button"

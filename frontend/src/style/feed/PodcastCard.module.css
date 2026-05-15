@@ -216,14 +216,12 @@
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.2;
-  cursor: pointer;
   transition: color 0.16s ease;
 }
 
 .authorName:hover {
   color: #bfdbfe;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none !important;
 }
 
 .authorName:focus-visible {
@@ -602,14 +600,11 @@
 }
 
 .statsText {
-  cursor: pointer;
-  transition: text-decoration 0.15s ease;
+  transition: color 0.15s ease;
 }
 
 .statsText:hover {
-  text-decoration: underline;
-  text-decoration-color: currentColor;
-  text-underline-offset: 3px;
+  color: #bfdbfe;
 }
 
 .statsPopupEmpty {

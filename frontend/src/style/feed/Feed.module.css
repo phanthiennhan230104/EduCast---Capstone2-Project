@@ -284,7 +284,6 @@
 }
 
 .postShareAuthorClickable {
-  cursor: pointer;
   border-radius: 999px;
 }
 
@@ -295,8 +294,7 @@
 
 .postShareAuthorClickable:hover .postShareAuthorName {
   color: #bfdbfe;
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none !important;
 }
 
 .postShareAuthorClickable:focus-visible {

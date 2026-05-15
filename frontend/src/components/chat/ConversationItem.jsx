@@ -68,15 +68,6 @@ export default function ConversationItem({
             <Text
               strong
               className="conversation-name conversation-profile-name"
-              role="button"
-              tabIndex={0}
-              onClick={handleOpenProfile}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" || event.key === " ") {
-                  event.preventDefault();
-                  handleOpenProfile(event);
-                }
-              }}
             >
               {peer?.display_name || peer?.username || "Unknown"}
             </Text>

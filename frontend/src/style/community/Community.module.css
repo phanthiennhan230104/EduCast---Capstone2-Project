@@ -66,7 +66,6 @@
   gap: 8px;
   min-width: 58px;
   position: relative;
-  cursor: pointer;
 }
 
 .followingItem:hover .followingName {
@@ -321,7 +320,6 @@
   font-weight: 650;
   color: var(--text-primary);
   line-height: 1.2;
-  cursor: pointer;
 }
 
 .dot {

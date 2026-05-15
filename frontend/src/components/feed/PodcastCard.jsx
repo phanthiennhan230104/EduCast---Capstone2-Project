@@ -914,15 +914,6 @@ export default function PodcastCard({
             <div className={styles.authorMetaRow}>
               <span
                 className={styles.authorName}
-                role="button"
-                tabIndex={0}
-                onClick={openAuthorProfile}
-                onKeyDown={(e) => {
-                  if ((e.key === 'Enter' || e.key === ' ') && authorProfileTarget) {
-                    e.preventDefault()
-                    openAuthorProfile(e)
-                  }
-                }}
               >
                 {authorDisplayName}
               </span>

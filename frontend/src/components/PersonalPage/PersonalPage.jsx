@@ -1286,18 +1286,38 @@ export default function PersonalPage() {
                       {friends.length > 0 ? (
                         friends.map((friend) => (
                           <div key={friend.name || friend.username} className={styles.friendCard}>
-                            {(friend.avatar_url || friend.avatar) && !failedAvatarUrls.has(`friend-${friend.id || friend.username}`) ? (
-                              <img
-                                src={friend.avatar_url || friend.avatar}
-                                alt={friend.name || friend.username}
-                                className={styles.friendAvatar}
-                                onError={() => setFailedAvatarUrls(prev => new Set([...prev, `friend-${friend.id || friend.username}`]))}
-                              />
-                            ) : (
-                              <div className={styles.friendAvatarInitials}>
-                                {getInitials({ username: friend.username, display_name: friend.display_name, name: friend.name } || 'User')}
-                              </div>
-                            )}
+                            <div
+                              className={styles.friendAvatarWrapper}
+                              style={{ cursor: 'pointer' }}
+                              role="button"
+                              tabIndex={0}
+                              onClick={() => {
+                                if (friend.id) {
+                                  navigate(`/profile/${friend.id}`)
+                                  window.scrollTo(0, 0)
+                                }
+                              }}
+                              onKeyDown={(e) => {
+                                if ((e.key === 'Enter' || e.key === ' ') && friend.id) {
+                                  e.preventDefault()
+                                  navigate(`/profile/${friend.id}`)
+                                  window.scrollTo(0, 0)
+                                }
+                              }}
+                            >
+                              {(friend.avatar_url || friend.avatar) && !failedAvatarUrls.has(`friend-${friend.id || friend.username}`) ? (
+                                <img
+                                  src={friend.avatar_url || friend.avatar}
+                                  alt={friend.name || friend.username}
+                                  className={styles.friendAvatar}
+                                  onError={() => setFailedAvatarUrls(prev => new Set([...prev, `friend-${friend.id || friend.username}`]))}
+                                />
+                              ) : (
+                                <div className={styles.friendAvatarInitials}>
+                                  {getInitials({ username: friend.username, display_name: friend.display_name, name: friend.name } || 'User')}
+                                </div>
+                              )}
+                            </div>
                             <div>
                               <h4 className={styles.friendName}>{friend.name || friend.display_name || friend.username}</h4>
                               {friend.username ? (

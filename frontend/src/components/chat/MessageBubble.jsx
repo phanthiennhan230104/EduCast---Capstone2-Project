@@ -336,19 +336,41 @@ export default function MessageBubble({ message, containerRef }) {
 
         {isProfileShareMessage && profilePayload && (
           <div className={`message-podcast ${mine ? "mine" : ""}`}>
-            <button
-              type="button"
-              className="shared-post-card shared-profile-card"
-              onClick={handleProfileClick}
-            >
+            <div className="shared-post-card shared-profile-card">
               {profileAvatar ? (
-                <img
-                  src={profileAvatar}
-                  alt={profileDisplayName}
-                  className="shared-profile-avatar"
-                />
+                <div
+                  className="shared-profile-avatar-clickable"
+                  onClick={handleProfileClick}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleProfileClick();
+                    }
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
+                  <img
+                    src={profileAvatar}
+                    alt={profileDisplayName}
+                    className="shared-profile-avatar"
+                  />
+                </div>
               ) : (
-                <div className="shared-profile-avatar shared-profile-avatar-placeholder">
+                <div
+                  className="shared-profile-avatar shared-profile-avatar-placeholder shared-profile-avatar-clickable"
+                  onClick={handleProfileClick}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      handleProfileClick();
+                    }
+                  }}
+                  style={{ cursor: "pointer" }}
+                >
                   {getInitialsFromName(profileDisplayName)}
                 </div>
               )}
@@ -370,7 +392,7 @@ export default function MessageBubble({ message, containerRef }) {
                   </div>
                 ) : null}
               </div>
-            </button>
+            </div>
 
             <div className="message-time message-podcast-time">
               <Text className="message-time-text">{messageTimeLabel}</Text>

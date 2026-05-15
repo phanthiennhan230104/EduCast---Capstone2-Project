@@ -1216,20 +1216,21 @@ export default function Feed() {
         <div className={styles.postShareWrapper}>
           <div className={styles.postShareInfo}>
             <div
-              className={`${styles.postShareAuthor} ${sharedByUserId ? styles.postShareAuthorClickable : ''
-                }`}
-              role={sharedByUserId ? 'button' : undefined}
-              tabIndex={sharedByUserId ? 0 : undefined}
-              onClick={openSharedAuthorProfile}
-              onKeyDown={(event) => {
-                if ((event.key === 'Enter' || event.key === ' ') && sharedByUserId) {
-                  event.preventDefault()
-                  openSharedAuthorProfile(event)
-                }
-              }}
+              className={styles.postShareAuthor}
             >
               {sharedBy.avatar_url && !failedAvatarUrls.has(avatarKey) ? (
-                <div className={styles.postShareAvatarWrapper}>
+                <div 
+                  className={`${styles.postShareAvatarWrapper} ${sharedByUserId ? styles.postShareAuthorClickable : ''}`}
+                  role={sharedByUserId ? 'button' : undefined}
+                  tabIndex={sharedByUserId ? 0 : undefined}
+                  onClick={openSharedAuthorProfile}
+                  onKeyDown={(event) => {
+                    if ((event.key === 'Enter' || event.key === ' ') && sharedByUserId) {
+                      event.preventDefault()
+                      openSharedAuthorProfile(event)
+                    }
+                  }}
+                >
                   <img
                     src={sharedBy.avatar_url}
                     alt={shareAuthorName}
@@ -1240,7 +1241,18 @@ export default function Feed() {
                   />
                 </div>
               ) : (
-                <div className={styles.postShareAvatarWrapper}>
+                <div 
+                  className={`${styles.postShareAvatarWrapper} ${sharedByUserId ? styles.postShareAuthorClickable : ''}`}
+                  role={sharedByUserId ? 'button' : undefined}
+                  tabIndex={sharedByUserId ? 0 : undefined}
+                  onClick={openSharedAuthorProfile}
+                  onKeyDown={(event) => {
+                    if ((event.key === 'Enter' || event.key === ' ') && sharedByUserId) {
+                      event.preventDefault()
+                      openSharedAuthorProfile(event)
+                    }
+                  }}
+                >
                   <div className={styles.postShareAvatarInitials}>
                     {shareAuthorInitials}
                   </div>

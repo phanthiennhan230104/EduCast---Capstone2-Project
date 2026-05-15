@@ -18,17 +18,22 @@ export default function ChatHeader({ peer, onToggleInfoPanel, rightPanelOpen }) 
       <div className="chat-header-inner">
         <Space
           className="chat-header-profile-link"
-          role={peer?.id ? "button" : undefined}
-          tabIndex={peer?.id ? 0 : undefined}
-          onClick={openPeerProfile}
-          onKeyDown={(event) => {
-            if ((event.key === "Enter" || event.key === " ") && peer?.id) {
-              event.preventDefault();
-              openPeerProfile();
-            }
-          }}
         >
-          <Avatar size={44} src={peer?.avatar_url} icon={<UserOutlined />} />
+          <Avatar 
+            size={44} 
+            src={peer?.avatar_url} 
+            icon={<UserOutlined />} 
+            style={{ cursor: peer?.id ? "pointer" : "default" }}
+            role={peer?.id ? "button" : undefined}
+            tabIndex={peer?.id ? 0 : undefined}
+            onClick={openPeerProfile}
+            onKeyDown={(event) => {
+              if ((event.key === "Enter" || event.key === " ") && peer?.id) {
+                event.preventDefault();
+                openPeerProfile();
+              }
+            }}
+          />
 
           <div>
             <Text strong className="chat-header-name">

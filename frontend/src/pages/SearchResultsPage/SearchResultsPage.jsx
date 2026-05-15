@@ -857,41 +857,35 @@ export default function SearchResultsPage() {
                       <div
                         key={author.id}
                         className={styles.authorCard}
-                        role="button"
-                        tabIndex={0}
-                        onClick={() => navigate(`/profile/${author.id}`)}
-                        onKeyDown={(event) => {
-                          if (event.key === 'Enter' || event.key === ' ') {
-                            event.preventDefault()
-                            navigate(`/profile/${author.id}`)
-                          }
-                        }}
                       >
-                        {author.avatar_url ? (
-                          <img
-                            src={avatarUrl}
-                            alt={displayName}
-                            className={styles.authorAvatar}
-                            onError={(e) => {
-                              e.target.style.display = 'none'
-                            }}
-                          />
-                        ) : (
-                          <img
-                            src={avatarUrl}
-                            alt={displayName}
-                            className={styles.authorAvatar}
-                            onError={(e) => {
-                              // Fallback khi avatar URL fail
-                              e.target.style.display = 'none'
-                            }}
-                          />
-                        )}
-                        {!author.avatar_url && (
-                          <div className={styles.authorAvatarFallback}>
-                            {initials}
-                          </div>
-                        )}
+                        <div
+                          className={styles.authorAvatarWrapper}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => navigate(`/profile/${author.id}`)}
+                          onKeyDown={(event) => {
+                            if (event.key === 'Enter' || event.key === ' ') {
+                              event.preventDefault()
+                              navigate(`/profile/${author.id}`)
+                            }
+                          }}
+                          style={{ cursor: 'pointer' }}
+                        >
+                          {author.avatar_url ? (
+                            <img
+                              src={avatarUrl}
+                              alt={displayName}
+                              className={styles.authorAvatar}
+                              onError={(e) => {
+                                e.target.style.display = 'none'
+                              }}
+                            />
+                          ) : (
+                            <div className={styles.authorAvatarFallback}>
+                              {initials}
+                            </div>
+                          )}
+                        </div>
                         <h4 className={styles.authorName}>{displayName}</h4>
                         <p className={styles.authorUsername}>@{author.username}</p>
 

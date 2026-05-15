@@ -192,6 +192,12 @@
   border-bottom: none;
 }
 
+.modalAvatarWrapper {
+  cursor: pointer;
+  display: inline-block;
+  line-height: 0;
+}
+
 .modalAvatar {
   width: 48px;
   height: 48px;
@@ -384,6 +390,12 @@
 
 .suggestion:last-child {
   border-bottom: none;
+}
+
+.suggestionAvatarWrapper {
+  cursor: pointer;
+  display: inline-block;
+  line-height: 0;
 }
 
 .suggestionAvatar {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   TrendingUp, UserPlus, X
 } from 'lucide-react'
@@ -12,6 +12,7 @@ import { API_BASE_URL } from '../../../config/apiBase'
 const FOLLOW_SYNC_EVENT = 'follow-sync-updated'
 
 export default function RightPanel() {
+  const navigate = useNavigate()
   const { t } = useTranslation()
   const [followed, setFollowed] = useState({})
   const [suggestions, setSuggestions] = useState([])
@@ -177,7 +178,21 @@ export default function RightPanel() {
         </div>
         {suggestions.length > 0 ? suggestions.slice(0, 3).map(({ id, name, followers, avatar }) => (
           <div key={id} className={styles.suggestion}>
-            <img src={avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${name}`} alt={name} className={styles.suggestionAvatar} />
+            <div
+              className={styles.suggestionAvatarWrapper}
+              style={{ cursor: 'pointer' }}
+              role="button"
+              tabIndex={0}
+              onClick={() => navigate(`/profile/${id}`)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault()
+                  navigate(`/profile/${id}`)
+                }
+              }}
+            >
+              <img src={avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${name}`} alt={name} className={styles.suggestionAvatar} />
+            </div>
             <div className={styles.suggestionInfo}>
               <span className={styles.suggestionName}>{name}</span>
               <span className={styles.suggestionFollowers}>
@@ -214,11 +229,25 @@ export default function RightPanel() {
             <div className={styles.modalBody}>
               {suggestions.map(({ id, name, followers, avatar, mutual_friends }) => (
                 <div key={id} className={styles.modalSuggestion}>
-                  <img 
-                    src={avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${name}`} 
-                    alt={name} 
-                    className={styles.modalAvatar} 
-                  />
+                  <div
+                    className={styles.modalAvatarWrapper}
+                    style={{ cursor: 'pointer' }}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => navigate(`/profile/${id}`)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        navigate(`/profile/${id}`)
+                      }
+                    }}
+                  >
+                    <img 
+                      src={avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${name}`} 
+                      alt={name} 
+                      className={styles.modalAvatar} 
+                    />
+                  </div>
                   <div className={styles.modalInfo}>
                     <span className={styles.modalName}>{name}</span>
                     <div className={styles.modalMeta}>

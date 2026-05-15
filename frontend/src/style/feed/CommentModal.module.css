@@ -248,12 +248,11 @@
     font-weight: 700;
     color: #f7f9ff;
     line-height: 1.2;
-    cursor: pointer;
   }
 
   .shareIntroName:hover {
-    text-decoration: underline;
-    text-underline-offset: 2px;
+    color: #bfdbfe;
+    text-decoration: none !important;
   }
 
   .shareIntroMeta {
@@ -652,15 +651,13 @@
     font-weight: 700;
     color: #f0f2f5;
     margin-bottom: 3px;
-    cursor: pointer;
     transition: color 0.16s ease;
   }
 
   .commentAuthor:hover,
   .replyAuthor:hover {
     color: #bfdbfe;
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration: none !important;
   }
 
   .commentContent {

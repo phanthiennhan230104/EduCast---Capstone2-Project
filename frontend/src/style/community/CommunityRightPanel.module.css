@@ -54,7 +54,7 @@
   padding: 8px 0;
 }
 
-.userRow + .userRow {
+.userRow+.userRow {
   border-top: 1px solid rgba(255, 255, 255, 0.04);
 }
 
@@ -108,7 +108,6 @@
   background: transparent;
   padding: 0;
   text-align: left;
-  cursor: pointer;
 }
 
 .userInfoButton:hover .name {
@@ -128,13 +127,13 @@
 }
 
 .followBtn {
-  width: 60px;       
+  width: 60px;
   height: 25px;
   padding: 4px 12px;
   border-radius: var(--radius-full);
-  border: 1px solid rgba(132,146,255,0.4);
+  border: 1px solid rgba(132, 146, 255, 0.4);
   color: #dfe4ff;
-  background: rgba(118,132,255,0.08);
+  background: rgba(118, 132, 255, 0.08);
   font-size: 11px;
   font-weight: 600;
   white-space: nowrap;
@@ -146,16 +145,16 @@
 }
 
 .followBtn:hover {
-  background: rgba(118,132,255,0.2);
-  border-color: rgba(160,173,255,0.58);
+  background: rgba(118, 132, 255, 0.2);
+  border-color: rgba(160, 173, 255, 0.58);
   color: #fff;
 }
 
 .followBtn.following {
-  width: 82px;       
+  width: 82px;
   height: 25px;
-  background: rgba(118,132,255,0.12);
-  border-color: rgba(132,146,255,0.46);
+  background: rgba(118, 132, 255, 0.12);
+  border-color: rgba(132, 146, 255, 0.46);
   color: #cfd7ff;
 }
 
