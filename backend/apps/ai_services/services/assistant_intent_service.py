@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from django.conf import settings
-from groq import Groq
+import google.generativeai as genai
 
 
 ALLOWED_INTENTS = [
@@ -115,10 +115,11 @@ def classify_assistant_intent(
     if not normalized_message:
         return _fallback_intent(message)
 
-    api_key = getattr(settings, "GROQ_API_KEY", "")
-    model = getattr(settings, "GROQ_MODEL", "")
+    api_key = getattr(settings, "GEMINI_API_KEY", "")
+    model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.1-flash-lite")
 
-    if not api_key or not model:
+    if not api_key:
+        # Fallback to GROQ if Gemini is not configured, or use _fallback_intent
         return _fallback_intent(normalized_message)
 
     system_prompt = f"""
@@ -159,17 +160,21 @@ Recent history:
 """.strip()
 
     try:
-        client = Groq(api_key=api_key)
-        completion = client.chat.completions.create(
-            model=model,
-            temperature=0,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            system_instruction=system_prompt
+        )
+        
+        response = model.generate_content(
+            user_prompt,
+            generation_config=genai.GenerationConfig(
+                temperature=0,
+                response_mime_type="application/json",
+            )
         )
 
-        raw = completion.choices[0].message.content or ""
+        raw = response.text or ""
         parsed = _extract_json(raw)
 
         intent = parsed.get("intent")
@@ -184,7 +189,8 @@ Recent history:
             "reason": str(parsed.get("reason", "")),
         }
 
-    except Exception:
+    except Exception as e:
+        print(f"❌ Gemini Intent Classification Error: {e}")
         return _fallback_intent(normalized_message)
 
 
