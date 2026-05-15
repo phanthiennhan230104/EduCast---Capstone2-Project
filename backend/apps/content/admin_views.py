@@ -1,4 +1,5 @@
 from rest_framework import status
+import ulid
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -8,6 +9,10 @@ from .models import Post, PostAudioVersion
 from apps.users.permissions import IsAdminRole
 from apps.users.models import User
 from apps.social.models import Report, Notification
+
+
+def _generate_id(prefix="obj"):
+    return str(ulid.new())
 
 
 class AdminPostsListView(APIView):
@@ -259,6 +264,38 @@ class AdminPostRestoreView(APIView):
         )
 
 
+class AdminPostRequestRepublishView(APIView):
+    """
+    Admin moves a rejected post (status 'failed') back to 'processing' queue.
+    """
+    permission_classes = [IsAuthenticated, IsAdminRole]
+
+    def post(self, request, post_id):
+        try:
+            post = Post.objects.get(id=post_id)
+        except Post.DoesNotExist:
+            return Response(
+                {'error': 'Không tìm thấy bài viết.'},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # Move back to processing
+        post.status = 'processing'
+        post.updated_at = timezone.now()
+        post.save()
+
+        return Response(
+            {
+                'message': 'Đã chuyển bài viết về hàng đợi kiểm duyệt.',
+                'post': {
+                    'id': post.id,
+                    'status': post.status
+                }
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
 class AdminUpdateReportStatusView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
@@ -405,7 +442,8 @@ class AdminPostPublishView(APIView):
 
 class AdminPostRejectView(APIView):
     """
-    Reject a post - set status to hidden (do not publish).
+    Reject a post - set status to failed (rejected by admin).
+    Supports two-stage rejection.
     """
     permission_classes = [IsAuthenticated, IsAdminRole]
 
@@ -418,12 +456,38 @@ class AdminPostRejectView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        reason = request.data.get('reason', 'Bài viết không tuân thủ tiêu chuẩn.')
+        # Get current rejection count from learning_field
+        current_count = 0
+        try:
+            if post.learning_field and post.learning_field.isdigit():
+                current_count = int(post.learning_field)
+        except (ValueError, TypeError):
+            current_count = 0
+
+        new_count = current_count + 1
         
-        # Update post status to hidden
-        post.status = 'hidden'
+        # Update post status to failed (rejected by admin)
+        post.status = 'failed'
+        post.learning_field = str(new_count)
         post.updated_at = timezone.now()
         post.save()
+
+        # Notify user
+        rejection_msg = "Bài viết của bạn đã bị người kiểm duyệt từ chối"
+        if new_count >= 2:
+            rejection_msg += " lần 2"
+
+        Notification.objects.create(
+            id=_generate_id("noti"),
+            user=post.user,
+            actor_user=request.user,
+            type='system',
+            title='Bài viết bị từ chối',
+            body=f"{rejection_msg}: {post.title}",
+            reference_type='post',
+            reference_id=post.id,
+            is_read=False
+        )
 
         return Response(
             {
@@ -431,6 +495,7 @@ class AdminPostRejectView(APIView):
                 'post': {
                     'id': post.id,
                     'status': post.status,
+                    'rejection_count': new_count
                 }
             },
             status=status.HTTP_200_OK,

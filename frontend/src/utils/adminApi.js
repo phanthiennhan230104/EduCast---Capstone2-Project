@@ -98,6 +98,12 @@ export async function rejectPost(postId, reason = '') {
   })
 }
 
+export async function requestRepublishByAdmin(postId) {
+  return apiRequest(`/content/admin/posts/${postId}/request-republish/`, {
+    method: 'POST',
+  })
+}
+
 // Reports endpoints
 export async function getAdminReports(filters = {}) {
   const params = new URLSearchParams()

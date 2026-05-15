@@ -2,35 +2,33 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { sendAssistantMessage } from '../utils/aiServicesApi'
 import { useTranslation } from 'react-i18next'
 
-function buildInitialAssistantMessage(t) {
-  return {
-    id: 'assistant-welcome',
-    role: 'assistant',
+const buildInitialAssistantMessage = (t) => ({
+  id: 'assistant-welcome',
+  role: 'assistant',
+  content: {
+    type: 'welcome',
+    summary: t('chatAssistant.welcome.summary'),
     content: {
-      type: 'welcome',
-      summary: t('assistant.welcome.summary'),
-      content: {
-        title: t('assistant.welcome.title'),
-        bullets: [
-          t('assistant.welcome.bullets.englishLesson'),
-          t('assistant.welcome.bullets.programmingExplain'),
-          t('assistant.welcome.bullets.softSkills'),
-          t('assistant.welcome.bullets.elderExercise'),
-          t('assistant.welcome.bullets.podcastScript'),
-        ],
-        description: '',
-        body: '',
-        hashtags: [],
-      },
-      suggestions: [
-        t('assistant.welcome.suggestions.englishLesson'),
-        t('assistant.welcome.suggestions.asyncAwait'),
-        t('assistant.welcome.suggestions.communicationPodcast'),
-        t('assistant.welcome.suggestions.elderExercise'),
+      title: t('chatAssistant.welcome.title'),
+      bullets: [
+        t('chatAssistant.welcome.bullets.englishLesson'),
+        t('chatAssistant.welcome.bullets.programming'),
+        t('chatAssistant.welcome.bullets.softSkills'),
+        t('chatAssistant.welcome.bullets.elderlyExercise'),
+        t('chatAssistant.welcome.bullets.podcastScript'),
       ],
+      description: '',
+      body: '',
+      hashtags: [],
     },
-  }
-}
+    suggestions: [
+      t('chatAssistant.welcome.suggestions.englishConversation'),
+      t('chatAssistant.welcome.suggestions.asyncAwait'),
+      t('chatAssistant.welcome.suggestions.communicationPodcast'),
+      t('chatAssistant.welcome.suggestions.elderlyExercise'),
+    ],
+  },
+})
 
 function normalizeContent(content) {
   if (typeof content === 'string') {
@@ -52,12 +50,12 @@ function normalizeContent(content) {
 
   const posts = Array.isArray(content?.content?.posts)
     ? content.content.posts
-      .map((post) => {
-        const postTitle = post?.title || ''
-        const postDescription = post?.description || ''
-        const author = post?.author?.username
-          ? `Tác giả: ${post.author.username}`
-          : ''
+        .map((post) => {
+          const postTitle = post?.title || ''
+          const postDescription = post?.description || ''
+          const author = post?.author?.username
+  ? `Author: ${post.author.username}`
+  : ''
 
         return [postTitle, postDescription, author]
           .filter(Boolean)
@@ -86,6 +84,43 @@ function buildHistoryPayload(messages) {
     .slice(-6)  // Giữ lại 6 tin nhắn gần nhất để tránh vượt quá limit token của Groq
 }
 
+function translateAssistantPayload(payload, t) {
+  if (!payload || typeof payload !== 'object') {
+    return payload
+  }
+
+  // Deep copy for translation
+  const translated = {
+    ...payload,
+    content: payload.content ? { ...payload.content } : undefined,
+  }
+
+  if (translated.summary) {
+    translated.summary = t(translated.summary)
+  }
+
+  if (translated.content) {
+    if (translated.content.title) {
+      translated.content.title = t(translated.content.title)
+    }
+    if (translated.content.description) {
+      translated.content.description = t(translated.content.description)
+    }
+    if (translated.content.body) {
+      translated.content.body = t(translated.content.body)
+    }
+    if (Array.isArray(translated.content.bullets)) {
+      translated.content.bullets = translated.content.bullets.map((b) => t(b))
+    }
+  }
+
+  if (Array.isArray(translated.suggestions)) {
+    translated.suggestions = translated.suggestions.map((s) => t(s))
+  }
+
+  return translated
+}
+
 export function useChatAssistant() {
   const { t, i18n } = useTranslation()
 
@@ -95,6 +130,23 @@ export function useChatAssistant() {
 
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState('')
+
+  useEffect(() => {
+    setMessages((previousMessages) => {
+      if (previousMessages.length === 0) {
+        return [buildInitialAssistantMessage(t)]
+      }
+
+      if (previousMessages[0]?.id !== 'assistant-welcome') {
+        return previousMessages
+      }
+
+      return [
+        buildInitialAssistantMessage(t),
+        ...previousMessages.slice(1),
+      ]
+    })
+  }, [t, i18n.language])
 
   const sendMessage = useCallback(
     async (rawMessage) => {
@@ -126,20 +178,14 @@ export function useChatAssistant() {
       try {
         const response = await sendAssistantMessage({
           message: content,
-
           history: historyPayload,
-
           context: {
             tone: 'friendly, educational, practical',
-
             target_audience:
               'elderly adults, adult learners, english learners, programming students',
-
             format: 'assistant_response',
-
             length: 'medium',
-
-            language: (i18n.resolvedLanguage || i18n.language || 'vi').split('-')[0],
+            language: i18n.resolvedLanguage || i18n.language || 'vi',
           },
         })
 
@@ -151,21 +197,21 @@ export function useChatAssistant() {
         const assistantMessage = {
           id: `assistant-${Date.now()}`,
           role: 'assistant',
-
-          content:
-            assistantPayload || {
-              type: 'generate',
-              intent: 'fallback',
-              summary: t('assistant.fallback.summary'),
-              content: {
-                title: '',
-                description: '',
-                body: t('assistant.fallback.body'),
-                bullets: [],
-                hashtags: [],
+          content: assistantPayload
+            ? translateAssistantPayload(assistantPayload, t)
+            : {
+                type: 'generate',
+                intent: 'fallback',
+                summary: t('chatAssistant.fallback.summary'),
+                content: {
+                  title: '',
+                  description: '',
+                  body: t('chatAssistant.fallback.body'),
+                  bullets: [],
+                  hashtags: [],
+                },
+                suggestions: [],
               },
-              suggestions: [],
-            },
         }
 
         setMessages((previousMessages) => [
@@ -179,7 +225,7 @@ export function useChatAssistant() {
           requestError?.response?.data?.detail ||
           requestError?.response?.data?.message ||
           requestError?.message ||
-          t('assistant.error.sendFailed')
+          t('chatAssistant.error.sendFailed')
 
         setError(errorMessage)
 
@@ -188,18 +234,18 @@ export function useChatAssistant() {
           role: 'assistant',
           content: {
             type: 'error',
-            summary: t('assistant.error.summary'),
+            summary: t('chatAssistant.error.summary'),
             content: {
-              title: t('assistant.error.title'),
+              title: t('chatAssistant.error.title'),
               description: '',
               body: errorMessage,
               bullets: [],
               hashtags: [],
             },
             suggestions: [
-              t('assistant.error.suggestions.retry'),
-              t('assistant.error.suggestions.shorten'),
-              t('assistant.error.suggestions.changeTopic'),
+              t('chatAssistant.error.suggestions.retry'),
+              t('chatAssistant.error.suggestions.shorter'),
+              t('chatAssistant.error.suggestions.changeTopic'),
             ],
           },
         }
@@ -212,36 +258,20 @@ export function useChatAssistant() {
         setIsLoading(false)
       }
     },
-    [isLoading],
+    [isLoading, messages, t, i18n.resolvedLanguage, i18n.language],
   )
 
   const canSend = useMemo(
     () => !isLoading,
-    [isLoading, messages, t, i18n.language, i18n.resolvedLanguage],
+    [isLoading],
   )
 
   return {
     messages,
     isLoading,
-    isSearching: false,  // Thêm property này (hiện chưa có logic search)
+    isSearching: false,
     error,
     canSend,
     sendMessage,
   }
-  useEffect(() => {
-    setMessages((previousMessages) => {
-      if (previousMessages.length === 0) {
-        return [buildInitialAssistantMessage(t)]
-      }
-
-      if (previousMessages[0]?.id !== 'assistant-welcome') {
-        return previousMessages
-      }
-
-      return [
-        buildInitialAssistantMessage(t),
-        ...previousMessages.slice(1),
-      ]
-    })
-  }, [t, i18n.language])
 }

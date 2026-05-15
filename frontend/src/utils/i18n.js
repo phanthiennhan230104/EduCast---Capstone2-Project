@@ -5,6 +5,57 @@ const resources = {
   vi: {
 
     translation: {
+      chatAssistant: {
+        welcome: {
+          summary: 'Xin chào, mình là EduCast Assistant.',
+          title: 'Mình có thể giúp bạn',
+          bullets: {
+            englishLesson: 'Tạo bài học tiếng Anh cho người mới bắt đầu',
+            programming: 'Giải thích lập trình bằng ví dụ dễ hiểu',
+            softSkills: 'Tạo nội dung kỹ năng mềm và lối sống',
+            elderlyExercise: 'Gợi ý bài tập sức khỏe an toàn cho người lớn tuổi',
+            podcastScript: 'Soạn script podcast giáo dục ngắn',
+          },
+          suggestions: {
+            englishConversation: 'Tạo bài học tiếng Anh giao tiếp cho beginner',
+            asyncAwait: 'Giải thích async await trong JavaScript',
+            communicationPodcast: 'Viết script podcast 2 phút về kỹ năng giao tiếp',
+            elderlyExercise: 'Gợi ý bài tập nhẹ cho người lớn tuổi',
+          },
+        },
+        fallback: {
+          summary: 'AI chưa thể tạo phản hồi phù hợp.',
+          body: 'Vui lòng thử lại.',
+        },
+        error: {
+          sendFailed: 'Không thể gửi tin nhắn tới AI Assistant.',
+          summary: 'AI Assistant gặp lỗi',
+          title: 'Không thể xử lý yêu cầu',
+          fallback: {
+            summary: 'Có lỗi xảy ra khi xử lý yêu cầu của bạn.',
+            body: 'Xin lỗi, AI Assistant không thể xử lý yêu cầu này. Vui lòng thử lại với yêu cầu khác.',
+            suggestions: {
+              shorter: 'Viết lại yêu cầu đơn giản hơn',
+              changeTopic: 'Thử với chủ đề khác',
+              network: 'Kiểm tra kết nối mạng',
+            },
+          },
+          suggestions: {
+            retry: 'Thử lại',
+            shorter: 'Viết ngắn gọn hơn',
+            changeTopic: 'Đổi chủ đề khác',
+          },
+        },
+      },
+
+      feedFilter: {
+        title: 'Lọc Feed',
+        clear: 'Bỏ lọc',
+        topic: 'Topic',
+        tag: 'Tag',
+        searchPlaceholder: 'Tìm mục khác...',
+        notFound: 'Không tìm thấy',
+      },
 
       api: {
         requestFailed: 'Yêu cầu thất bại.',
@@ -309,6 +360,12 @@ const resources = {
       },
 
       personal: {
+        requestRepublish: 'Yêu cầu đăng lại',
+        requestRepublishSuccess: 'Đã gửi yêu cầu đăng lại cho admin duyệt.',
+        requestRepublishFailed: 'Không thể gửi yêu cầu đăng lại',
+        requestRepublishErrorLog: 'Lỗi yêu cầu đăng lại:',
+        postRejectedSecondTime: 'Bài viết của bạn đã bị người kiểm duyệt từ chối lần 2',
+        viewProfile: 'Xem trang cá nhân',
         userIdNotFound: 'Không tìm thấy ID người dùng',
         loadingProfile: 'Đang tải hồ sơ...',
         noBio: 'Chưa có giới thiệu.',
@@ -366,8 +423,9 @@ const resources = {
         reportPost: 'Báo cáo bài đăng',
         report: 'Báo cáo',
         deletePost: 'Xóa bài đăng',
+        postRejected: 'Bài viết của bạn đã bị người kiểm duyệt từ chối',
         comments: '{{count}} Bình luận',
-        shares: '{{count}} Chia sẻ',
+        shares: '{{count}} lượt chia sẻ',
         saves: '{{count}} Lưu',
         noPosts: 'Chưa có bài đăng nào',
         myPodcasts: 'Podcast của tôi',
@@ -995,7 +1053,12 @@ const resources = {
         aiGreeting: 'Xin chào! Tôi có thể giúp bạn tìm kiếm podcast, giải thích khái niệm, hoặc lập lộ trình học tập. Bạn muốn học gì hôm nay?',
         aiReply: 'Câu hỏi hay! Hãy để tôi tìm kiếm các podcast liên quan cho bạn...',
         aiPlaceholder: 'Hỏi AI về podcast...',
-        posts: '{{count}} ',
+        posts: '{{count}} bài viết',
+        noTrending: 'Chưa có xu hướng nào',
+        seeMore: 'Xem thêm',
+        noSuggestions: 'Không có gợi ý nào',
+        allSuggestions: 'Tất cả gợi ý',
+        mutualCount: '{{count}} bạn chung',
       },
 
 
@@ -1068,6 +1131,10 @@ const resources = {
 
         comment: {
           postBy: 'Bài viết của {{author}}',
+          sharedPostBy: 'Bài chia sẻ của {{author}}',
+          likePostFailed: 'Không thể thích bài viết',
+          savePostFailed: 'Không thể lưu bài viết',
+          deletePostSuccess: 'Đã xóa bài viết',
           editPlaceholder: 'Nhập nội dung mới...',
           save: 'Lưu',
           cancel: 'Hủy',
@@ -1314,6 +1381,61 @@ const resources = {
 
   en: {
     translation: {
+      chatAssistant: {
+        welcome: {
+          summary: 'Hello, I’m EduCast Assistant.',
+          title: 'I can help you',
+          bullets: {
+            englishLesson: 'Create English lessons for beginners',
+            programming: 'Explain programming with easy examples',
+            softSkills: 'Create soft skills and lifestyle content',
+            elderlyExercise: 'Suggest safe health exercises for older adults',
+            podcastScript: 'Write short educational podcast scripts',
+          },
+          suggestions: {
+            englishConversation: 'Create a beginner English conversation lesson',
+            asyncAwait: 'Explain async await in JavaScript',
+            communicationPodcast: 'Write a 2-minute podcast script about communication skills',
+            elderlyExercise: 'Suggest light exercises for older adults',
+          },
+        },
+        fallback: {
+          summary: 'AI could not generate a suitable response.',
+          body: 'Please try again.',
+        },
+        error: {
+          sendFailed: 'Could not send the message to EduCast Assistant.',
+          summary: 'EduCast Assistant encountered an error',
+          title: 'Could not process the request',
+          fallback: {
+            summary: 'An error occurred while processing your request.',
+            body: 'Sorry, AI Assistant cannot process this request. Please try again with a different request.',
+            suggestions: {
+              shorter: 'Rewrite with a simpler request',
+              changeTopic: 'Try with a different topic',
+              network: 'Check your network connection',
+            },
+          },
+          suggestions: {
+            retry: 'Try again',
+            shorter: 'Write it more briefly',
+            changeTopic: 'Try another topic',
+          },
+        },
+      },
+      hashtag: {
+        posts: 'posts',
+        noPosts: 'No posts found for this hashtag',
+        notFound: 'Hashtag not found',
+      },
+      feedFilter: {
+        title: 'Feed filters',
+        clear: 'Clear',
+        topic: 'Topic',
+        tag: 'Tag',
+        searchPlaceholder: 'Search more...',
+        notFound: 'No results found',
+      },
       api: {
         requestFailed: 'Request failed.',
         sessionExpiredLoginAgain: 'Your session has expired. Please log in again.',
@@ -1549,6 +1671,12 @@ const resources = {
         unknownUser: "Unknown user",
       },
       personal: {
+        requestRepublish: 'Request republish',
+        requestRepublishSuccess: 'Republish request has been sent for admin review.',
+        requestRepublishFailed: 'Could not send republish request',
+        requestRepublishErrorLog: 'Request republish error:',
+        postRejectedSecondTime: 'Your post has been rejected by the moderator for the second time',
+        viewProfile: 'View profile',
         userIdNotFound: 'User ID not found',
         loadingProfile: 'Loading profile...',
         noBio: 'No bio yet.',
@@ -1605,6 +1733,7 @@ const resources = {
         reportPost: 'Report post',
         report: 'Report',
         deletePost: 'Delete post',
+        postRejected: 'Your post has been rejected by the moderator',
         comments: '{{count}} Comments',
         shares: '{{count}} Shares',
         saves: '{{count}} Save',
@@ -2282,6 +2411,10 @@ const resources = {
 
         comment: {
           postBy: '{{author}}’s post',
+          sharedPostBy: '{{author}}’s shared post',
+          likePostFailed: 'Could not like the post',
+          savePostFailed: 'Could not save the post',
+          deletePostSuccess: 'Post deleted',
           editPlaceholder: 'Enter new content...',
           save: 'Save',
           cancel: 'Cancel',
@@ -2402,6 +2535,11 @@ const resources = {
         aiReply: 'Great question! Let me look for related podcasts for you...',
         aiPlaceholder: 'Ask AI about podcasts...',
         posts: '{{count}} posts',
+        noTrending: 'No trending topics yet',
+        seeMore: 'See more',
+        noSuggestions: 'No suggestions available',
+        allSuggestions: 'All suggestions',
+        mutualCount: '{{count}} mutual friends',
       },
 
       auth: {

@@ -12,6 +12,7 @@ from .views import (
     PublishPostView,
     TopicListView,
     TagListView,
+    PostRequestRepublishView,
 )
 from .admin_views import (
     AdminPostsListView,
@@ -30,6 +31,7 @@ from .admin_views import (
     AdminMarkAllNotificationsAsReadView,
     AdminGetUnreadNotificationCountView,
     AdminDebugNotificationsView,
+    AdminPostRequestRepublishView,
 )
 
 
@@ -41,6 +43,7 @@ urlpatterns = [
     path("search/", SearchAPIView.as_view(), name="search"),
     path("posts/publish/", PublishPostView.as_view(), name="publish-post"),
     path("posts/<str:post_id>/", PostDetailView.as_view(), name="post-detail"),
+    path("posts/<str:post_id>/request-republish/", PostRequestRepublishView.as_view(), name="request-republish"),
     path("users/<str:user_id>/posts/", UserPostsAPIView.as_view(), name="user-posts"),
 
     path("drafts/", DraftCreateView.as_view(), name="draft-create"),
@@ -60,6 +63,7 @@ urlpatterns = [
     path("admin/posts/<str:post_id>/restore/", AdminPostRestoreView.as_view(), name="admin-post-restore"),
     path("admin/posts/<str:post_id>/publish/", AdminPostPublishView.as_view(), name="admin-post-publish"),
     path("admin/posts/<str:post_id>/reject/", AdminPostRejectView.as_view(), name="admin-post-reject"),
+    path("admin/posts/<str:post_id>/request-republish/", AdminPostRequestRepublishView.as_view(), name="admin-post-request-republish"),
     path("admin/posts/<str:post_id>/lock-with-report/", AdminLockPostWithReportView.as_view(), name="admin-post-lock"),
     path("admin/posts/<str:post_id>/reject-report/", AdminRejectReportView.as_view(), name="admin-post-reject-report"),
     path("admin/reports/<str:report_id>/status/", AdminUpdateReportStatusView.as_view(), name="admin-report-status"),

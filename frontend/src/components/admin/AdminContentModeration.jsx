@@ -8,6 +8,11 @@ import {
     Play,
     Pause,
     ChevronDown,
+    Clock,
+    Calendar,
+    CheckCircle,
+    RotateCcw,
+    Trash2,
 } from 'lucide-react';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
 import AdminLayout from './AdminLayout';
@@ -18,6 +23,7 @@ import {
     rejectPost,
     republishPost,
     getAdminOverview,
+    requestRepublishByAdmin,
 } from '../../utils/adminApi';
 import notify from '../../utils/toast';
 
@@ -31,13 +37,16 @@ function formatSubtitle() {
     return `EduCast · ${dayName}, ${date} tháng ${month}, ${year}`;
 }
 
-function getStatusBadge(status) {
+function getStatusBadge(status, post) {
     const statuses = {
         processing: { label: 'Chờ duyệt', className: 'status-processing' },
         published: { label: 'Đã đăng', className: 'status-published' },
         hidden: { label: 'Ẩn', className: 'status-hidden' },
         draft: { label: 'Bản nháp', className: 'status-draft' },
-        failed: { label: 'Lỗi', className: 'status-failed' },
+        failed: {
+            label: post?.learning_field && ['1', '2'].includes(String(post.learning_field)) ? 'Bị từ chối' : 'Lỗi',
+            className: 'status-failed'
+        },
     };
     return statuses[status] || { label: status, className: 'status-unknown' };
 }
@@ -80,16 +89,16 @@ function AdminFeedAudioPlayer({ post }) {
     const progressBarRef = useRef(null);
 
     const {
-    playTrack,
-    currentTrack,
-    playing,
-    togglePlay,
-    currentTime,
-    trackProgressMap,
-    seekToPercent,
-    seekTrackToPercent,
-    getTrackProgressKey,
-} = useAudioPlayer();
+        playTrack,
+        currentTrack,
+        playing,
+        togglePlay,
+        currentTime,
+        trackProgressMap,
+        seekToPercent,
+        seekTrackToPercent,
+        getTrackProgressKey,
+    } = useAudioPlayer();
 
     const audioUrl = getFullAudioUrl(getPostAudioUrl(post));
     const durationSeconds = Number(
@@ -98,29 +107,29 @@ function AdminFeedAudioPlayer({ post }) {
         0
     );
     const track = {
-    id: post.id,
-    postId: post.id,
-    title: post.title,
-    author: post.display_name || post.username || 'EduCast',
-    audioUrl,
-    audio_url: audioUrl,
-    durationSeconds,
-    duration_seconds: durationSeconds,
-    cover: post.thumbnail_url || '',
-    thumbnail_url: post.thumbnail_url || '',
-};
+        id: post.id,
+        postId: post.id,
+        title: post.title,
+        author: post.display_name || post.username || 'EduCast',
+        audioUrl,
+        audio_url: audioUrl,
+        durationSeconds,
+        duration_seconds: durationSeconds,
+        cover: post.thumbnail_url || '',
+        thumbnail_url: post.thumbnail_url || '',
+    };
     const isCurrentTrack = String(currentTrack?.id) === String(post.id);
     const isCurrentPlaying = isCurrentTrack && playing;
     const progressKey = getTrackProgressKey(track);
-const savedProgress = progressKey ? trackProgressMap?.[progressKey] : null;
+    const savedProgress = progressKey ? trackProgressMap?.[progressKey] : null;
 
     const displayTime = isCurrentTrack
         ? currentTime
         : savedProgress?.currentTime || 0;
 
     const displayDuration = isCurrentTrack
-    ? Number(currentTrack?.durationSeconds || durationSeconds || savedProgress?.duration || 0)
-    : Number(savedProgress?.duration || durationSeconds || 0);
+        ? Number(currentTrack?.durationSeconds || durationSeconds || savedProgress?.duration || 0)
+        : Number(savedProgress?.duration || durationSeconds || 0);
 
     const displayProgress = isCurrentTrack
         ? displayDuration
@@ -143,26 +152,26 @@ const savedProgress = progressKey ? trackProgressMap?.[progressKey] : null;
     };
 
     const handleProgressBarClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+        e.preventDefault();
+        e.stopPropagation();
 
-    if (!progressBarRef.current || !audioUrl) return;
+        if (!progressBarRef.current || !audioUrl) return;
 
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const percent = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
+        const rect = progressBarRef.current.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const percent = Math.max(0, Math.min(100, (clickX / rect.width) * 100));
 
-    if (typeof seekTrackToPercent === 'function') {
-        seekTrackToPercent(track, percent);
-        return;
-    }
+        if (typeof seekTrackToPercent === 'function') {
+            seekTrackToPercent(track, percent);
+            return;
+        }
 
-    if (isCurrentTrack) {
-        seekToPercent(percent);
-    } else {
-        playTrack(track);
-    }
-};
+        if (isCurrentTrack) {
+            seekToPercent(percent);
+        } else {
+            playTrack(track);
+        }
+    };
 
     return (
         <div className="admin-feed-audio-player">
@@ -344,6 +353,20 @@ export default function AdminContentModeration() {
         }
     };
 
+    const handleAdminRequestRepublish = async (postId) => {
+        try {
+            setActionLoading(postId);
+            await requestRepublishByAdmin(postId);
+            notify.success('Đã gửi yêu cầu đăng lại cho người dùng!');
+            fetchPosts();
+        } catch (err) {
+            notify.error(err.message || 'Lỗi khi yêu cầu đăng lại');
+            console.error('Error requesting republish:', err);
+        } finally {
+            setActionLoading(null);
+        }
+    };
+
     const handleSearch = (e) => {
         setSearchKeyword(e.target.value);
         setCurrentPage(1);
@@ -432,7 +455,7 @@ export default function AdminContentModeration() {
                     ) : (
                         <div className="posts-grid">
                             {posts.map((post) => (
-                                <div key={post.id} className="post-card">
+                                <div key={post.id} className={`post-card ${post.thumbnail_url ? 'has-thumbnail' : 'no-thumbnail'}`}>
                                     {/* {post.thumbnail_url && (
                                         <div className="post-thumbnail">
                                             <img src={post.thumbnail_url} alt={post.title} />
@@ -450,21 +473,45 @@ export default function AdminContentModeration() {
                                     <div className="post-card-content">
                                         <h3 className="post-title">{post.title}</h3>
 
-                                        <p className="post-author">
-                                            Tác giả: <strong>{post.display_name || post.username}</strong>
-                                        </p>
+                                        <div className="post-badges">
+                                            <span className={`status-badge ${getStatusBadge(post.status, post).className}`}>
+                                                {getStatusBadge(post.status, post).label}
+                                            </span>
+                                            <span className={`visibility-badge ${getVisibilityBadge(post.visibility).className}`}>
+                                                {getVisibilityBadge(post.visibility).label}
+                                            </span>
+                                        </div>
 
                                         {post.description && (
                                             <p className="post-description">{post.description}</p>
                                         )}
 
+                                        <div className="post-author-info">
+                                            {post.user_avatar && (
+                                                <img 
+                                                    src={post.user_avatar} 
+                                                    alt={post.display_name} 
+                                                    className="author-avatar" 
+                                                />
+                                            )}
+                                            <p className="post-author">
+                                                Tác giả: <strong>{post.display_name || post.username}</strong>
+                                            </p>
+                                        </div>
+
                                         <div className="post-meta">
-                                            <span className="meta-item">⏱️ {post.duration_seconds || 0}s</span>
-                                            <span className="meta-item">📅 {new Date(post.created_at).toLocaleDateString('vi-VN')}</span>
+                                            <span className="meta-item"><Clock size={14} /> {post.duration_seconds || 0}s</span>
+                                            <span className="meta-item"><Calendar size={14} /> {new Date(post.created_at).toLocaleDateString('vi-VN')}</span>
                                         </div>
 
                                         {getPostAudioUrl(post) && (
                                             <AdminFeedAudioPlayer post={post} />
+                                        )}
+
+                                        {post.thumbnail_url && (
+                                            <div className="post-content-image">
+                                                <img src={post.thumbnail_url} alt={post.title} />
+                                            </div>
                                         )}
 
                                         {post.status === 'processing' && (
@@ -474,15 +521,39 @@ export default function AdminContentModeration() {
                                                     onClick={() => openPublishModal(post)}
                                                     disabled={actionLoading === post.id}
                                                 >
-                                                    <Check size={16} />
-                                                    {actionLoading === post.id ? 'Đang...' : 'Duyệt'}
+                                                    <CheckCircle size={18} />
+                                                    {actionLoading === post.id
+                                                        ? 'Đang...'
+                                                        : (post.learning_field === '1' ? 'Đăng lại' : 'Duyệt')}
                                                 </button>
                                                 <button
                                                     className="btn-delete"
                                                     onClick={() => handleReject(post.id)}
                                                     disabled={actionLoading === post.id}
                                                 >
-                                                    <X size={16} />
+                                                    <Trash2 size={18} />
+                                                    {actionLoading === post.id ? 'Đang...' : 'Xóa'}
+                                                </button>
+                                            </div>
+                                        )}
+                                        {post.status === 'failed' && (
+                                            <div className="post-actions">
+                                                {post.learning_field === '1' && (
+                                                    <button
+                                                        className="btn-republish-admin"
+                                                        onClick={() => handleAdminRequestRepublish(post.id)}
+                                                        disabled={actionLoading === post.id}
+                                                    >
+                                                        <RotateCcw size={18} />
+                                                        {actionLoading === post.id ? 'Đang...' : 'Yêu cầu đăng lại'}
+                                                    </button>
+                                                )}
+                                                <button
+                                                    className="btn-delete"
+                                                    onClick={() => handleReject(post.id)}
+                                                    disabled={actionLoading === post.id}
+                                                >
+                                                    <Trash2 size={18} />
                                                     {actionLoading === post.id ? 'Đang...' : 'Xóa'}
                                                 </button>
                                             </div>
@@ -494,8 +565,8 @@ export default function AdminContentModeration() {
                                                     onClick={() => handleRepublish(post.id)}
                                                     disabled={actionLoading === post.id}
                                                 >
-                                                    <Check size={16} />
-                                                    {actionLoading === post.id ? 'Đang...' : 'Đăng lại'}
+                                                    <RotateCcw size={18} />
+                                                    {actionLoading === post.id ? 'Đang...' : 'Khôi phục'}
                                                 </button>
                                             </div>
                                         )}

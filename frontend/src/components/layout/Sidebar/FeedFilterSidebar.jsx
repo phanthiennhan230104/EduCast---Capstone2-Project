@@ -1,5 +1,6 @@
 import { Search } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
+import { useTranslation } from 'react-i18next'
 
 import styles from '../../../style/layout/Sidebar.module.css'
 import { useTagFilter } from '../../contexts/TagFilterContext'
@@ -39,6 +40,7 @@ function FilterBlock({
   onSearch,
   onToggle,
   prefix = '',
+  t,
 }) {
   const selected = (selectedIds || []).map(String)
   const selectedOptions = useMemo(
@@ -95,7 +97,7 @@ function FilterBlock({
         <input
           value={search}
           onChange={(event) => onSearch(event.target.value)}
-          placeholder="Tìm mục khác..."
+          placeholder={t('feedFilter.searchPlaceholder')}
         />
       </label>
       {normalizedSearch && (
@@ -103,7 +105,7 @@ function FilterBlock({
           {searchedOptions.length > 0 ? (
             searchedOptions.map(renderChip)
           ) : (
-            <span className={styles.filterEmpty}>Không tìm thấy</span>
+            <span className={styles.filterEmpty}>{t('feedFilter.notFound')}</span>
           )}
         </div>
       )}
@@ -112,6 +114,7 @@ function FilterBlock({
 }
 
 export default function FeedFilterSidebar() {
+  const { t } = useTranslation()
   const {
     selectedTagIds,
     selectedTopicIds,
@@ -174,7 +177,7 @@ export default function FeedFilterSidebar() {
   return (
     <div className={styles.feedFilterPanel}>
       <div className={styles.feedFilterHeader}>
-        <span>Lọc Feed</span>
+        <span>{t('feedFilter.title')}</span>
         {hasActiveFilters && (
           <button
             type="button"
@@ -184,7 +187,7 @@ export default function FeedFilterSidebar() {
               clearFeedFilters()
             }}
           >
-            Bỏ lọc
+            {t('feedFilter.clear')}
           </button>
         )}
       </div>
@@ -196,6 +199,7 @@ export default function FeedFilterSidebar() {
         search={topicSearch}
         onSearch={setTopicSearch}
         onToggle={handleToggleTopic}
+        t={t}
       />
 
       <FilterBlock
@@ -206,6 +210,7 @@ export default function FeedFilterSidebar() {
         onSearch={setTagSearch}
         onToggle={handleToggleTag}
         prefix="#"
+        t={t}
       />
     </div>
   )

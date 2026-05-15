@@ -156,7 +156,7 @@ export default function RightPanel() {
           </Link>
         )) : (
           <div style={{ color: '#7f89b2', fontSize: '11px', padding: '5px 0' }}>
-            {t('rightPanel.noTrending', 'Chưa có xu hướng nào')}
+            {t('rightPanel.noTrending')}
           </div>
         )}
       </div>
@@ -172,7 +172,7 @@ export default function RightPanel() {
             onClick={() => setShowModal(true)} 
             className={styles.seeMoreLink}
           >
-            {t('rightPanel.seeMore', 'Xem thêm')}
+            {t('rightPanel.seeMore')}
           </button>
         </div>
         {suggestions.length > 0 ? suggestions.slice(0, 3).map(({ id, name, followers, avatar }) => (
@@ -193,7 +193,7 @@ export default function RightPanel() {
           </div>
         )) : (
           <div style={{ color: '#7f89b2', fontSize: '12px', padding: '10px 0' }}>
-            {t('rightPanel.noSuggestions', 'Không có gợi ý nào')}
+            {t('rightPanel.noSuggestions')}
           </div>
         )}
       </div>
@@ -205,7 +205,7 @@ export default function RightPanel() {
             <div className={styles.modalHeader}>
               <h3>
                 <UserPlus size={18} />
-                {t('rightPanel.allSuggestions', 'Tất cả gợi ý')}
+                {t('rightPanel.allSuggestions')}
               </h3>
               <button className={styles.closeBtn} onClick={() => setShowModal(false)}>
                 <X size={20} />
@@ -227,7 +227,7 @@ export default function RightPanel() {
                         <>
                           <span className={styles.dot}>•</span>
                           <span className={styles.mutualCount}>
-                            {t('rightPanel.mutualCount', '{{count}} bạn chung', { count: mutual_friends })}
+                            {t('rightPanel.mutualCount', { count: mutual_friends })}
                           </span>
                         </>
                       )}

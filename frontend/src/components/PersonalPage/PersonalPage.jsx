@@ -29,6 +29,8 @@ import {
   Heart,
   MessageCircle,
   Bookmark,
+  AlertCircle,
+  RotateCcw,
 } from 'lucide-react'
 import styles from '../../style/personal/PersonalPage.module.css'
 
@@ -831,6 +833,38 @@ export default function PersonalPage() {
     navigate('/feed')
   }
 
+  const handleRequestRepublish = async (postId) => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const res = await fetch(`http://localhost:8000/api/content/posts/${postId}/request-republish/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || t('personal.requestRepublishFailed'))
+      }
+
+      toast.success(t('personal.requestRepublishSuccess'));
+
+      // Update local state to reflect status change to processing
+      setPosts(prev => prev.map(p =>
+        p.id === postId ? { ...p, status: 'processing' } : p
+      ));
+
+    } catch (err) {
+      console.error(t('personal.requestRepublishErrorLog'), err)
+      toast.error(err.message || t('personal.requestRepublishFailed'))
+    }
+  };
+
   const handleDeletePost = async (postId) => {
     try {
       const post = posts.find((p) => p.id === postId)
@@ -1045,6 +1079,44 @@ export default function PersonalPage() {
                                   onEditPost={
                                     isOwnProfile ? () => setEditPostModalPost(post) : null
                                   }
+                                  rejectionBanner={
+                                    post.status === 'failed' ? (
+                                      <div className={styles.rejectedBanner}>
+                                        <div className={styles.rejectedText}>
+                                          <AlertCircle size={18} />
+                                          <span>
+                                            {post.learning_field === '2'
+                                              ? t('personal.postRejectedSecondTime')
+                                              : t('personal.postRejected')}
+                                          </span>
+                                        </div>
+                                        <div className={styles.rejectedActions}>
+                                          {post.learning_field !== '2' && (
+                                            <button
+                                              className={styles.republishRequestBtn}
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleRequestRepublish(post.id);
+                                              }}
+                                            >
+                                              <RotateCcw size={16} />
+                                              <span>{t('personal.requestRepublish')}</span>
+                                            </button>
+                                          )}
+                                          <button
+                                            className={styles.rejectedDeleteBtn}
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              handleDeletePost(post.id)
+                                            }}
+                                          >
+                                            <Trash2 size={16} />
+                                            <span>{t('personal.deletePost')}</span>
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ) : null
+                                  }
                                 />
                               </div>
                             )
@@ -1239,7 +1311,7 @@ export default function PersonalPage() {
                                     window.scrollTo(0, 0)
                                   }}
                                 >
-                                  Xem trang cá nhân
+                                  {t('personal.viewProfile')}
                                 </button>
                               ) : (
                                 <button

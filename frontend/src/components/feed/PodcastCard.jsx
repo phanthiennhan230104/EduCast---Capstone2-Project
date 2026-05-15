@@ -46,6 +46,7 @@ export default function PodcastCard({
   onPlayClick = null,
   onSeek = null,
   onEditPost = null,
+  rejectionBanner = null,
 }) {
   const { t } = useTranslation()
   const currentUser = getCurrentUser()
@@ -869,6 +870,7 @@ export default function PodcastCard({
           isActive ? styles.activeCard : '',
         ].join(' ')}
       >
+        {rejectionBanner}
         <div className={styles.cardHeader}>
           <div
             className={styles.authorAvatar}
