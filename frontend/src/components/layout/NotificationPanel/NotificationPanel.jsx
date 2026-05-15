@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
+import { toast } from 'react-toastify'
 import styles from '../../../style/layout/NotificationPanel.module.css'
 import { getNotifications, markAllNotificationsAsRead } from '../../../utils/notificationApi'
+import { getToken } from '../../../utils/auth'
 
 function getNotificationIcon(type) {
   switch (type) {
@@ -46,7 +48,7 @@ export default function NotificationPanel() {
   const [loading, setLoading] = useState(false)
   const panelRef = useRef(null)
 
-  // Fetch unread count on mount and periodically
+  // Fetch unread count on mount and connect WebSocket
   useEffect(() => {
     const fetchUnreadCount = async () => {
       try {
@@ -59,15 +61,36 @@ export default function NotificationPanel() {
 
     fetchUnreadCount()
 
-    // Poll every 10 seconds for new notifications
-    const interval = setInterval(() => {
-      if (!open) {
-        fetchUnreadCount()
-      }
-    }, 10000)
+    const token = getToken()
+    if (!token) return
 
-    return () => clearInterval(interval)
-  }, [open])
+    const wsUrl = `ws://127.0.0.1:8000/ws/notifications/?token=${token}`
+    const ws = new WebSocket(wsUrl)
+
+    ws.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data)
+        if (data.type === 'new_notification' && data.notification) {
+          const newNotif = data.notification
+          setUnreadCount((prev) => prev + 1)
+          
+          setNotifications((prev) => {
+            // Only prepend if we already have notifications loaded
+            if (prev.length > 0) {
+              return [newNotif, ...prev]
+            }
+            return prev
+          })
+        }
+      } catch (err) {
+        console.error('Error parsing notification message', err)
+      }
+    }
+
+    return () => {
+      ws.close()
+    }
+  }, [])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
