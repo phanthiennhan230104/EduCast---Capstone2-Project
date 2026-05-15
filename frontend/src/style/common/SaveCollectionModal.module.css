@@ -9,7 +9,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2147483400;
   backdrop-filter: blur(2px);
 }
 
@@ -38,7 +38,7 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.8),
               0 0 1px 1px rgba(91, 124, 255, 0.1);
   border: 1px solid rgba(91, 124, 255, 0.2);
-  z-index: 1000;
+  z-index: 2147483400;
   animation: slideUp 0.25s ease-out;
 }
 

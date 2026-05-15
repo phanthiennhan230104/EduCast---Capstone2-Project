@@ -91,6 +91,7 @@ export default function Feed() {
   selectedTagIdsRef.current = selectedTagIds
 
   const {
+    savedPostIds,
     setSavedPostIds_batch,
     deletePost,
     hidePost,
@@ -105,7 +106,7 @@ export default function Feed() {
     return saved ? parseInt(saved, 10) : 0
   })
 
-  const [disableModalAutoScroll, setDisableModalAutoScroll] = useState(false)
+  const [disableModalAutoScroll, setDisableModalAutoScroll] = useState(true)
   const [selectedPodcast, setSelectedPodcast] = useState(null)
   const [podcasts, setPodcasts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -505,6 +506,11 @@ export default function Feed() {
             item.comments ??
             0
 
+          const savedFromContext = savedPostIds.has(String(underlyingPostId))
+          const savedFromSource =
+            syncState.saved ?? item.viewer_state?.is_saved ?? false
+          const saveCount = syncState.saveCount ?? item.stats?.saves ?? 0
+
           return {
             id: rowId,
             viewId: rowId,
@@ -549,8 +555,10 @@ export default function Feed() {
             likes: syncState.likeCount ?? item.stats?.likes ?? 0,
             liked: syncState.liked ?? item.viewer_state?.is_liked ?? false,
 
-            saved: syncState.saved ?? item.viewer_state?.is_saved ?? false,
-            saveCount: syncState.saveCount ?? item.stats?.saves ?? 0,
+            saved: savedFromContext || savedFromSource,
+            saveCount: savedFromContext
+              ? Math.max(Number(saveCount || 0), 1)
+              : saveCount,
 
             comments: commentCount,
             comment_count: commentCount,
@@ -585,12 +593,13 @@ export default function Feed() {
 
         setSavedPostIds_batch(
           [
-            ...new Set(
-              visibleMapped
+            ...new Set([
+              ...Array.from(savedPostIds || []),
+              ...visibleMapped
                 .filter((p) => p.saved && p.type !== 'shared')
                 .map((p) => engagementPostId(p))
-                .filter(Boolean)
-            ),
+                .filter(Boolean),
+            ]),
           ]
         )
       } catch (err) {
@@ -620,15 +629,44 @@ export default function Feed() {
     fetchFeed()
   }, [
     activeTab,
-    deletedPostIds,
     feedReloadNonce,
     focusPostId,
-    hiddenPostIds,
     i18n.language,
     selectedTagIds,
     selectedTopicIds,
     setSavedPostIds_batch,
   ])
+
+  useEffect(() => {
+    if (!savedPostIds?.size) return
+
+    setPodcasts((prev) =>
+      prev.map((podcast) => {
+        const key = engagementPostId(podcast)
+        if (!key || !savedPostIds.has(String(key)) || podcast.saved) {
+          return podcast
+        }
+
+        return {
+          ...podcast,
+          saved: true,
+          saveCount: Math.max(Number(podcast.saveCount || 0), 1),
+        }
+      })
+    )
+
+    setSelectedPodcast((prev) => {
+      if (!prev) return prev
+      const key = engagementPostId(prev)
+      if (!key || !savedPostIds.has(String(key)) || prev.saved) return prev
+
+      return {
+        ...prev,
+        saved: true,
+        saveCount: Math.max(Number(prev.saveCount || 0), 1),
+      }
+    })
+  }, [savedPostIds])
 
   useLayoutEffect(() => {
     if (loading || podcasts.length === 0) return
@@ -760,7 +798,7 @@ export default function Feed() {
       }
 
       if (target) {
-        setDisableModalAutoScroll(Boolean(event.detail?.disableAutoScroll))
+        setDisableModalAutoScroll(event.detail?.disableAutoScroll !== false)
         setSelectedPodcast(target)
       }
     }
@@ -801,7 +839,9 @@ export default function Feed() {
     })
 
     const data = await res.json()
-    if (!res.ok || !data.success) return
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || `HTTP ${res.status}`)
+    }
 
     const nextLiked = Boolean(data.data?.liked)
     const nextLikeCount = Number(data.data?.like_count || 0)
@@ -843,6 +883,8 @@ export default function Feed() {
         })
       )
     }
+
+    return { liked: nextLiked, likeCount: nextLikeCount }
   }
 
   const handleModalToggleSave = async (e) => {
@@ -875,7 +917,9 @@ export default function Feed() {
     )
 
     const data = await res.json()
-    if (!res.ok || !data.success) return
+    if (!res.ok || !data.success) {
+      throw new Error(data.message || `HTTP ${res.status}`)
+    }
 
     const nextSaved = Boolean(data.data?.saved)
     const nextSaveCount = Number(data.data?.save_count || 0)
@@ -899,6 +943,8 @@ export default function Feed() {
       saved: nextSaved,
       saveCount: nextSaveCount,
     })
+
+    return { saved: nextSaved, saveCount: nextSaveCount }
   }
 
   const handleFeedSharedLike = async (postId) => {
@@ -1122,44 +1168,15 @@ export default function Feed() {
   const executeHideSharedFeedRow = async (podcast) => {
     if (!podcast) return
 
-    try {
-      const token = getToken()
-      const user = getCurrentUser()
-      const canonicalId = engagementPostId(podcast)
+    preserveMainScrollAfterListUpdate(() => {
+      pauseTrackIfDeleted(podcast.id)
+      hidePost(podcast.id)
+      setPodcasts((prev) =>
+        prev.filter((p) => String(p.id) !== String(podcast.id))
+      )
+    })
 
-      const res = await fetch(`${API_BASE_URL}/social/posts/${canonicalId}/hide/`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({ user_id: user?.id }),
-      })
-
-      let errBody = {}
-      try {
-        errBody = await res.json()
-      } catch {
-        errBody = {}
-      }
-
-      if (!res.ok) {
-        throw new Error(errBody.message || `HTTP ${res.status}`)
-      }
-
-      preserveMainScrollAfterListUpdate(() => {
-        pauseTrackIfDeleted(podcast.id)
-        hidePost(canonicalId)
-        setPodcasts((prev) =>
-          prev.filter((p) => String(p.id) !== String(podcast.id))
-        )
-      })
-
-      setOpenShareMenuId(null)
-    } catch (err) {
-      console.error(err)
-      toast.error(err.message || t('feed.hidePostFailed'))
-    }
+    setOpenShareMenuId(null)
   }
 
   const renderSharedPost = (podcast) => {
@@ -1469,7 +1486,7 @@ export default function Feed() {
       pauseTrackIfDeleted(postId)
       deletePost(postId)
       setPodcasts((prev) =>
-        prev.filter((p) => String(p.id) !== String(postId))
+        prev.filter((p) => !matchesRemovedPost(p, postId))
       )
     })
   }
@@ -1479,7 +1496,7 @@ export default function Feed() {
       pauseTrackIfDeleted(postId)
       hidePost(postId)
       setPodcasts((prev) =>
-        prev.filter((p) => String(p.id) !== String(postId))
+        prev.filter((p) => !matchesRemovedPost(p, postId))
       )
     })
   }
@@ -1672,17 +1689,18 @@ export default function Feed() {
           }}
           onClose={() => {
             setSelectedPodcast(null)
-            setDisableModalAutoScroll(false)
+            setDisableModalAutoScroll(true)
           }}
           onPostDeleted={(deletedId) => {
-            setPodcasts((prev) =>
-              prev.filter(
-                (p) =>
-                  String(p.id) !== String(deletedId) &&
-                  String(p.post_id) !== String(deletedId)
+            preserveMainScrollAfterListUpdate(() => {
+              pauseTrackIfDeleted(deletedId)
+              setPodcasts((prev) =>
+                prev.filter(
+                  (p) => !matchesRemovedPost(p, deletedId)
+                )
               )
-            )
-            setSelectedPodcast(null)
+              setSelectedPodcast(null)
+            })
           }}
         />
       )}

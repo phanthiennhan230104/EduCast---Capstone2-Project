@@ -5,6 +5,7 @@ import ConfirmModal from './ConfirmModal'
 import ShareModal from './ShareModal'
 import EditPostModal from './EditPostModal'
 import EditShareCaptionModal from './EditShareCaptionModal'
+import ReportPostModal from './ReportPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
 import { API_BASE_URL } from '../../config/apiBase'
 import styles from '../../style/feed/CommentModal.module.css'
@@ -450,13 +451,13 @@ export default function CommentModal({
   onToggleSave,
   onShare,
   onPostDeleted,
-  disableAutoScroll = false,
+  disableAutoScroll = true,
 }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { playTrack, currentTrack, playing, togglePlay, currentTime, formattedCurrentTime, trackProgressMap, seekToPercent, isSeeking } = useAudioPlayer()
-  const { deletePost, hidePost, removeSavedPost } = useContext(PodcastContext)
+  const { deletePost, hidePost, addSavedPost, removeSavedPost } = useContext(PodcastContext)
   const canonicalPostId =
     getCanonicalPostIdForEngagement(podcast) ?? String(podcast.id ?? '')
   /** Modal mở từ nút bình luận trên card share — API comment/social theo instance chia sẻ (id composite). */
@@ -467,7 +468,21 @@ export default function CommentModal({
   const saveApiPostId = isShareCommentModal ? podcast.id : canonicalPostId
   const progressBarRef = useRef(null)
 
-  const [originalEngagement, setOriginalEngagement] = useState(null)
+  const makeEngagementState = (overrides = {}) => ({
+    liked: Boolean(liked),
+    likeCount: Number(likeCount ?? 0),
+    shareCount: Number(shareCount ?? 0),
+    saveCount: Number(saveCount ?? 0),
+    saved: Boolean(saved),
+    ...overrides,
+  })
+  const [modalEngagement, setModalEngagement] = useState(() =>
+    makeEngagementState()
+  )
+  const [engagementBusy, setEngagementBusy] = useState({
+    like: false,
+    save: false,
+  })
 
   const [comments, setComments] = useState([])
   const [commentInput, setCommentInput] = useState('')
@@ -487,6 +502,7 @@ export default function CommentModal({
   const [postMenuOpen, setPostMenuOpen] = useState(false)
   const [deletePostModalOpen, setDeletePostModalOpen] = useState(false)
   const [hidePostModalOpen, setHidePostModalOpen] = useState(false)
+  const [reportPostModalOpen, setReportPostModalOpen] = useState(false)
   const [editPostModalOpen, setEditPostModalOpen] = useState(false)
   const [livePostMeta, setLivePostMeta] = useState({
     title: podcast.title,
@@ -523,14 +539,8 @@ export default function CommentModal({
         typeof d.saveCount === 'number' ||
         typeof d.shareCount === 'number'
       ) {
-        setOriginalEngagement((prev) => {
-          const base = prev || {
-            liked,
-            likeCount,
-            shareCount,
-            saveCount,
-            saved,
-          }
+        setModalEngagement((prev) => {
+          const base = prev || makeEngagementState()
           return {
             ...base,
             liked: typeof d.liked === 'boolean' ? d.liked : base.liked,
@@ -558,7 +568,21 @@ export default function CommentModal({
     saveCount,
     shareCount,
   ])
+
+  useEffect(() => {
+    setModalEngagement(makeEngagementState())
+  }, [
+    podcast?.id,
+    podcast?.commentModalScope,
+    liked,
+    likeCount,
+    saved,
+    saveCount,
+    shareCount,
+  ])
   const [showCollectionModal, setShowCollectionModal] = useState(false)
+  // store both top and height to compensate for layout changes when child modal opens
+  const collectionModalSavedScroll = useRef({ top: 0, height: 0 })
   const [postMoreMenuOpen, setPostMoreMenuOpen] = useState(false)
   const [deleteProgress, setDeleteProgress] = useState(0)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -588,6 +612,10 @@ export default function CommentModal({
   useEffect(() => {
     fetchComments()
   }, [podcast?.id, podcast?.commentModalScope])
+
+  useEffect(() => {
+    setDidInitialScroll(false)
+  }, [podcast?.id, podcast?.commentModalScope, disableAutoScroll])
 
   useEffect(() => {
     // Save scroll position when modal opens
@@ -682,12 +710,16 @@ export default function CommentModal({
   }, [openMenuId])
 
   useLayoutEffect(() => {
-    if (!loadingComments && !didInitialScroll && !disableAutoScroll) {
-      requestAnimationFrame(() => {
+    if (loadingComments || didInitialScroll) return
+
+    requestAnimationFrame(() => {
+      if (disableAutoScroll) {
+        contentScrollRef.current?.scrollTo({ top: 0, behavior: 'auto' })
+      } else {
         scrollToComments('auto', false)
-        setDidInitialScroll(true)
-      })
-    }
+      }
+      setDidInitialScroll(true)
+    })
   }, [loadingComments, didInitialScroll, disableAutoScroll])
 
   const fetchComments = async () => {
@@ -720,15 +752,20 @@ export default function CommentModal({
       setCommentCount(nextCount)
       onCommentCountChange?.(nextCount)
 
-      if (podcast.type === 'shared') {
-        setOriginalEngagement({
-          liked: Boolean(data.data?.is_liked),
-          saved: Boolean(data.data?.is_saved),
-          likeCount: Number(data.data?.like_count ?? 0),
-          saveCount: Number(data.data?.save_count ?? 0),
-          shareCount: Number(data.data?.share_count ?? 0),
-        })
-      }
+      setModalEngagement((prev) => ({
+        ...prev,
+        liked:
+          typeof data.data?.is_liked === 'boolean'
+            ? Boolean(data.data.is_liked)
+            : prev.liked,
+        saved:
+          typeof data.data?.is_saved === 'boolean'
+            ? Boolean(data.data.is_saved)
+            : prev.saved,
+        likeCount: Number(data.data?.like_count ?? prev.likeCount),
+        saveCount: Number(data.data?.save_count ?? prev.saveCount),
+        shareCount: Number(data.data?.share_count ?? prev.shareCount),
+      }))
     } catch (err) {
       console.error('Fetch comments failed:', err)
     } finally {
@@ -736,25 +773,72 @@ export default function CommentModal({
     }
   }
 
-  useEffect(() => {
-    setOriginalEngagement(null)
-  }, [podcast?.id, podcast?.commentModalScope])
-
   const handleLikeWithRefetch = async (e) => {
     e?.preventDefault?.()
     e?.stopPropagation?.()
-    await onToggleLike?.(e)
-    if (podcast.type === 'shared') {
-      await fetchComments()
+    if (engagementBusy.like) return
+
+    const previous = modalEngagement
+    const optimisticLiked = !previous.liked
+    setEngagementBusy((prev) => ({ ...prev, like: true }))
+    setModalEngagement({
+      ...previous,
+      liked: optimisticLiked,
+      likeCount: Math.max(
+        0,
+        Number(previous.likeCount || 0) + (optimisticLiked ? 1 : -1)
+      ),
+    })
+
+    try {
+      const result = await onToggleLike?.(e)
+      if (result && typeof result.liked === 'boolean') {
+        setModalEngagement((prev) => ({
+          ...prev,
+          liked: result.liked,
+          likeCount: Number(result.likeCount ?? prev.likeCount),
+        }))
+      }
+    } catch (err) {
+      setModalEngagement(previous)
+      console.error('Toggle like failed:', err)
+      toast.error(err.message || 'Không thể thích bài viết')
+    } finally {
+      setEngagementBusy((prev) => ({ ...prev, like: false }))
     }
   }
 
   const handleSaveWithRefetch = async (e) => {
     e?.preventDefault?.()
     e?.stopPropagation?.()
-    await onToggleSave?.(e)
-    if (podcast.type === 'shared') {
-      await fetchComments()
+    if (engagementBusy.save) return
+    const previous = modalEngagement
+    const optimisticSaved = !previous.saved
+    setEngagementBusy((prev) => ({ ...prev, save: true }))
+    setModalEngagement({
+      ...previous,
+      saved: optimisticSaved,
+      saveCount: Math.max(
+        0,
+        Number(previous.saveCount || 0) + (optimisticSaved ? 1 : -1)
+      ),
+    })
+
+    try {
+      const result = await onToggleSave?.(e)
+      if (result && typeof result.saved === 'boolean') {
+        setModalEngagement((prev) => ({
+          ...prev,
+          saved: result.saved,
+          saveCount: Number(result.saveCount ?? prev.saveCount),
+        }))
+      }
+    } catch (err) {
+      setModalEngagement(previous)
+      console.error('Toggle save failed:', err)
+      toast.error(err.message || 'Không thể lưu bài viết')
+    } finally {
+      setEngagementBusy((prev) => ({ ...prev, save: false }))
     }
   }
 
@@ -794,14 +878,8 @@ export default function CommentModal({
   }
 
   const handlePlayClick = async () => {
-    const trackLiked =
-      podcast.type === 'shared' && originalEngagement
-        ? originalEngagement.liked
-        : liked
-    const trackSaved =
-      podcast.type === 'shared' && originalEngagement
-        ? originalEngagement.saved
-        : saved
+    const trackLiked = modalEngagement.liked
+    const trackSaved = modalEngagement.saved
 
     let finalAudioUrl = getFullAudioUrl(
       podcast.audioUrl ||
@@ -894,14 +972,8 @@ export default function CommentModal({
   const handleProgressBarClick = (e) => {
     if (!durationSeconds || durationSeconds === 0) return
 
-    const trackLiked =
-      podcast.type === 'shared' && originalEngagement
-        ? originalEngagement.liked
-        : liked
-    const trackSaved =
-      podcast.type === 'shared' && originalEngagement
-        ? originalEngagement.saved
-        : saved
+    const trackLiked = modalEngagement.liked
+    const trackSaved = modalEngagement.saved
 
     const barRect = progressBarRef.current?.getBoundingClientRect()
     if (!barRect) return
@@ -1074,16 +1146,32 @@ export default function CommentModal({
       const nextCount = Number(data.data?.comment_count || 0)
 
       if (newComment) {
+        // Preserve current scroll position: measure before/after to compensate
+        const container = contentScrollRef.current
+        let prevScrollTop = 0
+        let prevScrollHeight = 0
+        if (container) {
+          prevScrollTop = container.scrollTop
+          prevScrollHeight = container.scrollHeight
+        }
+
         setComments((prev) => [newComment, ...prev])
+
+        // After DOM updates, restore scroll so the viewport doesn't jump
+        requestAnimationFrame(() => {
+          if (!container) return
+          const newScrollHeight = container.scrollHeight
+          const delta = newScrollHeight - prevScrollHeight
+          // Increase scrollTop by delta so visual position remains
+          container.scrollTop = prevScrollTop + delta
+          // keep input focused
+          commentInputRef.current?.focus()
+        })
       }
 
       setCommentCount(nextCount)
       onCommentCountChange?.(nextCount)
       setCommentInput('')
-
-      setTimeout(() => {
-        scrollToComments()
-      }, 60)
     } catch (err) {
       console.error('Create comment failed:', err)
       toast.error(err.message || t('feed.comment.sendCommentFailed'))
@@ -1419,6 +1507,14 @@ export default function CommentModal({
   }
 
   const confirmHidePost = async () => {
+    if (isShareCommentModal) {
+      hidePost(podcast.id)
+      setHidePostModalOpen(false)
+      onPostDeleted?.(podcast.id)
+      onClose()
+      return
+    }
+
     try {
       const token = getToken()
       const user = getCurrentUser()
@@ -1448,15 +1544,52 @@ export default function CommentModal({
       toast.error(err.message || t('feed.comment.hidePostFailed'))
     }
   }
-
-  const handleCollectionModalSave = async (collectionId) => {
-    // SaveCollectionModal đã make API call, chỉ cần update local state
+  const handleCollectionModalSave = async (_collectionId, saveData = {}) => {
+    const nextSaveCount = Number(
+      saveData.save_count ?? modalEngagement.saveCount + 1
+    )
+    setModalEngagement((prev) => ({
+      ...prev,
+      saved: true,
+      saveCount: nextSaveCount,
+    }))
+    addSavedPost(canonicalPostId)
+    window.dispatchEvent(
+      new CustomEvent('post-sync-updated', {
+        detail: {
+          postId: canonicalPostId,
+          saved: true,
+          saveCount: nextSaveCount,
+        },
+      })
+    )
     setShowCollectionModal(false)
   }
 
+  // Preserve comment modal scroll when opening/closing child modals (like SaveCollectionModal)
+  useEffect(() => {
+    const container = contentScrollRef.current
+    if (showCollectionModal) {
+      if (container) {
+        collectionModalSavedScroll.current = {
+          top: container.scrollTop,
+          height: container.scrollHeight,
+        }
+      }
+      return
+    }
+
+    // closed -> restore by compensating for any change in scrollHeight
+    requestAnimationFrame(() => {
+      if (!container) return
+      const prev = collectionModalSavedScroll.current || { top: 0, height: 0 }
+      const delta = Math.max(0, (container.scrollHeight || 0) - (prev.height || 0))
+      container.scrollTop = (prev.top || 0) + delta
+    })
+  }, [showCollectionModal])
   const handleReport = () => {
     setPostMoreMenuOpen(false)
-    toast.info(t('feed.comment.reportComingSoon'))
+    setReportPostModalOpen(true)
   }
 
   const [statsHoverType, setStatsHoverType] = useState(null)
@@ -1600,16 +1733,7 @@ export default function CommentModal({
     onClose?.()
   }
 
-  const engagement =
-    podcast.type === 'shared' && originalEngagement
-      ? originalEngagement
-      : {
-        liked,
-        likeCount,
-        shareCount,
-        saveCount,
-        saved,
-      }
+  const engagement = modalEngagement
   const displayLiked = engagement.liked
   const displayLikeCount = engagement.likeCount
   const displayShareCount = engagement.shareCount
@@ -1810,6 +1934,43 @@ export default function CommentModal({
                         >
                           <Trash2 size={14} />
                           <span>{t('feed.delete')}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {isShareCommentModal && !isShareOwner && (
+                  <div className={styles.postMenuWrap} ref={postMoreMenuRef}>
+                    <button
+                      className={styles.moreBtn}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        setPostMenuOpen(false)
+                        setPostMoreMenuOpen(!postMoreMenuOpen)
+                      }}
+                    >
+                      <MoreHorizontal size={20} />
+                    </button>
+
+                    {postMoreMenuOpen && (
+                      <div className={styles.postDropdown}>
+                        <button
+                          type="button"
+                          className={styles.postDropdownItem}
+                          onClick={handleHide}
+                        >
+                          <EyeOff size={14} />
+                          <span>{t('feed.hidePost')}</span>
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.postDropdownItem} ${styles.postDropdownItemDanger}`}
+                          onClick={handleReport}
+                        >
+                          <Flag size={14} />
+                          <span>{t('feed.report')}</span>
                         </button>
                       </div>
                     )}
@@ -2151,12 +2312,13 @@ export default function CommentModal({
           </div>
 
             <div className={`${styles.actionRow} ${isShareCommentModal ? styles.actionRowShareFeed : ''}`}>
-              <button
-                type="button"
-                className={`${styles.actionBtn} ${displayLiked ? styles.activeLike : ''}`}
-                onClick={(e) => {
-                  e.preventDefault()
-                  e.stopPropagation()
+            <button
+              type="button"
+              className={`${styles.actionBtn} ${displayLiked ? styles.activeLike : ''}`}
+              disabled={engagementBusy.like}
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
                   handleLikeWithRefetch(e)
                 }}
               >
@@ -2181,6 +2343,7 @@ export default function CommentModal({
                 ref={saveButtonRef}
                 type="button"
                 className={`${styles.actionBtn} ${displaySaved ? styles.activeSave : ''}`}
+                disabled={engagementBusy.save}
                 onClick={(e) => {
                   e.preventDefault()
                   e.stopPropagation()
@@ -2367,6 +2530,17 @@ Hành động này không thể hoàn tác.`}
         />,
         document.body
       ),
+
+      reportPostModalOpen ? createPortal(
+        <ReportPostModal
+          postId={canonicalPostId}
+          postTitle={livePostMeta.title}
+          authorId={podcast.authorId || podcast.author_id || podcast.userId || podcast.user_id}
+          authorName={authorName}
+          onClose={() => setReportPostModalOpen(false)}
+        />,
+        document.body
+      ) : null,
 
       <EditPostModal
         key="edit-post-modal"

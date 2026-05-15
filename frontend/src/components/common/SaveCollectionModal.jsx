@@ -176,7 +176,7 @@ export default function SaveCollectionModal({
       if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`)
 
       if (data.success) {
-        onSave?.(selectedCollectionId)
+        onSave?.(selectedCollectionId, data.data)
         onClose()
       }
     } catch (err) {

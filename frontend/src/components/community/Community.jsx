@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
   Sparkles,
@@ -9,10 +9,18 @@ import {
   Pause,
   Heart,
   MoreHorizontal,
+  EyeOff,
+  Flag,
 } from 'lucide-react'
 import { apiRequest } from '../../utils/api'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
+import { PodcastContext } from '../contexts/PodcastContext'
+import CommentModal from '../feed/CommentModal'
+import ShareModal from '../feed/ShareModal'
+import ReportPostModal from '../feed/ReportPostModal'
+import SaveCollectionModal from '../common/SaveCollectionModal'
 import styles from '../../style/community/Community.module.css'
+import { COMMUNITY_FOLLOW_CHANGED_EVENT } from './CommunityRightPanel'
 
 const LAST_VISIT_KEY = 'educast:community:lastVisitAt'
 
@@ -42,8 +50,45 @@ function formatTimeAgo(raw) {
   return `${Math.floor(diffHours / 24)} ngày trước`
 }
 
-function PostCard({ post, queue, onToggleSave, onToggleLike }) {
+function toCommentPodcast(post) {
+  const postId = post.post_id || post.id
+  const author = post.author || {}
+  return {
+    ...post,
+    id: postId,
+    post_id: postId,
+    type: 'original',
+    author,
+    authorId: author.id,
+    author_id: author.id,
+    authorUsername: author.username,
+    author_avatar: author.avatar_url,
+    authorInitials: author.initials,
+    cover: post.thumbnail_url,
+    audioUrl: post.audio?.audio_url || '',
+    durationSeconds: post.audio?.duration_seconds || post.duration_seconds || 0,
+    liked: Boolean(post.viewer_state?.is_liked),
+    saved: Boolean(post.viewer_state?.is_saved),
+    likes: Number(post.stats?.likes || 0),
+    comments: Number(post.stats?.comments || 0),
+    shares: Number(post.stats?.shares || 0),
+    saveCount: Number(post.stats?.saves || 0),
+  }
+}
+
+function PostCard({
+  post,
+  queue,
+  onToggleSave,
+  onToggleLike,
+  onOpenComments,
+  onShare,
+  onHide,
+  onReport,
+}) {
   const navigate = useNavigate()
+  const [menuOpen, setMenuOpen] = useState(false)
+  const menuRef = useRef(null)
   const {
     playTrack,
     togglePlay,
@@ -69,6 +114,17 @@ function PostCard({ post, queue, onToggleSave, onToggleLike }) {
 
   const author = post.author || {}
   const tags = Array.isArray(post.tags) ? post.tags.slice(0, 2) : []
+
+  useEffect(() => {
+    if (!menuOpen) return
+    const close = (event) => {
+      if (menuRef.current && !menuRef.current.contains(event.target)) {
+        setMenuOpen(false)
+      }
+    }
+    document.addEventListener('pointerdown', close, true)
+    return () => document.removeEventListener('pointerdown', close, true)
+  }, [menuOpen])
 
   const handlePlay = () => {
     const audioUrl = post.audio?.audio_url
@@ -151,9 +207,43 @@ function PostCard({ post, queue, onToggleSave, onToggleLike }) {
             </div>
           </div>
 
-          <button type="button" className={styles.menuBtn} aria-label="Thêm tùy chọn">
-            <MoreHorizontal size={18} />
-          </button>
+          <div className={styles.menuWrap} ref={menuRef}>
+            <button
+              type="button"
+              className={styles.menuBtn}
+              aria-label="Thêm tùy chọn"
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <MoreHorizontal size={18} />
+            </button>
+
+            {menuOpen && (
+              <div className={styles.postDropdown}>
+                <button
+                  type="button"
+                  className={styles.postDropdownItem}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onHide(postId)
+                  }}
+                >
+                  <EyeOff size={14} />
+                  <span>Ẩn bài viết</span>
+                </button>
+                <button
+                  type="button"
+                  className={`${styles.postDropdownItem} ${styles.postDropdownItemDanger}`}
+                  onClick={() => {
+                    setMenuOpen(false)
+                    onReport(post)
+                  }}
+                >
+                  <Flag size={14} />
+                  <span>Báo cáo</span>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -216,12 +306,16 @@ function PostCard({ post, queue, onToggleSave, onToggleLike }) {
           <span>{formatCount(post.stats?.likes)}</span>
         </button>
 
-        <button type="button" className={styles.actionBtn}>
+        <button
+          type="button"
+          className={styles.actionBtn}
+          onClick={() => onOpenComments(post)}
+        >
           <MessageCircle size={16} />
           <span>{formatCount(post.stats?.comments)} Bình luận</span>
         </button>
 
-        <button type="button" className={styles.actionBtn}>
+        <button type="button" className={styles.actionBtn} onClick={() => onShare(post)}>
           <Share2 size={16} />
           <span>Chia sẻ</span>
         </button>
@@ -246,6 +340,12 @@ export default function Community() {
   const [followingCount, setFollowingCount] = useState(0)
   const [newPostsCount, setNewPostsCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [selectedPost, setSelectedPost] = useState(null)
+  const [sharingPost, setSharingPost] = useState(null)
+  const [reportPost, setReportPost] = useState(null)
+  const [savingPost, setSavingPost] = useState(null)
+  const saveButtonRef = useRef(null)
+  const { addSavedPost, removeSavedPost } = useContext(PodcastContext)
   const navigate = useNavigate()
 
   const tabMeta = useMemo(
@@ -295,6 +395,38 @@ export default function Community() {
     }
   }, [activeTab])
 
+  useEffect(() => {
+    const handleFollowChanged = (event) => {
+      const { user, followed } = event.detail || {}
+      if (!user?.id) return
+
+      setFollowingPreview((prev) => {
+        const exists = prev.some((item) => String(item.id) === String(user.id))
+        if (followed) {
+          if (exists) {
+            return prev.map((item) =>
+              String(item.id) === String(user.id)
+                ? { ...item, ...user, is_following: true }
+                : item
+            )
+          }
+          return [{ ...user, is_following: true }, ...prev].slice(0, 8)
+        }
+
+        return prev.filter((item) => String(item.id) !== String(user.id))
+      })
+
+      setFollowingCount((prev) =>
+        Math.max(0, prev + (followed ? 1 : -1))
+      )
+    }
+
+    window.addEventListener(COMMUNITY_FOLLOW_CHANGED_EVENT, handleFollowChanged)
+    return () => {
+      window.removeEventListener(COMMUNITY_FOLLOW_CHANGED_EVENT, handleFollowChanged)
+    }
+  }, [])
+
   const audioQueue = useMemo(
     () =>
       posts
@@ -315,6 +447,12 @@ export default function Community() {
   )
 
   const toggleSavePost = async (id) => {
+    const target = posts.find((post) => String(post.post_id || post.id) === String(id))
+    if (target && !target.viewer_state?.is_saved) {
+      setSavingPost(target)
+      return
+    }
+
     const previous = posts
     setPosts((prev) =>
       prev.map((post) =>
@@ -345,6 +483,8 @@ export default function Community() {
       })
       const saved = Boolean(response.data?.saved)
       const count = Number(response.data?.save_count || 0)
+      if (saved) addSavedPost(id)
+      else removeSavedPost(id)
       setPosts((prev) =>
         prev.map((post) =>
           String(post.post_id || post.id) === String(id)
@@ -410,18 +550,144 @@ export default function Community() {
     }
   }
 
-  const followingItems = useMemo(() => {
-    const visible = followingPreview.slice(0, 7)
-    if (followingCount > visible.length) {
-      visible.push({
-        id: 'more',
-        name: `+${followingCount - visible.length}`,
-        initials: `+${followingCount - visible.length}`,
-        more: true,
+  const handleSavedToCollection = (_collectionId, saveData = {}) => {
+    const id = savingPost?.post_id || savingPost?.id
+    if (!id) return
+    const count = Number(saveData.save_count ?? (savingPost.stats?.saves || 0) + 1)
+    addSavedPost(id)
+    setPosts((prev) =>
+      prev.map((post) =>
+        String(post.post_id || post.id) === String(id)
+          ? {
+              ...post,
+              stats: { ...post.stats, saves: count },
+              viewer_state: { ...post.viewer_state, is_saved: true },
+            }
+          : post
+      )
+    )
+    setSavingPost(null)
+  }
+
+  const handleCommentCountChange = (postId, nextCount) => {
+    setPosts((prev) =>
+      prev.map((post) =>
+        String(post.post_id || post.id) === String(postId)
+          ? { ...post, stats: { ...post.stats, comments: nextCount } }
+          : post
+      )
+    )
+    setSelectedPost((prev) =>
+      prev && String(prev.post_id || prev.id) === String(postId)
+        ? { ...prev, stats: { ...prev.stats, comments: nextCount } }
+        : prev
+    )
+  }
+
+  const handleShareSuccess = (postId, data = {}) => {
+    const nextCount =
+      typeof data.share_count === 'number'
+        ? Number(data.share_count)
+        : null
+    setPosts((prev) =>
+      prev.map((post) =>
+        String(post.post_id || post.id) === String(postId)
+          ? {
+              ...post,
+              stats: {
+                ...post.stats,
+                shares: nextCount ?? Number(post.stats?.shares || 0) + 1,
+              },
+            }
+          : post
+      )
+    )
+    setSharingPost(null)
+  }
+
+  const hidePost = async (id) => {
+    const previous = posts
+    setPosts((prev) => prev.filter((post) => String(post.post_id || post.id) !== String(id)))
+    try {
+      await apiRequest(`/social/posts/${encodeURIComponent(id)}/hide/`, {
+        method: 'POST',
+        body: JSON.stringify({}),
       })
+    } catch (error) {
+      console.error('Community hide failed:', error)
+      setPosts(previous)
     }
-    return visible
-  }, [followingCount, followingPreview])
+  }
+
+  const handleModalToggleLike = async () => {
+    const id = selectedPost?.post_id || selectedPost?.id
+    if (!id) return null
+    const response = await apiRequest(`/social/posts/${encodeURIComponent(id)}/like/`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+    const liked = Boolean(response.data?.liked)
+    const likeCount = Number(response.data?.like_count || 0)
+    setPosts((prev) =>
+      prev.map((post) =>
+        String(post.post_id || post.id) === String(id)
+          ? {
+              ...post,
+              stats: { ...post.stats, likes: likeCount },
+              viewer_state: { ...post.viewer_state, is_liked: liked },
+            }
+          : post
+      )
+    )
+    setSelectedPost((prev) =>
+      prev
+        ? {
+            ...prev,
+            stats: { ...prev.stats, likes: likeCount },
+            viewer_state: { ...prev.viewer_state, is_liked: liked },
+          }
+        : prev
+    )
+    return { liked, likeCount }
+  }
+
+  const handleModalToggleSave = async () => {
+    const id = selectedPost?.post_id || selectedPost?.id
+    if (!id) return null
+    const response = await apiRequest(`/social/posts/${encodeURIComponent(id)}/save/`, {
+      method: 'POST',
+      body: JSON.stringify({}),
+    })
+    const saved = Boolean(response.data?.saved)
+    const saveCount = Number(response.data?.save_count || 0)
+    if (saved) addSavedPost(id)
+    else removeSavedPost(id)
+    setPosts((prev) =>
+      prev.map((post) =>
+        String(post.post_id || post.id) === String(id)
+          ? {
+              ...post,
+              stats: { ...post.stats, saves: saveCount },
+              viewer_state: { ...post.viewer_state, is_saved: saved },
+            }
+          : post
+      )
+    )
+    setSelectedPost((prev) =>
+      prev
+        ? {
+            ...prev,
+            stats: { ...prev.stats, saves: saveCount },
+            viewer_state: { ...prev.viewer_state, is_saved: saved },
+          }
+        : prev
+    )
+    return { saved, saveCount }
+  }
+
+  const followingItems = useMemo(() => {
+    return followingPreview
+  }, [followingPreview])
 
   return (
     <section className={styles.wrapper}>
@@ -487,10 +753,68 @@ export default function Community() {
                 queue={audioQueue}
                 onToggleSave={toggleSavePost}
                 onToggleLike={toggleLikePost}
+                onOpenComments={(post) => setSelectedPost(post)}
+                onShare={(post) => setSharingPost(post)}
+                onHide={hidePost}
+                onReport={(post) => setReportPost(post)}
               />
             ))}
         </div>
       </div>
+
+      {selectedPost && (
+        <CommentModal
+          podcast={toCommentPodcast(selectedPost)}
+          liked={selectedPost.viewer_state?.is_liked}
+          saved={selectedPost.viewer_state?.is_saved}
+          likeCount={selectedPost.stats?.likes}
+          shareCount={selectedPost.stats?.shares}
+          saveCount={selectedPost.stats?.saves}
+          commentCount={selectedPost.stats?.comments}
+          disableAutoScroll={false}
+          onClose={() => setSelectedPost(null)}
+          onToggleLike={handleModalToggleLike}
+          onToggleSave={handleModalToggleSave}
+          onCommentCountChange={(count) =>
+            handleCommentCountChange(selectedPost.post_id || selectedPost.id, count)
+          }
+          onPostDeleted={(id) => {
+            setPosts((prev) =>
+              prev.filter((post) => String(post.post_id || post.id) !== String(id))
+            )
+            setSelectedPost(null)
+          }}
+        />
+      )}
+
+      {sharingPost && (
+        <ShareModal
+          podcast={toCommentPodcast(sharingPost)}
+          onClose={() => setSharingPost(null)}
+          onShareSuccess={(data) =>
+            handleShareSuccess(sharingPost.post_id || sharingPost.id, data)
+          }
+        />
+      )}
+
+      {reportPost && (
+        <ReportPostModal
+          postId={reportPost.post_id || reportPost.id}
+          postTitle={reportPost.title}
+          authorId={reportPost.author?.id}
+          authorName={reportPost.author?.name || reportPost.author?.username}
+          onClose={() => setReportPost(null)}
+        />
+      )}
+
+      <SaveCollectionModal
+        isOpen={Boolean(savingPost)}
+        onClose={() => setSavingPost(null)}
+        postId={savingPost?.post_id || savingPost?.id}
+        onSave={handleSavedToCollection}
+        triggerRef={saveButtonRef}
+        isPopup={false}
+      />
     </section>
   )
 }

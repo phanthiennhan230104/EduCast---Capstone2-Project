@@ -97,11 +97,79 @@ function PostMenu({ post, isOwner, onEdit, onDelete, onHide }) {
   )
 }
 
+function CollectionMenu({ onDeleteCollection }) {
+  const ref = useRef(null)
+  const [open, setOpen] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    const handleClickOutside = (e) => {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    window.addEventListener('mousedown', handleClickOutside)
+    return () => window.removeEventListener('mousedown', handleClickOutside)
+  }, [open])
+
+  return (
+    <div className={styles.menuWrap} ref={ref}>
+      <button
+        type="button"
+        className={styles.moreBtn}
+        onClick={(e) => {
+          e.stopPropagation()
+          setOpen((prev) => !prev)
+        }}
+        aria-label="Tùy chọn bộ sưu tập"
+      >
+        <MoreHorizontal size={18} />
+      </button>
+
+      {open && (
+        <div className={styles.dropdown}>
+          <button
+            type="button"
+            className={`${styles.dropdownItem} ${styles.dropdownItemDanger}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              setOpen(false)
+              onDeleteCollection?.()
+            }}
+          >
+            <Trash2 size={14} />
+            <span>Xóa bộ sưu tập</span>
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DeleteCollectionButton({ onDeleteCollection }) {
+  return (
+    <button
+      type="button"
+      className={`${styles.moreBtn} ${styles.deleteCollectionBtn}`}
+      onClick={(e) => {
+        e.stopPropagation()
+        onDeleteCollection?.()
+      }}
+      aria-label="Xóa bộ sưu tập"
+      title="Xóa bộ sưu tập"
+    >
+      <Trash2 size={18} />
+    </button>
+  )
+}
+
 export default function AllPostsModal({
   isOpen,
   onClose,
   posts,
   title,
+  collection,
+  onDeleteCollection,
   onSelectPost,
   isOwner,
   onEditPost,
@@ -118,14 +186,21 @@ export default function AllPostsModal({
           <h2 className={styles.title}>
             {title || t('library.allSavedPodcasts', { count: posts.length })}
           </h2>
-          <button
-            type="button"
-            className={styles.closeBtn}
-            onClick={onClose}
-            aria-label={t('library.close')}
-          >
-            <X size={20} />
-          </button>
+          <div className={styles.headerActions}>
+            {collection && onDeleteCollection && (
+              <DeleteCollectionButton
+                onDeleteCollection={() => onDeleteCollection(collection)}
+              />
+            )}
+            <button
+              type="button"
+              className={styles.closeBtn}
+              onClick={onClose}
+              aria-label={t('library.close')}
+            >
+              <X size={20} />
+            </button>
+          </div>
         </div>
 
         <div className={styles.content}>
@@ -162,13 +237,6 @@ export default function AllPostsModal({
                     <p className={styles.duration}>{post.duration}</p>
                   </div>
 
-                  <PostMenu
-                    post={post}
-                    isOwner={typeof isOwner === 'function' ? isOwner(post) : false}
-                    onEdit={onEditPost}
-                    onDelete={onDeletePost}
-                    onHide={onHidePost}
-                  />
                 </div>
               ))}
             </div>

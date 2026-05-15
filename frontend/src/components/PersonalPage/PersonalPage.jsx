@@ -55,6 +55,7 @@ export default function PersonalPage() {
   const [failedAvatarUrls, setFailedAvatarUrls] = useState(new Set())
   const [postStates, setPostStates] = useState({})
   const [showCommentModal, setShowCommentModal] = useState(false)
+  const [disableCommentAutoScroll, setDisableCommentAutoScroll] = useState(true)
   const [showShareModal, setShowShareModal] = useState(false)
   const [showProfileShareModal, setShowProfileShareModal] = useState(false)
   const [editShareCaptionPost, setEditShareCaptionPost] = useState(null)
@@ -508,6 +509,7 @@ export default function PersonalPage() {
           saved: origPost.is_saved || false,
         }
 
+        setDisableCommentAutoScroll(true)
         setSelectedPost(mappedPost)
         setShowCommentModal(true)
       }
@@ -727,6 +729,7 @@ export default function PersonalPage() {
   }
 
   const handleOpenCommentModal = (post) => {
+    setDisableCommentAutoScroll(false)
     setSelectedPost(post)
     setShowCommentModal(true)
   }
@@ -1284,7 +1287,11 @@ export default function PersonalPage() {
           commentCount={
             postStates[selectedPost.id]?.commentCount ?? selectedPost.comments ?? 0
           }
-          onClose={() => setShowCommentModal(false)}
+          disableAutoScroll={disableCommentAutoScroll}
+          onClose={() => {
+            setShowCommentModal(false)
+            setDisableCommentAutoScroll(true)
+          }}
           onCommentCountChange={(newCount) =>
             handleCommentCountChange(selectedPost.id, newCount)
           }

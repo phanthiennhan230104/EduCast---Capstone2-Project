@@ -1198,6 +1198,7 @@ def community_overview(request):
     followed_user_ids.add(str(current_user.id))
     suggestions_qs = (
         User.objects.exclude(id__in=followed_user_ids)
+        .exclude(role__iexact="admin")
         .select_related("profile")
         .annotate(
             followers_total=Count("follower_relations", distinct=True),
@@ -1207,7 +1208,7 @@ def community_overview(request):
                 distinct=True,
             ),
         )
-        .order_by("-followers_total", "-posts_total", "username")[:5]
+        .order_by("-followers_total", "-posts_total", "username")[:3]
     )
     suggestions = [
         _serialize_community_user(
@@ -1232,7 +1233,7 @@ def community_overview(request):
         activities.append({
             "id": f"post-{post.id}",
             "type": "post",
-            "text": f"{_profile_display_name(post.user)} vua dang podcast moi",
+            "text": f"{_profile_display_name(post.user)} vừa đăng podcast mới",
             "created_at": post.created_at.isoformat() if post.created_at else None,
         })
 
@@ -1240,8 +1241,8 @@ def community_overview(request):
         "Community overview retrieved successfully",
         {
             "following_count": len(following_people),
-            "following_preview": following_people[:8],
-            "following_people": following_people[:5],
+            "following_preview": following_people,
+            "following_people": following_people[:3],
             "suggestions": suggestions,
             "posts": posts,
             "new_posts_count": new_posts_count,
@@ -1635,7 +1636,10 @@ def list_post_sharers(request, post_id):
                 .order_by("-created_at")
             )
         else:
-            qs = post_share_qs().filter(post_id=post.id, share_type="personal")
+            qs = post_share_qs().filter(
+                post_id=post.id,
+                share_type__in=["personal", "message"],
+            )
             if post_shares_has_shared_from_share_id_column():
                 qs = qs.filter(shared_from_share_id__isnull=True)
             shares = qs.select_related("user", "user__profile").order_by("-created_at")

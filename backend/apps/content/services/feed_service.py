@@ -132,7 +132,12 @@ class FeedService:
             # Chỉ bài đã xuất bản. Công khai: mọi người (và user ẩn danh) đều thấy.
             # Riêng tư / không liệt kê: chỉ chủ bài (đã đăng nhập) thấy trên feed — không lộ bài người khác.
             # Bản nháp (draft) và các status khác không lên feed.
-            published_visible = Q(status="published", visibility="public")
+            public_visibility = (
+                Q(visibility="public") |
+                Q(visibility__isnull=True) |
+                Q(visibility="")
+            )
+            published_visible = Q(status="published") & public_visibility
             if user_id:
                 published_visible |= Q(
                     status="published",
@@ -196,7 +201,10 @@ class FeedService:
             # Dòng share trên timeline chung: chỉ bài gốc public (tránh lộ bài private qua re-share).
             shared_posts_qs = shared_posts_qs.filter(
                 post__status="published",
-                post__visibility="public",
+            ).filter(
+                Q(post__visibility="public") |
+                Q(post__visibility__isnull=True) |
+                Q(post__visibility="")
             ).order_by("-created_at")
             
             # Filter shared posts by tags (filter by original post's tags)
