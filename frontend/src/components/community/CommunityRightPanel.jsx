@@ -5,6 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { apiRequest } from '../../utils/api'
 import styles from '../../style/community/CommunityRightPanel.module.css'
 
+export const COMMUNITY_FOLLOW_CHANGED_EVENT = 'community-follow-changed'
+
 function formatTimeAgo(raw) {
   if (!raw) return ''
   const date = new Date(raw)
@@ -15,6 +17,12 @@ function formatTimeAgo(raw) {
   const diffHours = Math.floor(diffMinutes / 60)
   if (diffHours < 24) return `${diffHours} giờ trước`
   return `${Math.floor(diffHours / 24)} ngày trước`
+}
+
+function normalizeActivityText(text) {
+  return String(text || '')
+    .replace(/\bvua dang podcast moi\b/gi, 'vừa đăng podcast mới')
+    .replace(/\bstarted following\b/gi, 'đã bắt đầu theo dõi')
 }
 
 function UserRow({ item, onToggle }) {
@@ -115,10 +123,25 @@ export default function CommunityRightPanel() {
         body: JSON.stringify({}),
       })
       const followed = Boolean(response.data?.followed)
-      setFollowingList((prev) => update(prev, followed))
+      setFollowingList((prev) => {
+        const updated = update(prev, followed)
+        const exists = updated.some((item) => String(item.id) === String(id))
+        if (followed && !exists) {
+          return [{ ...target, is_following: true }, ...updated].slice(0, 3)
+        }
+        if (!followed) {
+          return updated.filter((item) => String(item.id) !== String(id))
+        }
+        return updated
+      })
       setSuggestions((prev) => update(prev, followed))
       setFollowingCount((prev) =>
         Math.max(0, prev + (followed === target.is_following ? 0 : followed ? 1 : -1))
+      )
+      window.dispatchEvent(
+        new CustomEvent(COMMUNITY_FOLLOW_CHANGED_EVENT, {
+          detail: { user: target, followed },
+        })
       )
     } catch (error) {
       console.error('Toggle community follow failed:', error)
@@ -137,7 +160,7 @@ export default function CommunityRightPanel() {
         </h3>
 
         <div className={styles.userList}>
-          {followingList.map((item) => (
+          {followingList.slice(0, 3).map((item) => (
             <UserRow key={item.id} item={item} onToggle={toggleUser} />
           ))}
           {followingList.length === 0 && (
@@ -153,7 +176,10 @@ export default function CommunityRightPanel() {
         </h3>
 
         <div className={styles.userList}>
-          {suggestions.map((item) => (
+          {suggestions
+            .filter((item) => String(item.role || '').toLowerCase() !== 'admin')
+            .slice(0, 3)
+            .map((item) => (
             <UserRow key={item.id} item={item} onToggle={toggleUser} />
           ))}
           {suggestions.length === 0 && (
@@ -173,7 +199,7 @@ export default function CommunityRightPanel() {
             <div key={item.id} className={styles.activityRow}>
               <div className={styles.dot} />
               <div className={styles.activityContent}>
-                <div className={styles.activityText}>{item.text}</div>
+                <div className={styles.activityText}>{normalizeActivityText(item.text)}</div>
                 <div className={styles.activityTime}>{formatTimeAgo(item.created_at)}</div>
               </div>
             </div>

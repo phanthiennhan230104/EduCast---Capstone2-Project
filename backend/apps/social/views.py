@@ -95,11 +95,10 @@ def _create_notification(
     reference_type=None,
     reference_id=None,
 ):
-    # Không gửi notification cho chính mình
     if not recipient_id or recipient_id == actor_user_id:
         return None
 
-    return Notification.objects.create(
+    notification = Notification.objects.create(
         id=_generate_id("noti"),
         user_id=recipient_id,
         actor_user_id=actor_user_id,
@@ -110,6 +109,28 @@ def _create_notification(
         reference_id=reference_id,
         is_read=False,
     )
+    
+    # Broadcast qua WebSockets
+    try:
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            # Need to select_related actor_user to serialize properly
+            notification_with_actor = Notification.objects.select_related("actor_user").get(id=notification.id)
+            noti_dict = _notification_to_dict(notification_with_actor)
+            group_name = f"user_notifications_{recipient_id}"
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "send_notification",
+                    "notification": noti_dict
+                }
+            )
+    except Exception as e:
+        import traceback
+        print(f"❌ Error broadcasting notification: {str(e)}")
+        print(traceback.format_exc())
+
+    return notification
 
 # Helper để đếm like/comment/save/share cho post
 def _post_counts(post_id, share_id=None):
@@ -1177,6 +1198,7 @@ def community_overview(request):
     followed_user_ids.add(str(current_user.id))
     suggestions_qs = (
         User.objects.exclude(id__in=followed_user_ids)
+        .exclude(role__iexact="admin")
         .select_related("profile")
         .annotate(
             followers_total=Count("follower_relations", distinct=True),
@@ -1186,7 +1208,7 @@ def community_overview(request):
                 distinct=True,
             ),
         )
-        .order_by("-followers_total", "-posts_total", "username")[:5]
+        .order_by("-followers_total", "-posts_total", "username")[:3]
     )
     suggestions = [
         _serialize_community_user(
@@ -1211,7 +1233,7 @@ def community_overview(request):
         activities.append({
             "id": f"post-{post.id}",
             "type": "post",
-            "text": f"{_profile_display_name(post.user)} vua dang podcast moi",
+            "text": f"{_profile_display_name(post.user)} vừa đăng podcast mới",
             "created_at": post.created_at.isoformat() if post.created_at else None,
         })
 
@@ -1219,8 +1241,8 @@ def community_overview(request):
         "Community overview retrieved successfully",
         {
             "following_count": len(following_people),
-            "following_preview": following_people[:8],
-            "following_people": following_people[:5],
+            "following_preview": following_people,
+            "following_people": following_people[:3],
             "suggestions": suggestions,
             "posts": posts,
             "new_posts_count": new_posts_count,
@@ -1614,7 +1636,10 @@ def list_post_sharers(request, post_id):
                 .order_by("-created_at")
             )
         else:
-            qs = post_share_qs().filter(post_id=post.id, share_type="personal")
+            qs = post_share_qs().filter(
+                post_id=post.id,
+                share_type__in=["personal", "message"],
+            )
             if post_shares_has_shared_from_share_id_column():
                 qs = qs.filter(shared_from_share_id__isnull=True)
             shares = qs.select_related("user", "user__profile").order_by("-created_at")
@@ -1874,24 +1899,33 @@ def track_listen(request, post_id):
 
     should_increase_listen = False
 
+    current_progress = progress
+    new_completed_ratio = current_progress / duration
+    
     if created:
         should_increase_listen = completed_ratio >= 0.5
     else:
-        old_completed_ratio = float(history.completed_ratio or 0)
-
-        current_progress = progress
-        new_completed_ratio = current_progress / duration
-
-        history.progress_seconds = current_progress
-        history.duration_seconds = duration
-        history.completed_ratio = new_completed_ratio
-        history.is_completed = new_completed_ratio >= 0.9
-        history.last_played_at = timezone.now()
-        history.save()
-
+        # Nếu user bắt đầu nghe lại từ đầu (tua về mốc < 10%)
+        # Ta cho phép reset completed_ratio để lần sau qua 50% được tính tiếp.
+        if current_progress < history.progress_seconds and new_completed_ratio < 0.1:
+            # User tua lại về đầu
+            history.completed_ratio = new_completed_ratio
+            old_completed_ratio = new_completed_ratio
+        else:
+            old_completed_ratio = float(history.completed_ratio or 0)
+            # Giữ lại mốc cao nhất đạt được trong vòng lặp hiện tại
+            if new_completed_ratio > old_completed_ratio:
+                history.completed_ratio = new_completed_ratio
+            
         should_increase_listen = (
             old_completed_ratio < 0.5 and new_completed_ratio >= 0.5
         )
+
+    history.progress_seconds = current_progress
+    history.duration_seconds = duration
+    history.is_completed = new_completed_ratio >= 0.9
+    history.last_played_at = timezone.now()
+    history.save()
 
     if should_increase_listen:
         Post.objects.filter(id=post.id).update(

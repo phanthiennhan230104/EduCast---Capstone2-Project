@@ -98,21 +98,43 @@ def search_published_posts(keyword: str, limit: int = 10) -> list[dict[str, Any]
                 )
             )
             .filter(relevance__gte=50)
-            .select_related("user")
+            .select_related("user", "user__profile")
             .prefetch_related("post_topics__topic", "post_tags__tag")
-            .distinct()
-            .order_by("-relevance", "-published_at", "-created_at")[:safe_limit]
+            .order_by("-relevance", "-published_at", "-created_at")
         )
 
-        return [
-            {
+        results = []
+        seen_ids = set()
+        seen_content = set()
+        
+        # Manually deduplicate while maintaining order and respecting limit
+        for post in queryset:
+            if post.id in seen_ids:
+                continue
+            
+            # Additional deduplication for same content (title + author)
+            # This handles cases where a post might have multiple records due to shares/imports
+            content_key = (post.title.strip().lower(), post.user_id)
+            if content_key in seen_content:
+                continue
+            
+            seen_ids.add(post.id)
+            seen_content.add(content_key)
+            results.append({
+                "type": "original",
                 "id": post.id,
+                "post_id": post.id,
+                "share_id": None,
                 "title": _normalize_text(post.title),
                 "description": _normalize_text(post.description),
                 "slug": _normalize_text(post.slug),
+                "thumbnail_url": post.thumbnail_url if hasattr(post, "thumbnail_url") else None,
+                "created_at": post.created_at,
                 "author": {
                     "id": post.user_id,
                     "username": getattr(post.user, "username", ""),
+                    "name": getattr(post.user.profile, "display_name", "") if hasattr(post.user, "profile") and post.user.profile else getattr(post.user, "username", ""),
+                    "avatar_url": getattr(post.user.profile, "avatar_url", None) if hasattr(post.user, "profile") and post.user.profile else None,
                 },
                 "topics": [
                     {
@@ -132,9 +154,32 @@ def search_published_posts(keyword: str, limit: int = 10) -> list[dict[str, Any]
                     for post_tag in post.post_tags.all()
                     if post_tag.tag
                 ],
-            }
-            for post in queryset
-        ]
+                "audio": {
+                    "id": f"post-{post.id}",
+                    "audio_url": post.audio_url,
+                    "duration_seconds": post.duration_seconds,
+                } if post.audio_url else None,
+                "stats": {
+                    "likes": getattr(post, "like_count", 0) or 0,
+                    "comments": getattr(post, "comment_count", 0) or 0,
+                    "shares": getattr(post, "share_count", 0) or 0,
+                    "saves": getattr(post, "save_count", 0) or 0,
+                },
+                "viewer_state": {
+                    "is_liked": False,
+                    "is_saved": False,
+                    "is_following_author": False,
+                    "progress_seconds": 0,
+                    "duration_seconds": 0,
+                    "completed_ratio": 0,
+                    "is_completed": False,
+                },
+            })
+            
+            if len(results) >= safe_limit:
+                break
+
+        return results
 
     except DatabaseError as exc:
         raise RuntimeError("Cannot search published posts.") from exc

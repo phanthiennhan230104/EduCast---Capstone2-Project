@@ -326,39 +326,49 @@ class DraftCreateView(APIView):
             )
 
 
-class AudioPreviewView(APIView):
-    permission_classes = [IsAuthenticated]
+import threading
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
-    def post(self, request):
-        serializer = AudioPreviewSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data
+def generate_audio_background(task_id, data):
+    channel_layer = get_channel_layer()
+    group_name = f"audio_progress_{task_id}"
 
+    def send_progress(progress, step, status="processing", extra_data=None):
+        payload = {
+            "type": "progress_update",
+            "progress": progress,
+            "step": step,
+            "status": status,
+        }
+        if extra_data:
+            payload["data"] = extra_data
+        async_to_sync(channel_layer.group_send)(group_name, payload)
+
+    try:
+        send_progress(5, "Đang khởi tạo...")
+        
         original_text = data["original_text"].strip()
         was_truncated = len(original_text) > 12000
         original_text = original_text[:12000]
 
+        send_progress(10, "Đang xử lý văn bản (AI)...")
         processed_text = process_text_by_mode(
             original_text,
             data["mode"],
         )
-
         processed_text = (processed_text or "").strip()
-
         if not processed_text:
             processed_text = original_text.strip()
-
         if not processed_text:
-            return Response(
-                {"error": "Không thể tạo nội dung audio từ văn bản đầu vào."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+            raise ValueError("Không thể tạo nội dung audio từ văn bản đầu vào.")
+
+        send_progress(40, "Đang tạo tiêu đề và mô tả...")
         try:
             generated_title = generate_ai_title(processed_text)
             generated_title = (generated_title or "").strip()
         except Exception:
             generated_title = ""
-
         if not generated_title:
             generated_title = processed_text[:80].rsplit(" ", 1)[0].strip() or "Bài audio"
 
@@ -367,13 +377,14 @@ class AudioPreviewView(APIView):
             generated_description = (generated_description or "").strip()
         except Exception:
             generated_description = ""
-
         if not generated_description:
             generated_description = build_fallback_description(processed_text, max_length=220)
+
         with tempfile.NamedTemporaryFile(suffix=".mp3", delete=False) as tmp:
             temp_audio_path = tmp.name
 
         try:
+            send_progress(50, "Đang tạo giọng nói (TTS)...")
             generate_audio_file(
                 text=processed_text,
                 voice_name=data["voice_name"],
@@ -383,6 +394,7 @@ class AudioPreviewView(APIView):
             if not os.path.exists(temp_audio_path) or os.path.getsize(temp_audio_path) == 0:
                 raise ValueError("TTS không tạo ra file audio hợp lệ.")
 
+            send_progress(80, "Đang tải file lên Cloudinary...")
             uploaded = upload_file_to_cloudinary(
                 file=temp_audio_path,
                 folder="educast/audio_preview",
@@ -393,50 +405,70 @@ class AudioPreviewView(APIView):
             if not audio_url:
                 raise ValueError("Upload Cloudinary thành công nhưng không nhận được secure_url.")
             
-            # Get real duration from Cloudinary
             duration_seconds = uploaded.get("duration")
             if not duration_seconds:
-                # Query API if upload response doesn't have duration
                 public_id = uploaded.get("public_id")
                 if public_id:
                     duration_seconds = get_audio_duration_from_api(public_id, resource_type="video")
             
-            # Final fallback to estimate
             if not duration_seconds:
                 duration_seconds = estimate_duration_seconds(processed_text)
             else:
                 duration_seconds = int(duration_seconds)
 
-            return Response(
-                {
-                    "message": "Tạo audio preview thành công",
-                    "data": {
-                        "mode": data["mode"],
-                        "processed_text": processed_text,
-                        "generated_title": generated_title,
-                        "transcript_text": processed_text,  
-                        "generated_description": generated_description,
-                        "audio_url": audio_url,
-                        "public_id": uploaded.get("public_id"),
-                        "voice_name": data["voice_name"],
-                        "format": uploaded.get("format") or "mp3",
-                        "bytes": uploaded.get("bytes"),
-                        "duration_seconds": duration_seconds,
-                        "was_truncated": was_truncated,
-                    },
-                },
-                status=status.HTTP_200_OK,
-            )
+            final_data = {
+                "mode": data["mode"],
+                "processed_text": processed_text,
+                "generated_title": generated_title,
+                "transcript_text": processed_text,  
+                "generated_description": generated_description,
+                "audio_url": audio_url,
+                "public_id": uploaded.get("public_id"),
+                "voice_name": data["voice_name"],
+                "format": uploaded.get("format") or "mp3",
+                "bytes": uploaded.get("bytes"),
+                "duration_seconds": duration_seconds,
+                "was_truncated": was_truncated,
+            }
 
-        except Exception as e:
-            return Response(
-                {"error": f"TTS preview failed: {str(e)}"},
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            )
+            send_progress(100, "Hoàn tất!", status="done", extra_data=final_data)
 
         finally:
             if os.path.exists(temp_audio_path):
                 os.remove(temp_audio_path)
+
+    except Exception as e:
+        send_progress(0, str(e), status="error")
+
+
+class AudioPreviewView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        serializer = AudioPreviewSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+        
+        task_id = request.data.get("task_id")
+        
+        if not task_id:
+            # Fallback
+            task_id = str(ulid.new())
+
+        # Start background thread
+        thread = threading.Thread(
+            target=generate_audio_background,
+            args=(task_id, data)
+        )
+        thread.start()
+
+        return Response(
+            {
+                "message": "Đã bắt đầu tiến trình tạo audio",
+                "task_id": task_id
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class DraftSaveWithAudioView(APIView):
@@ -763,22 +795,8 @@ class DraftDeleteView(APIView):
             )
 
         try:
-            audio_versions = PostAudioVersion.objects.filter(post=post)
-
-            for audio in audio_versions:
-                if audio.storage_path:
-                    delete_file_from_cloudinary(
-                        public_id=audio.storage_path,
-                        resource_type="video",
-                    )
-
-            document_files = PostDocument.objects.filter(post=post)
-            for doc in document_files:
-                if doc.storage_path:
-                    delete_file_from_cloudinary(
-                        public_id=doc.storage_path,
-                        resource_type="raw",
-                    )
+            # Chỉ chuyển status sang archived, không xóa file vật lý trên Cloudinary
+            # để đảm bảo toàn vẹn dữ liệu nếu muốn khôi phục.
 
             post.status = "archived"
             post.updated_at = timezone.now()

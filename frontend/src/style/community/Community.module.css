@@ -11,9 +11,9 @@
 
 .topCard {
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02)),
+    linear-gradient(180deg, rgba(118, 132, 255, 0.08), rgba(255,255,255,0.018)),
     var(--bg-card);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(132,146,255,0.18);
   border-radius: 20px;
   padding: 18px;
 }
@@ -101,15 +101,55 @@
   text-align: center;
 }
 
-.activeDot {
+.menuWrap {
+  position: relative;
+  margin-left: auto;
+}
+
+.postDropdown {
   position: absolute;
-  top: 34px;
-  right: 10px;
-  width: 8px;
-  height: 8px;
-  border-radius: 999px;
-  background: #23c692;
-  box-shadow: 0 0 0 2px #23285a;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  min-width: 150px;
+  padding: 6px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(15, 20, 45, 0.98);
+  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+
+.postDropdownItem {
+  width: 100%;
+  min-height: 36px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 650;
+  text-align: left;
+  cursor: pointer;
+}
+
+.postDropdownItem:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.postDropdownItemDanger {
+  color: #fca5a5;
+}
+
+.postDropdownItemDanger:hover {
+  background: rgba(248, 113, 113, 0.14);
+}
+
+.activeDot {
+  display: none;
 }
 
 .tabs {
@@ -144,15 +184,15 @@
 }
 
 .tabBtnActive {
-  background: rgba(232, 148, 58, 0.12);
-  border-color: rgba(232, 148, 58, 0.28);
-  color: var(--accent-light);
+  background: rgba(118, 132, 255, 0.16);
+  border-color: rgba(132, 146, 255, 0.34);
+  color: #dfe4ff;
 }
 
 .tabBtnActive:hover {
-  background: rgba(232, 148, 58, 0.12);
-  border-color: rgba(232, 148, 58, 0.28);
-  color: var(--accent-light);
+  background: rgba(118, 132, 255, 0.2);
+  border-color: rgba(132, 146, 255, 0.4);
+  color: #fff;
 }
 
 .newPostRow {
@@ -162,7 +202,7 @@
 }
 
 .newPostHint {
-  color: #23c692;
+  color: #8ea0ff;
   font-size: 13px;
   font-weight: 600;
   white-space: nowrap;
@@ -171,7 +211,7 @@
 .newPostLine {
   flex: 1;
   height: 1px;
-  background: rgba(158, 255, 47, 0.12);
+  background: rgba(132, 146, 255, 0.22);
 }
 
 .feed {
@@ -182,9 +222,9 @@
 
 .postCard {
   background:
-    linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.02)),
+    linear-gradient(180deg, rgba(118, 132, 255, 0.055), rgba(255,255,255,0.018)),
     var(--bg-card);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid rgba(132,146,255,0.14);
   border-radius: var(--radius-lg);
   padding: 20px 18px;
   transition: border-color 0.2s, transform 0.2s;
@@ -393,13 +433,13 @@
 }
 
 .audioBox:hover {
-  border-color: rgba(232, 148, 58, 0.3);
+  border-color: rgba(132, 146, 255, 0.35);
 }
 
 .audioBtn {
   width: 34px;
   height: 34px;
-  background: var(--accent);
+  background: linear-gradient(135deg, #667eea, #7c6df2);
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -417,9 +457,9 @@
 }
 
 .audioBtnPlaying {
-  background: rgba(232, 148, 58, 0.16);
-  color: var(--accent-light);
-  border: 1px solid rgba(232, 148, 58, 0.28);
+  background: rgba(118, 132, 255, 0.16);
+  color: #dfe4ff;
+  border: 1px solid rgba(132, 146, 255, 0.32);
 }
 
 .progressSection {
@@ -451,7 +491,7 @@
   top: 0;
   left: 0;
   height: 100%;
-  background: linear-gradient(90deg, var(--accent), var(--accent-light));
+  background: linear-gradient(90deg, #667eea, #a0adff);
   border-radius: 2px;
 }
 

@@ -348,6 +348,9 @@ export default function FavoritesContent() {
   const [deletePostConfirmOpen, setDeletePostConfirmOpen] = useState(false)
   const [deletingPost, setDeletingPost] = useState(null)
   const [isDeletingPost, setIsDeletingPost] = useState(false)
+  const [deleteCollectionConfirmOpen, setDeleteCollectionConfirmOpen] = useState(false)
+  const [deletingCollection, setDeletingCollection] = useState(null)
+  const [isDeletingCollection, setIsDeletingCollection] = useState(false)
   const [hidePostConfirmOpen, setHidePostConfirmOpen] = useState(false)
   const [hidingPost, setHidingPost] = useState(null)
   const [isHidingPost, setIsHidingPost] = useState(false)
@@ -381,7 +384,7 @@ export default function FavoritesContent() {
     window.dispatchEvent(new CustomEvent(POST_SYNC_EVENT, { detail: payload }))
   }
 
-  const { removeSavedPost, hidePost, deletePost, isPostHidden, isPostDeleted, hiddenPostIds, deletedPostIds, deletedPostsVersion, hiddenPostsVersion } = useContext(PodcastContext)
+  const { removeSavedPost, setSavedPostIds_batch, hidePost, deletePost, isPostHidden, isPostDeleted, hiddenPostIds, deletedPostIds, deletedPostsVersion, hiddenPostsVersion } = useContext(PodcastContext)
 
   const fetchCollections = useCallback(async () => {
     console.log('🎯 fetchCollections called')
@@ -506,6 +509,58 @@ export default function FavoritesContent() {
     fetchCollectionPosts(collection.id)
   }, [fetchCollectionPosts])
 
+  const handleRequestDeleteCollection = useCallback((collection) => {
+    if (!collection) return
+    setDeletingCollection(collection)
+    setDeleteCollectionConfirmOpen(true)
+  }, [])
+
+  const handleConfirmDeleteCollection = useCallback(async () => {
+    if (!deletingCollection?.id || isDeletingCollection) return
+
+    try {
+      setIsDeletingCollection(true)
+      const token = getToken()
+      const currentUser = getCurrentUser()
+      const res = await fetch(
+        `http://127.0.0.1:8000/api/social/collections/${deletingCollection.id}/delete/`,
+        {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ user_id: currentUser?.id }),
+        }
+      )
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || `HTTP ${res.status}`)
+      }
+
+      setCollections((prev) =>
+        prev.filter((item) => String(item.id) !== String(deletingCollection.id))
+      )
+      if (
+        selectedCollection &&
+        String(selectedCollection.id) === String(deletingCollection.id)
+      ) {
+        setSelectedCollection(null)
+        setCollectionPosts([])
+        setShowAllPostsModal(false)
+      }
+      toast.success('Đã xóa bộ sưu tập')
+      setDeleteCollectionConfirmOpen(false)
+      setDeletingCollection(null)
+    } catch (err) {
+      console.error('Delete collection failed:', err)
+      toast.error(err.message || 'Xóa bộ sưu tập thất bại')
+    } finally {
+      setIsDeletingCollection(false)
+    }
+  }, [deletingCollection, isDeletingCollection, selectedCollection])
+
   const fetchSavedPosts = useCallback(async () => {
     try {
       setLoading(true)
@@ -589,6 +644,11 @@ export default function FavoritesContent() {
         })
 
         setPodcasts(transformedPodcasts)
+        setSavedPostIds_batch(
+          transformedPodcasts
+            .map((post) => getCanonicalPostIdForEngagement(post) || post.id)
+            .filter(Boolean)
+        )
       }
     } catch (err) {
       console.error(t('library.content.fetchSavedPostsFailed'), err)
@@ -596,29 +656,44 @@ export default function FavoritesContent() {
     } finally {
       setLoading(false)
     }
-  }, [t])
+  }, [setSavedPostIds_batch, t])
 
   useEffect(() => {
     const handlePostSync = (event) => {
       const d = event.detail || {}
       if (!d.postId) return
-
-      setPodcasts(prev =>
-        prev.map(item =>
-          String(item.id) === String(d.postId)
-            ? {
-              ...item,
-              is_liked: typeof d.liked === 'boolean' ? d.liked : item.is_liked,
-              like_count: typeof d.likeCount === 'number' ? d.likeCount : item.like_count,
-              saved: typeof d.saved === 'boolean' ? d.saved : item.saved,
-              ...(typeof d.title === 'string' ? { title: d.title } : {}),
-              ...(typeof d.description === 'string'
-                ? { description: d.description }
-                : {}),
-            }
-            : item
-        )
+      const hasPostInSavedList = podcasts.some(
+        (item) => String(item.id) === String(d.postId)
       )
+
+      setPodcasts(prev => {
+        if (d.saved === false) {
+          return prev.filter(item => String(item.id) !== String(d.postId))
+        }
+
+        return prev.map(item =>
+            String(item.id) === String(d.postId)
+              ? {
+                ...item,
+                is_liked: typeof d.liked === 'boolean' ? d.liked : item.is_liked,
+                like_count: typeof d.likeCount === 'number' ? d.likeCount : item.like_count,
+                saved: typeof d.saved === 'boolean' ? d.saved : item.saved,
+                saveCount: typeof d.saveCount === 'number' ? d.saveCount : item.saveCount,
+                ...(typeof d.title === 'string' ? { title: d.title } : {}),
+                ...(typeof d.description === 'string'
+                  ? { description: d.description }
+                  : {}),
+              }
+              : item
+          )
+      })
+
+      if (d.saved === true && !hasPostInSavedList) {
+        fetchSavedPosts()
+        fetchCollections()
+      } else if (d.saved === false) {
+        fetchCollections()
+      }
 
       setSelectedPostDetail(prev =>
         prev && String(prev.id) === String(d.postId)
@@ -627,6 +702,7 @@ export default function FavoritesContent() {
             is_liked: typeof d.liked === 'boolean' ? d.liked : prev.is_liked,
             like_count: typeof d.likeCount === 'number' ? d.likeCount : prev.like_count,
             saved: typeof d.saved === 'boolean' ? d.saved : prev.saved,
+            saveCount: typeof d.saveCount === 'number' ? d.saveCount : prev.saveCount,
             ...(typeof d.title === 'string' ? { title: d.title } : {}),
             ...(typeof d.description === 'string'
               ? { description: d.description }
@@ -644,7 +720,7 @@ export default function FavoritesContent() {
 
     window.addEventListener(POST_SYNC_EVENT, handlePostSync)
     return () => window.removeEventListener(POST_SYNC_EVENT, handlePostSync)
-  }, [selectedPostDetail])
+  }, [fetchCollections, fetchSavedPosts, podcasts, selectedPostDetail])
 
   // Đồng bộ liên trang khi 1 bài bị xoá/ẩn ở nơi khác.
   useEffect(() => {
@@ -1489,6 +1565,8 @@ export default function FavoritesContent() {
             ? t('library.content.collectionTitle', { name: selectedCollection.name })
             : t('library.allSavedPodcasts', { count: visiblePodcasts.length })
         }
+        collection={selectedCollection}
+        onDeleteCollection={handleRequestDeleteCollection}
         onSelectPost={handleSelectPostFromAllModal}
         isOwner={computeIsOwner}
         onEditPost={handleEditPost}
@@ -1520,6 +1598,22 @@ export default function FavoritesContent() {
         cancelText="Hủy"
         isDangerous
         isLoading={isDeletingPost}
+      />
+
+      <ConfirmModal
+        isOpen={deleteCollectionConfirmOpen}
+        onCancel={() => {
+          if (isDeletingCollection) return
+          setDeleteCollectionConfirmOpen(false)
+          setDeletingCollection(null)
+        }}
+        onConfirm={handleConfirmDeleteCollection}
+        title="Xóa bộ sưu tập"
+        message={`Bạn có chắc muốn xóa bộ sưu tập "${deletingCollection?.name || ''}"? Các podcast đã lưu vẫn nằm trong mục Podcast đã lưu.`}
+        confirmText={isDeletingCollection ? 'Đang xóa…' : 'Xóa bộ sưu tập'}
+        cancelText="Hủy"
+        isDangerous={true}
+        isLoading={isDeletingCollection}
       />
 
       <ConfirmModal

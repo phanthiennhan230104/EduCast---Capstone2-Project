@@ -10,6 +10,7 @@ import {
   getTopics,
 } from '../utils/contentApi'
 import { formatDurationVi } from '../utils/formatDuration'
+import { getToken } from '../utils/auth'
 
 const VOICE_NAME_MAP = {
   'vi-hoai-my': 'vi-VN-HoaiMyNeural',
@@ -30,7 +31,7 @@ import { useLocation } from 'react-router-dom'
 export function useCreateAudio() {
   const { t } = useTranslation()
   const location = useLocation()
-  
+
   const demoText = t('createAudio.hook.demoText')
   const voices = [
     {
@@ -118,12 +119,14 @@ export function useCreateAudio() {
     const incrementProgress = () => {
       setProgress((prevProgress) => {
         if (prevProgress >= 90) return prevProgress
-        const increment = Math.floor(Math.random() * 5) + 2
+        // Giảm % tăng mỗi lần xuống khoảng 1% - 3%
+        const increment = Math.floor(Math.random() * 3) + 1
         return Math.min(prevProgress + increment, 90)
       })
     }
 
-    const intervalId = window.setInterval(incrementProgress, 800 + Math.random() * 400)
+    // Tăng thời gian ngẫu nhiên lên 1.2s - 2.0s để thanh tiến độ chạy chậm lại
+    const intervalId = window.setInterval(incrementProgress, 1200 + Math.random() * 800)
 
     return () => window.clearInterval(intervalId)
   }, [genState])
@@ -485,6 +488,8 @@ export function useCreateAudio() {
     previewAbortRef.current = controller
     isCancelledRef.current = false
 
+    const taskId = crypto.randomUUID()
+
     try {
       setGenState('processing')
       setStep(3)
@@ -503,18 +508,54 @@ export function useCreateAudio() {
       setDescription('')
       setDurationSeconds(0)
 
-      const res = await previewAudio(
+      const token = getToken()
+      const wsUrl = `ws://127.0.0.1:8000/ws/audio-progress/${taskId}/?token=${token}`
+      const ws = new WebSocket(wsUrl)
+      
+      const wsPromise = new Promise((resolve, reject) => {
+        ws.onmessage = (event) => {
+          try {
+            const data = JSON.parse(event.data)
+            if (data.status === 'processing') {
+              setProgress(data.progress || 0)
+              setProcStep(data.step || '')
+            } else if (data.status === 'done') {
+              ws.close()
+              resolve(data.data) 
+            } else if (data.status === 'error') {
+              ws.close()
+              reject(new Error(data.step || t('createAudio.hook.generateFailed')))
+            }
+          } catch (e) {
+            console.error('WS Parse Error', e)
+          }
+        }
+        ws.onerror = (error) => {
+          console.error('WebSocket Error', error)
+        }
+      })
+
+      // Send the request. Backend now returns immediately.
+      await previewAudio(
         {
           original_text: inputText,
           mode: aiMode,
           voice_name: selectedVoiceName,
+          task_id: taskId,
         },
         controller.signal
       )
 
+      if (isCancelledRef.current) {
+        ws.close()
+        return
+      }
+
+      // Wait for background task to finish via WebSocket
+      const preview = await wsPromise
+
       if (isCancelledRef.current) return
 
-      const preview = res?.data || {}
       const resolvedAudioUrl = preview.audio_url || ''
       const resolvedDurationSeconds = Number(preview.duration_seconds || 0)
       const generatedTitle =

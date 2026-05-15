@@ -3,60 +3,40 @@ import { createContext, useState, useCallback, useEffect, useMemo } from 'react'
 export const PodcastContext = createContext()
 
 const HIDDEN_KEY = 'educast.hiddenPostIds'
+const HIDDEN_SHARE_ROWS_KEY = 'educast.hiddenShareRowIds'
 const DELETED_KEY = 'educast.deletedPostIds'
 export const POST_REMOVED_EVENT = 'post-removed'
 
-const loadPersistedIdSet = (storageKey) => {
-  try {
-    const raw = localStorage.getItem(storageKey)
-    if (!raw) return new Set()
-    const arr = JSON.parse(raw)
-    if (!Array.isArray(arr)) return new Set()
-    return new Set(arr.map((v) => String(v)))
-  } catch {
-    return new Set()
-  }
-}
-
-const persistIdSet = (storageKey, idSet) => {
-  try {
-    localStorage.setItem(storageKey, JSON.stringify(Array.from(idSet)))
-  } catch {}
-}
+// Xóa bỏ bộ nhớ đệm cũ (nếu có) để tránh lỗi các bài viết bị ẩn vĩnh viễn trên trình duyệt cũ
+try {
+  localStorage.removeItem(HIDDEN_KEY)
+  localStorage.removeItem(DELETED_KEY)
+} catch { }
 
 export const PodcastProvider = ({ children }) => {
   console.log('📦 PodcastProvider RENDER')
   // Lưu trữ danh sách podcasts và trạng thái saved của chúng
   const [savedPostIds, setSavedPostIds] = useState(new Set())
-  const [hiddenPostIds, setHiddenPostIds] = useState(() =>
-    loadPersistedIdSet(HIDDEN_KEY)
-  )
-  const [deletedPostIds, setDeletedPostIds] = useState(() =>
-    loadPersistedIdSet(DELETED_KEY)
-  )
+
+  // Chỉ lưu tạm trong RAM, F5 sẽ mất. Backend đã tự lo việc ẩn những bài bị xóa/ẩn.
+  const [hiddenPostIds, setHiddenPostIds] = useState(new Set())
+  const [deletedPostIds, setDeletedPostIds] = useState(new Set())
+
   const [deletedPostsVersion, setDeletedPostsVersion] = useState(0)
   const [hiddenPostsVersion, setHiddenPostsVersion] = useState(0)
   const [collections, setCollections] = useState([])
   const [collectionsVersion, setCollectionsVersion] = useState(0)
 
-  useEffect(() => {
-    persistIdSet(HIDDEN_KEY, hiddenPostIds)
-  }, [hiddenPostIds])
-
-  useEffect(() => {
-    persistIdSet(DELETED_KEY, deletedPostIds)
-  }, [deletedPostIds])
-
   // Thêm post vào danh sách saved
   const addSavedPost = useCallback((postId) => {
-    setSavedPostIds(prev => new Set(prev).add(postId))
+    setSavedPostIds(prev => new Set(prev).add(String(postId)))
   }, [])
 
   // Loại bỏ post khỏi danh sách saved
   const removeSavedPost = useCallback((postId) => {
     setSavedPostIds(prev => {
       const newSet = new Set(prev)
-      newSet.delete(postId)
+      newSet.delete(String(postId))
       return newSet
     })
   }, [])
@@ -78,7 +58,7 @@ export const PodcastProvider = ({ children }) => {
           detail: { postId: key, reason: 'hidden' },
         })
       )
-    } catch {}
+    } catch { }
   }, [])
 
   // Xóa post — đồng bộ liên trang qua sự kiện `post-removed` (reason="deleted").
@@ -98,12 +78,12 @@ export const PodcastProvider = ({ children }) => {
           detail: { postId: key, reason: 'deleted' },
         })
       )
-    } catch {}
+    } catch { }
   }, [])
 
   // Kiểm tra post có được save không
   const isPostSaved = useCallback((postId) => {
-    return savedPostIds.has(postId)
+    return savedPostIds.has(String(postId))
   }, [savedPostIds])
 
   // Kiểm tra post có bị ẩn không
@@ -118,7 +98,7 @@ export const PodcastProvider = ({ children }) => {
 
   // Cập nhật danh sách saved posts (dùng khi fetch từ API)
   const setSavedPostIds_batch = useCallback((postIds) => {
-    setSavedPostIds(new Set(postIds))
+    setSavedPostIds(new Set(postIds.map((postId) => String(postId))))
   }, [])
 
   // Cập nhật collections list

@@ -119,13 +119,18 @@ export default function PodcastCard({
             typeof d.description === 'string' ? d.description : prev.description,
         }))
       }
+
+      if (typeof d.liked === 'boolean') setLiked(d.liked)
+      if (typeof d.likeCount === 'number') setLikeCount(d.likeCount)
+      if (typeof d.saved === 'boolean') setSaved(d.saved)
+      if (typeof d.saveCount === 'number') setSaveCount(d.saveCount)
     }
 
     window.addEventListener('post-sync-updated', handlePostSync)
     return () => {
       window.removeEventListener('post-sync-updated', handlePostSync)
     }
-  }, [podcast?.id, podcast?.post_id])
+  }, [engagementPostId, podcast?.id, podcast?.post_id])
 
   const POST_SYNC_EVENT = 'post-sync-updated'
 
@@ -169,8 +174,14 @@ export default function PodcastCard({
   const [showCollectionModal, setShowCollectionModal] = useState(false)
 
   useEffect(() => {
-    const wasPreviouslySaved = prevSavedPostIdsRef.current.has(podcast.id)
-    const isCurrentlySaved = savedPostIds.has(podcast.id)
+    const savedKey = String(engagementPostId || podcast.id)
+    const wasPreviouslySaved = prevSavedPostIdsRef.current.has(savedKey)
+    const isCurrentlySaved = savedPostIds.has(savedKey)
+
+    if (isCurrentlySaved && !saved) {
+      setSaved(true)
+      setSaveCount((prev) => Math.max(prev, podcast.saveCount ?? 1))
+    }
 
     if (wasPreviouslySaved && !isCurrentlySaved && saved) {
       setSaveCount(prev => Math.max(prev - 1, 0))
@@ -178,7 +189,7 @@ export default function PodcastCard({
     }
 
     prevSavedPostIdsRef.current = savedPostIds
-  }, [savedPostIds, podcast.id, saved])
+  }, [engagementPostId, savedPostIds, podcast.id, podcast.saveCount, saved])
 
   const isActive = isCurrentTrack(podcast.id)
   const isPlaying = isActive && playing
@@ -752,6 +763,10 @@ export default function PodcastCard({
       }
 
       if (type === 'shares') {
+        if (typeof data.data?.share_count === 'number') {
+          setShareCount(Number(data.data.share_count))
+        }
+
         setStatsPopupData((prev) => ({
           ...prev,
           shares: getUniqueUsersById(data.data?.sharers || []),
@@ -1199,6 +1214,7 @@ export default function PodcastCard({
           shareCount={shareCount}
           saveCount={saveCount}
           commentCount={commentCount}
+          disableAutoScroll={false}
           onClose={() => setShowCommentModal(false)}
           onCommentCountChange={setCommentCount}
           onToggleLike={handleToggleLike}

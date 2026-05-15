@@ -2,7 +2,7 @@ import json
 from typing import Any
 
 from django.conf import settings
-from groq import Groq
+import google.generativeai as genai
 
 from apps.ai_services.services.assistant_prompt_service import (
     build_system_prompt,
@@ -15,31 +15,19 @@ from apps.ai_services.services.assistant_response_parser import (
 from apps.content.services.post_search_service import search_published_posts
 
 
-SEARCH_POSTS_TOOL = {
-    "type": "function",
-    "function": {
-        "name": "search_published_posts",
-        "description": (
-            "Search public published EduCast feed posts ONLY when the user clearly asks "
-            "to find, search, lookup, retrieve, or explore existing posts in the platform feed."
-        ),
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "keyword": {
-                    "type": "string",
-                    "description": "Search keyword or topic from the user request.",
-                },
-                "limit": {
-                    "type": "integer",
-                    "description": "Maximum number of posts to return.",
-                    "default": 10,
-                },
-            },
-            "required": ["keyword"],
-        },
-    },
-}
+# Gemini Tool definition
+def search_published_posts_tool(keyword: str, limit: int = 10) -> list[dict[str, Any]]:
+    """
+    Search public published EduCast feed posts ONLY when the user clearly asks 
+    to find, search, lookup, retrieve, or explore existing posts in the platform feed.
+    
+    Args:
+        keyword: Search keyword or topic from the user request.
+        limit: Maximum number of posts to return.
+    """
+    keyword = str(keyword or "").strip()
+    limit = max(1, min(int(limit or 10), 20))
+    return search_published_posts(keyword=keyword, limit=limit)
 
 
 SEARCH_INTENTS = {
@@ -51,12 +39,6 @@ SEARCH_INTENTS = {
 
 
 def build_fallback_generate_payload(raw_content: str, intent: str) -> dict[str, Any]:
-    """
-    Build fallback payload when JSON parsing fails.
-    
-    Thay vì wrap JSON string vào body, ta sẽ cố gắng parse lại.
-    Nếu vẫn thất bại, trả về error message thân thiện.
-    """
     return {
         "type": "error",
         "intent": intent,
@@ -92,50 +74,10 @@ def build_search_result_payload(posts: list[dict[str, Any]], keyword: str) -> di
     }
 
 
-def _create_client() -> Groq:
-    api_key = getattr(settings, "GROQ_API_KEY", "")
-    if not api_key:
-        raise RuntimeError("GROQ_API_KEY is not configured.")
-    return Groq(api_key=api_key)
-
-
-def _safe_tool_arguments(raw_arguments: str | None) -> dict[str, Any]:
-    if not raw_arguments:
-        return {}
-
-    try:
-        parsed = json.loads(raw_arguments)
-    except json.JSONDecodeError:
-        return {}
-
-    return parsed if isinstance(parsed, dict) else {}
-
-
-def _execute_tool_call(tool_call: Any) -> tuple[str, list[dict[str, Any]], str]:
-    function_name = tool_call.function.name
-    arguments = _safe_tool_arguments(tool_call.function.arguments)
-
-    if function_name != "search_published_posts":
-        raise ValueError(f"Unsupported tool call: {function_name}")
-
-    keyword = str(arguments.get("keyword", "")).strip()
-    limit = int(arguments.get("limit", 10) or 10)
-
-    if not keyword:
-        keyword = ""
-
-    limit = max(1, min(limit, 20))
-
-    posts = search_published_posts(keyword=keyword, limit=limit)
-    return keyword, posts, json.dumps(posts, ensure_ascii=False)
-
-
 def _should_allow_search_tool(intent: str, intent_data: dict[str, Any] | None = None) -> bool:
     intent_data = intent_data or {}
-
     detected_intent = str(intent or "").strip()
     classifier_intent = str(intent_data.get("intent", "")).strip()
-
     return detected_intent in SEARCH_INTENTS or classifier_intent in SEARCH_INTENTS
 
 
@@ -147,7 +89,13 @@ def generate_educast_content(
     chat_history: list[dict[str, Any]] | None = None,
     context: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    client = _create_client()
+    api_key = getattr(settings, "GEMINI_API_KEY", "")
+    model_name = getattr(settings, "GEMINI_MODEL", "gemini-3.1-flash-lite")
+
+    if not api_key:
+        return build_fallback_generate_payload("Gemini API key not configured.", intent)
+
+    genai.configure(api_key=api_key)
 
     intent_data = intent_data or {}
     chat_history = chat_history or []
@@ -155,95 +103,86 @@ def generate_educast_content(
 
     allow_search_tool = _should_allow_search_tool(intent, intent_data)
 
-    search_first_posts = []
-
+    # Initial search check (logic from original code)
     if intent not in {"casual_chat", "summarize_content", "rewrite_content"}:
-        search_keyword = (
-            intent_data.get("search_keyword")
-            or user_message
-        )
-
-        search_first_posts = search_published_posts(
-            keyword=search_keyword,
-            limit=10,
-        )
-
+        search_keyword = intent_data.get("search_keyword") or user_message
+        search_first_posts = search_published_posts(keyword=search_keyword, limit=10)
         if search_first_posts:
-            return build_search_result_payload(
-                posts=search_first_posts,
-                keyword=search_keyword,
-            )
-    
-    messages: list[dict[str, Any]] = [
-        {"role": "system", "content": build_system_prompt()},
-        {
-            "role": "user",
-            "content": build_user_prompt(
-                user_message=user_message,
-                intent=intent,
-                history=chat_history,
-                context=context,
-            ),
-        },
-    ]
+            return build_search_result_payload(posts=search_first_posts, keyword=search_keyword)
 
     try:
-        completion_kwargs: dict[str, Any] = {
-            "model": settings.GROQ_MODEL,
-            "temperature": 0.2,
-            "messages": messages,
-        }
+        # Prepare tools
+        tools = [search_published_posts_tool] if allow_search_tool else None
+        
+        # Initialize model
+        model = genai.GenerativeModel(
+            model_name=model_name,
+            tools=tools,
+            system_instruction=build_system_prompt()
+        )
 
+        # Convert chat history to Gemini format if needed, 
+        # but here we use a simple call with system prompt and user prompt
+        user_content = build_user_prompt(
+            user_message=user_message,
+            intent=intent,
+            history=chat_history,
+            context=context,
+        )
+
+        # Start chat session for potential multi-turn tool calling
+        chat = model.start_chat()
+        response = chat.send_message(user_content)
+
+        # Handle tool calls
         if allow_search_tool:
-            completion_kwargs["tools"] = [SEARCH_POSTS_TOOL]
-            completion_kwargs["tool_choice"] = "auto"
-
-        first_completion = client.chat.completions.create(**completion_kwargs)
-
-        assistant_message = first_completion.choices[0].message
-        tool_calls = assistant_message.tool_calls or []
-
-        if tool_calls and allow_search_tool:
-            messages.append(assistant_message)
-
+            # Gemini automatically handles one turn of tool calling if using chat.send_message 
+            # and the tool is provided, but we might need to handle the response part.
+            # Actually, with 'tools' provided, if it calls a tool, we need to execute it.
+            
+            last_posts = []
             last_keyword = user_message
-            last_posts: list[dict[str, Any]] = []
+            
+            # Check for function calls in the last response parts
+            for part in response.candidates[0].content.parts:
+                if fn := part.function_call:
+                    if fn.name == "search_published_posts_tool":
+                        keyword = fn.args.get("keyword", user_message)
+                        limit = fn.args.get("limit", 10)
+                        
+                        posts = search_published_posts_tool(keyword=keyword, limit=limit)
+                        last_posts = posts
+                        last_keyword = keyword
+                        
+                        # Send tool response back to Gemini
+                        response = chat.send_message(
+                            genai.protos.Content(
+                                parts=[
+                                    genai.protos.Part(
+                                        function_response=genai.protos.FunctionResponse(
+                                            name=fn.name,
+                                            response={"result": posts}
+                                        )
+                                    )
+                                ]
+                            )
+                        )
+                        break
 
-            for tool_call in tool_calls:
-                keyword, posts, tool_content = _execute_tool_call(tool_call)
-                last_keyword = keyword or user_message
-                last_posts = posts
+            if last_posts:
+                raw_content = response.text or ""
+                try:
+                    parsed = extract_json_object(raw_content)
+                    normalized = normalize_generate_payload(parsed)
+                    normalized["type"] = "search_result"
+                    normalized["intent"] = "search_content"
+                    normalized.setdefault("content", {})
+                    normalized["content"]["posts"] = last_posts
+                    return normalized
+                except Exception:
+                    return build_search_result_payload(last_posts, last_keyword)
 
-                messages.append(
-                    {
-                        "role": "tool",
-                        "tool_call_id": tool_call.id,
-                        "name": tool_call.function.name,
-                        "content": tool_content,
-                    }
-                )
-
-            second_completion = client.chat.completions.create(
-                model=settings.GROQ_MODEL,
-                temperature=0.2,
-                messages=messages,
-            )
-
-            raw_content = second_completion.choices[0].message.content or ""
-
-            try:
-                parsed = extract_json_object(raw_content)
-                normalized = normalize_generate_payload(parsed)
-                normalized["type"] = "search_result"
-                normalized["intent"] = "search_content"
-                normalized.setdefault("content", {})
-                normalized["content"]["posts"] = last_posts
-                return normalized
-            except Exception:
-                return build_search_result_payload(last_posts, last_keyword)
-
-        raw_content = assistant_message.content or ""
-
+        raw_content = response.text or ""
         try:
             parsed = extract_json_object(raw_content)
             normalized = normalize_generate_payload(parsed)
@@ -261,6 +200,7 @@ def generate_educast_content(
             )
 
     except Exception as exc:
+        print(f"❌ Gemini Generation Error: {exc}")
         return build_fallback_generate_payload(
             raw_content=(
                 "Xin lỗi, AI Assistant chưa xử lý được yêu cầu này. "
