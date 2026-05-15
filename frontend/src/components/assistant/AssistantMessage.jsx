@@ -244,12 +244,24 @@ export default function AssistantMessage({ message, onQuickAction }) {
               </div>
             )}
 
-            {previewPost.slug && (
+            {previewPost.id && (
               <button
                 type="button"
                 className={styles.openPostBtn}
                 onClick={() => {
-                  window.location.href = `/post/${previewPost.slug}`
+                  // Dispatch global event to open post detail (CommentModal)
+                  // This allows pages like Feed or SearchResults to handle it
+                  window.dispatchEvent(
+                    new CustomEvent('open-post-detail', {
+                      detail: { 
+                        postId: previewPost.id,
+                        post: previewPost,
+                        disableAutoScroll: true
+                      },
+                    })
+                  )
+                  // Close the preview modal
+                  setPreviewPost(null)
                 }}
               >
                 {t('assistant.openFullPost')}

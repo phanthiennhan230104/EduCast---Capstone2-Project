@@ -752,7 +752,12 @@ export default function Feed() {
       const postId = event.detail?.postId
       if (!postId) return
 
-      const target = podcasts.find((p) => String(p.id) === String(postId))
+      let target = podcasts.find((p) => String(p.id) === String(postId))
+
+      if (!target && event.detail?.post) {
+        // Fallback to post data provided in event
+        target = event.detail.post
+      }
 
       if (target) {
         setDisableModalAutoScroll(Boolean(event.detail?.disableAutoScroll))
