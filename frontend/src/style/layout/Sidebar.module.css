@@ -280,3 +280,29 @@
   color: #eef1ff;
   box-shadow: inset 0 0 0 1px rgba(132,146,255,0.22);
 }
+
+.iconWithBadge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.unreadBadge {
+  position: absolute;
+  top: -6px;
+  right: -8px;
+  background-color: #f04438;
+  color: white;
+  font-size: 9px;
+  font-weight: 700;
+  padding: 0 4px;
+  border-radius: 999px;
+  min-width: 15px;
+  height: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #0e142a;
+  box-shadow: 0 0 0 1px rgba(0,0,0,0.1);
+}

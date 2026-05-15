@@ -17,6 +17,7 @@ import {
   writeFeedScrollSessionKeys,
 } from '../../../utils/feedScrollSession'
 import FeedFilterSidebar from './FeedFilterSidebar'
+import { useChat } from '../../contexts/ChatContext'
 
 const NAV_MAIN = [
   { icon: Rss, labelKey: 'navigation.main.feed', to: '/feed' },
@@ -50,6 +51,14 @@ const NAV_OTHER = [
 export default function Sidebar() {
   const { t } = useTranslation()
   const location = useLocation()
+  
+  let chatContext = null;
+  try {
+    chatContext = useChat();
+  } catch (e) {
+    // If used outside ChatProvider, default to null
+  }
+  const unreadRoomsCount = chatContext?.unreadRoomsCount || 0;
 
   const showFeedFilters = location.pathname.startsWith('/feed')
 
@@ -105,7 +114,14 @@ export default function Sidebar() {
               `${styles.navItem} ${isActive ? styles.active : ''}`
             }
           >
-            <Icon size={17} />
+            <div className={styles.iconWithBadge}>
+              <Icon size={17} />
+              {to === '/messages' && unreadRoomsCount > 0 && (
+                <span className={styles.unreadBadge}>
+                  {unreadRoomsCount > 99 ? '99+' : unreadRoomsCount}
+                </span>
+              )}
+            </div>
             <span>{t(labelKey)}</span>
           </NavLink>
         ))}

@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "./components/contexts/AuthContext";
 import { AudioPlayerProvider } from "./components/contexts/AudioPlayerContext";
 import { PodcastProvider } from "./components/contexts/PodcastContext";
 import { TagFilterProvider } from "./components/contexts/TagFilterContext";
+import { ChatProvider } from "./components/contexts/ChatContext";
 import CommunityPage from "./pages/CommunityPage/CommunityPage";
 import SettingsPage from "./pages/SettingsPage/SettingsPage";
 import PersonalPageComponent from "./components/PersonalPage/PersonalPage";
@@ -234,15 +235,17 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <AudioPlayerProvider>
-        <PodcastProvider>
-          <TagFilterProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </TagFilterProvider>
-        </PodcastProvider>
-      </AudioPlayerProvider>
+      <ChatProvider>
+        <AudioPlayerProvider>
+          <PodcastProvider>
+            <TagFilterProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </TagFilterProvider>
+          </PodcastProvider>
+        </AudioPlayerProvider>
+      </ChatProvider>
     </AuthProvider>
   );
 }

@@ -25,9 +25,8 @@ import dayjs from "dayjs";
 
 import "../../style/chat/chat-page.css";
 import useChatSocket from "../../hooks/useChatSocket";
-import useChatInboxSocket from "../../hooks/useChatInboxSocket";
+import { useChat } from "../../components/contexts/ChatContext";
 import {
-  fetchConversations,
   fetchMessages,
   markRoomRead,
   startDirectChat,
@@ -82,8 +81,8 @@ export default function ChatPage() {
     isPostDeleted: () => false,
     isPostHidden: () => false,
   };
-  const [loading, setLoading] = useState(true);
-  const [conversations, setConversations] = useState([]);
+  const { conversations, setConversations, mergeConversation, handlePresence, loadConversations, loading: conversationsLoading } = useChat();
+  const [loading, setLoading] = useState(false);
   const [activeRoomId, setActiveRoomId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
@@ -122,33 +121,6 @@ export default function ChatPage() {
     [conversations, activeRoomId]
   );
 
-  const loadConversations = useCallback(async () => {
-    try {
-      setLoading(true);
-      const data = await fetchConversations();
-      const normalizedData = data.map((item) =>
-        normalizeConversationOwnership(item, user?.id)
-      );
-
-      normalizedData.sort((a, b) => {
-        const aTime = a.last_message?.created_at || a.created_at || "";
-        const bTime = b.last_message?.created_at || b.created_at || "";
-        return dayjs(bTime).valueOf() - dayjs(aTime).valueOf();
-      });
-
-      setConversations(normalizedData);
-
-      setActiveRoomId((prev) => {
-        if (prev) return prev;
-        return normalizedData.length > 0 ? normalizedData[0].id : null;
-      });
-    } catch (error) {
-      toast.error(error.message || t('chat.loadConversationsFailed'));
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
-
   const handleDeleteRoom = async (roomId) => {
     try {
       await deleteChatRoom(roomId);
@@ -183,8 +155,10 @@ export default function ChatPage() {
   );
 
   useEffect(() => {
-    loadConversations();
-  }, [loadConversations]);
+    if (!activeRoomId && conversations.length > 0) {
+      setActiveRoomId(conversations[0].id);
+    }
+  }, [conversations, activeRoomId]);
 
   useEffect(() => {
     if (!activeRoomId) return;
@@ -201,44 +175,6 @@ export default function ChatPage() {
     });
     return () => cancelAnimationFrame(id);
   }, [messages, scrollToBottom]);
-
-  const mergeConversation = useCallback(
-    (conversation) => {
-      if (!conversation?.id) return;
-
-      const normalizedConversation = normalizeConversationOwnership(
-        conversation,
-        user?.id
-      );
-
-      setConversations((prev) => {
-        const next = [...prev];
-        const index = next.findIndex(
-          (item) => item.id === normalizedConversation.id
-        );
-
-        if (index >= 0) {
-          next[index] = {
-            ...next[index],
-            ...normalizedConversation,
-          };
-        } else {
-          next.unshift(normalizedConversation);
-        }
-
-        next.sort((a, b) => {
-          const aTime = a.last_message?.created_at || a.created_at || "";
-          const bTime = b.last_message?.created_at || b.created_at || "";
-          return dayjs(bTime).valueOf() - dayjs(aTime).valueOf();
-        });
-
-        return next;
-      });
-
-      setActiveRoomId((prev) => prev || normalizedConversation.id);
-    },
-    [user?.id]
-  );
 
   const handleIncomingMessage = useCallback(
     (message) => {
@@ -257,28 +193,6 @@ export default function ChatPage() {
     },
     [mergeConversation, user?.id]
   );
-
-  const handlePresence = useCallback(({ user_id, status }) => {
-    setConversations((prev) =>
-      prev.map((conversation) =>
-        conversation.peer?.id === user_id
-          ? {
-            ...conversation,
-            peer: {
-              ...conversation.peer,
-              is_online: status === "online",
-            },
-          }
-          : conversation
-      )
-    );
-  }, []);
-
-  useChatInboxSocket({
-    onConversationCreated: mergeConversation,
-    onConversationUpdated: mergeConversation,
-    onPresence: handlePresence,
-  });
 
   const handleRead = useCallback(
     ({ room_id, user_id }) => {
