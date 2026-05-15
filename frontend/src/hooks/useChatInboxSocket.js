@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
 import { createChatInboxSocket } from "../utils/chatApi";
 
-export default function useChatInboxSocket(handlers = {}) {
+export default function useChatInboxSocket(handlers = {}, enabled = true) {
   const socketRef = useRef(null);
   const [status, setStatus] = useState("closed");
 
   useEffect(() => {
+    if (!enabled) return;
+
     const socket = createChatInboxSocket();
     socketRef.current = socket;
     setStatus("connecting");

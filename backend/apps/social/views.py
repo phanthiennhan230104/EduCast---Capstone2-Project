@@ -2907,3 +2907,90 @@ def create_report(request):
         )
     except Exception as e:
         return _json_error("feed.reportModal.failed", 500)
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def get_follow_suggestions(request):
+    current_user = _get_current_user(request)
+    if not current_user:
+        return _json_error("Authentication required", 401)
+        
+    user_id = current_user.id
+    
+    # Pre-fetch admin IDs to exclude them from suggestions
+    admin_ids = set(User.objects.filter(role__iexact='admin').values_list('id', flat=True))
+    
+    # Get current following list
+    following_ids = set(Follow.objects.filter(follower_id=user_id).values_list("following_id", flat=True))
+    follower_ids = set(Follow.objects.filter(following_id=user_id).values_list("follower_id", flat=True))
+    
+    # 1. Mutual friends (A follows B AND B follows A)
+    mutual_friend_ids = following_ids.intersection(follower_ids)
+    
+    candidates = {} # {user_id: mutual_count}
+    
+    # Level 1: Friends of mutual friends (High priority)
+    for f_id in mutual_friend_ids:
+        # Get friends of my mutual friend
+        f_following = set(Follow.objects.filter(follower_id=f_id).values_list("following_id", flat=True))
+        f_follower = set(Follow.objects.filter(following_id=f_id).values_list("follower_id", flat=True))
+        f_friends = f_following.intersection(f_follower)
+        
+        for c_id in f_friends:
+            if c_id == user_id or c_id in following_ids or c_id in admin_ids:
+                continue
+            candidates[c_id] = candidates.get(c_id, 0) + 5 # Higher weight for mutual friend of mutual friend
+            
+    # Level 2: People followed by people I follow (Medium priority)
+    for f_id in following_ids:
+        # Get people followed by people I follow
+        f_following = Follow.objects.filter(follower_id=f_id).values_list("following_id", flat=True)
+        for c_id in f_following:
+            if c_id == user_id or c_id in following_ids or c_id in admin_ids:
+                continue
+            candidates[c_id] = candidates.get(c_id, 0) + 1
+            
+    # Sort candidates by weight
+    sorted_candidates = sorted(candidates.keys(), key=lambda k: candidates[k], reverse=True)
+    suggestion_ids = sorted_candidates[:15] # Take top 15 candidates
+    
+    # 3. Fallback: If not enough suggestions, fill with top followed users (Low priority)
+    if len(suggestion_ids) < 10:
+        top_users = User.objects.exclude(id=user_id).exclude(id__in=following_ids).exclude(role__iexact='admin').annotate(
+            followers_count_annotate=Count('follower_relations')
+        ).order_by('-followers_count_annotate')[:20]
+        
+        for u in top_users:
+            if u.id not in suggestion_ids:
+                suggestion_ids.append(u.id)
+            if len(suggestion_ids) >= 20:
+                break
+                
+    # 4. Fetch details and format output
+    suggestions = []
+    users = User.objects.filter(id__in=suggestion_ids).select_related('profile')
+    user_dict = {u.id: u for u in users}
+    
+    # Preserve order
+    for uid in suggestion_ids:
+        if uid not in user_dict:
+            continue
+        u = user_dict[uid]
+        profile = getattr(u, 'profile', None)
+        followers_count = Follow.objects.filter(following_id=u.id).count()
+        
+        formatted_count = str(followers_count)
+        if followers_count >= 1000000:
+            formatted_count = f"{followers_count / 1000000:.1f}m".replace(".0", "")
+        elif followers_count >= 1000:
+            formatted_count = f"{followers_count / 1000:.1f}k".replace(".0", "")
+            
+        suggestions.append({
+            "id": u.id,
+            "name": profile.display_name if profile and profile.display_name else getattr(u, 'username', ''),
+            "avatar": profile.avatar_url if profile and profile.avatar_url else None,
+            "followers": formatted_count,
+            "mutual_friends": candidates.get(uid, 0)
+        })
+        
+    return _json_success("Follow suggestions retrieved successfully", {"suggestions": suggestions})

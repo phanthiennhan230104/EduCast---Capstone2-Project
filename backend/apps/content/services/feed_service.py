@@ -5,7 +5,7 @@ from apps.social.models import HiddenPost, PostLike, SavedPost, Follow, Playback
 from apps.social.post_share_compat import post_share_qs, post_shares_has_shared_from_share_id_column
 
 
-def _feed_posts_plain_qs(user_id, published_visible, tag_ids, topic_ids, feed_type, followed_author_ids):
+def _feed_posts_plain_qs(user_id, published_visible, tag_ids, topic_ids, feed_type, followed_author_ids, tag_slugs=None):
     """Queryset bài gốc (chưa annotate) — dùng chung cho fetch và fallback khi annotate lỗi SQL."""
     qs = Post.objects.select_related("user", "user__profile").filter(published_visible)
     try:
@@ -16,8 +16,16 @@ def _feed_posts_plain_qs(user_id, published_visible, tag_ids, topic_ids, feed_ty
             qs = qs.exclude(id__in=hidden_post_ids)
     except Exception as e:
         print(f"⚠️ Hidden posts table issue: {str(e)}")
+    
     if tag_ids:
-        qs = qs.filter(post_tags__tag_id__in=tag_ids).distinct()
+        post_ids_with_tags = PostTag.objects.filter(tag_id__in=tag_ids).values_list("post_id", flat=True)
+        qs = qs.filter(id__in=post_ids_with_tags)
+    
+    if tag_slugs:
+        # Filter by tag slugs - more robust for frontend links
+        post_ids_with_slugs = PostTag.objects.filter(tag__slug__in=tag_slugs).values_list("post_id", flat=True)
+        qs = qs.filter(id__in=post_ids_with_slugs)
+
     if topic_ids:
         qs = qs.filter(post_topics__topic_id__in=topic_ids).distinct()
     if feed_type == "following":
@@ -112,7 +120,7 @@ def _ensure_original_for_shared_rows(head, ordered, limit):
 
 class FeedService:
     @staticmethod
-    def get_feed(user, limit=20, feed_type="for_you", tag_ids=None, topic_ids=None):
+    def get_feed(user, limit=20, feed_type="for_you", tag_ids=None, topic_ids=None, tag_slugs=None):
         try:
             # allow anonymous user (e.g. public feed) — protect against None
             user_id = user.id if user else None
@@ -133,7 +141,7 @@ class FeedService:
                 )
 
             posts_plain = _feed_posts_plain_qs(
-                user_id, published_visible, tag_ids, topic_ids, feed_type, followed_author_ids
+                user_id, published_visible, tag_ids, topic_ids, feed_type, followed_author_ids, tag_slugs=tag_slugs
             )
 
             posts_qs = posts_plain.annotate(
@@ -161,6 +169,9 @@ class FeedService:
                     "-comments_count",
                     "-created_at",
                 )
+            elif feed_type == "tag_trending":
+                # Sort by view_count/listen_count for hashtag pages
+                posts_qs = posts_qs.order_by("-listen_count", "-created_at")
             else:  # for_you, following, latest, and default
                 posts_qs = posts_qs.order_by("-created_at")
 
@@ -178,7 +189,10 @@ class FeedService:
             shared_posts_qs = post_share_qs().select_related(
                 "post", "post__user", "post__user__profile", "user", "user__profile"
             )
-            shared_posts_qs = shared_posts_qs.filter(share_type="personal")
+            if feed_type == "tag_trending":
+                shared_posts_qs = shared_posts_qs.none()
+            else:
+                shared_posts_qs = shared_posts_qs.filter(share_type="personal")
             # Dòng share trên timeline chung: chỉ bài gốc public (tránh lộ bài private qua re-share).
             shared_posts_qs = shared_posts_qs.filter(
                 post__status="published",
@@ -187,7 +201,13 @@ class FeedService:
             
             # Filter shared posts by tags (filter by original post's tags)
             if tag_ids:
-                shared_posts_qs = shared_posts_qs.filter(post__post_tags__tag_id__in=tag_ids).distinct()
+                post_ids_with_tags = PostTag.objects.filter(tag_id__in=tag_ids).values_list("post_id", flat=True)
+                shared_posts_qs = shared_posts_qs.filter(post_id__in=post_ids_with_tags)
+            
+            if tag_slugs:
+                post_ids_with_slugs = PostTag.objects.filter(tag__slug__in=tag_slugs).values_list("post_id", flat=True)
+                shared_posts_qs = shared_posts_qs.filter(post_id__in=post_ids_with_slugs)
+
             if topic_ids:
                 shared_posts_qs = shared_posts_qs.filter(post__post_topics__topic_id__in=topic_ids).distinct()
             
@@ -434,6 +454,11 @@ class FeedService:
                     },
                 }
                 items.append(item)
+
+            if feed_type == "tag_trending":
+                # For hashtag trending, sort by listen_count
+                items = sorted(items, key=lambda x: x.get("listen_count", 0), reverse=True)
+                return items[:limit]
 
             items = _sort_feed_newest_first(items, limit)
 

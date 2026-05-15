@@ -104,6 +104,7 @@ export default function SearchResultsPage() {
   const [isHidingPost, setIsHidingPost] = useState(false)
   const { pauseTrackIfDeleted } = useAudioPlayer()
   const POST_SYNC_EVENT = 'post-sync-updated'
+  const FOLLOW_SYNC_EVENT = 'follow-sync-updated'
 
   const dispatchPostSync = (payload) => {
     window.dispatchEvent(new CustomEvent(POST_SYNC_EVENT, { detail: payload }))
@@ -206,6 +207,27 @@ export default function SearchResultsPage() {
     return () => window.removeEventListener(POST_REMOVED_EVENT, handleRemoved)
   }, [])
 
+  // Sync follow state across components
+  useEffect(() => {
+    const handleFollowSync = (event) => {
+      const { userId, followed } = event.detail || {}
+      if (!userId) return
+
+      setFollowingIds(prev => {
+        const newSet = new Set(prev)
+        if (followed) {
+          newSet.add(String(userId))
+        } else {
+          newSet.delete(String(userId))
+        }
+        return newSet
+      })
+    }
+
+    window.addEventListener(FOLLOW_SYNC_EVENT, handleFollowSync)
+    return () => window.removeEventListener(FOLLOW_SYNC_EVENT, handleFollowSync)
+  }, [])
+
   useEffect(() => {
     if (!query || query.length < 2) {
       setResults({ posts: [], authors: [] })
@@ -285,12 +307,17 @@ export default function SearchResultsPage() {
 
       if (response.ok) {
         const data = await response.json()
+        const isFollowed = data.data?.followed ?? data.followed
+
+        // Dispatch sync event
+        window.dispatchEvent(new CustomEvent(FOLLOW_SYNC_EVENT, {
+          detail: { userId: authorId, followed: isFollowed }
+        }))
+
         setFollowingIds(prev => {
           const newSet = new Set(prev)
 
-          const followed = data.data?.followed ?? data.followed
-
-          if (followed) {
+          if (isFollowed) {
             newSet.add(String(authorId))
           } else {
             newSet.delete(String(authorId))

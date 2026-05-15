@@ -15,6 +15,7 @@ import { AuthProvider, useAuth } from "./components/contexts/AuthContext";
 import { AudioPlayerProvider } from "./components/contexts/AudioPlayerContext";
 import { PodcastProvider } from "./components/contexts/PodcastContext";
 import { TagFilterProvider } from "./components/contexts/TagFilterContext";
+import { ChatProvider } from "./components/contexts/ChatContext";
 import CommunityPage from "./pages/CommunityPage/CommunityPage";
 import SettingsPage from "./pages/SettingsPage/SettingsPage";
 import PersonalPageComponent from "./components/PersonalPage/PersonalPage";
@@ -23,6 +24,7 @@ import AdminContentModerationPage from "./components/admin/AdminModeration";
 import AdminContentModeration from "./components/admin/AdminContentModeration";
 import AdminSystemPage from "./components/admin/AdminSystemPage";
 import AssistantWidget from "./components/assistant/AssistantWidget";
+import HashtagPage from "./pages/HashtagPage/HashtagPage";
 
 function RootRedirect() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -219,6 +221,15 @@ function AppRoutes() {
               }
             />
 
+            <Route
+              path="/hashtag/:slug"
+              element={
+                <ProtectedRoute>
+                  <HashtagPage />
+                </ProtectedRoute>
+              }
+            />
+
 
                 <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
@@ -244,15 +255,17 @@ function AppRoutes() {
 function App() {
   return (
     <AuthProvider>
-      <AudioPlayerProvider>
-        <PodcastProvider>
-          <TagFilterProvider>
-            <BrowserRouter>
-              <AppRoutes />
-            </BrowserRouter>
-          </TagFilterProvider>
-        </PodcastProvider>
-      </AudioPlayerProvider>
+      <ChatProvider>
+        <AudioPlayerProvider>
+          <PodcastProvider>
+            <TagFilterProvider>
+              <BrowserRouter>
+                <AppRoutes />
+              </BrowserRouter>
+            </TagFilterProvider>
+          </PodcastProvider>
+        </AudioPlayerProvider>
+      </ChatProvider>
     </AuthProvider>
   );
 }
