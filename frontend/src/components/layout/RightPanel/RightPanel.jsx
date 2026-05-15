@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react'
 import {
-  TrendingUp, UserPlus
+  TrendingUp, UserPlus, X
 } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { useTranslation } from 'react-i18next'
 import styles from '../../../style/layout/RightPanel.module.css'
 import { getToken } from '../../../utils/auth'
+import { API_BASE_URL } from '../../../config/apiBase'
 
 const TRENDING = [
   { tag: '#Python', count: '12.4k ' },
@@ -15,15 +16,13 @@ const TRENDING = [
   { tag: '#StartupVN', count: '4.1k ' },
 ]
 
-const SUGGESTIONS = [
-  { id: 1, name: 'Linh Đặng Tech', followers: '24.5k', avatar: 'https://i.pravatar.cc/36?img=5' },
-  { id: 2, name: 'AI Minh Trâm', followers: '18.3k', avatar: 'https://i.pravatar.cc/36?img=9' },
-  { id: 3, name: 'Code with Hoa', followers: '11.8k', avatar: 'https://i.pravatar.cc/36?img=16' },
-]
+const FOLLOW_SYNC_EVENT = 'follow-sync-updated'
 
 export default function RightPanel() {
   const { t } = useTranslation()
   const [followed, setFollowed] = useState({})
+  const [suggestions, setSuggestions] = useState([])
+  const [showModal, setShowModal] = useState(false)
 
   // Load followed status from localStorage on mount
   useEffect(() => {
@@ -37,14 +36,53 @@ export default function RightPanel() {
     }
   }, [])
 
+  // Sync follow state across components
+  useEffect(() => {
+    const handleFollowSync = (event) => {
+      const { userId, followed: isFollowed } = event.detail || {}
+      if (!userId) return
+
+      setFollowed(prev => {
+        const updated = { ...prev, [userId]: isFollowed }
+        localStorage.setItem('rightPanelFollowed', JSON.stringify(updated))
+        return updated
+      })
+    }
+
+    window.addEventListener(FOLLOW_SYNC_EVENT, handleFollowSync)
+    return () => window.removeEventListener(FOLLOW_SYNC_EVENT, handleFollowSync)
+  }, [])
+
+  // Fetch suggestions
+  useEffect(() => {
+    const fetchSuggestions = async () => {
+      try {
+        const token = getToken()
+        const res = await fetch(`${API_BASE_URL}/social/users/suggestions/`, {
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        })
+        if (!res.ok) throw new Error('Failed to fetch suggestions')
+        const data = await res.json()
+        if (data.success && data.data && data.data.suggestions) {
+          setSuggestions(data.data.suggestions)
+        }
+      } catch (err) {
+        console.error('Failed to fetch suggestions:', err)
+      }
+    }
+    fetchSuggestions()
+  }, [])
+
   const toggleFollow = async (userId, name) => {
     try {
       const token = getToken()
-      const isCurrentlyFollowing = followed[name] || false
+      const isCurrentlyFollowing = followed[userId] || false
 
-      const endpoint = isCurrentlyFollowing
-        ? `http://localhost:8000/api/social/users/${userId}/unfollow/`
-        : `http://localhost:8000/api/social/users/${userId}/follow/`
+      // Backend view toggle_follow_user handles both follow and unfollow at the same endpoint
+      const endpoint = `${API_BASE_URL}/social/users/${userId}/follow/`
 
       const res = await fetch(endpoint, {
         method: 'POST',
@@ -58,14 +96,22 @@ export default function RightPanel() {
         throw new Error(`HTTP ${res.status}`)
       }
 
+      const data = await res.json()
+      const serverFollowed = data.data?.followed ?? !isCurrentlyFollowing
+
       // Update local state
-      const updated = { ...followed, [name]: !isCurrentlyFollowing }
+      const updated = { ...followed, [userId]: serverFollowed }
       setFollowed(updated)
 
       // Save to localStorage
       localStorage.setItem('rightPanelFollowed', JSON.stringify(updated))
 
-      const action = isCurrentlyFollowing
+      // Dispatch sync event for other components (like SearchResultsPage)
+      window.dispatchEvent(new CustomEvent(FOLLOW_SYNC_EVENT, {
+        detail: { userId, followed: serverFollowed }
+      }))
+
+      const action = !serverFollowed
         ? t('buttons.unfollow')
         : t('rightPanel.follow')
 
@@ -97,13 +143,21 @@ export default function RightPanel() {
 
       {/* Gợi ý theo dõi */}
       <div className={`${styles.widget} ${styles.followSuggestionWidget}`}>
-        <h4 className={styles.widgetTitle}>
-          <UserPlus size={15} />
-          {t('rightPanel.suggestionsTitle')}
-        </h4>
-        {SUGGESTIONS.map(({ name, followers, avatar }) => (
-          <div key={name} className={styles.suggestion}>
-            <img src={avatar} alt={name} className={styles.suggestionAvatar} />
+        <div className={styles.widgetHeader}>
+          <h4 className={styles.widgetTitle}>
+            <UserPlus size={15} />
+            {t('rightPanel.suggestionsTitle')}
+          </h4>
+          <button 
+            onClick={() => setShowModal(true)} 
+            className={styles.seeMoreLink}
+          >
+            {t('rightPanel.seeMore', 'Xem thêm')}
+          </button>
+        </div>
+        {suggestions.length > 0 ? suggestions.slice(0, 3).map(({ id, name, followers, avatar }) => (
+          <div key={id} className={styles.suggestion}>
+            <img src={avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${name}`} alt={name} className={styles.suggestionAvatar} />
             <div className={styles.suggestionInfo}>
               <span className={styles.suggestionName}>{name}</span>
               <span className={styles.suggestionFollowers}>
@@ -111,15 +165,66 @@ export default function RightPanel() {
               </span>
             </div>
             <button
-              className={`${styles.followBtn} ${followed[name] ? styles.following : ''}`}
-              onClick={() => toggleFollow(name)}
+              className={`${styles.followBtn} ${followed[id] ? styles.following : ''}`}
+              onClick={() => toggleFollow(id, name)}
             >
-              {followed[name] ? t('rightPanel.following') : t('rightPanel.follow')}
+              {followed[id] ? t('rightPanel.following') : t('rightPanel.follow')}
             </button>
           </div>
-        ))}
+        )) : (
+          <div style={{ color: '#7f89b2', fontSize: '12px', padding: '10px 0' }}>
+            {t('rightPanel.noSuggestions', 'Không có gợi ý nào')}
+          </div>
+        )}
       </div>
 
+      {/* Modal danh sách gợi ý */}
+      {showModal && (
+        <div className={styles.modalOverlay} onClick={() => setShowModal(false)}>
+          <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <h3>
+                <UserPlus size={18} />
+                {t('rightPanel.allSuggestions', 'Tất cả gợi ý')}
+              </h3>
+              <button className={styles.closeBtn} onClick={() => setShowModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className={styles.modalBody}>
+              {suggestions.map(({ id, name, followers, avatar, mutual_friends }) => (
+                <div key={id} className={styles.modalSuggestion}>
+                  <img 
+                    src={avatar || `https://api.dicebear.com/7.x/initials/svg?seed=${name}`} 
+                    alt={name} 
+                    className={styles.modalAvatar} 
+                  />
+                  <div className={styles.modalInfo}>
+                    <span className={styles.modalName}>{name}</span>
+                    <div className={styles.modalMeta}>
+                      <span>{t('rightPanel.followers', { count: followers })}</span>
+                      {mutual_friends > 0 && (
+                        <>
+                          <span className={styles.dot}>•</span>
+                          <span className={styles.mutualCount}>
+                            {t('rightPanel.mutualCount', '{{count}} bạn chung', { count: mutual_friends })}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                  <button
+                    className={`${styles.modalFollowBtn} ${followed[id] ? styles.following : ''}`}
+                    onClick={() => toggleFollow(id, name)}
+                  >
+                    {followed[id] ? t('rightPanel.following') : t('rightPanel.follow')}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </aside>
   )
 }

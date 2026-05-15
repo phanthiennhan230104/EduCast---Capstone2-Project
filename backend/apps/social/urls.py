@@ -24,8 +24,9 @@ urlpatterns = [
     path("community/", views.community_overview, name="community_overview"),
     path("follow-list/", views.get_following_list, name="get_following_list"),
     path("followers/", views.get_followers_list, name="get_followers_list"),
-    path("users/<str:target_user_id>/follow/", views.toggle_follow_user, name="toggle_follow_user"),
     path("friends/", views.get_friends_list, name="get_friends_list"),
+    path("users/suggestions/", views.get_follow_suggestions, name="get_follow_suggestions"),
+    path("users/<str:target_user_id>/follow/", views.toggle_follow_user, name="toggle_follow_user"),
 
     # Notifications
     path("notifications/", views.list_notifications, name="list_notifications"),
