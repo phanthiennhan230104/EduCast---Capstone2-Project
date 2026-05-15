@@ -39,7 +39,6 @@ function getPostTags(post) {
 export default function AssistantMessage({ message, onQuickAction }) {
   const { t } = useTranslation()
   const navigate = useNavigate()
-  const [previewPost, setPreviewPost] = useState(null)
   const isUser = message.role === 'user'
 
   if (isUser) {
@@ -138,7 +137,17 @@ export default function AssistantMessage({ message, onQuickAction }) {
                   key={post.id}
                   type="button"
                   className={styles.searchResultCard}
-                  onClick={() => setPreviewPost(post)}
+                  onClick={() => {
+                    window.dispatchEvent(
+                      new CustomEvent('open-post-detail', {
+                        detail: { 
+                          postId: post.id,
+                          post: post,
+                          disableAutoScroll: true
+                        },
+                      })
+                    )
+                  }}
                 >
                   <div className={styles.searchResultHeader}>
                     <h5 className={styles.postTitle}>{post.title}</h5>
@@ -189,87 +198,6 @@ export default function AssistantMessage({ message, onQuickAction }) {
         )}
       </div>
 
-      {previewPost && (
-        <div
-          className={styles.postPreviewOverlay}
-          onClick={() => setPreviewPost(null)}
-        >
-          <div
-            className={styles.postPreviewModal}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className={styles.postPreviewHeader}>
-              <div>
-                <h3>{previewPost.title}</h3>
-                <span>{t('assistant.author')}: {getPostAuthor(previewPost, t)}</span>
-              </div>
-
-              <button
-                type="button"
-                className={styles.postPreviewCloseBtn}
-                onClick={() => setPreviewPost(null)}
-              >
-                ×
-              </button>
-            </div>
-
-            {previewPost.description && (
-              <p className={styles.postPreviewDescription}>
-                {previewPost.description}
-              </p>
-            )}
-
-            {previewPost.body && (
-              <div className={styles.postPreviewBody}>
-                {renderPlainText(previewPost.body)}
-              </div>
-            )}
-
-            {!previewPost.body && previewPost.summary_text && (
-              <div className={styles.postPreviewBody}>
-                {renderPlainText(previewPost.summary_text)}
-              </div>
-            )}
-
-            {getPostTags(previewPost).length > 0 && (
-              <div className={styles.postPreviewTags}>
-                {getPostTags(previewPost).map((tag, index) => {
-                  const tagStr = typeof tag === 'object' ? (tag.name || tag.slug || '') : String(tag);
-                  return (
-                    <span key={`${tag.id || index}`} className={styles.tagChip}>
-                      {tagStr.startsWith('#') ? tagStr : `#${tagStr}`}
-                    </span>
-                  )
-                })}
-              </div>
-            )}
-
-            {previewPost.id && (
-              <button
-                type="button"
-                className={styles.openPostBtn}
-                onClick={() => {
-                  // Dispatch global event to open post detail (CommentModal)
-                  // This allows pages like Feed or SearchResults to handle it
-                  window.dispatchEvent(
-                    new CustomEvent('open-post-detail', {
-                      detail: { 
-                        postId: previewPost.id,
-                        post: previewPost,
-                        disableAutoScroll: true
-                      },
-                    })
-                  )
-                  // Close the preview modal
-                  setPreviewPost(null)
-                }}
-              >
-                {t('assistant.openFullPost')}
-              </button>
-            )}
-          </div>
-        </div>
-      )}
     </>
   )
 }
