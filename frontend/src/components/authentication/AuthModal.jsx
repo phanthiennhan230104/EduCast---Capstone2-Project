@@ -57,7 +57,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
   const [loading, setLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
-  
+
   const resetMessages = () => {
     setErrorMessage('')
     setSuccessMessage('')
@@ -111,6 +111,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
 
       const data = await apiRequest('/auth/login/', {
         method: 'POST',
+        withCredentials: true,
         body: JSON.stringify({
           identifier: loginData.email,
           password: loginData.password,
@@ -118,7 +119,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
         }),
       })
 
-      
+
       login(data, loginData.rememberMe)
 
       notify.success('Đăng nhập thành công.')
@@ -398,7 +399,7 @@ export default function AuthModal({ isOpen, mode, onClose, onChangeMode }) {
             </button>
           </div>
 
-          
+
 
           {/* Nếu đang ở bước OTP thì render form OTP */}
           {showOtpPopup ? (
