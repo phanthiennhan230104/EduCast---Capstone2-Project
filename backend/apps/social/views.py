@@ -98,6 +98,17 @@ def _create_notification(
     if not recipient_id or recipient_id == actor_user_id:
         return None
 
+    # Tránh spam thông báo khi người dùng hủy chọn rồi chọn lại nhiều lần (như Like, Follow)
+    if notification_type in ["like", "follow"]:
+        existing_noti = Notification.objects.filter(
+            user_id=recipient_id,
+            actor_user_id=actor_user_id,
+            type=notification_type,
+            reference_id=reference_id,
+        ).first()
+        if existing_noti:
+            return None
+
     notification = Notification.objects.create(
         id=_generate_id("noti"),
         user_id=recipient_id,
@@ -190,9 +201,9 @@ def _post_counts(post_id, share_id=None):
         }
 
     else:
-        # For original posts, return counts excluding shares
+        # For original posts, return counts specific to the original post instance
         try:
-            like_count = PostLike.objects.filter(post_id=post_id, share_id__isnull=True).count()
+            like_count = PostLike.objects.filter(post_id=post_id).count()
         except Exception:
             like_count = PostLike.objects.filter(post_id=post_id).count()
 
@@ -202,7 +213,7 @@ def _post_counts(post_id, share_id=None):
             comment_count = Comment.objects.filter(post_id=post_id).count()
 
         try:
-            save_count = SavedPost.objects.filter(post_id=post_id, share_id__isnull=True).count()
+            save_count = SavedPost.objects.filter(post_id=post_id).count()
         except Exception:
             # DB schema may not have saved_posts.share_id; count by post only.
             save_count = SavedPost.objects.filter(post_id=post_id).count()
@@ -297,7 +308,7 @@ def _serialize_community_post(post, current_user_id=None, following_ids=None):
         "duration_seconds": post.duration_seconds or 0,
         "created_at": post.created_at.isoformat() if post.created_at else None,
         "published_at": post.published_at.isoformat() if post.published_at else None,
-        "is_ai_generated": bool(post.is_ai_generated),
+        "is_ai_generated": False,
         "source_type": post.source_type,
         "tags": tags,
         "author": {
@@ -322,7 +333,6 @@ def _serialize_community_post(post, current_user_id=None, following_ids=None):
             "is_liked": PostLike.objects.filter(
                 user_id=current_user_id,
                 post_id=post.id,
-                share_id__isnull=True,
             ).exists() if current_user_id else False,
             "is_saved": SavedPost.objects.filter(
                 user_id=current_user_id,
@@ -351,6 +361,7 @@ def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None, dep
         "status": comment.status,
         "like_count": like_count,
         "is_liked": comment.id in liked_comment_ids,
+        "share_id": comment.share_id if hasattr(comment, 'share_id') else None,
         "created_at": comment.created_at.isoformat() if comment.created_at else None,
         "updated_at": comment.updated_at.isoformat() if comment.updated_at else None,
     }
@@ -381,17 +392,19 @@ def _comment_to_dict(comment, include_replies=False, liked_comment_ids=None, dep
     if include_replies and depth < 3:
         replies = Comment.objects.filter(
             parent_comment_id=comment.id
-        ).select_related("user").order_by("-created_at")
+        ).select_related("user", "user__profile").order_by("-created_at")
 
-        data["replies"] = [
-            _comment_to_dict(
-                reply,
+        data["replies"] = []
+        for r in replies:
+            r_dict = _comment_to_dict(
+                r,
                 include_replies=True,
                 liked_comment_ids=liked_comment_ids,
                 depth=depth + 1
             )
-            for reply in replies
-        ]
+            r_dict["reply_to_user_id"] = comment.user_id
+            r_dict["reply_to_username"] = data["display_name"]
+            data["replies"].append(r_dict)
 
     return data
 
@@ -413,6 +426,21 @@ def _notification_to_dict(notification):
     # Nếu bảng users có username thì dùng được. Nếu không có thì giữ actor_user_id.
     if notification.actor_user and hasattr(notification.actor_user, "username"):
         data["actor_username"] = notification.actor_user.username
+
+    if notification.reference_type == "post" and notification.reference_id:
+        ref_id = str(notification.reference_id)
+        share_id = None
+        actual_post_id = ref_id
+        if ref_id.startswith('share_'):
+            parts = ref_id.split('_')
+            if len(parts) >= 3:
+                share_id = parts[1]
+                actual_post_id = parts[-1]
+        try:
+            data["post_counts"] = _post_counts(actual_post_id, share_id)
+            data["canonical_post_id"] = actual_post_id
+        except Exception:
+            pass
 
     return data
 
@@ -446,22 +474,34 @@ def toggle_like_post(request, post_id):
         if share_id:
             share = get_object_or_404(PostShare, id=share_id, post_id=post.id)
 
+        # Do SQLite có ràng buộc UNIQUE(post_id, user_id), trạng thái Like của user
+        # trên một bài viết là duy nhất toàn cục (dù like qua bài share hay bài gốc).
+        # Do đó, khi kiểm tra existing_like để Unlike, ta chỉ cần lọc theo (post_id, user_id)
+        # để tránh lỗi người dùng bấm Unlike nhưng hệ thống không tìm thấy do sai share_id.
         existing_like = PostLike.objects.filter(
             post_id=post.id,
             user_id=user.id,
-            share_id=share_id,
         ).first()
 
         if existing_like:
             existing_like.delete()
-            like_count = PostLike.objects.filter(
-                post_id=post.id, share_id=share_id
-            ).count()
+            if share_id:
+                like_count = PostLike.objects.filter(post_id=post.id, share_id=share_id).count()
+                viewer_like_on_share = PostLike.objects.filter(user_id=user.id, post_id=post.id, share_id=share_id).exists()
+                if not viewer_like_on_share and PostLike.objects.filter(user_id=user.id, post_id=post.id).exists():
+                    like_count += 1
+            else:
+                like_count = PostLike.objects.filter(post_id=post.id).count()
+            
+            total_like_count = PostLike.objects.filter(post_id=post.id).count()
+            Post.objects.filter(id=post.id).update(like_count=total_like_count)
+
             return _json_success(
                 "Unliked post successfully",
                 {
                     "liked": False,
                     "like_count": like_count,
+                    "canonical_post_id": str(post.id),
                 }
             )
 
@@ -488,18 +528,38 @@ def toggle_like_post(request, post_id):
                 share_id=share_id,
             )
 
-        like_count = PostLike.objects.filter(
-            post_id=post.id, share_id=share_id
-        ).count()
+        if share_id:
+            like_count = PostLike.objects.filter(post_id=post.id, share_id=share_id).count()
+            viewer_like_on_share = PostLike.objects.filter(user_id=user.id, post_id=post.id, share_id=share_id).exists()
+            if not viewer_like_on_share and PostLike.objects.filter(user_id=user.id, post_id=post.id).exists():
+                like_count += 1
+        else:
+            like_count = PostLike.objects.filter(post_id=post.id).count()
+
+        total_like_count = PostLike.objects.filter(post_id=post.id).count()
+        Post.objects.filter(id=post.id).update(like_count=total_like_count)
+
+        # Notify the correct person: sharer if it's a like on share, else author
+        notification_recipient = share.user_id if share else post.user_id
+        
+        # Determine reference_id for frontend to open correct modal
+        ref_id = f"share_{share.id}_{post.id}" if share else post.id
+        
+        if share:
+            noti_title = "Lượt thích bài chia sẻ"
+            noti_body = f"{_profile_display_name(user)} đã thích bài chia sẻ của bạn: {share.caption}" if share.caption else f"{_profile_display_name(user)} đã thích bài chia sẻ của bạn về bài viết: {post.title}"
+        else:
+            noti_title = "Lượt thích mới"
+            noti_body = f"{_profile_display_name(user)} đã thích bài viết: {post.title}"
 
         _create_notification(
-            recipient_id=post.user_id,
+            recipient_id=notification_recipient,
             actor_user_id=user.id,
             notification_type="like",
-            title="New like",
-            body=f"{getattr(user, 'username', user.id)} liked your post",
+            title=noti_title,
+            body=noti_body,
             reference_type="post",
-            reference_id=post.id
+            reference_id=ref_id
         )
 
         return _json_success(
@@ -507,6 +567,7 @@ def toggle_like_post(request, post_id):
             {
                 "liked": True,
                 "like_count": like_count,
+                "canonical_post_id": str(post.id),
             }
         )
     except Exception as e:
@@ -555,6 +616,9 @@ def toggle_save_post(request, post_id):
             ).delete()
 
             existing_saved.delete()
+            
+            total_save_count = SavedPost.objects.filter(post_id=post.id).count()
+            Post.objects.filter(id=post.id).update(save_count=total_save_count)
 
             return _json_success(
                 "Unsaved post successfully",
@@ -572,6 +636,9 @@ def toggle_save_post(request, post_id):
             share=None,
             created_at=timezone.now(),
         )
+
+        total_save_count = SavedPost.objects.filter(post_id=post.id).count()
+        Post.objects.filter(id=post.id).update(save_count=total_save_count)
 
         # Nếu có collection_id, thêm post vào collection_items
         if collection_id:
@@ -655,11 +722,17 @@ def list_post_comments(request, post_id):
     viewer_is_saved = False
     if user:
         viewer_is_liked = PostLike.objects.filter(
-            user_id=user.id, post_id=post.id, share_id=share_id
+            user_id=user.id, post_id=post.id
         ).exists()
         viewer_is_saved = SavedPost.objects.filter(
             user_id=user.id, post_id=post.id, share_id=share_id
         ).exists()
+        if viewer_is_liked and share_id:
+            viewer_like_on_share = PostLike.objects.filter(
+                user_id=user.id, post_id=post.id, share_id=share_id
+            ).exists()
+            if not viewer_like_on_share:
+                counts["like_count"] += 1
 
     return _json_success(
         "Comments fetched successfully",
@@ -779,16 +852,30 @@ def create_comment(request, post_id):
     
     comment = Comment.objects.create(**comment_data)
 
+    total_comment_count = Comment.objects.filter(post_id=post.id).count()
+    Post.objects.filter(id=post.id).update(comment_count=total_comment_count)
+
     # Notify chủ post/share nếu người comment không phải chủ post/share
     notification_recipient = share.user_id if share else post.user_id
+    
+    # Determine reference_id for frontend to open correct modal
+    ref_id = f"share_{share.id}_{post.id}" if share else post.id
+
+    if share:
+        noti_title = "Bình luận bài chia sẻ"
+        noti_body = f"{_profile_display_name(user)} đã bình luận về bài chia sẻ của bạn: {share.caption}" if share.caption else f"{_profile_display_name(user)} đã bình luận về bài chia sẻ của bạn về bài viết: {post.title}"
+    else:
+        noti_title = "Bình luận mới"
+        noti_body = f"{_profile_display_name(user)} đã bình luận về bài viết: {post.title}"
+
     _create_notification(
         recipient_id=notification_recipient,
         actor_user_id=user.id,
         notification_type="comment",
-        title="New comment",
-        body=f"{getattr(user, 'username', user.id)} commented on your post",
+        title=noti_title,
+        body=noti_body,
         reference_type="comment",
-        reference_id=comment.id
+        reference_id=ref_id
     )
 
     comment = Comment.objects.filter(id=comment.id).select_related("user").first()
@@ -890,15 +977,22 @@ def reply_comment(request, comment_id):
     else:
         reply_parent = target_comment
 
-    reply = Comment.objects.create(
-        id=_generate_id("cmt"),
-        post_id=target_comment.post_id,
-        user=user,
-        parent_comment=reply_parent,
-        content=content,
-        created_at=timezone.now(),
-        updated_at=timezone.now()
-    )
+    reply_data = {
+        'id': _generate_id("cmt"),
+        'post_id': target_comment.post_id,
+        'user': user,
+        'parent_comment': reply_parent,
+        'content': content,
+        'created_at': timezone.now(),
+        'updated_at': timezone.now()
+    }
+    if hasattr(target_comment, 'share_id') and target_comment.share_id:
+        reply_data['share_id'] = target_comment.share_id
+
+    reply = Comment.objects.create(**reply_data)
+
+    total_comment_count = Comment.objects.filter(post_id=target_comment.post_id).count()
+    Post.objects.filter(id=target_comment.post_id).update(comment_count=total_comment_count)
 
     _create_notification(
         recipient_id=target_comment.user_id,
@@ -922,17 +1016,23 @@ def reply_comment(request, comment_id):
             reference_id=reply.id
         )
 
-    reply = Comment.objects.filter(id=reply.id).select_related("user").first()
+    reply = Comment.objects.filter(id=reply.id).select_related("user", "user__profile").first()
     
     data = _comment_to_dict(reply, include_replies=True)
     data["reply_to_user_id"] = target_comment.user_id
-    data["reply_to_username"] = getattr(target_comment.user, "username", target_comment.user_id)
+
+    target_profile = getattr(target_comment.user, "profile", None)
+    target_dn = getattr(target_profile, "display_name", None) or getattr(target_comment.user, "username", target_comment.user_id)
+    data["reply_to_username"] = target_dn
+
+    share_id_val = target_comment.share_id if hasattr(target_comment, 'share_id') else None
 
     return _json_success(
         "Reply created successfully",
         {
             "comment": data,
-            **_post_counts(target_comment.post_id)
+            **_post_counts(target_comment.post_id, share_id_val),
+            "canonical_post_id": str(target_comment.post_id),
         },
         status=201
     )
@@ -1003,16 +1103,21 @@ def delete_comment(request, comment_id):
     # Lưu lại post_id trước khi xóa để trả về counts sau khi xóa
     comment_id_value = comment.id
     post_id_value = comment.post_id
+    share_id_value = comment.share_id if hasattr(comment, 'share_id') else None
     
     # Xóa comment
     comment.delete()
+
+    total_comment_count = Comment.objects.filter(post_id=post_id_value).count()
+    Post.objects.filter(id=post_id_value).update(comment_count=total_comment_count)
 
     return _json_success(
         "Comment deleted successfully",
         {
             "comment_id": comment_id_value,
             "post_id": post_id_value,
-            **_post_counts(post_id_value)
+            **_post_counts(post_id_value, share_id_value),
+            "canonical_post_id": str(post_id_value),
         }
     )
 
@@ -1145,6 +1250,18 @@ def community_overview(request):
     since_raw = request.GET.get("since")
     now = timezone.now()
 
+    user_fav_topics = []
+    if hasattr(current_user, "profile") and current_user.profile:
+        user_fav_topics = list(current_user.profile.favorite_topics.values_list("id", flat=True))
+
+    shared_topic_user_ids = set()
+    if user_fav_topics:
+        shared_topic_user_ids = set(
+            str(uid) for uid in User.objects.filter(profile__favorite_topics__id__in=user_fav_topics)
+            .exclude(id=current_user.id)
+            .values_list("id", flat=True)
+        )
+
     following_ids = set(
         str(uid)
         for uid in Follow.objects.filter(follower_id=current_user.id)
@@ -1156,6 +1273,11 @@ def community_overview(request):
         .select_related("following", "following__profile")
         .order_by("-created_at")
     )
+    if shared_topic_user_ids:
+        following_qs = following_qs.filter(following_id__in=shared_topic_user_ids)
+    else:
+        following_qs = following_qs.none()
+
     following_people = [
         _serialize_community_user(
             follow.following,
@@ -1176,8 +1298,10 @@ def community_overview(request):
         visibility="public",
     ).exclude(id__in=hidden_ids)
 
-    if following_ids:
-        posts_qs = posts_qs.filter(user_id__in=following_ids)
+    if shared_topic_user_ids and user_fav_topics:
+        posts_qs = posts_qs.filter(user_id__in=shared_topic_user_ids, post_topics__topic_id__in=user_fav_topics).distinct()
+    else:
+        posts_qs = posts_qs.none()
 
     if tab == "today":
         posts_qs = posts_qs.filter(created_at__gte=now - timedelta(days=1))
@@ -1208,15 +1332,17 @@ def community_overview(request):
                     visibility="public",
                     created_at__gt=since_dt,
                 ).exclude(id__in=hidden_ids)
-                if following_ids:
-                    new_qs = new_qs.filter(user_id__in=following_ids)
+                if shared_topic_user_ids and user_fav_topics:
+                    new_qs = new_qs.filter(user_id__in=shared_topic_user_ids, post_topics__topic_id__in=user_fav_topics).distinct()
+                else:
+                    new_qs = new_qs.none()
                 new_posts_count = new_qs.count()
         except Exception:
             new_posts_count = 0
 
     followed_user_ids = set(following_ids)
     followed_user_ids.add(str(current_user.id))
-    suggestions_qs = (
+    base_suggestions_qs = (
         User.objects.exclude(id__in=followed_user_ids)
         .exclude(role__iexact="admin")
         .select_related("profile")
@@ -1228,15 +1354,19 @@ def community_overview(request):
                 distinct=True,
             ),
         )
-        .order_by("-followers_total", "-posts_total", "username")[:3]
     )
+
+    suggested_users = []
+    if shared_topic_user_ids:
+        suggested_users = list(base_suggestions_qs.filter(id__in=shared_topic_user_ids).order_by("-followers_total", "-posts_total", "username")[:3])
+
     suggestions = [
         _serialize_community_user(
             user,
             current_user_id=current_user.id,
             following_ids=following_ids,
         )
-        for user in suggestions_qs
+        for user in suggested_users
     ]
 
     activities = []
@@ -1244,11 +1374,12 @@ def community_overview(request):
         Post.objects.filter(
             status="published",
             visibility="public",
-            user_id__in=following_ids,
-        )
+            user_id__in=shared_topic_user_ids,
+            post_topics__topic_id__in=user_fav_topics,
+        ).distinct()
         .select_related("user", "user__profile")
         .order_by("-created_at")[:5]
-    ) if following_ids else []
+    ) if (shared_topic_user_ids and user_fav_topics) else []
     for post in recent_posts:
         activities.append({
             "id": f"post-{post.id}",
@@ -1476,6 +1607,9 @@ def share_post(request, post_id):
                     ],
                 )
             share = None
+
+        total_share_count = post_share_qs().filter(post_id=post.id).count()
+        Post.objects.filter(id=post.id).update(share_count=total_share_count)
 
         # Thông báo: share bài gốc -> notify chủ post; re-share bài share -> notify người đã share trước đó (nếu tìm thấy).
         notification_title = "Your post was shared"
@@ -2733,6 +2867,8 @@ def share_post_to_user(request, post_id):
                         share_type="message",
                         caption=caption,
                     )
+                    total_share_count = post_share_qs().filter(post_id=post.id).count()
+                    Post.objects.filter(id=post.id).update(share_count=total_share_count)
                 except Exception as share_error:
                     warnings.append(f"PostShare skipped: {share_error}")
 

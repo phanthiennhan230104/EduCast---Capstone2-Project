@@ -334,7 +334,7 @@ def generate_audio_background(task_id, data):
     channel_layer = get_channel_layer()
     group_name = f"audio_progress_{task_id}"
 
-    def send_progress(progress, step, status="processing", extra_data=None):
+    def send_progress(progress, step, status="generating", extra_data=None):
         payload = {
             "type": "progress_update",
             "progress": progress,
@@ -799,7 +799,7 @@ class DraftDeleteView(APIView):
             # Chỉ chuyển status sang archived, không xóa file vật lý trên Cloudinary
             # để đảm bảo toàn vẹn dữ liệu nếu muốn khôi phục.
 
-            post.status = "hidden"
+            post.status = "archived"
             post.updated_at = timezone.now()
             post.save(update_fields=["status", "updated_at"])
 
@@ -1136,13 +1136,19 @@ class UserPostsAPIView(APIView):
             share_id = share_info.get("share_id")
             is_liked = PostLike.objects.filter(
                 user_id=request_user_id,
-                share_id=share_id,
+                post_id=post.id,
             ).exists() if request_user_id else False
             is_saved = SavedPost.objects.filter(
                 user_id=request_user_id,
                 share_id=share_id,
             ).exists() if request_user_id else False
             like_count = PostLike.objects.filter(share_id=share_id).count()
+            if is_liked and request_user_id:
+                viewer_like_on_share = PostLike.objects.filter(
+                    user_id=request_user_id, post_id=post.id, share_id=share_id
+                ).exists()
+                if not viewer_like_on_share:
+                    like_count += 1
             comment_count = Comment.objects.filter(share_id=share_id).count()
             save_count = SavedPost.objects.filter(share_id=share_id).count()
             # Share count cho "bài share": re-share (cần cột shared_from_share_id).
@@ -1160,7 +1166,6 @@ class UserPostsAPIView(APIView):
             is_liked = PostLike.objects.filter(
                 user_id=request_user_id,
                 post_id=post.id,
-                share_id__isnull=True,
             ).exists() if request_user_id else False
             is_saved = SavedPost.objects.filter(
                 user_id=request_user_id,
@@ -1215,7 +1220,7 @@ class UserPostsAPIView(APIView):
             "share_count": share_count,
             "is_liked": is_liked,
             "is_saved": is_saved,
-            "tags": [{"id": tag.id, "name": tag.name} for tag in Tag.objects.filter(tag_posts__post_id=post.id)],
+            "tags": [{"id": tag.id, "name": tag.name, "slug": tag.slug} for tag in Tag.objects.filter(tag_posts__post_id=post.id)],
         }
         
         # Add share info if provided
@@ -1396,12 +1401,13 @@ class UserSharedPostsAPIView(APIView):
                     "created_at": post.created_at.isoformat(),
                     "shared_at": share.created_at.isoformat(),
                     "share_caption": share.caption,
-                    "like_count": PostLike.objects.filter(post_id=post.id).count(),
-                    "comment_count": Comment.objects.filter(post_id=post.id).count(),
-                    "save_count": SavedPost.objects.filter(post_id=post.id).count(),
+                    "like_count": PostLike.objects.filter(post_id=post.id, share_id=share.id).count(),
+                    "comment_count": Comment.objects.filter(share_id=share.id).count(),
+                    "save_count": SavedPost.objects.filter(share_id=share.id).count(),
                     "share_count": reshare_count,
                     "is_liked": is_liked,
                     "is_saved": is_saved,
+                    "tags": [{"id": tag.id, "name": tag.name, "slug": tag.slug} for tag in Tag.objects.filter(tag_posts__post_id=post.id)],
                 })
             
             return Response({
@@ -1476,10 +1482,41 @@ class PostDetailView(APIView):
     def get(self, request, post_id):
         """Get single post by ID with full details"""
         try:
-            post = Post.objects.get(id=post_id, status="published", visibility="public")
-            
             current_user_id = request.user.id if request.user and request.user.is_authenticated else None
             
+            actual_post_id = post_id
+            share_id = None
+            if post_id.startswith('share_'):
+                parts = post_id.split('_')
+                if len(parts) >= 3:
+                    share_id = parts[1]
+                    actual_post_id = parts[-1]
+
+            post = Post.objects.get(id=actual_post_id, status="published", visibility="public")
+            
+            if share_id:
+                share = PostShare.objects.select_related("user", "user__profile").get(id=share_id)
+                share_info = {
+                    "id": post_id,
+                    "share_id": share.id,
+                    "post_id": post.id,
+                    "shared_at": share.created_at.isoformat(),
+                    "share_caption": share.caption,
+                    "type": "shared",
+                    "commentModalScope": "share",
+                    "sharedBy": {
+                        "id": share.user.id,
+                        "username": share.user.username,
+                        "name": getattr(share.user.profile, "display_name", "") if hasattr(share.user, "profile") else share.user.username,
+                        "avatar_url": getattr(share.user.profile, "avatar_url", "") if hasattr(share.user, "profile") else "",
+                    }
+                }
+                post_data = UserPostsAPIView()._build_post_data(post, current_user_id, share_info)
+                return Response({
+                    "data": post_data,
+                    "success": True
+                }, status=status.HTTP_200_OK)
+
             author_name = post.user.username
             if hasattr(post.user, 'profile') and post.user.profile:
                 author_name = post.user.profile.display_name or post.user.username
@@ -1491,7 +1528,6 @@ class PostDetailView(APIView):
             is_liked = PostLike.objects.filter(
                 user_id=current_user_id,
                 post_id=post.id,
-                share_id__isnull=True
             ).exists() if current_user_id else False
             
             is_saved = SavedPost.objects.filter(
@@ -1546,6 +1582,7 @@ class PostDetailView(APIView):
                 "share_count": share_count,
                 "is_liked": is_liked,
                 "is_saved": is_saved,
+                "tags": [{"id": tag.id, "name": tag.name, "slug": tag.slug} for tag in Tag.objects.filter(tag_posts__post_id=post.id)],
             }
             
             return Response({

@@ -731,7 +731,7 @@ export default function SearchResultsPage() {
   }
 
   return (
-    <MainLayout>
+    <>
       <div className={styles.searchResultsContainer}>
         <div className={styles.header}>
           <h1 className={styles.title}>{t('searchResults.pageTitle')}</h1>
@@ -982,19 +982,16 @@ export default function SearchResultsPage() {
 
       <ConfirmModal
         isOpen={hidePostConfirmOpen}
-        onCancel={() => {
-          if (isHidingPost) return
-          setHidePostConfirmOpen(false)
-          setHidingPost(null)
-        }}
+        type="confirm"
+        title={t('feed.confirm.hidePostTitle')}
+        message={t('feed.confirm.hidePostMessage')}
+        confirmText={t('feed.confirm.hide')}
+        cancelText={t('common.cancel')}
+        isDangerous={false}
+        onCancel={() => setHidePostConfirmOpen(false)}
         onConfirm={handleConfirmHidePost}
-        title="Ẩn bài viết"
-        message="Bạn có muốn ẩn bài viết này khỏi kết quả tìm kiếm?"
-        confirmText={isHidingPost ? 'Đang ẩn…' : 'Ẩn bài viết'}
-        cancelText="Hủy"
-        isLoading={isHidingPost}
       />
-    </MainLayout>
+    </>
   )
 }
 

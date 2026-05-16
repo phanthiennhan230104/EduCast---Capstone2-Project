@@ -287,6 +287,7 @@ def get_current_user(request):
                 "bio": profile.bio if profile else "",
                 "avatar_url": profile.avatar_url if profile else None,
                 "preferred_language": profile.preferred_language if profile else "vi",
+                "favorite_topics": [{'id': t.id, 'name': t.name} for t in profile.favorite_topics.all()] if profile else [],
             }
         },
         status=status.HTTP_200_OK,
@@ -742,8 +743,24 @@ class UpdateUserProfileView(APIView):
                         status=status.HTTP_400_BAD_REQUEST
                     )
             
-            # Save profile
+            # Save profile (cần lưu trước khi set ManyToMany)
             profile.save()
+
+            # Handle favorite topics
+            if 'favorite_topics' in request.data:
+                topics_data = request.data.getlist('favorite_topics') if hasattr(request.data, 'getlist') else request.data.get('favorite_topics')
+                
+                # Nếu gửi dưới dạng chuỗi JSON
+                if isinstance(topics_data, str) or (isinstance(topics_data, list) and len(topics_data) == 1 and isinstance(topics_data[0], str) and topics_data[0].startswith('[')):
+                    import json
+                    try:
+                        val = topics_data[0] if isinstance(topics_data, list) else topics_data
+                        topics_data = json.loads(val)
+                    except:
+                        pass
+                
+                if isinstance(topics_data, list):
+                    profile.favorite_topics.set(topics_data)
             
             return Response(
                 {

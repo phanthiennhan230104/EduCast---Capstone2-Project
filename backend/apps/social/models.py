@@ -125,7 +125,7 @@ class Notification(models.Model):
     title = models.CharField(max_length=255)
     body = models.TextField(null=True, blank=True)
     reference_type = models.CharField(max_length=50, null=True, blank=True)
-    reference_id = models.CharField(max_length=26, null=True, blank=True)
+    reference_id = models.CharField(max_length=100, null=True, blank=True)
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:

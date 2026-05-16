@@ -249,6 +249,7 @@ class FeedService:
                         "post_id", "share_id"
                     )
                 )
+                liked_post_ids = {p[0] for p in like_pairs}
                 save_pairs = set(
                     SavedPost.objects.filter(user_id=user_id, post_id__in=all_post_ids).values_list(
                         "post_id", "share_id"
@@ -266,6 +267,7 @@ class FeedService:
                 }
             else:
                 like_pairs = set()
+                liked_post_ids = set()
                 save_pairs = set()
                 following_author_ids = set()
                 playback_map = {}
@@ -350,13 +352,13 @@ class FeedService:
                         "duration_seconds": post.duration_seconds,
                     } if post.audio_url else None,
                         "stats": {
-                            "likes": getattr(post, "likes_count", 0) or getattr(post, "like_count", 0) or 0,
-                            "comments": getattr(post, "comments_count", 0) or getattr(post, "comment_count", 0) or 0,
+                            "likes": getattr(post, "likes_count", getattr(post, "like_count", 0)),
+                            "comments": getattr(post, "comments_count", getattr(post, "comment_count", 0)),
                             "shares": int(direct_share_counts.get(post.id, 0) or 0),
-                            "saves": getattr(post, "saves_count", 0) or getattr(post, "save_count", 0) or 0,
+                            "saves": getattr(post, "saves_count", getattr(post, "save_count", 0)),
                         },
                     "viewer_state": {
-                        "is_liked": (post.id, None) in like_pairs,
+                        "is_liked": post.id in liked_post_ids,
                         "is_saved": (post.id, None) in save_pairs,
                         "is_following_author": post.user_id in following_author_ids,
                         "progress_seconds": getattr(playback, "progress_seconds", 0) or 0,
@@ -405,13 +407,20 @@ class FeedService:
                         post_id=post.id, share_id=share.id
                     ).count()
                     canonical_likes = PostLike.objects.filter(
-                        post_id=post.id, share_id__isnull=True
+                        post_id=post.id
                     ).count()
                     canonical_saves = SavedPost.objects.filter(
-                        post_id=post.id, share_id__isnull=True
+                        post_id=post.id
                     ).count()
                 except Exception:
                     share_likes = canonical_likes = canonical_saves = 0
+
+                if post.id in liked_post_ids and user:
+                    viewer_like_on_share = PostLike.objects.filter(
+                        user_id=user.id, post_id=post.id, share_id=share.id
+                    ).exists()
+                    if not viewer_like_on_share:
+                        share_likes += 1
 
                 item = {
                     "id": f"share_{share.id}_{post.id}",
@@ -452,7 +461,7 @@ class FeedService:
                         "saves": canonical_saves,
                     },
                     "viewer_state": {
-                        "is_liked": (post.id, share.id) in like_pairs,
+                        "is_liked": post.id in liked_post_ids,
                         "is_saved": (post.id, None) in save_pairs,
                         "is_following_author": post.user_id in following_author_ids,
                         "progress_seconds": getattr(playback, "progress_seconds", 0) or 0,

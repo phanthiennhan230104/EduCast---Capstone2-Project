@@ -195,13 +195,6 @@ function PostCard({
                   #{tag.name}
                 </span>
               ))}
-
-              {post.is_ai_generated && (
-                <span className={styles.aiBadgeInline}>
-                  <Sparkles size={13} />
-                  Được tạo bởi AI
-                </span>
-              )}
             </div>
           </div>
 
