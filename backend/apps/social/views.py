@@ -1052,22 +1052,24 @@ def get_following_list(request):
         return _json_error("Authentication required", 401)
 
     target_user_id = request.GET.get("user_id") or current_user.id
+    current_following_ids = set(
+        str(uid)
+        for uid in Follow.objects.filter(follower_id=current_user.id)
+        .values_list("following_id", flat=True)
+    )
 
     follows = Follow.objects.filter(
         follower_id=target_user_id
-    ).select_related("following", "following__profile")
+    ).select_related("following", "following__profile").order_by("-created_at")
 
-    following = []
-    for f in follows:
-        following_user = f.following
-        profile = getattr(following_user, "profile", None)
-
-        following.append({
-            "id": f.following_id,
-            "username": getattr(following_user, "username", ""),
-            "display_name": profile.display_name if profile else getattr(following_user, "username", ""),
-            "avatar_url": profile.avatar_url if profile else None,
-        })
+    following = [
+        _serialize_community_user(
+            follow.following,
+            current_user_id=current_user.id,
+            following_ids=current_following_ids,
+        )
+        for follow in follows
+    ]
 
     return _json_success(
         "Following list retrieved successfully",
@@ -1316,6 +1318,17 @@ def toggle_follow_user(request, target_user_id):
             "following_id": target_user.id,
         }
     )
+
+@csrf_exempt
+@require_http_methods(["DELETE", "POST"])
+def remove_follower(request, target_user_id):
+    current_user = _get_current_user(request)
+    if not current_user:
+        return _json_error("Authentication required", 401)
+
+    Follow.objects.filter(follower_id=target_user_id, following_id=current_user.id).delete()
+    
+    return _json_success("Follower removed successfully")
 
 # Notifications
 @require_http_methods(["GET"])

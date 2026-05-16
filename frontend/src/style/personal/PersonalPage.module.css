@@ -184,11 +184,22 @@
 
 .profileStats {
   margin: 6px 0 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-secondary);
   display: flex;
-  gap: 18px;
+  gap: 24px;
   flex-wrap: wrap;
+  align-items: center;
+}
+
+.clickableStat {
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.clickableStat:hover {
+  color: #fff;
+  text-decoration: underline;
 }
 
 .bio {

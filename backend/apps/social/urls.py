@@ -27,6 +27,7 @@ urlpatterns = [
     path("friends/", views.get_friends_list, name="get_friends_list"),
     path("users/suggestions/", views.get_follow_suggestions, name="get_follow_suggestions"),
     path("users/<str:target_user_id>/follow/", views.toggle_follow_user, name="toggle_follow_user"),
+    path("users/<str:target_user_id>/remove-follower/", views.remove_follower, name="remove_follower"),
 
     # Notifications
     path("notifications/", views.list_notifications, name="list_notifications"),

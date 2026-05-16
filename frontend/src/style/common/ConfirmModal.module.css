@@ -1,0 +1,103 @@
+.overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20000;
+  backdrop-filter: blur(8px);
+}
+
+.modal {
+  background-color: #262626;
+  width: 90%;
+  max-width: 400px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+  display: flex;
+  flex-direction: column;
+}
+
+.content {
+  padding: 32px 32px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.avatarWrapper {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  overflow: hidden;
+  margin-bottom: 24px;
+  background: #333;
+}
+
+.avatar {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 8px;
+}
+
+.message {
+  font-size: 14px;
+  color: #a8a8a8;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.footer {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.confirmBtn, .cancelBtn {
+  width: 100%;
+  height: 48px;
+  background: transparent;
+  border: none;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.confirmBtn.danger {
+  color: #ed4956;
+}
+
+.confirmBtn.danger:active {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.confirmBtn.info {
+  color: #0095f6;
+}
+
+.cancelBtn {
+  color: #fff;
+  font-weight: 400;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cancelBtn:active {
+  background: rgba(255, 255, 255, 0.05);
+}

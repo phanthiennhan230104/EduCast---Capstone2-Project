@@ -17,6 +17,7 @@ import ProfileShareModal from '../feed/ProfileShareModal'
 import EditShareCaptionModal from '../feed/EditShareCaptionModal'
 import EditPostModal from '../feed/EditPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
+import FollowListModal from '../personal/FollowListModal'
 import { useTranslation } from 'react-i18next'
 import { POST_REMOVED_EVENT, matchesRemovedPost } from '../../utils/postRemoval'
 import {
@@ -64,6 +65,7 @@ export default function PersonalPage() {
   const [editPostModalPost, setEditPostModalPost] = useState(null)
   const [selectedPost, setSelectedPost] = useState(null)
   const [showCollectionModal, setShowCollectionModal] = useState(false)
+  const [followModal, setFollowModal] = useState({ isOpen: false, type: 'followers' })
   const [followingIds, setFollowingIds] = useState(new Set())
   const [loadingFollow, setLoadingFollow] = useState({})
 
@@ -973,9 +975,19 @@ export default function PersonalPage() {
                   t('personal.userFallback')}              </h1>
               <p className={styles.profileStats}>
 
-                {t('personal.podcastCount', { count: userProfile?.podcast_count || 0 })} ·{' '}
-                {t('personal.followersCount', { count: userProfile?.followers_count || 0 })} ·{' '}
-                {t('personal.followingCount', { count: userProfile?.following_count || 0 })}              </p>
+                <span>{t('personal.podcastCount', { count: userProfile?.podcast_count || 0 })}</span>
+                <span 
+                  className={styles.clickableStat} 
+                  onClick={() => setFollowModal({ isOpen: true, type: 'followers' })}
+                >
+                  {t('personal.followersCount', { count: userProfile?.followers_count || 0 })}
+                </span>
+                <span 
+                  className={styles.clickableStat} 
+                  onClick={() => setFollowModal({ isOpen: true, type: 'following' })}
+                >
+                  {t('personal.followingCount', { count: userProfile?.following_count || 0 })}
+                </span>              </p>
             </div>
 
             <div className={styles.actions}>
@@ -1478,6 +1490,15 @@ export default function PersonalPage() {
         onSave={handleCollectionModalSave}
         triggerRef={saveBookmarkRef}
         isPopup={false}
+      />
+
+      <FollowListModal
+        isOpen={followModal.isOpen}
+        onClose={() => setFollowModal({ ...followModal, isOpen: false })}
+        type={followModal.type}
+        userId={profileUserId}
+        isOwnProfile={isOwnProfile}
+        onUpdateStats={fetchUserProfile}
       />
     </div>
   )

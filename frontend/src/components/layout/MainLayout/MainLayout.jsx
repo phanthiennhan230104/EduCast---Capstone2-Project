@@ -17,6 +17,7 @@ const PAGE_HANDLES_OPEN_POST_DETAIL = [
   '/favorites',
   '/search',
   '/chat',
+  '/messages',
 ]
 
 function mapPostDetail(raw, preview = {}) {

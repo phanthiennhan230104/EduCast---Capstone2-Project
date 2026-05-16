@@ -12,7 +12,6 @@ import {
 import { EyeOff, Ban } from "lucide-react";
 import { toast } from "react-toastify";
 import ChatAudioPlayer from "./ChatAudioPlayer"
-import CommentModal from "../feed/CommentModal"
 import { useTranslation } from "react-i18next";
 import {
   formatFileSize,
@@ -55,7 +54,6 @@ function formatTimeAgo(dateString) {
 }
 
 export default function MessageBubble({ message, containerRef }) {
-  const [showCommentModal, setShowCommentModal] = useState(false)
   const { t } = useTranslation();
   const navigate = useNavigate()
   const mine = message.is_mine
@@ -489,42 +487,6 @@ export default function MessageBubble({ message, containerRef }) {
         />
       </Modal>
 
-      {showCommentModal && podcastData && (
-        <CommentModal
-          podcast={{
-            id: podcastData.post_id,
-            postId: podcastData.post_id,
-            title: podcastData.title,
-            description: podcastData.description,
-            author: podcastData.author || sharedAuthor,
-            author_avatar:
-              typeof podcastData?.author === 'object'
-                ? podcastData.author?.avatar_url || ''
-                : '',
-            authorUsername:
-              typeof podcastData?.author === 'object'
-                ? podcastData.author?.username || ''
-                : podcastData.author_username || sharedAuthor || '',
-            cover: podcastData.thumbnail_url || '',
-            thumbnail_url: podcastData.thumbnail_url || '',
-            audio_url: podcastData.audio_url || '',
-            audioUrl: podcastData.audio_url || '',
-            duration_seconds: podcastData.duration_seconds || 0,
-            durationSeconds: podcastData.duration_seconds || 0,
-            created_at: podcastData.created_at || message.created_at,
-            timeAgo: podcastData.created_at ? formatTimeAgo(podcastData.created_at,t) : undefined,
-            isOwner: false,
-          }}
-          liked={false}
-          saved={false}
-          likeCount={Number(podcastData.like_count || 0)}
-          shareCount={Number(podcastData.share_count || 0)}
-          saveCount={Number(podcastData.save_count || 0)}
-          commentCount={Number(podcastData.comment_count || 0)}
-          onClose={() => setShowCommentModal(false)}
-          disableAutoScroll={true}
-        />
-      )}
     </>
   )
 }

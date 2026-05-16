@@ -343,12 +343,14 @@
 }
 
 .message-row.mine .message-media,
-.message-row.mine .message-file {
+.message-row.mine .message-file,
+.message-row.mine .message-podcast {
   align-items: flex-end;
 }
 
 .message-row:not(.mine) .message-media,
-.message-row:not(.mine) .message-file {
+.message-row:not(.mine) .message-file,
+.message-row:not(.mine) .message-podcast {
   align-items: flex-start;
 }
 
@@ -591,7 +593,8 @@
 }
 
 .shared-post-card {
-  width: min(340px, 100%);
+  width: 340px;
+  max-width: 100%;
   display: flex;
   align-items: center;
   gap: 12px;
@@ -697,7 +700,14 @@
   margin-top: 6px;
   width: 100%;
   display: flex;
+}
+
+.message-row.mine .message-podcast-time {
   justify-content: flex-end;
+}
+
+.message-row:not(.mine) .message-podcast-time {
+  justify-content: flex-start;
 }
 
 .shared-post-card-missing {
