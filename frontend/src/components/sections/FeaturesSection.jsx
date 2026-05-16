@@ -33,10 +33,10 @@ const features = [
   },
 ];
 
-export default function FeaturesSection() {
+export default function FeaturesSection({ id }) {
   return (
     <section className={styles.featuresSection}>
-      <div className={styles.headingBlock}>
+      <div className={styles.headingBlock} id={id}>
         <div className={styles.sectionEyebrow}>TÍNH NĂNG NỔI BẬT</div>
 
         <h2 className={styles.sectionTitle}>

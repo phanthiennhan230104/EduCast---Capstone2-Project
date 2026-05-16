@@ -341,4 +341,45 @@ def send_email_in_background(subject, message, recipient_email):
         target=send_email_async,
         args=(subject, message, recipient_email),
         daemon=True,
-    ).start()  
+    ).start()
+
+
+def log_login_history(user, request):
+    from .models import LoginHistory
+    import user_agents
+    
+    ip_address = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR'))
+    if ip_address:
+        ip_address = ip_address.split(',')[0].strip()
+        
+    user_agent_str = request.META.get('HTTP_USER_AGENT', '')
+    ua = user_agents.parse(user_agent_str)
+    
+    device_type = "Desktop"
+    if ua.is_mobile: device_type = "Mobile"
+    elif ua.is_tablet: device_type = "Tablet"
+    elif ua.is_pc: device_type = "Desktop"
+    
+    try:
+        LoginHistory.objects.create(
+            user=user,
+            ip_address=ip_address,
+            user_agent=user_agent_str,
+            device_type=device_type
+        )
+    except Exception as e:
+        print(f"❌ Error logging login history: {str(e)}")
+
+
+def log_user_activity(user_id, activity_type, reference_type, reference_id):
+    from .models import ActivityLog
+    try:
+        ActivityLog.objects.create(
+            user_id=user_id,
+            activity_type=activity_type,
+            reference_type=reference_type,
+            reference_id=reference_id
+        )
+    except Exception as e:
+        print(f"❌ Error logging user activity: {str(e)}")
+  

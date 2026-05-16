@@ -13,6 +13,7 @@ from .views import (
     ResetPasswordView,
     GoogleLoginView,
     UpdateUserProfileView,
+    ListLoginHistoryView,
 )
 from .settings_views import (
     UserSettingsView,
@@ -62,6 +63,7 @@ urlpatterns = [
     path("verify-reset-otp/", VerifyResetOTPView.as_view(), name="verify-reset-otp"),
     path("reset-password/", ResetPasswordView.as_view(), name="reset-password"),
     path("login/google/", GoogleLoginView.as_view(), name="google-login"),
+    path("login-history/", ListLoginHistoryView.as_view(), name="login-history"),
 
     path("admin/users/", AdminUsersListView.as_view(), name="admin-users-list"),
     path("admin/overview/", AdminOverviewView.as_view(), name="admin-overview"),
