@@ -15,7 +15,7 @@ createRoot(document.getElementById('root')).render(
       theme={{
         algorithm: theme.darkAlgorithm,
         token: {
-          colorPrimary: '#f5a623',
+          colorPrimary: '#7f8cff',
           borderRadius: 14,
         },
       }}

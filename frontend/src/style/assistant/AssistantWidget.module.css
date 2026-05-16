@@ -4,12 +4,12 @@
   height: 64px;
   border: none;
   border-radius: 999px;
-  background: linear-gradient(135deg, #f5a623, #ff8a00);
+  background: linear-gradient(135deg, #7f8cff, #5a67d8);
   color: #fff;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 16px 40px rgba(245, 166, 35, 0.28);
+  box-shadow: 0 16px 40px rgba(127, 140, 255, 0.28);
   cursor: pointer;
   z-index: 1200;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -25,7 +25,7 @@
 }
 
 .bubbleActive {
-  box-shadow: 0 20px 48px rgba(245, 166, 35, 0.36);
+  box-shadow: 0 20px 48px rgba(127, 140, 255, 0.36);
 }
 
 .popup {
@@ -68,7 +68,7 @@
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  background: linear-gradient(135deg, #f5a623, #ff8a00);
+  background: linear-gradient(135deg, #7f8cff, #5a67d8);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -112,7 +112,7 @@
 
 .userMessage {
   align-self: flex-end;
-  background: #f5a623;
+  background: #7f8cff;
   color: #111827;
 }
 
@@ -140,7 +140,7 @@
   height: 44px;
   border: none;
   border-radius: 14px;
-  background: #f5a623;
+  background: #7f8cff;
   color: #111827;
   cursor: pointer;
 }
@@ -160,12 +160,12 @@
     height: 64px;
     border: none;
     border-radius: 999px;
-    background: linear-gradient(135deg, #f5a623, #ff8a00);
+    background: linear-gradient(135deg, #7f8cff, #5a67d8);
     color: #fff;
     display: flex;
     align-items: center;
     justify-content: center;
-    box-shadow: 0 16px 40px rgba(245, 166, 35, 0.28);
+    box-shadow: 0 16px 40px rgba(127, 140, 255, 0.28);
     cursor: grab;
     z-index: 1200;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -273,17 +273,16 @@
 .tagChip {
   padding: 6px 10px;
   border-radius: 999px;
-  background: rgba(245, 166, 35, 0.12);
-  color: #ffd89b;
-  font-size: 12px;
-  border: 1px solid rgba(245, 166, 35, 0.18);
+  background: rgba(127, 140, 255, 0.12);
+  color: #cdd5ff;
+  border: 1px solid rgba(127, 140, 255, 0.18);
 }
 
 .searchResultCard .tagChip,
 .postPreviewModal .tagChip {
-  background: rgba(245, 166, 35, 0.15);
-  color: #d97706;
-  border-color: rgba(245, 166, 35, 0.3);
+  background: rgba(127, 140, 255, 0.15);
+  color: #7f8cff;
+  border-color: rgba(127, 140, 255, 0.3);
   font-weight: 500;
 }
 
@@ -306,8 +305,8 @@
 }
 
 .quickActionBtn:hover {
-  border-color: rgba(245, 166, 35, 0.45);
-  background: rgba(245, 166, 35, 0.1);
+  border-color: rgba(127, 140, 255, 0.45);
+  background: rgba(127, 140, 255, 0.1);
 }
 
 .searchResultList {
@@ -473,7 +472,7 @@
   padding: 10px 14px;
   border: none;
   border-radius: 12px;
-  background: linear-gradient(135deg, #f5a623, #ff8a00);
+  background: linear-gradient(135deg, #7f8cff, #5a67d8);
   color: #ffffff;
   font-weight: 600;
   font-size: 13px;
@@ -486,5 +485,5 @@
 
 .createPodcastFromAiBtn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(245, 166, 35, 0.25);
+  box-shadow: 0 4px 12px rgba(127, 140, 255, 0.25);
 }
