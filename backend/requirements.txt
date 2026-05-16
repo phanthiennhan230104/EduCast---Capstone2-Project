@@ -81,3 +81,4 @@ urllib3==2.6.3
 uvicorn==0.46.0
 yarl==1.23.0
 zope.interface==8.4
+django-cors-headers==4.4.0

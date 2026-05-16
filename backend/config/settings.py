@@ -35,6 +35,7 @@ ASGI_APPLICATION = "config.asgi.application"
 
 INSTALLED_APPS = [
     "daphne",
+    "corsheaders",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -56,7 +57,7 @@ INSTALLED_APPS = [
 
 
 MIDDLEWARE = [
-    'config.middleware.SimpleCORSMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -131,6 +132,15 @@ CORS_ALLOWED_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
+
+CSRF_TRUSTED_ORIGINS = [
+    "https://edu-cast-capstone2-project.vercel.app",
+    "https://educast-capstone2-project.onrender.com",
+    "http://localhost:5173",
+    "http://127.0.0.1:5173"
+]
+
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
