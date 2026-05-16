@@ -114,6 +114,7 @@ DATABASES = {
         'PORT': os.getenv("DB_PORT"),
         'OPTIONS': {
             'charset': 'utf8mb4',
+            'ssl': True if os.getenv("DB_SSL") == "True" else None
         }
     }
 }
