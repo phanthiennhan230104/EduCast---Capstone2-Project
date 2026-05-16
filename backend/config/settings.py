@@ -14,6 +14,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
 
+from pathlib import Path
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -35,7 +37,6 @@ ASGI_APPLICATION = "config.asgi.application"
 
 INSTALLED_APPS = [
     "daphne",
-    "corsheaders",
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -57,7 +58,7 @@ INSTALLED_APPS = [
 
 
 MIDDLEWARE = [
-    'corsheaders.middleware.CorsMiddleware',
+    'config.middleware.SimpleCORSMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -112,12 +113,15 @@ DATABASES = {
         'PASSWORD': os.getenv("DB_PASSWORD"),
         'HOST': os.getenv("DB_HOST"),
         'PORT': os.getenv("DB_PORT"),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
-            'ssl': {'ca': None} if os.getenv("DB_HOST") and "localhost" not in os.getenv("DB_HOST") else None
+        "OPTIONS": {
+            "ssl": {
+                "ca": os.path.join(BASE_DIR, "certificate", "ca.pem"),
+            }
         }
     }
 }
+
+print("BASE_DIR: ",BASE_DIR)
 
 # AUTH_PASSWORD_VALIDATORS = [#     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
 #     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -133,17 +137,6 @@ CORS_ALLOWED_ORIGINS = [
     ).split(",")
     if origin.strip()
 ]
-
-CSRF_TRUSTED_ORIGINS = [
-    "https://edu-cast-capstone2-project.vercel.app",
-    "https://educast-capstone2-project.onrender.com",
-    "http://localhost:5173",
-    "http://127.0.0.1:5173"
-]
-
-CORS_ALLOW_CREDENTIALS = True
-
-SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
@@ -248,6 +241,7 @@ LOGGING = {
     },
 }
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
+CORS_ALLOW_CREDENTIALS = True
 
 GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip()
 GROQ_MODEL = (os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant").strip()
