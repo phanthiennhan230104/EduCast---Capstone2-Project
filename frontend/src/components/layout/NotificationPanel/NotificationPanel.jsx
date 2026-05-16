@@ -75,12 +75,16 @@ export default function NotificationPanel() {
           setUnreadCount((prev) => prev + 1)
           
           setNotifications((prev) => {
-            // Only prepend if we already have notifications loaded
             if (prev.length > 0) {
               return [newNotif, ...prev]
             }
             return prev
           })
+        } else if (data.type === 'social_update') {
+          // Broadcast social updates (like follow/unfollow) to other components
+          window.dispatchEvent(new CustomEvent('social-update', { 
+            detail: data.social_update 
+          }));
         }
       } catch (err) {
         console.error('Error parsing notification message', err)

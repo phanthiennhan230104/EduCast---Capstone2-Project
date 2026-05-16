@@ -32,6 +32,8 @@ import {
   Bookmark,
   AlertCircle,
   RotateCcw,
+  UserPlus,
+  UserCheck,
 } from 'lucide-react'
 import styles from '../../style/personal/PersonalPage.module.css'
 
@@ -96,6 +98,74 @@ export default function PersonalPage() {
     userProfile?.profile_image ||
     userProfile?.image ||
     ''
+
+  React.useEffect(() => {
+    const handleSocialUpdate = (event) => {
+      const { type, data } = event.detail
+      if (type === 'follow_change') {
+        const { follower_id, following_id, followed } = data
+        const followerIdStr = String(follower_id)
+        const followingIdStr = String(following_id)
+        const myIdStr = user?.id ? String(user.id) : null
+        const profileIdStr = String(profileUserId)
+
+        // Case 1: The current user (me) is the follower
+        if (myIdStr === followerIdStr) {
+          setFollowingIds(prev => {
+            const newSet = new Set(prev)
+            if (followed) newSet.add(followingIdStr)
+            else newSet.delete(followingIdStr)
+            return newSet
+          })
+
+          if (isOwnProfile) {
+            setUserProfile(prev => {
+              if (!prev) return prev
+              // To avoid double counting if the API already updated it
+              // we could fetch, but for now let's just use the event
+              // since it's the source of truth for the whole system
+              return {
+                ...prev,
+                following_count: followed 
+                  ? (prev.following_count || 0) + 1 
+                  : Math.max(0, (prev.following_count || 0) - 1)
+              }
+            })
+          }
+        }
+
+        // Case 2: The profile being viewed is the one being followed/unfollowed
+        if (profileIdStr === followingIdStr) {
+          setUserProfile(prev => {
+            if (!prev) return prev
+            return {
+              ...prev,
+              is_following: myIdStr === followerIdStr ? followed : prev.is_following,
+              followers_count: followed 
+                ? (prev.followers_count || 0) + 1 
+                : Math.max(0, (prev.followers_count || 0) - 1)
+            }
+          })
+        }
+        
+        // Case 3: The profile being viewed is the follower (and it's not me)
+        if (profileIdStr === followerIdStr && profileIdStr !== myIdStr) {
+          setUserProfile(prev => {
+            if (!prev) return prev
+            return {
+              ...prev,
+              following_count: followed 
+                ? (prev.following_count || 0) + 1 
+                : Math.max(0, (prev.following_count || 0) - 1)
+            }
+          })
+        }
+      }
+    }
+
+    window.addEventListener('social-update', handleSocialUpdate)
+    return () => window.removeEventListener('social-update', handleSocialUpdate)
+  }, [profileUserId, user?.id, isOwnProfile])
 
   React.useEffect(() => {
     if (!profileUserId) return
@@ -455,18 +525,7 @@ export default function PersonalPage() {
       // Thêm delay 500ms để tạo cảm giác chân thực
       await new Promise(resolve => setTimeout(resolve, 500))
 
-      if (response.success || response.data) {
-        setFollowingIds(prev => {
-          const newSet = new Set(prev)
-          const followed = response.data?.followed ?? response.followed
-          if (followed) {
-            newSet.add(String(authorId))
-          } else {
-            newSet.delete(String(authorId))
-          }
-          return newSet
-        })
-      }
+      // WebSocket event will handle state updates for follows and counts
     } catch (err) {
       console.error('Toggle follow friend error:', err)
     } finally {
@@ -998,10 +1057,24 @@ export default function PersonalPage() {
                 </button>
               )}
 
-              <button className={styles.shareBtn} onClick={handleShareProfile}>
-                <Share2 size={16} />
-                {t('personal.share')}
-              </button>
+              {!isOwnProfile && (
+                <button 
+                  className={`${styles.followBtnMain} ${userProfile?.is_following ? styles.following : ''}`} 
+                  onClick={() => handleToggleFollowFriend(profileUserId)}
+                >
+                  {userProfile?.is_following ? (
+                    <>
+                      <UserCheck size={16} />
+                      {t('personal.following')}
+                    </>
+                  ) : (
+                    <>
+                      <UserPlus size={16} />
+                      {t('personal.followUser')}
+                    </>
+                  )}
+                </button>
+              )}
 
               <button className={styles.moreBtn} onClick={handleMoreOptions}>
                 <MoreHorizontal size={16} />

@@ -132,6 +132,24 @@ def _create_notification(
 
     return notification
 
+def _send_social_update(user_id, update_type, data):
+    try:
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            group_name = f"user_notifications_{user_id}"
+            async_to_sync(channel_layer.group_send)(
+                group_name,
+                {
+                    "type": "social_update",
+                    "social_update": {
+                        "type": update_type,
+                        "data": data
+                    }
+                }
+            )
+    except Exception as e:
+        print(f"❌ Error broadcasting social update: {str(e)}")
+
 # Helper để đếm like/comment/save/share cho post
 def _post_counts(post_id, share_id=None):
     if share_id:
@@ -1282,13 +1300,19 @@ def toggle_follow_user(request, target_user_id):
     # Nếu đã follow thì unfollow
     if existing_follow:
         existing_follow.delete()
+
+        # Broadcast real-time update via WebSocket
+        update_data = {
+            "follower_id": user.id,
+            "following_id": target_user.id,
+            "followed": False
+        }
+        _send_social_update(user.id, "follow_change", update_data)
+        _send_social_update(target_user.id, "follow_change", update_data)
+
         return _json_success(
             "Unfollowed user successfully",
-            {
-                "followed": False,
-                "follower_id": user.id,
-                "following_id": target_user.id,
-            }
+            update_data
         )
 
     # Nếu chưa follow thì tạo mới
@@ -1310,13 +1334,18 @@ def toggle_follow_user(request, target_user_id):
         reference_id=user.id
     )
 
+    # Broadcast real-time update via WebSocket
+    update_data = {
+        "follower_id": user.id,
+        "following_id": target_user.id,
+        "followed": True
+    }
+    _send_social_update(user.id, "follow_change", update_data)
+    _send_social_update(target_user.id, "follow_change", update_data)
+
     return _json_success(
         "Followed user successfully",
-        {
-            "followed": True,
-            "follower_id": user.id,
-            "following_id": target_user.id,
-        }
+        update_data
     )
 
 @csrf_exempt
@@ -1327,6 +1356,15 @@ def remove_follower(request, target_user_id):
         return _json_error("Authentication required", 401)
 
     Follow.objects.filter(follower_id=target_user_id, following_id=current_user.id).delete()
+
+    # Broadcast real-time update via WebSocket
+    update_data = {
+        "follower_id": target_user_id,
+        "following_id": current_user.id,
+        "followed": False
+    }
+    _send_social_update(current_user.id, "follow_change", update_data)
+    _send_social_update(target_user_id, "follow_change", update_data)
     
     return _json_success("Follower removed successfully")
 

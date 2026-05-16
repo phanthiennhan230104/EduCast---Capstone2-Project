@@ -221,6 +221,7 @@
 
 .editBtn,
 .shareBtn,
+.followBtnMain,
 .moreBtn {
   display: flex;
   align-items: center;
@@ -239,19 +240,22 @@
 }
 
 .editBtn:hover,
-.shareBtn:hover {
+.shareBtn:hover,
+.followBtnMain:hover {
   transform: translateY(-2px);
   box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
 }
 
-.shareBtn {
+.shareBtn,
+.followBtnMain.following {
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: var(--text-primary);
   box-shadow: none;
 }
 
-.shareBtn:hover {
+.shareBtn:hover,
+.followBtnMain.following:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.3);
 }

@@ -41,3 +41,11 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             "type": "new_notification",
             "notification": notification
         }))
+
+    async def social_update(self, event):
+        social_update = event["social_update"]
+        # Send social update (follow/unfollow) to WebSocket
+        await self.send(text_data=json.dumps({
+            "type": "social_update",
+            "social_update": social_update
+        }))
