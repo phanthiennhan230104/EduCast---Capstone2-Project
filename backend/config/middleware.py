@@ -9,7 +9,7 @@ class SimpleCORSMiddleware:
         self.allowed_origins = frozenset(origins)
 
     def __call__(self, request):
-        origin = request.headers.get("Origin")
+        origin = (request.headers.get("Origin") or "").rstrip("/")
 
         if request.method == "OPTIONS":
             response = HttpResponse(status=200)

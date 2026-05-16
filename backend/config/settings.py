@@ -124,7 +124,12 @@ DATABASES = {
 # ]
 
 CORS_ALLOWED_ORIGINS = [
-    origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()
+    origin.strip().rstrip("/")
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "https://edu-cast-capstone2-project.vercel.app"
+    ).split(",")
+    if origin.strip()
 ]
 
 # Password validation
