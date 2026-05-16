@@ -25,6 +25,7 @@ import AdminContentModeration from "./components/admin/AdminContentModeration";
 import AdminSystemPage from "./components/admin/AdminSystemPage";
 import AssistantWidget from "./components/assistant/AssistantWidget";
 import HashtagPage from "./pages/HashtagPage/HashtagPage";
+import ArchivePage from "./pages/ArchivePage/ArchivePage";
 
 function RootRedirect() {
   const { isAuthenticated, loading, user } = useAuth();
@@ -230,6 +231,15 @@ function AppRoutes() {
               }
             />
 
+
+            <Route
+              path="/archive"
+              element={
+                <ProtectedRoute>
+                  <ArchivePage />
+                </ProtectedRoute>
+              }
+            />
 
                 <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

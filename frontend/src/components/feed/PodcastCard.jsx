@@ -4,7 +4,8 @@ import { createPortal } from 'react-dom'
 import { toast } from 'react-toastify'
 import {
   Play, Pause, Heart, MessageCircle,
-  Share2, Bookmark, Sparkles, MoreHorizontal, Edit, Trash2, EyeOff, Flag, X
+  Share2, Bookmark, Sparkles, MoreHorizontal, Edit, Trash2, EyeOff, Flag, X,
+  RotateCcw
 } from 'lucide-react'
 import styles from '../../style/feed/PodcastCard.module.css'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
@@ -47,6 +48,8 @@ export default function PodcastCard({
   onSeek = null,
   onEditPost = null,
   rejectionBanner = null,
+  isArchivedView = false,
+  onRestore = null,
 }) {
   const { t } = useTranslation()
   const currentUser = getCurrentUser()
@@ -868,6 +871,7 @@ export default function PodcastCard({
           embedInShare ? styles.cardShareEmbed : '',
           showCommentModal ? styles.noHover : '',
           isActive ? styles.activeCard : '',
+          isArchivedView ? styles.archivedCard : '',
         ].join(' ')}
       >
         {rejectionBanner}
@@ -917,10 +921,18 @@ export default function PodcastCard({
               >
                 {authorDisplayName}
               </span>
-              <span className={styles.metaDot}>•</span>
-              <span className={styles.authorMetaText}>{podcast.timeAgo}</span>
-              <span className={styles.metaDot}>•</span>
-              <span className={styles.authorMetaText}>{podcast.listens}</span>
+              {podcast.timeAgo && (
+                <>
+                  <span className={styles.metaDot}>•</span>
+                  <span className={styles.authorMetaText}>{podcast.timeAgo}</span>
+                </>
+              )}
+              {podcast.listens !== undefined && podcast.listens !== null && (
+                <>
+                  <span className={styles.metaDot}>•</span>
+                  <span className={styles.authorMetaText}>{podcast.listens}</span>
+                </>
+              )}
             </div>
 
             <div className={styles.tagRow}>
@@ -990,9 +1002,14 @@ export default function PodcastCard({
         <div className={styles.body}>
           <div className={styles.textContent}>
             <h3 className={styles.title}>{livePostMeta.title ?? title}</h3>
-            <p className={styles.description}>
+            <p className={`${styles.description} ${isArchivedView ? styles.archivedDescription : ''}`}>
               {livePostMeta.description ?? description}
             </p>
+            {isArchivedView && (livePostMeta.description ?? description)?.length > 120 && (
+              <span className={styles.seeMoreLink} onClick={() => setShowCommentModal(true)}>
+                {t('feed.seeMore')}
+              </span>
+            )}
           </div>
 
           {cover && (
@@ -1042,7 +1059,7 @@ export default function PodcastCard({
           </div>
         </div>
 
-        {!hideActions && (
+        {!hideActions && !isArchivedView && (
           <div className={styles.actions} onClick={(e) => e.stopPropagation()}>
             <div
               ref={(el) => { statRefs.current.likes = el }}
@@ -1175,6 +1192,15 @@ export default function PodcastCard({
             >
               <Bookmark size={16} fill={saved ? 'currentColor' : 'none'} />
               <span>{t('feed.save', { count: saveCount })}</span>
+            </button>
+          </div>
+        )}
+
+        {isArchivedView && (
+          <div className={styles.archiveActions}>
+            <button className={styles.restoreBtn} onClick={onRestore}>
+              <RotateCcw size={14} />
+              <span>{t('personal.restore')}</span>
             </button>
           </div>
         )}

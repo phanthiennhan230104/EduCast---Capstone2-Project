@@ -7,7 +7,7 @@ import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { apiRequest } from '../../utils/api'
 import { getInitials } from '../../utils/getInitials'
 import { toast } from 'react-toastify'
-import { message } from 'antd'
+import { message, Dropdown } from 'antd'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { EDUCAST_PERSONAL_SHARE_SUCCESS } from '../../utils/appEvents'
 import PodcastCard from '../feed/PodcastCard'
@@ -34,6 +34,7 @@ import {
   RotateCcw,
   UserPlus,
   UserCheck,
+  Archive,
 } from 'lucide-react'
 import styles from '../../style/personal/PersonalPage.module.css'
 
@@ -599,6 +600,10 @@ export default function PersonalPage() {
     toast.info(t('personal.moreOptions'))
   }
 
+  const handleViewArchived = () => {
+    navigate('/archive')
+  }
+
   const handleFollowUser = async () => {
     try {
       const currentUser = getCurrentUser()
@@ -1076,9 +1081,23 @@ export default function PersonalPage() {
                 </button>
               )}
 
-              <button className={styles.moreBtn} onClick={handleMoreOptions}>
-                <MoreHorizontal size={16} />
+              <button className={styles.shareBtn} onClick={handleShareProfile}>
+                <Share2 size={16} />
+                {t('personal.share')}
               </button>
+
+              {isOwnProfile && (
+                <button className={styles.archiveBtn} onClick={handleViewArchived}>
+                  <Archive size={16} />
+                  {t('personal.archived')}
+                </button>
+              )}
+
+              {!isOwnProfile && (
+                <button className={styles.moreBtn} onClick={handleMoreOptions}>
+                  <MoreHorizontal size={16} />
+                </button>
+              )}
             </div>
           </div>
 
@@ -1497,7 +1516,6 @@ export default function PersonalPage() {
           onClose={() => setShowProfileShareModal(false)}
           onShareSuccess={() => {
             setShowProfileShareModal(false)
-            toast.success('Đã chia sẻ trang cá nhân')
           }}
         />
       )}

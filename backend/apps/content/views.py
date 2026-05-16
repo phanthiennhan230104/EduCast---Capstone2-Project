@@ -767,6 +767,7 @@ class DraftUpdateView(APIView):
                 {
                     "message": "Cập nhật bản nháp thành công",
                     "data": DraftDetailSerializer(post).data,
+                    "success": True,
                 },
                 status=status.HTTP_200_OK,
             )
@@ -1413,6 +1414,59 @@ class UserSharedPostsAPIView(APIView):
             return Response({
                 "error": f"Failed to load user shared posts: {str(e)}",
                 "shared_posts": []
+            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class ArchivedPostsAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        try:
+            # Lấy tất cả posts của user hiện tại có status là archived
+            posts = Post.objects.filter(
+                user=request.user,
+                status="archived"
+            ).select_related("user", "user__profile").order_by("-created_at")
+
+            posts_data = []
+            # Reuse logic to build post data if possible, or just build it here
+            for post in posts:
+                # Mocking a basic build_post_data since UserPostsAPIView is an instance
+                # Actually, better to just call the logic or refactor
+                author_name = post.user.username
+                if hasattr(post.user, 'profile') and post.user.profile:
+                    author_name = post.user.profile.display_name or post.user.username
+                
+                author_avatar = None
+                if hasattr(post.user, 'profile') and post.user.profile:
+                    author_avatar = post.user.profile.avatar_url
+
+                post_data = {
+                    "id": post.id,
+                    "title": post.title,
+                    "slug": post.slug,
+                    "description": post.description,
+                    "audio_url": post.audio_url,
+                    "thumbnail_url": post.thumbnail_url,
+                    "author_name": author_name,
+                    "author_username": post.user.username,
+                    "author_avatar": author_avatar,
+                    "view_count": post.view_count,
+                    "duration_seconds": post.duration_seconds,
+                    "status": post.status,
+                    "created_at": post.created_at.isoformat(),
+                    "updated_at": post.updated_at.isoformat() if post.updated_at else None,
+                    "tags": [{"id": tag.id, "name": tag.name} for tag in Tag.objects.filter(tag_posts__post_id=post.id)],
+                }
+                posts_data.append(post_data)
+
+            return Response({
+                "success": True,
+                "data": posts_data
+            }, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({
+                "success": False,
+                "error": str(e)
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class PostDetailView(APIView):

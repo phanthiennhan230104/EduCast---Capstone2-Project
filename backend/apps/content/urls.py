@@ -13,6 +13,7 @@ from .views import (
     TopicListView,
     TagListView,
     PostRequestRepublishView,
+    ArchivedPostsAPIView,
 )
 from .admin_views import (
     AdminPostsListView,
@@ -45,6 +46,7 @@ urlpatterns = [
     path("posts/<str:post_id>/", PostDetailView.as_view(), name="post-detail"),
     path("posts/<str:post_id>/request-republish/", PostRequestRepublishView.as_view(), name="request-republish"),
     path("users/<str:user_id>/posts/", UserPostsAPIView.as_view(), name="user-posts"),
+    path("posts/my/archived/", ArchivedPostsAPIView.as_view(), name="archived-posts"),
 
     path("drafts/", DraftCreateView.as_view(), name="draft-create"),
     path("drafts/preview-audio/", AudioPreviewView.as_view(), name="draft-preview-audio"),
