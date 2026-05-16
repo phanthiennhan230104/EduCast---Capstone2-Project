@@ -114,7 +114,7 @@ DATABASES = {
         'PORT': os.getenv("DB_PORT"),
         'OPTIONS': {
             'charset': 'utf8mb4',
-            'ssl': {'ca': None} if not DEBUG else None
+            'ssl': {'ca': None} if os.getenv("DB_HOST") and "localhost" not in os.getenv("DB_HOST") else None
         }
     }
 }
