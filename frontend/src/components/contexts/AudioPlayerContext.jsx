@@ -10,6 +10,7 @@ import {
 import { AuthContext } from './AuthContext'
 import { getToken } from '../../utils/auth'
 import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
+import { API_BASE_URL } from '../../config/apiBase'
 
 const AudioPlayerContext = createContext(null)
 
@@ -490,7 +491,7 @@ const seekTrackToPercent = useCallback((track, percent, trackQueue = []) => {
         const token = getToken()
 
         const response = await fetch(
-          `http://localhost:8000/api/social/posts/${listenPostId}/listen/`,
+          `${API_BASE_URL}/social/posts/${listenPostId}/listen/`,
           {
             method: 'POST',
             headers: {

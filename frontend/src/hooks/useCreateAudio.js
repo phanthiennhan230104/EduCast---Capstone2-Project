@@ -11,6 +11,7 @@ import {
 } from '../utils/contentApi'
 import { formatDurationVi } from '../utils/formatDuration'
 import { getToken } from '../utils/auth'
+import { WS_ORIGIN } from '../config/apiBase'
 
 const VOICE_NAME_MAP = {
   'vi-hoai-my': 'vi-VN-HoaiMyNeural',
@@ -516,7 +517,7 @@ export function useCreateAudio() {
       setDurationSeconds(0)
 
       const token = getToken()
-      const wsUrl = `ws://127.0.0.1:8000/ws/audio-progress/${taskId}/?token=${token}`
+      const wsUrl = `${WS_ORIGIN}/ws/audio-progress/${taskId}/?token=${token}`
       const ws = new WebSocket(wsUrl)
       
       const wsPromise = new Promise((resolve, reject) => {

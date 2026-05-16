@@ -9,6 +9,7 @@ import styles from '../../../style/layout/AudioPlayer.module.css'
 import { useAudioPlayer } from "../../contexts/AudioPlayerContext";
 import { getToken, getCurrentUser } from '../../../utils/auth'
 import { getCanonicalPostIdForEngagement } from '../../../utils/canonicalPostId'
+import { API_BASE_URL } from '../../../config/apiBase'
 import { useNavigate, useLocation } from 'react-router-dom'
 
 /** Feed truyền `author` là object { id, username, name, avatar_url } — không render trực tiếp trong React. */
@@ -113,7 +114,7 @@ export default function AudioPlayer() {
           const token = getToken()
           const user = getCurrentUser()
           const res = await fetch(
-            `http://localhost:8000/api/social/posts/${syncId}/comments/?user_id=${encodeURIComponent(
+            `${API_BASE_URL}/social/posts/${syncId}/comments/?user_id=${encodeURIComponent(
               user?.id || ''
             )}`,
             {
@@ -198,7 +199,7 @@ export default function AudioPlayer() {
       const currentUser = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${likePostId}/like/`,
+        `${API_BASE_URL}/social/posts/${likePostId}/like/`,
         {
           method: 'POST',
           headers: {

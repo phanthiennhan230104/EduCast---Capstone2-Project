@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from 'react';
 import { getNotifications, markAllNotificationsAsRead } from '../../utils/notificationApi';
 import { getToken } from '../../utils/auth';
+import { WS_ORIGIN } from '../../config/apiBase';
 
 const NotificationContext = createContext();
 
@@ -62,7 +63,7 @@ export const NotificationProvider = ({ children }) => {
     const connectWS = () => {
       if (wsRef.current) wsRef.current.close();
 
-      const wsUrl = `ws://127.0.0.1:8000/ws/notifications/?token=${token}`;
+      const wsUrl = `${WS_ORIGIN}/ws/notifications/?token=${token}`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 

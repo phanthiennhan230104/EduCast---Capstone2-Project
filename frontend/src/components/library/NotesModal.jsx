@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { X } from 'lucide-react'
 import styles from '../../style/library/NotesModal.module.css'
 import { getToken } from '../../utils/auth'
+import { API_BASE_URL } from '../../config/apiBase'
 
 export default function NotesModal({ isOpen, onClose, post, onSaveNote, onNoteLoaded }) {
   const { t } = useTranslation()
@@ -21,7 +22,7 @@ export default function NotesModal({ isOpen, onClose, post, onSaveNote, onNoteLo
   const fetchNote = async (postId) => {
     try {
       const token = getToken()
-      const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${postId}/notes/`, {
+      const response = await fetch(`${API_BASE_URL}/social/posts/${postId}/notes/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',

@@ -390,7 +390,7 @@ export default function PodcastCard({
           await new Promise(resolve => setTimeout(resolve, 300))
 
           const token = getToken()
-          const deleteUrl = `http://localhost:8000/api/content/drafts/${podcast.id}/delete/`
+          const deleteUrl = `${API_BASE_URL}/content/drafts/${podcast.id}/delete/`
 
           const res = await fetch(deleteUrl, {
             method: 'DELETE',
@@ -433,7 +433,7 @@ export default function PodcastCard({
           const token = getToken()
           const currentUser = getCurrentUser()
 
-          const res = await fetch(`http://localhost:8000/api/social/posts/${podcast.id}/hide/`, {
+          const res = await fetch(`${API_BASE_URL}/social/posts/${podcast.id}/hide/`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -545,7 +545,7 @@ export default function PodcastCard({
       const currentUser = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${engagementPostId}/like/`,
+        `${API_BASE_URL}/social/posts/${engagementPostId}/like/`,
         {
           method: 'POST',
           headers: {
@@ -612,7 +612,7 @@ export default function PodcastCard({
         const currentUser = getCurrentUser()
 
         const res = await fetch(
-          `http://localhost:8000/api/social/posts/${engagementPostId}/save/`,
+          `${API_BASE_URL}/social/posts/${engagementPostId}/save/`,
           {
             method: 'POST',
             headers: {
@@ -1344,7 +1344,7 @@ function ReportModal({ postId, postTitle, authorId, authorName, onClose, onRepor
 
       const token = getToken()
 
-      const res = await fetch('http://localhost:8000/api/social/reports/create/', {
+      const res = await fetch(`${API_BASE_URL}/social/reports/create/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

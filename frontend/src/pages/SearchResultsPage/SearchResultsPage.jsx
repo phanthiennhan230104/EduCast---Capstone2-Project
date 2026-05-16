@@ -260,7 +260,7 @@ export default function SearchResultsPage() {
       try {
         const token = getToken()
 
-        const response = await fetch('http://127.0.0.1:8000/api/social/follow-list/', {
+        const response = await fetch(`${API_BASE_URL}/social/follow-list/`, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
@@ -295,7 +295,7 @@ export default function SearchResultsPage() {
       const token = getToken()
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/social/users/${authorId}/follow/`,
+        `${API_BASE_URL}/social/users/${authorId}/follow/`,
         {
           method: 'POST',
           headers: {
@@ -576,7 +576,7 @@ export default function SearchResultsPage() {
       const user = getCurrentUser()
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/social/posts/${selectedPostDetail.id}/like/`,
+        `${API_BASE_URL}/social/posts/${selectedPostDetail.id}/like/`,
         {
           method: 'POST',
           headers: {
@@ -643,7 +643,7 @@ export default function SearchResultsPage() {
       const user = getCurrentUser()
 
       const response = await fetch(
-        `http://127.0.0.1:8000/api/social/posts/${selectedPostDetail.id}/save/`,
+        `${API_BASE_URL}/social/posts/${selectedPostDetail.id}/save/`,
         {
           method: 'POST',
           headers: {
@@ -703,7 +703,7 @@ export default function SearchResultsPage() {
   const handleShare = async () => {
     try {
       const token = getToken()
-      const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${selectedPostDetail?.id}/share/`, {
+      const response = await fetch(`${API_BASE_URL}/social/posts/${selectedPostDetail?.id}/share/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

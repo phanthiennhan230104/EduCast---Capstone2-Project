@@ -6,6 +6,7 @@ import 'react-toastify/dist/ReactToastify.css'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import { getDraftDetail, saveDraftWithAudio } from '../../utils/contentApi'
 import { getToken } from '../../utils/auth'
+import { API_BASE_URL } from '../../config/apiBase'
 import styles from '../../style/pages/EditAudioPage/EditAudioPage.module.css'
 import { ArrowLeft, AlertCircle } from 'lucide-react'
 
@@ -86,7 +87,7 @@ export default function EditAudioPage() {
       const token = getToken()
 
       const res = await fetch(
-        `http://localhost:8000/api/content/drafts/${postId}/update/`,
+        `${API_BASE_URL}/content/drafts/${postId}/update/`,
         {
           method: 'PUT',
           headers: {

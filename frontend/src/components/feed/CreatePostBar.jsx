@@ -4,6 +4,7 @@ import { toast } from 'react-toastify'
 import styles from '../../style/feed/CreatePostBar.module.css'
 import { getInitials } from '../../utils/getInitials'
 import { getToken } from '../../utils/auth'
+import { API_BASE_URL } from '../../config/apiBase'
 import { useAuth } from '../contexts/AuthContext'
 import { useTranslation } from 'react-i18next'
 
@@ -31,7 +32,7 @@ export default function CreatePostBar() {
       setLoadingDrafts(true)
       const token = getToken()
 
-      const res = await fetch('http://localhost:8000/api/content/drafts/my/', {
+      const res = await fetch(`${API_BASE_URL}/content/drafts/my/`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Bell } from "lucide-react";
 import "../../style/admin/admin-header.css";
 
-const API_BASE_URL = "http://localhost:8000/api/content";
+const API_BASE_URL = `${import.meta.env.VITE_API_URL}/api/content`;
 
 function getStorageValue(key) {
   return localStorage.getItem(key) || sessionStorage.getItem(key);

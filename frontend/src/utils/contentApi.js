@@ -130,7 +130,7 @@ export const uploadThumbnail = async (file) => {
   
   const token = getToken()
   
-  const res = await fetch('http://localhost:8000/api/content/upload-thumbnail/', {
+  const res = await fetch(`${API_BASE_URL}/content/upload-thumbnail/`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${token}`,
