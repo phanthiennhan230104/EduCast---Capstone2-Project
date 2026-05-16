@@ -125,10 +125,14 @@ DATABASES = {
 #     {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 # ]
 
-CORS_ALLOW_ALL_ORIGINS = True
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_METHODS = ["DELETE", "GET", "OPTIONS", "PATCH", "POST", "PUT"]
-CORS_ALLOW_HEADERS = ["*"]
+CORS_ALLOWED_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "https://edu-cast-capstone2-project.vercel.app"
+    ).split(",")
+    if origin.strip()
+]
 
 CSRF_TRUSTED_ORIGINS = [
     "https://edu-cast-capstone2-project.vercel.app",
@@ -137,9 +141,9 @@ CSRF_TRUSTED_ORIGINS = [
     "http://127.0.0.1:5173"
 ]
 
+CORS_ALLOW_CREDENTIALS = True
+
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-USE_X_FORWARDED_HOST = True
-USE_X_FORWARDED_PORT = True
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
