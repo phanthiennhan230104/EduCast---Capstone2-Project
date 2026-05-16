@@ -22,6 +22,8 @@ import { useAuth } from '../../components/contexts/AuthContext'
 import { getInitials } from '../../utils/getInitials'
 import { showToast } from '../../utils/toast'
 import { updateUserProfile, updateUserSettings, changePassword, deleteAccount, exportUserData } from '../../utils/usersApi'
+import { apiRequest } from '../../utils/api'
+import { Select, ConfigProvider } from 'antd'
 import styles from '../../style/pages/SettingsPage/SettingsPage.module.css'
 import { useTranslation } from 'react-i18next'
 
@@ -135,6 +137,30 @@ function AccountSettings({ profile, onProfileUpdate }) {
   const [oldPassword, setOldPassword] = useState('')
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
+  const [favoriteTopics, setFavoriteTopics] = useState(profile.favorite_topics?.map(t => t.id) || [])
+  const [availableTopics, setAvailableTopics] = useState([])
+
+  useEffect(() => {
+    const fetchTopics = async () => {
+      try {
+        const res = await apiRequest('/content/topics/')
+        if (res && res.data && Array.isArray(res.data)) {
+          setAvailableTopics(res.data)
+        }
+      } catch (err) {
+        console.error('Error fetching topics:', err)
+      }
+    }
+    fetchTopics()
+  }, [])
+
+  const toggleTopic = (topicId) => {
+    setFavoriteTopics(prev => 
+      prev.includes(topicId) 
+        ? prev.filter(id => id !== topicId)
+        : [...prev, topicId]
+    )
+  }
 
   const previewAvatarFile = (file) => {
     setAvatar(file)
@@ -197,6 +223,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
       const formData = new FormData()
       formData.append('display_name', displayName)
       formData.append('bio', bio)
+      formData.append('favorite_topics', JSON.stringify(favoriteTopics))
       if (avatar) {
         formData.append('avatar', avatar)
       }
@@ -288,7 +315,46 @@ function AccountSettings({ profile, onProfileUpdate }) {
                 placeholder={t('settings.account.bio')}
                 className={styles.textarea}
               />
-              <div className={styles.profileActions}>
+              
+              <div className={styles.topicsSection} style={{ marginTop: '10px' }}>
+                <ConfigProvider
+                  theme={{
+                    token: {
+                      colorBgContainer: 'rgba(255, 255, 255, 0.03)',
+                      colorBgElevated: '#1c214a',
+                      colorBorder: 'rgba(255, 255, 255, 0.12)',
+                      colorText: '#f5f0e7',
+                      colorTextPlaceholder: '#8f95b5',
+                      colorPrimary: '#f0a84c',
+                      borderRadius: 6,
+                    },
+                    components: {
+                      Select: {
+                        selectorBg: 'rgba(255, 255, 255, 0.03)',
+                        multipleItemBg: 'rgba(240, 168, 76, 0.18)',
+                        optionSelectedBg: 'rgba(240, 168, 76, 0.18)',
+                        optionActiveBg: 'rgba(255, 255, 255, 0.06)',
+                      },
+                    },
+                  }}
+                >
+                  <Select
+                    mode="multiple"
+                    placeholder={t('personal.favoriteTopics') || 'Chọn chủ đề yêu thích'}
+                    value={favoriteTopics}
+                    onChange={(values) => setFavoriteTopics(values)}
+                    className={styles.customSelect}
+                    classNames={{ popup: { root: 'custom-select-dropdown' } }}
+                    style={{ width: '100%' }}
+                    options={availableTopics.map(t => ({ label: t.name, value: t.id }))}
+                    filterOption={(input, option) =>
+                      (option?.label ?? '').toLowerCase().includes(input.toLowerCase())
+                    }
+                  />
+                </ConfigProvider>
+              </div>
+
+              <div className={styles.profileActions} style={{ marginTop: '16px' }}>
                 <input
                   type="file"
                   accept="image/*"
@@ -375,6 +441,22 @@ function AccountSettings({ profile, onProfileUpdate }) {
           <div className={styles.infoRow}>
             <span>{t('settings.account.bio')}</span>
             <strong>{bio || t('settings.account.notUpdated')}</strong>
+            <button className={styles.smallBtn} onClick={() => setIsEditing(true)}>{t('settings.account.editShort')}</button>
+          </div>
+
+          <div className={styles.infoRow} style={{ borderBottom: 'none' }}>
+            <span>{t('personal.favoriteTopics') || 'Chủ đề yêu thích'}</span>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+              {profile.favorite_topics && profile.favorite_topics.length > 0 ? (
+                profile.favorite_topics.map(t => (
+                  <span key={t.id} style={{ fontSize: '12px', background: '#374151', padding: '2px 8px', borderRadius: '12px' }}>
+                    {t.name}
+                  </span>
+                ))
+              ) : (
+                <strong>{t('settings.account.notUpdated')}</strong>
+              )}
+            </div>
             <button className={styles.smallBtn} onClick={() => setIsEditing(true)}>{t('settings.account.editShort')}</button>
           </div>
         </div>
@@ -776,6 +858,7 @@ export default function SettingsPage() {
         email: user?.email || '',
         avatar: user?.avatar || user?.avatar_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(fallbackName)}&background=667eea&color=fff&size=120`,
         bio: user?.bio || '',
+        favorite_topics: user?.favorite_topics || [],
       })
     }
   }, [user])

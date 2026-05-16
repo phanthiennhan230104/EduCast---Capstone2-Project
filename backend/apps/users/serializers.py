@@ -188,8 +188,10 @@ class MyTokenObtainPairSerializer(serializers.Serializer):
                 "status": user.status,
                 "is_verified": user.is_verified,
                 "display_name": profile.display_name if profile else user.username,
+                "bio": profile.bio if profile else "",
                 "avatar_url": profile.avatar_url if profile else None,
                 "preferred_language": profile.preferred_language if profile else "vi",
+                "favorite_topics": [{'id': t.id, 'name': t.name} for t in profile.favorite_topics.all()] if profile else [],
             }
         }
 
@@ -221,10 +223,20 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'headline',
             'learning_field',
             'interests',
+            'favorite_topics',
             'preferred_language',
             'created_at',
             'updated_at',
         ]
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        # Trả về danh sách chi tiết (id, name) thay vì chỉ mảng các ID
+        ret['favorite_topics'] = [
+            {'id': topic.id, 'name': topic.name}
+            for topic in instance.favorite_topics.all()
+        ]
+        return ret
     
 
 class AdminUserListSerializer(serializers.ModelSerializer):

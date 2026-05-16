@@ -114,6 +114,13 @@ export function useCreateAudio() {
   const isCancelledRef = useRef(false)
 
   useEffect(() => {
+    if (location.state?.initialText) {
+      setText(location.state.initialText)
+      setSourceTab('text')
+    }
+  }, [location.state?.initialText])
+
+  useEffect(() => {
     if (genState !== 'processing') return
 
     const incrementProgress = () => {
@@ -516,7 +523,7 @@ export function useCreateAudio() {
         ws.onmessage = (event) => {
           try {
             const data = JSON.parse(event.data)
-            if (data.status === 'processing') {
+            if (data.status === 'generating') {
               setProgress(data.progress || 0)
               setProcStep(data.step || '')
             } else if (data.status === 'done') {

@@ -179,19 +179,28 @@
 }
 
 .notificationTitle {
-  font-size: 13px;
-  font-weight: 600;
-  color: #f0f2f5;
-  margin-bottom: 4px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #7192f7; /* Làm nổi bật tiêu đề */
+  margin-bottom: 2px;
   line-height: 1.3;
 }
 
 .notificationBody {
-  font-size: 12px;
-  color: #93a0c8;
-  line-height: 1.5;
+  font-size: 13px;
+  color: #e2e8f0;
+  line-height: 1.4;
   margin-bottom: 6px;
   word-break: break-word;
+}
+
+.clickable {
+  cursor: pointer;
+}
+
+.clickable:hover {
+  background: rgba(113, 146, 247, 0.15);
+  box-shadow: inset 0 0 10px rgba(113, 146, 247, 0.05);
 }
 
 .notificationTime {

@@ -1,6 +1,7 @@
 import os
 import re
 import requests
+import google.generativeai as genai
 
 
 def _clean_text(text: str) -> str:
@@ -210,6 +211,16 @@ def _call_openai_compatible_api(
     return data["choices"][0]["message"]["content"].strip()
 
 
+def _call_gemini_api(api_key: str, model: str, system_prompt: str, user_prompt: str) -> str:
+    genai.configure(api_key=api_key)
+    generative_model = genai.GenerativeModel(
+        model_name=model,
+        system_instruction=system_prompt
+    )
+    response = generative_model.generate_content(user_prompt)
+    return response.text.strip()
+
+
 def _build_prompts(text: str, mode: str) -> tuple[str, str]:
     summary_guidance = _target_summary_guidance(text)
     dialogue_guidance = _target_dialogue_guidance(text)
@@ -348,30 +359,37 @@ Nội dung:
 
 
 def _generate_with_ai(text: str, mode: str) -> str:
+    gemini_api_key = os.getenv("GEMINI_API_KEY")
     groq_api_key = os.getenv("GROQ_API_KEY")
-    openai_api_key = os.getenv("OPENAI_API_KEY")
 
     system_prompt, user_prompt = _build_prompts(text, mode)
 
+    # Ưu tiên Gemini trước
+    if gemini_api_key:
+        try:
+            return _call_gemini_api(
+                api_key=gemini_api_key,
+                model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            )
+        except Exception as e:
+            print(f"Gemini API failed: {e}. Falling back to Groq...")
+
+    # Dự phòng Groq
     if groq_api_key:
-        return _call_openai_compatible_api(
-            api_key=groq_api_key,
-            base_url="https://api.groq.com/openai/v1",
-            model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-        )
+        try:
+            return _call_openai_compatible_api(
+                api_key=groq_api_key,
+                base_url="https://api.groq.com/openai/v1",
+                model=os.getenv("GROQ_MODEL", "llama-3.1-8b-instant"),
+                system_prompt=system_prompt,
+                user_prompt=user_prompt,
+            )
+        except Exception as e:
+            print(f"Groq API failed: {e}")
 
-    if openai_api_key:
-        return _call_openai_compatible_api(
-            api_key=openai_api_key,
-            base_url=os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1"),
-            model=os.getenv("OPENAI_MODEL", "gpt-4.1-mini"),
-            system_prompt=system_prompt,
-            user_prompt=user_prompt,
-        )
-
-    raise RuntimeError("No AI provider configured.")
+    raise RuntimeError("No AI provider configured or all providers failed.")
 
 
 def process_text_by_mode(text: str, mode: str) -> str:

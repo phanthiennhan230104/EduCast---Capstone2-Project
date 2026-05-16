@@ -72,7 +72,23 @@ export default function Header({ hideGlobalProgress = false }) {
 const currentLang = (i18n.resolvedLanguage || i18n.language || 'vi').split('-')[0]
   return (
     <header className={styles.header}>
-      <div className={styles.logo} onClick={() => navigate('/')}>
+      <div 
+        className={styles.logo} 
+        onClick={() => {
+          const currentPath = window.location.pathname
+          if (currentPath === '/' || currentPath === '/feed') {
+            const mainElement = document.querySelector('main')
+            if (mainElement) {
+              mainElement.scrollTo({ top: 0, behavior: 'auto' })
+            }
+            // Phát sự kiện để Feed.jsx biết và load lại dữ liệu
+            window.dispatchEvent(new CustomEvent('refresh-feed'))
+          } else {
+            navigate('/')
+          }
+        }}
+        style={{ cursor: 'pointer' }}
+      >
         <img
           src={logoImage}
           alt="EduCast Logo"

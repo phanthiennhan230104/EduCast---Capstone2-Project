@@ -1,10 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Bell } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
-import { toast } from 'react-toastify'
+import { useNotifications } from '../../contexts/NotificationContext'
 import styles from '../../../style/layout/NotificationPanel.module.css'
-import { getNotifications, markAllNotificationsAsRead } from '../../../utils/notificationApi'
-import { getToken } from '../../../utils/auth'
 
 function getNotificationIcon(type) {
   switch (type) {
@@ -43,58 +41,9 @@ function formatTime(dateString, t, i18n) {
 export default function NotificationPanel() {
   const { t, i18n } = useTranslation()
   const [open, setOpen] = useState(false)
-  const [notifications, setNotifications] = useState([])
-  const [unreadCount, setUnreadCount] = useState(0)
-  const [loading, setLoading] = useState(false)
+  const { notifications, unreadCount, loading, fetchNotifications, markAllAsRead } = useNotifications()
   const panelRef = useRef(null)
 
-  // Fetch unread count on mount and connect WebSocket
-  useEffect(() => {
-    const fetchUnreadCount = async () => {
-      try {
-        const response = await getNotifications()
-        setUnreadCount(response.data?.unread_count || 0)
-      } catch (err) {
-        console.error('Error fetching unread count:', err)
-      }
-    }
-
-    fetchUnreadCount()
-
-    const token = getToken()
-    if (!token) return
-
-    const wsUrl = `ws://127.0.0.1:8000/ws/notifications/?token=${token}`
-    const ws = new WebSocket(wsUrl)
-
-    ws.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data)
-        if (data.type === 'new_notification' && data.notification) {
-          const newNotif = data.notification
-          setUnreadCount((prev) => prev + 1)
-          
-          setNotifications((prev) => {
-            if (prev.length > 0) {
-              return [newNotif, ...prev]
-            }
-            return prev
-          })
-        } else if (data.type === 'social_update') {
-          // Broadcast social updates (like follow/unfollow) to other components
-          window.dispatchEvent(new CustomEvent('social-update', { 
-            detail: data.social_update 
-          }));
-        }
-      } catch (err) {
-        console.error('Error parsing notification message', err)
-      }
-    }
-
-    return () => {
-      ws.close()
-    }
-  }, [])
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -110,40 +59,36 @@ export default function NotificationPanel() {
   }, [open])
 
   useEffect(() => {
-    if (!open) return
-
-    const fetchNotifications = async () => {
-      setLoading(true)
-      try {
-        const response = await getNotifications()
-        setNotifications(response.data?.notifications || [])
-        // unreadCount already updated by polling
-      } catch (err) {
-        console.error('Error fetching notifications:', err)
-      } finally {
-        setLoading(false)
-      }
+    if (open) {
+      fetchNotifications()
     }
-
-    fetchNotifications()
   }, [open])
 
   const handleTogglePanel = async (e) => {
     e.stopPropagation()
-    setOpen(!open)
-    
-    if (!open) {
-      // Khi mở panel, fetch notifications và mark as read
-      const response = await getNotifications()
-      setNotifications(response.data?.notifications || [])
-      
-      if (response.data?.unread_count > 0) {
-        await markAllNotificationsAsRead()
-        setUnreadCount(0)
-        setNotifications(prev =>
-          prev.map(notif => ({ ...notif, is_read: true }))
-        )
+    const nextOpen = !open
+    setOpen(nextOpen)
+
+    if (nextOpen) {
+      await fetchNotifications()
+      if (unreadCount > 0) {
+        await markAllAsRead()
       }
+    }
+  }
+
+  const handleNotificationClick = (notif) => {
+    // Chúng ta chỉ xử lý click cho các loại liên quan đến bài viết
+    if (['like', 'comment', 'share', 'new_post'].includes(notif.type) && notif.reference_id) {
+      // Bắn một Custom Event để các trang (Feed, PersonalPage) có thể lắng nghe và mở Modal
+      const event = new CustomEvent('openPostModal', {
+        detail: {
+          postId: notif.reference_id,
+          notifType: notif.type
+        }
+      })
+      window.dispatchEvent(event)
+      setOpen(false) // Đóng panel sau khi click
     }
   }
 
@@ -177,9 +122,9 @@ export default function NotificationPanel() {
                 {notifications.map((notif) => (
                   <div
                     key={notif.id}
-                    className={`${styles.notificationItem} ${
-                      !notif.is_read ? styles.unread : ''
-                    }`}
+                    className={`${styles.notificationItem} ${!notif.is_read ? styles.unread : ''
+                      } ${notif.reference_id ? styles.clickable : ''}`}
+                    onClick={() => handleNotificationClick(notif)}
                   >
                     <div className={styles.notificationIcon}>
                       {getNotificationIcon(notif.type)}

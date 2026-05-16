@@ -135,7 +135,7 @@ function CommentNode({
               <div
                 className={authorClass}
               >
-                {item.username || item.user_id}
+                {getDisplayName(item)}
               </div>
 
               <div className={contentClass}>
@@ -2188,7 +2188,7 @@ export default function CommentModal({
                   className={styles.statHoverWrap}
                 >
                   <button type="button" className={styles.statItemButton}>
-                    <Heart size={14} />
+                    <Heart size={14} fill={displayLiked ? 'currentColor' : 'none'} />
                     <span
                       onMouseEnter={() => handleStatsMouseEnter('likes')}
                       onMouseLeave={handleStatsMouseLeave}

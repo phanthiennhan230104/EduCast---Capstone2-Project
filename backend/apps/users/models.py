@@ -87,6 +87,12 @@ class UserProfile(models.Model):
     headline = models.CharField(max_length=255, null=True, blank=True)
     learning_field = models.CharField(max_length=100, null=True, blank=True)
     interests = models.JSONField(null=True, blank=True)
+    favorite_topics = models.ManyToManyField(
+        'content.Topic', 
+        related_name='favorited_by_profiles', 
+        blank=True,
+        db_table='users_userprofile_favorite_topics'
+    )
     preferred_language = models.CharField(max_length=10, default="vi")
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

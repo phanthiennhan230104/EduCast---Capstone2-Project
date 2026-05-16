@@ -71,6 +71,13 @@ export default function PersonalPage() {
   const [followModal, setFollowModal] = useState({ isOpen: false, type: 'followers' })
   const [followingIds, setFollowingIds] = useState(new Set())
   const [loadingFollow, setLoadingFollow] = useState({})
+  const [sharedActionHover, setSharedActionHover] = useState({
+    rowKey: null,
+    kind: null,
+    items: [],
+    loading: false,
+  })
+  const sharedActionHoverLeaveTimerRef = useRef(null)
 
   const saveBookmarkRef = useRef(null)
   const { user } = useAuth()
@@ -171,10 +178,13 @@ export default function PersonalPage() {
   React.useEffect(() => {
     if (!profileUserId) return
 
-    fetchUserProfile()
-    fetchUserPosts()
-    fetchUserPodcasts()
-    fetchUserFriends()
+    const loadData = async () => {
+      const profileData = await fetchUserProfile()
+      await fetchUserPosts(profileData)
+      fetchUserPodcasts()
+      fetchUserFriends()
+    }
+    loadData()
   }, [profileUserId])
 
   React.useEffect(() => {
@@ -186,6 +196,104 @@ export default function PersonalPage() {
       )
     )
   }, [deletedPostsVersion, hiddenPostsVersion])
+
+  const clearSharedActionHoverLeaveTimer = () => {
+    if (sharedActionHoverLeaveTimerRef.current) {
+      clearTimeout(sharedActionHoverLeaveTimerRef.current)
+      sharedActionHoverLeaveTimerRef.current = null
+    }
+  }
+
+  const handleSharedRowStatsEnter = async (podcast, kind) => {
+    clearSharedActionHoverLeaveTimer()
+    const rowKey = String(podcast.viewId || podcast.id)
+
+    if (
+      sharedActionHover.rowKey === rowKey &&
+      sharedActionHover.kind === kind &&
+      sharedActionHover.items.length > 0
+    ) {
+      return
+    }
+
+    setSharedActionHover({ rowKey, kind, items: [], loading: true })
+
+    try {
+      const canonicalId =
+        podcast.type === 'shared' ? podcast.share_id : podcast.post_id || podcast.id
+
+      if (!canonicalId) {
+        setSharedActionHover((prev) => ({ ...prev, loading: false }))
+        return
+      }
+
+      let endpoint = ''
+      if (kind === 'likes') {
+        endpoint = `/social/posts/${canonicalId}/likers/`
+        if (podcast.type === 'shared') {
+          endpoint = `/social/shares/${canonicalId}/likers/`
+        }
+      } else if (kind === 'comments') {
+        endpoint = `/social/posts/${canonicalId}/commenters/`
+        if (podcast.type === 'shared') {
+          endpoint = `/social/shares/${canonicalId}/commenters/`
+        }
+      } else if (kind === 'shares') {
+        endpoint = `/social/posts/${canonicalId}/sharers/`
+        if (podcast.type === 'shared') {
+          endpoint = `/social/shares/${canonicalId}/sharers/`
+        }
+      }
+
+      if (!endpoint) {
+        setSharedActionHover((prev) => ({ ...prev, loading: false }))
+        return
+      }
+
+      const data = await apiRequest(endpoint)
+      if (data && data.success) {
+        let items = []
+        if (kind === 'likes') items = data.data?.likers || []
+        if (kind === 'comments') items = data.data?.commenters || []
+        if (kind === 'shares') items = data.data?.sharers || []
+
+        setSharedActionHover({ rowKey, kind, items, loading: false })
+      } else {
+        setSharedActionHover((prev) => ({ ...prev, loading: false }))
+      }
+    } catch (err) {
+      console.error(err)
+      setSharedActionHover((prev) => ({ ...prev, loading: false }))
+    }
+  }
+
+  const handleSharedRowStatsLeave = () => {
+    clearSharedActionHoverLeaveTimer()
+    sharedActionHoverLeaveTimerRef.current = setTimeout(() => {
+      setSharedActionHover((prev) =>
+        prev.rowKey !== null
+          ? { rowKey: null, kind: null, items: [], loading: false }
+          : prev
+      )
+    }, 140)
+  }
+
+  const handleSharedRowStatsPopupEnter = () => {
+    clearSharedActionHoverLeaveTimer()
+  }
+
+  const sharedHoverEmptyLabel = (kind) => {
+    if (kind === 'likes') return t('feed.noLikes')
+    if (kind === 'comments') return t('feed.noComments')
+    return t('feed.noShares')
+  }
+
+  const hoverUserLabel = (u) => {
+    if (u.display_name && u.username) {
+      return u.display_name
+    }
+    return u.display_name || u.username || t('feed.anonymous')
+  }
 
   const POST_SYNC_EVENT = 'post-sync-updated'
 
@@ -313,30 +421,33 @@ export default function PersonalPage() {
     try {
       const data = await apiRequest(`/users/${profileUserId}/profile/`)
 
+      let profileData = data.data || {}
       // Check if profile is not accessible
       if (data.is_accessible === false) {
-        // Store error type, not message - will be translated in render
         let errorType = null
-        if (data.data?.profile_visibility === 'private') {
+        if (profileData.profile_visibility === 'private') {
           errorType = 'private'
-        } else if (data.data?.profile_visibility === 'followers_only') {
+        } else if (profileData.profile_visibility === 'followers_only') {
           errorType = 'followers_only'
         }
         setProfileAccessErrorType(errorType)
-        setUserProfile(data.data || {}) // Still show basic info
+        setUserProfile(profileData)
       } else {
         setProfileAccessErrorType(null)
-        setUserProfile(data.data || {})
+        setUserProfile(profileData)
       }
+      return profileData
     } catch (err) {
       console.error(t('personal.fetchProfileFailed'), err)
       setUserProfile(null)
       setProfileAccessErrorType(null)
+      return null
     }
   }
 
-  const fetchUserPosts = async () => {
+  const fetchUserPosts = async (passedProfile = null) => {
     try {
+      const effectiveProfile = passedProfile || userProfile
       const data = await apiRequest(`/content/users/${profileUserId}/posts/?limit=100`)
       const posts = data.data?.posts || []
 
@@ -375,27 +486,48 @@ export default function PersonalPage() {
         return {
           ...post,
           id: post.id,
+          viewId: post.id,
+          type: post.type || 'original',
+          post_id: post.post_id || post.id,
+          share_id: post.share_id || null,
           title: post.title,
           description: post.description,
-          author: post.author || '',
-          authorUsername: post.author_username || '',
-          authorId: post.author_id || '',
+
+          author: {
+            id: post.author_id || post.user?.id || '',
+            username: post.author_username || post.author || post.user?.username || '',
+            name: post.author || post.author_username || post.user?.profile?.display_name || '',
+            avatar_url: post.author_avatar || post.user?.profile?.avatar_url || '',
+          },
+          authorUsername: post.author_username || post.author || '',
+          authorId: post.author_id || post.user?.id || '',
           authorInitials: getInitials({
-            username: post.author_username,
-            name: post.author,
+            username: post.author_username || post.author || '',
+            name: post.author || post.author_username || '',
           }),
+          author_avatar: post.author_avatar || post.user?.profile?.avatar_url || '',
+
           audioUrl: post.audio_url || '',
+          audioId: post.audio_id || '',
           durationSeconds: post.duration_seconds || 0,
           cover: post.thumbnail_url,
           thumbnail_url: post.thumbnail_url,
-          tags: (post.tags || []).map((t) =>
-            typeof t === 'object'
-              ? `#${t.name || ''}`
-              : t.startsWith('#')
-                ? t
-                : `#${t}`
-          ),
-          aiGenerated: post.is_ai_generated || false,
+          
+          tags: (post.tags || post.post_tags || [])
+            .map((tag) => {
+              if (tag == null) return ''
+              if (typeof tag === 'string') {
+                return tag.startsWith('#') ? tag : `#${tag}`
+              }
+              const n = tag.name ?? tag.slug ?? tag.tag_name ?? ''
+              return n ? `#${n}` : ''
+            })
+            .filter(Boolean),
+          tagIds: (post.tags || post.post_tags || [])
+            .map((tag) => (tag && typeof tag === 'object' ? tag.id : null))
+            .filter(Boolean),
+            
+          aiGenerated: false,
           timeAgo: post.shared_at
             ? formatTimeAgo(post.shared_at, t)
             : (post.timeAgo || formatTimeAgo(post.created_at, t)),
@@ -405,6 +537,7 @@ export default function PersonalPage() {
           postTimeAgo: post.created_at
             ? formatTimeAgo(post.created_at, t)
             : (post.timeAgo || ''),
+          
           listens: t('feed.listens', { count: post.listen_count || 0 }),
           likes: finalLikeCount,
           comments: commentCount,
@@ -412,6 +545,14 @@ export default function PersonalPage() {
           saveCount,
           liked: isLiked,
           saved: isSaved,
+
+          sharedBy: post.type === 'shared' ? {
+            id: profileUserId,
+            username: effectiveProfile?.user?.username || effectiveProfile?.username || '',
+            display_name: effectiveProfile?.display_name || effectiveProfile?.full_name || '',
+            avatar_url: effectiveProfile?.avatar_url || effectiveProfile?.avatar || effectiveProfile?.profile_image || '',
+          } : null,
+          share_caption: post.share_caption || '',
         }
       })
 
@@ -535,17 +676,34 @@ export default function PersonalPage() {
   }
 
   const handleOpenOriginalPost = async (post) => {
-    if (!post.post_id) return
+    const targetId = post.post_id || post.id
+    console.log('🔍 handleOpenOriginalPost targetId:', targetId)
+    if (!targetId) return
+
+    // Nếu là ID bài share (share_xxx_yyy), chúng ta cần bóc tách để lấy ID bài gốc cho API chi tiết
+    let postIdForApi = targetId
+    let shareId = null
+    
+    if (String(targetId).startsWith('share_')) {
+      const parts = String(targetId).split('_')
+      if (parts.length >= 3) {
+        shareId = parts[1]
+        postIdForApi = parts[parts.length - 1]
+        console.log('📦 Extracted from share ID:', { shareId, postIdForApi })
+      }
+    }
 
     try {
-      const data = await apiRequest(`/content/posts/${post.post_id}/`)
+      console.log('🚀 Fetching post details for:', postIdForApi)
+      const data = await apiRequest(`/content/posts/${postIdForApi}/`)
+      console.log('✅ Post data received:', data)
 
       if (data && data.data) {
         const origPost = data.data
 
         const mappedPost = {
           ...origPost,
-          id: origPost.id,
+          id: targetId,
           title: origPost.title,
           description: origPost.description,
           author: origPost.author || '',
@@ -555,15 +713,18 @@ export default function PersonalPage() {
           durationSeconds: origPost.duration_seconds || 0,
           cover: origPost.thumbnail_url,
           thumbnail_url: origPost.thumbnail_url,
-          tags: (origPost.tags || []).map((t) =>
-            typeof t === 'object'
-              ? `#${t.name || ''}`
-              : t.startsWith('#')
-                ? t
-                : `#${t}`
-          ),
-          aiGenerated: origPost.is_ai_generated || false,
-          timeAgo: new Date(origPost.created_at).toLocaleDateString('vi-VN'),
+          tags: (origPost.tags || origPost.post_tags || [])
+            .map((tag) => {
+              if (tag == null) return ''
+              if (typeof tag === 'string') {
+                return tag.startsWith('#') ? tag : `#${tag}`
+              }
+              const n = tag.name ?? tag.slug ?? tag.tag_name ?? ''
+              return n ? `#${n}` : ''
+            })
+            .filter(Boolean),
+          aiGenerated: false,
+          timeAgo: formatTimeAgo(origPost.created_at, t),
           listens: origPost.listen_count || 0,
           likes: origPost.like_count || 0,
           comments: origPost.comment_count || 0,
@@ -683,6 +844,19 @@ export default function PersonalPage() {
         liked: nextLiked,
         likeCount: nextLikeCount,
       })
+      if (data.data?.canonical_post_id) {
+        dispatchPostSync({
+          postId: String(data.data.canonical_post_id),
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        })
+      } else if (post.type === 'shared' && post.post_id) {
+        dispatchPostSync({
+          postId: String(post.post_id),
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        })
+      }
     } catch (err) {
       console.error(t('personal.likeError'), err)
       toast.error(t('personal.likeError'))
@@ -1172,7 +1346,7 @@ export default function PersonalPage() {
                           // If it's own post, display like Feed (just PodcastCard without share frame)
                           if (isOriginalPost) {
                             return (
-                              <div key={post.id} className={styles.postCard}>
+                              <div key={post.viewId || post.id} className={styles.postCard} data-post-id={post.id}>
                                 <PodcastCard
                                   podcast={post}
                                   queue={posts}
@@ -1227,69 +1401,102 @@ export default function PersonalPage() {
                           }
 
                           // If it's a shared post from someone else, display with share frame
+                          const sharedBy = post.sharedBy || {}
+                          const rowKey = String(post.viewId || post.id)
+                          const avatarKey = `share-${post.viewId || post.id}`
+                          const shareAuthorName = sharedBy.display_name || sharedBy.name || sharedBy.username || t('feed.anonymous')
+                          const shareAuthorInitials = getInitials(sharedBy || shareAuthorName)
+                          
+                          const sharedByUserId = sharedBy.id ?? sharedBy.user_id ?? sharedBy.pk ?? sharedBy.userId
+                          
+                          const openSharedAuthorProfile = (event) => {
+                            event?.stopPropagation?.()
+                            if (sharedByUserId == null || sharedByUserId === '') return
+                            navigate(`/profile/${sharedByUserId}`)
+                          }
+
                           return (
-                            <div key={post.id} className={styles.postShareContainer}>
-                              {/* Wrapper div bao quanh tất cả */}
+                            <div key={post.viewId || post.id} className={styles.postShareContainer} data-post-id={post.id}>
                               <div className={styles.postShareWrapper}>
-                                {/* Share Info Header - Hiển thị tên người chia sẻ và thời gian */}
                                 <div className={styles.postShareInfo}>
-                                  <div className={styles.postShareAuthor}>
-                                    {profileAvatar && !failedAvatarUrls.has('postShare') ? (
+                                  <div
+                                    className={`${styles.postShareAuthor} ${sharedByUserId ? styles.postShareAuthorClickable : ''}`}
+                                    role={sharedByUserId ? 'button' : undefined}
+                                    tabIndex={sharedByUserId ? 0 : undefined}
+                                    onClick={openSharedAuthorProfile}
+                                    onKeyDown={(event) => {
+                                      if ((event.key === 'Enter' || event.key === ' ') && sharedByUserId) {
+                                        event.preventDefault()
+                                        openSharedAuthorProfile(event)
+                                      }
+                                    }}
+                                  >
+                                    {sharedBy.avatar_url && !failedAvatarUrls.has(avatarKey) ? (
                                       <div className={styles.postShareAvatarWrapper}>
                                         <img
-                                          src={profileAvatar}
-                                          alt={userProfile?.username || userProfile?.display_name || 'Avatar'}
+                                          src={sharedBy.avatar_url}
+                                          alt={shareAuthorName}
                                           className={styles.postShareAvatar}
                                           onError={() => {
-                                            setFailedAvatarUrls(prev => new Set([...prev, 'postShare']))
+                                            setFailedAvatarUrls((prev) => new Set([...prev, avatarKey]))
                                           }}
                                         />
                                       </div>
                                     ) : (
                                       <div className={styles.postShareAvatarWrapper}>
                                         <div className={styles.postShareAvatarInitials}>
-                                          {getInitials({
-                                            username: userProfile?.username,
-                                            display_name: userProfile?.display_name,
-                                            name: userProfile?.full_name || userProfile?.name,
-                                          } || 'User')}
+                                          {shareAuthorInitials}
                                         </div>
                                       </div>
                                     )}
-                                    <div>
-                                      <h5 className={styles.postShareAuthorName}>
-                                        {userProfile?.display_name || userProfile?.full_name || userProfile?.name || user?.username}
-                                      </h5>
-                                      <p className={styles.postShareTime}>
-                                        {post.sharedTimeAgo || post.timeAgo || formatTimeAgo(post.shared_at || post.created_at, t)}
-                                      </p>
+
+                                    <div className={styles.postShareAuthorInfo}>
+                                      <div className={styles.postShareAuthorMetaRow}>
+                                        <span className={styles.postShareAuthorName}>
+                                          {shareAuthorName}
+                                        </span>
+                                        <span className={styles.postShareMetaDot}>•</span>
+                                        <span className={styles.postShareMetaText}>
+                                          {post.sharedTimeAgo || post.timeAgo || formatTimeAgo(post.shared_at || post.created_at, t)}
+                                        </span>
+                                      </div>
                                     </div>
                                   </div>
+
                                   {isOwnProfile && (
-                                    <div className={styles.postMenuWrap} data-profile-share-menu>
+                                    <div className={styles.shareMenuWrap} data-profile-share-menu>
                                       <button
                                         className={styles.postShareMenuBtn}
-                                        onClick={() => setOpenMenuPostId(openMenuPostId === post.id ? null : post.id)}
+                                        onClick={(e) => {
+                                          e.stopPropagation()
+                                          setOpenMenuPostId(openMenuPostId === rowKey ? null : rowKey)
+                                        }}
                                       >
                                         <MoreHorizontal size={20} />
                                       </button>
-                                      {openMenuPostId === post.id && (
-                                        <div className={styles.postMenu}>
+                                      {openMenuPostId === rowKey && (
+                                        <div className={styles.shareMenuDropdown}>
                                           <button
-                                            className={styles.postMenuOption}
-                                            onClick={() => {
+                                            className={styles.shareMenuOption}
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              e.preventDefault()
                                               setOpenMenuPostId(null)
                                               setEditShareCaptionPost(post)
                                             }}
                                           >
-                                            <Edit size={16} />
+                                            <Edit size={14} />
                                             <span>{t('personal.edit')}</span>
                                           </button>
                                           <button
-                                            className={`${styles.postMenuOption} ${styles.danger}`}
-                                            onClick={() => handleDeletePost(post.id)}
+                                            className={`${styles.shareMenuOption} ${styles.danger}`}
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              setOpenMenuPostId(null)
+                                              handleDeletePost(post.id)
+                                            }}
                                           >
-                                            <Trash2 size={16} />
+                                            <Trash2 size={14} />
                                             <span>{t('common.delete')}</span>
                                           </button>
                                         </div>
@@ -1298,18 +1505,20 @@ export default function PersonalPage() {
                                   )}
                                 </div>
 
-                                {/* Share Caption - Hiển thị nội dung chia sẻ */}
                                 {post.share_caption && (
                                   <div className={styles.shareCaption}>
                                     <p>{post.share_caption}</p>
                                   </div>
                                 )}
 
-                                {/* Shared Post Content - Hiển thị bài đăng gốc */}
                                 <div
-                                  className={styles.postCardInShare}
+                                  className={styles.postShareCard}
                                   onClick={() => handleOpenOriginalPost(post)}
-                                  style={{ cursor: 'pointer' }}
+                                  role="button"
+                                  tabIndex={0}
+                                  onKeyDown={(e) => {
+                                    if (e.key === 'Enter') handleOpenOriginalPost(post)
+                                  }}
                                   title={t('feed.viewOriginalPost')}
                                 >
                                   <PodcastCard
@@ -1323,36 +1532,148 @@ export default function PersonalPage() {
                                   />
                                 </div>
 
-                                {/* Share Actions - Hiển thị like, comment, share, lưu */}
                                 <div className={styles.postShareActions}>
-                                  <button
-                                    className={`${styles.shareActionBtn} ${postStates[post.id]?.liked ? styles.liked : ''}`}
-                                    onClick={() => handleToggleLike(post.id)}
-                                  >
-                                    <Heart size={16} fill={postStates[post.id]?.liked ? 'currentColor' : 'none'} />
-                                    <span>{postStates[post.id]?.likeCount ?? post.likes ?? 0}</span>
-                                  </button>
-                                  <button
-                                    className={styles.shareActionBtn}
-                                    onClick={() => handleOpenCommentModal(post)}
-                                  >
-                                    <MessageCircle size={16} />
+                                  <div className={styles.shareStatWrap}>
+                                    <button
+                                      type="button"
+                                      className={`${styles.shareActionBtn} ${postStates[post.id]?.liked ? styles.liked : ''}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleToggleLike(post.id)
+                                      }}
+                                    >
+                                      <Heart size={16} fill={postStates[post.id]?.liked ? 'currentColor' : 'none'} />
+                                      <span
+                                        onMouseEnter={() => handleSharedRowStatsEnter(post, 'likes')}
+                                        onMouseLeave={handleSharedRowStatsLeave}
+                                      >
+                                        {postStates[post.id]?.likeCount ?? post.likes ?? 0}
+                                      </span>
+                                    </button>
 
-                                    <span>
-                                      {t('personal.comments', {
-                                        count: postStates[post.id]?.commentCount ?? post.comments ?? 0,
-                                      })}
-                                    </span>                              </button>
-                                  <button
-                                    className={styles.shareActionBtn}
-                                    onClick={() => handleOpenShareModal(post)}
-                                  >
-                                    <Share2 size={16} />
-                                    <span>
-                                      {t('personal.shares', {
-                                        count: postStates[post.id]?.shareCount ?? post.shares ?? 0,
-                                      })}
-                                    </span>                              </button>
+                                    {sharedActionHover.rowKey === rowKey &&
+                                      sharedActionHover.kind === 'likes' && (
+                                        <div
+                                          className={styles.shareSharerPopup}
+                                          onMouseEnter={handleSharedRowStatsPopupEnter}
+                                          onMouseLeave={handleSharedRowStatsLeave}
+                                        >
+                                          {sharedActionHover.loading ? (
+                                            <div className={styles.shareSharerEmpty}>
+                                              {t('common.loading')}
+                                            </div>
+                                          ) : sharedActionHover.items.length > 0 ? (
+                                            sharedActionHover.items.map((u) => (
+                                              <div
+                                                key={u.user_id || u.username}
+                                                className={styles.shareSharerRow}
+                                              >
+                                                {hoverUserLabel(u)}
+                                              </div>
+                                            ))
+                                          ) : (
+                                            <div className={styles.shareSharerEmpty}>
+                                              {sharedHoverEmptyLabel('likes')}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                  </div>
+
+                                  <div className={styles.shareStatWrap}>
+                                    <button
+                                      type="button"
+                                      className={styles.shareActionBtn}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenCommentModal(post)
+                                      }}
+                                    >
+                                      <MessageCircle size={16} />
+                                      <span
+                                        onMouseEnter={() => handleSharedRowStatsEnter(post, 'comments')}
+                                        onMouseLeave={handleSharedRowStatsLeave}
+                                      >
+                                        {t('personal.comments', { count: postStates[post.id]?.commentCount ?? post.comments ?? 0 })}
+                                      </span>
+                                    </button>
+
+                                    {sharedActionHover.rowKey === rowKey &&
+                                      sharedActionHover.kind === 'comments' && (
+                                        <div
+                                          className={styles.shareSharerPopup}
+                                          onMouseEnter={handleSharedRowStatsPopupEnter}
+                                          onMouseLeave={handleSharedRowStatsLeave}
+                                        >
+                                          {sharedActionHover.loading ? (
+                                            <div className={styles.shareSharerEmpty}>
+                                              {t('common.loading')}
+                                            </div>
+                                          ) : sharedActionHover.items.length > 0 ? (
+                                            sharedActionHover.items.map((u) => (
+                                              <div
+                                                key={u.user_id || u.username}
+                                                className={styles.shareSharerRow}
+                                              >
+                                                {hoverUserLabel(u)}
+                                              </div>
+                                            ))
+                                          ) : (
+                                            <div className={styles.shareSharerEmpty}>
+                                              {sharedHoverEmptyLabel('comments')}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                  </div>
+
+                                  <div className={styles.shareStatWrap}>
+                                    <button
+                                      type="button"
+                                      className={styles.shareActionBtn}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        handleOpenShareModal(post)
+                                      }}
+                                    >
+                                      <Share2 size={16} />
+                                      <span
+                                        onMouseEnter={() => handleSharedRowStatsEnter(post, 'shares')}
+                                        onMouseLeave={handleSharedRowStatsLeave}
+                                      >
+                                        {t('personal.shares', { count: postStates[post.id]?.shareCount ?? post.shares ?? 0 })}
+                                      </span>
+                                    </button>
+
+                                    {sharedActionHover.rowKey === rowKey &&
+                                      sharedActionHover.kind === 'shares' && (
+                                        <div
+                                          className={styles.shareSharerPopup}
+                                          onMouseEnter={handleSharedRowStatsPopupEnter}
+                                          onMouseLeave={handleSharedRowStatsLeave}
+                                        >
+                                          {sharedActionHover.loading ? (
+                                            <div className={styles.shareSharerEmpty}>
+                                              {t('common.loading')}
+                                            </div>
+                                          ) : sharedActionHover.items.length > 0 ? (
+                                            sharedActionHover.items.map((u) => (
+                                              <div
+                                                key={u.user_id || u.username}
+                                                className={styles.shareSharerRow}
+                                              >
+                                                {hoverUserLabel(u)}
+                                              </div>
+                                            ))
+                                          ) : (
+                                            <div className={styles.shareSharerEmpty}>
+                                              {sharedHoverEmptyLabel('shares')}
+                                            </div>
+                                          )}
+                                        </div>
+                                      )}
+                                  </div>
+
                                   <button
                                     ref={saveBookmarkRef}
                                     className={`${styles.shareActionBtn} ${postStates[post.id]?.saved ? styles.saved : ''}`}

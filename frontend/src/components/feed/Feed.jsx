@@ -53,6 +53,11 @@ const TABS = [
 
 const POST_SYNC_EVENT = 'post-sync-updated'
 
+// Bộ nhớ đệm toàn cục (trong phạm vi module) để giữ dữ liệu khi chuyển trang
+const globalPodcastsCache = {} 
+let globalLastFetchedNonce = -1
+let globalLastFetchedFilters = ''
+
 let didHandleFeedReloadScrollReset = false
 
 function engagementPostId(podcast) {
@@ -108,8 +113,9 @@ export default function Feed() {
 
   const [disableModalAutoScroll, setDisableModalAutoScroll] = useState(true)
   const [selectedPodcast, setSelectedPodcast] = useState(null)
-  const [podcasts, setPodcasts] = useState([])
-  const [loading, setLoading] = useState(true)
+  // Khởi tạo từ cache nếu có để giữ chiều cao trang ngay khi mount
+  const [podcasts, setPodcasts] = useState(() => globalPodcastsCache[activeTab] || [])
+  const [loading, setLoading] = useState(!globalPodcastsCache[activeTab])
   const [error, setError] = useState('')
   const [openShareMenuId, setOpenShareMenuId] = useState(null)
   const [sharedRowConfirm, setSharedRowConfirm] = useState({
@@ -163,6 +169,38 @@ export default function Feed() {
   }
 
   useEffect(() => {
+    const handleFeedPostSync = (event) => {
+      const d = event.detail || {}
+      if (!d.postId) return
+
+      const mergePostFields = (p) => ({
+        ...p,
+        liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
+        likes: typeof d.likeCount === 'number' ? d.likeCount : p.likes,
+        saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+        saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+        comments: typeof d.commentCount === 'number' ? d.commentCount : p.comments,
+        shares: typeof d.shareCount === 'number' ? d.shareCount : p.shares,
+        title: typeof d.title === 'string' ? d.title : p.title,
+        description: typeof d.description === 'string' ? d.description : p.description,
+      })
+
+      setPodcasts((prev) =>
+        prev.map((p) => {
+          if (String(p.id) === String(d.postId)) return mergePostFields(p)
+          if (p.type !== 'shared' && p.post_id != null && String(p.post_id) === String(d.postId)) {
+            return mergePostFields(p)
+          }
+          return p
+        })
+      )
+    }
+
+    window.addEventListener(POST_SYNC_EVENT, handleFeedPostSync)
+    return () => window.removeEventListener(POST_SYNC_EVENT, handleFeedPostSync)
+  }, [])
+
+  useEffect(() => {
     selectedTagIdsRef.current = selectedTagIds
   }, [selectedTagIds])
 
@@ -194,6 +232,24 @@ export default function Feed() {
       )
     }
   }, [feedScrollKey, selectedTagIds])
+
+  useEffect(() => {
+    const handleRefresh = () => {
+      // Xóa bộ nhớ đệm toàn cục
+      Object.keys(globalPodcastsCache).forEach(key => delete globalPodcastsCache[key])
+      
+      // Đánh dấu cần cuộn lên đầu sau khi load xong
+      pendingScrollFeedTopAfterShareRef.current = true
+      writeFeedScrollSessionKeys(0)
+      feedLastMainScrollRef.current = 0
+      
+      // Kích hoạt load lại dữ liệu
+      setFeedReloadNonce((n) => n + 1)
+    }
+
+    window.addEventListener('refresh-feed', handleRefresh)
+    return () => window.removeEventListener('refresh-feed', handleRefresh)
+  }, [])
 
   useEffect(() => {
     if (!openShareMenuId) return
@@ -246,11 +302,17 @@ export default function Feed() {
 
     const { type, message } = location.state.toast
 
-    if (type === 'success') toast.success(message)
-    else if (type === 'error') toast.error(message)
-    else if (type === 'info') toast.info(message)
-    else if (type === 'warning') toast.warning(message)
-  }, [location.state?.toast])
+    if (type === 'success') toast.success(message, { toastId: 'feed-toast-success' })
+    else if (type === 'error') toast.error(message, { toastId: 'feed-toast-error' })
+    else if (type === 'info') toast.info(message, { toastId: 'feed-toast-info' })
+    else if (type === 'warning') toast.warning(message, { toastId: 'feed-toast-warning' })
+
+    // Clear toast from state to prevent it from showing again on re-renders
+    const newState = { ...location.state }
+    delete newState.toast
+    navigate(location.pathname, { replace: true, state: newState })
+
+  }, [location.state, navigate])
 
   const appliedShareTagFocusRef = useRef(false)
 
@@ -297,22 +359,13 @@ export default function Feed() {
       if (Number.isFinite(n) && n >= 0) feedLastMainScrollRef.current = n
     }
 
-    const save = () => {
-      const y = main.scrollTop || 0
-      feedLastMainScrollRef.current = y
-      sessionStorage.setItem(FEED_MAIN_SCROLL_SESSION_KEY, String(y))
-      sessionStorage.setItem(feedScrollKey, String(y))
-    }
-
-    main.addEventListener('scroll', save, { passive: true })
-
     return () => {
-      const y = feedLastMainScrollRef.current
+      // Lưu vị trí cuộn ngay trước khi unmount để chắc chắn không bị mất
+      const y = main.scrollTop || 0
       sessionStorage.setItem(FEED_MAIN_SCROLL_SESSION_KEY, String(y))
       sessionStorage.setItem(feedScrollKey, String(y))
-      main.removeEventListener('scroll', save)
     }
-  }, [])
+  }, [feedScrollKey])
 
   useEffect(() => {
     const handlePostSync = (event) => {
@@ -358,8 +411,8 @@ export default function Feed() {
             : {}),
         })
 
-        setPodcasts((prev) =>
-          prev.map((p) => {
+        const updateList = (list) => 
+          list.map((p) => {
             if (String(p.id) === String(d.postId)) {
               const next = mergeEngagement(p)
               if (p.type === 'shared' && d.shareCaption !== undefined) {
@@ -370,16 +423,19 @@ export default function Feed() {
               }
               return next
             }
-
             if (p.type === 'shared') return p
-
             if (feedRowMatchesCanonicalPost(p, d.postId)) {
               return mergeEngagement(p)
             }
-
             return p
           })
-        )
+
+        setPodcasts((prev) => updateList(prev))
+
+        // Cập nhật tất cả các tab trong cache để đảm bảo đồng bộ
+        Object.keys(globalPodcastsCache).forEach(tabIndex => {
+          globalPodcastsCache[tabIndex] = updateList(globalPodcastsCache[tabIndex])
+        })
 
         setSelectedPodcast((prev) => {
           if (!prev) return prev
@@ -420,6 +476,13 @@ export default function Feed() {
       setPodcasts((prev) =>
         prev.filter((p) => !matchesRemovedPost(p, removedId))
       )
+      
+      // Cập nhật tất cả các tab trong cache để xóa bài này đi
+      Object.keys(globalPodcastsCache).forEach(tabIndex => {
+        globalPodcastsCache[tabIndex] = (globalPodcastsCache[tabIndex] || []).filter(
+          (p) => !matchesRemovedPost(p, removedId)
+        )
+      })
       setSelectedPodcast((prev) =>
         prev && matchesRemovedPost(prev, removedId) ? null : prev
       )
@@ -431,8 +494,29 @@ export default function Feed() {
 
   useEffect(() => {
     const fetchFeed = async () => {
+      const filterKey = `${(selectedTagIds || []).join(',')}-${(selectedTopicIds || []).join(',')}`
+      const isManualReload = globalLastFetchedNonce !== feedReloadNonce
+      const isFilterChange = globalLastFetchedFilters !== filterKey
+
+      // Nếu là nhấn logo hoặc đổi bộ lọc thì xóa sạch cache
+      if (isManualReload || isFilterChange) {
+        Object.keys(globalPodcastsCache).forEach(key => delete globalPodcastsCache[key])
+        globalLastFetchedNonce = feedReloadNonce
+        globalLastFetchedFilters = filterKey
+      }
+
+      // Nếu tab này đã có dữ liệu và không phải là reload bắt buộc thì dùng luôn
+      if (globalPodcastsCache[activeTab] && !isManualReload && !isFilterChange) {
+        setPodcasts(globalPodcastsCache[activeTab])
+        setLoading(false)
+        return
+      }
+
       try {
-        setLoading(true)
+        // Chỉ hiện loading spinner nếu chưa có dữ liệu gì để xem
+        if (podcasts.length === 0) {
+          setLoading(true)
+        }
         setError('')
 
         const token = getToken()
@@ -590,6 +674,7 @@ export default function Feed() {
         )
 
         setPodcasts(visibleMapped)
+        globalPodcastsCache[activeTab] = visibleMapped
 
         setSavedPostIds_batch(
           [
@@ -999,6 +1084,20 @@ export default function Feed() {
         liked: nextLiked,
         likeCount: nextLikeCount,
       })
+
+      if (data.data?.canonical_post_id) {
+        dispatchPostSync({
+          postId: String(data.data.canonical_post_id),
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        })
+      } else if (post.type === 'shared' && canonicalId) {
+        dispatchPostSync({
+          postId: canonicalId,
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        })
+      }
 
       if (post.type !== 'shared') {
         window.dispatchEvent(
@@ -1610,11 +1709,11 @@ export default function Feed() {
       </div>
 
       <div className={styles.cards}>
-        {loading && <div className={styles.feedState}>{t('feed.loading')}</div>}
+        {loading && podcasts.length === 0 && <div className={styles.feedState}>{t('feed.loading')}</div>}
 
         {error && <div className={styles.feedError}>{error}</div>}
 
-        {!loading &&
+        {podcasts.length > 0 &&
           !error &&
           podcasts.map((podcast) =>
             podcast.type === 'shared' ? (

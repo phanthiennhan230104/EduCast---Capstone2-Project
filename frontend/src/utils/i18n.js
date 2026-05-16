@@ -121,7 +121,7 @@ const resources = {
         titleRequired: 'Vui lòng nhập tiêu đề',
         submittingPayloadLog: 'Payload đăng bài:',
         publishing: 'Đang đăng bài...',
-        publishSuccess: 'Đăng bài thành công! Bài viết của bạn đã được công bố lên feed.',
+        publishSuccess: 'Gửi bài thành công! Bài viết của bạn đang chờ Admin duyệt.',
         publishErrorLog: 'Lỗi đăng bài:',
         publishFailed: 'Đăng bài thất bại. Vui lòng thử lại.',
         defaultVoiceName: 'Minh Tuấn',
@@ -360,6 +360,7 @@ const resources = {
       },
 
       personal: {
+        favoriteTopics: 'Chủ đề yêu thích',
         requestRepublish: 'Yêu cầu đăng lại',
         requestRepublishSuccess: 'Đã gửi yêu cầu đăng lại cho admin duyệt.',
         requestRepublishFailed: 'Không thể gửi yêu cầu đăng lại',
@@ -1516,7 +1517,7 @@ const resources = {
         titleRequired: 'Please enter a title',
         submittingPayloadLog: 'Submitting payload:',
         publishing: 'Publishing post...',
-        publishSuccess: 'Post published successfully! Your post has been published to the feed.',
+        publishSuccess: 'Post submitted successfully! Your post is pending Admin approval.',
         publishErrorLog: 'Publish error:',
         publishFailed: 'Publishing failed. Please try again.',
         defaultVoiceName: 'Minh Tuan',
