@@ -393,7 +393,7 @@ export default function FavoritesContent() {
       console.log('🔑 Token:', token ? `${token.substring(0, 20)}...` : 'NOT FOUND')
       console.log('📡 Fetching /api/social/collections/')
 
-      const response = await fetch('http://127.0.0.1:8000/api/social/collections/', {
+      const response = await fetch(`${API_BASE_URL}/social/collections/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -424,7 +424,7 @@ export default function FavoritesContent() {
       setLoadingCollections(true)
       const token = getToken()
       // Fetch từ bảng collection_items để get posts của collection
-      const response = await fetch(`http://127.0.0.1:8000/api/social/collections/${collectionId}/posts/`, {
+      const response = await fetch(`${API_BASE_URL}/social/collections/${collectionId}/posts/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -523,7 +523,7 @@ export default function FavoritesContent() {
       const token = getToken()
       const currentUser = getCurrentUser()
       const res = await fetch(
-        `http://127.0.0.1:8000/api/social/collections/${deletingCollection.id}/delete/`,
+        `${API_BASE_URL}/social/collections/${deletingCollection.id}/delete/`,
         {
           method: 'DELETE',
           headers: {
@@ -565,7 +565,7 @@ export default function FavoritesContent() {
     try {
       setLoading(true)
       const token = getToken()
-      const response = await fetch('http://127.0.0.1:8000/api/social/saved-posts/my/', {
+      const response = await fetch(`${API_BASE_URL}/social/saved-posts/my/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -798,7 +798,7 @@ export default function FavoritesContent() {
 
     try {
       const token = getToken()
-      const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${id}/save/`, {
+      const response = await fetch(`${API_BASE_URL}/social/posts/${id}/save/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -861,7 +861,7 @@ export default function FavoritesContent() {
   const handleToggleLike = async () => {
     try {
       const token = getToken()
-      const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${selectedPostDetail?.id}/like/`, {
+      const response = await fetch(`${API_BASE_URL}/social/posts/${selectedPostDetail?.id}/like/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -908,7 +908,7 @@ export default function FavoritesContent() {
       removeSavedPost(selectedPostDetail?.id)
       decreaseCollectionCountByPostId(selectedPostDetail?.id)
 
-      const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${selectedPostDetail?.id}/save/`, {
+      const response = await fetch(`${API_BASE_URL}/social/posts/${selectedPostDetail?.id}/save/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1151,7 +1151,7 @@ export default function FavoritesContent() {
   const handleSaveNote = async (postId, noteContent) => {
     try {
       const token = getToken()
-      const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${postId}/notes/`, {
+      const response = await fetch(`${API_BASE_URL}/social/posts/${postId}/notes/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

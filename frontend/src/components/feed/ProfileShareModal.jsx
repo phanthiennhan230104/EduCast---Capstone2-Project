@@ -4,6 +4,7 @@ import { Search, Send, X } from 'lucide-react'
 import { toast } from 'react-toastify'
 import { apiRequest } from '../../utils/api'
 import { getToken, getCurrentUser } from '../../utils/auth'
+import { API_BASE_URL } from '../../config/apiBase'
 import { getInitials } from '../../utils/getInitials'
 import styles from '../../style/feed/ProfileShareModal.module.css'
 
@@ -132,7 +133,7 @@ export default function ProfileShareModal({
             }
 
             const res = await fetch(
-                `http://localhost:8000/api/social/profiles/${profileUserId}/share-to-user/`,
+                `${API_BASE_URL}/social/profiles/${profileUserId}/share-to-user/`,
                 {
                     method: 'POST',
                     headers: {

@@ -4,6 +4,7 @@ import { X, Play, Pause, MessageSquareText, Heart, Share2, Bookmark, BookmarkChe
 import styles from '../../style/library/PostDetailModal.module.css'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { getToken } from '../../utils/auth'
+import { API_BASE_URL } from '../../config/apiBase'
 
 export default function PostDetailModal({ isOpen, onClose, post }) {
   const { t } = useTranslation()
@@ -37,7 +38,7 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
   const handleSaveClick = async () => {
     try {
       const token = getToken()
-      const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${post.id}/save/`, {
+      const response = await fetch(`${API_BASE_URL}/social/posts/${post.id}/save/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -59,7 +60,7 @@ export default function PostDetailModal({ isOpen, onClose, post }) {
   const handleLikeClick = async () => {
     try {
       const token = getToken()
-      const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${post.id}/like/`, {
+      const response = await fetch(`${API_BASE_URL}/social/posts/${post.id}/like/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

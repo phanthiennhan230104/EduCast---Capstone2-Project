@@ -7,7 +7,7 @@ import EditPostModal from './EditPostModal'
 import EditShareCaptionModal from './EditShareCaptionModal'
 import ReportPostModal from './ReportPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
-import { API_BASE_URL } from '../../config/apiBase'
+import { API_BASE_URL, API_ORIGIN } from '../../config/apiBase'
 import styles from '../../style/feed/CommentModal.module.css'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
@@ -721,7 +721,7 @@ export default function CommentModal({
       const user = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${commentsApiPostId}/comments/?user_id=${user?.id || ''}`,
+        `${API_BASE_URL}/social/posts/${commentsApiPostId}/comments/?user_id=${user?.id || ''}`,
         {
           headers: {
             'Content-Type': 'application/json',
@@ -862,10 +862,9 @@ export default function CommentModal({
     if (url.startsWith('http')) return url
 
     if (url.startsWith('/')) {
-      return `http://127.0.0.1:8000${url}`
+      return `${API_ORIGIN}${url}`
     }
-
-    return `http://127.0.0.1:8000/${url}`
+    return `${API_ORIGIN}/${url}`
   }
 
   const handlePlayClick = async () => {
@@ -893,7 +892,7 @@ export default function CommentModal({
         const token = getToken()
 
         const res = await fetch(
-          `http://127.0.0.1:8000/api/content/feed/?limit=100&tab=for_you`,
+          `${API_BASE_URL}/content/feed/?limit=100&tab=for_you`,
           {
             headers: {
               'Content-Type': 'application/json',
@@ -1113,7 +1112,7 @@ export default function CommentModal({
       const user = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${commentsApiPostId}/comments/create/`,
+        `${API_BASE_URL}/social/posts/${commentsApiPostId}/comments/create/`,
         {
           method: 'POST',
           headers: {
@@ -1177,7 +1176,7 @@ export default function CommentModal({
       const user = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/comments/${commentId}/toggle-like/`,
+        `${API_BASE_URL}/social/comments/${commentId}/toggle-like/`,
         {
           method: 'POST',
           headers: {
@@ -1229,7 +1228,7 @@ export default function CommentModal({
       const user = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/comments/${targetComment.id}/reply/`,
+        `${API_BASE_URL}/social/comments/${targetComment.id}/reply/`,
         {
           method: 'POST',
           headers: {
@@ -1305,7 +1304,7 @@ export default function CommentModal({
       const user = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/comments/${commentId}/update/`,
+        `${API_BASE_URL}/social/comments/${commentId}/update/`,
         {
           method: 'PATCH',
           headers: {
@@ -1359,7 +1358,7 @@ export default function CommentModal({
       const user = getCurrentUser()
 
       const res = await fetch(
-        `http://localhost:8000/api/social/comments/${commentToDelete.id}/delete/`,
+        `${API_BASE_URL}/social/comments/${commentToDelete.id}/delete/`,
         {
           method: 'DELETE',
           headers: {
@@ -1443,7 +1442,7 @@ export default function CommentModal({
       console.log('After setDeleteProgress(10)')
 
       const token = getToken()
-      const deleteUrl = `http://localhost:8000/api/content/drafts/${canonicalPostId}/delete/`
+      const deleteUrl = `${API_BASE_URL}/content/drafts/${canonicalPostId}/delete/`
       console.log('🗑️ Deleting post:', podcast.id, 'URL:', deleteUrl)
 
       const progressInterval = setInterval(() => {
@@ -1510,7 +1509,7 @@ export default function CommentModal({
       const token = getToken()
       const user = getCurrentUser()
 
-      const res = await fetch(`http://localhost:8000/api/social/posts/${canonicalPostId}/hide/`, {
+      const res = await fetch(`${API_BASE_URL}/social/posts/${canonicalPostId}/hide/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1600,11 +1599,11 @@ export default function CommentModal({
       let endpoint = ''
 
       if (type === 'likes') {
-        endpoint = `http://localhost:8000/api/social/posts/${commentsApiPostId}/likers/`
+        endpoint = `${API_BASE_URL}/social/posts/${commentsApiPostId}/likers/`
       } else if (type === 'comments') {
-        endpoint = `http://localhost:8000/api/social/posts/${commentsApiPostId}/commenters/`
+        endpoint = `${API_BASE_URL}/social/posts/${commentsApiPostId}/commenters/`
       } else if (type === 'shares') {
-        endpoint = `http://localhost:8000/api/social/posts/${commentsApiPostId}/sharers/`
+        endpoint = `${API_BASE_URL}/social/posts/${commentsApiPostId}/sharers/`
       } else {
         return
       }

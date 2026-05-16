@@ -19,6 +19,7 @@ import EditPostModal from '../feed/EditPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
 import FollowListModal from '../personal/FollowListModal'
 import { useTranslation } from 'react-i18next'
+import { API_BASE_URL } from '../../config/apiBase'
 import { POST_REMOVED_EVENT, matchesRemovedPost } from '../../utils/postRemoval'
 import {
   Edit,
@@ -800,7 +801,7 @@ export default function PersonalPage() {
         post.type === 'shared' ? postId : engagementPostIdProfile(post)
 
       const res = await fetch(
-        `http://localhost:8000/api/social/posts/${apiLikeId}/like/`,
+        `${API_BASE_URL}/social/posts/${apiLikeId}/like/`,
         {
           method: 'POST',
           headers: {
@@ -879,7 +880,7 @@ export default function PersonalPage() {
         const currentUser = getCurrentUser()
 
         const res = await fetch(
-          `http://localhost:8000/api/social/posts/${apiSaveId}/save/`,
+          `${API_BASE_URL}/social/posts/${apiSaveId}/save/`,
           {
             method: 'POST',
             headers: {
@@ -1078,7 +1079,7 @@ export default function PersonalPage() {
       const token = getToken();
       if (!token) return;
 
-      const res = await fetch(`http://localhost:8000/api/content/posts/${postId}/request-republish/`, {
+      const res = await fetch(`${API_BASE_URL}/content/posts/${postId}/request-republish/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1117,7 +1118,7 @@ export default function PersonalPage() {
 
       if (post.type === 'shared') {
         const res = await fetch(
-          `http://localhost:8000/api/social/posts/${post.post_id}/unshare/`,
+          `${API_BASE_URL}/social/posts/${post.post_id}/unshare/`,
           {
             method: 'DELETE',
             headers: {

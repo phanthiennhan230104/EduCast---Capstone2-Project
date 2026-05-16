@@ -2,8 +2,10 @@ import { apiRequest } from "./api";
 import { getToken } from "./auth";
 import i18n from "./i18n";
 
-const API_BASE = "http://127.0.0.1:8000";
-const WS_BASE = "ws://127.0.0.1:8000";
+import { API_ORIGIN, WS_ORIGIN } from "../config/apiBase";
+
+const API_BASE = API_ORIGIN;
+const WS_BASE = WS_ORIGIN;
 
 export async function searchChatUsers(query = "") {
   return apiRequest(`/chat/users/search/?q=${encodeURIComponent(query)}`);

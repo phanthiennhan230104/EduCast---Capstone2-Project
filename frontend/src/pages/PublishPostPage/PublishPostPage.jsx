@@ -16,6 +16,7 @@ import {
 } from '../../utils/contentApi'
 import { getAudioDuration } from '../../utils/formatDuration'
 import { getToken } from '../../utils/auth'
+import { API_BASE_URL } from '../../config/apiBase'
 import styles from '../../style/pages/PublishPostPage/PublishPostPage.module.css'
 
 const VISIBILITY_OPTIONS = [
@@ -560,7 +561,7 @@ export default function PublishPostPage() {
       setLoadingDrafts(true)
       const token = getToken()
 
-      const res = await fetch('http://localhost:8000/api/content/drafts/my/', {
+      const res = await fetch(`${API_BASE_URL}/content/drafts/my/`, {
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,

@@ -914,7 +914,7 @@ export default function Feed() {
       'null'
     )
 
-    const res = await fetch(`http://localhost:8000/api/social/posts/${apiId}/like/`, {
+    const res = await fetch(`${API_BASE_URL}/social/posts/${apiId}/like/`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -990,7 +990,7 @@ export default function Feed() {
     )
 
     const res = await fetch(
-      `http://localhost:8000/api/social/posts/${canonicalId}/save/`,
+      `${API_BASE_URL}/social/posts/${canonicalId}/save/`,
       {
         method: 'POST',
         headers: {
@@ -1045,7 +1045,7 @@ export default function Feed() {
 
       const apiId = post.type === 'shared' ? post.id : canonicalId
 
-      const res = await fetch(`http://localhost:8000/api/social/posts/${apiId}/like/`, {
+      const res = await fetch(`${API_BASE_URL}/social/posts/${apiId}/like/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

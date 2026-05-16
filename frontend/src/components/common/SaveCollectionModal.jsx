@@ -3,6 +3,7 @@ import { X, Plus, Folder } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'react-toastify'
 import { getToken } from '../../utils/auth'
+import { API_BASE_URL } from '../../config/apiBase'
 import styles from '../../style/common/SaveCollectionModal.module.css'
 import { useMemo } from 'react'
 
@@ -74,7 +75,7 @@ export default function SaveCollectionModal({
       setLoadError(null)
       const token = getToken()
       
-      const response = await fetch('http://127.0.0.1:8000/api/social/collections/', {
+      const response = await fetch(`${API_BASE_URL}/social/collections/`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -116,7 +117,7 @@ export default function SaveCollectionModal({
     try {
       setCreatingCollection(true)
       const token = getToken()
-      const response = await fetch('http://127.0.0.1:8000/api/social/collections/create/', {
+      const response = await fetch(`${API_BASE_URL}/social/collections/create/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -156,7 +157,7 @@ export default function SaveCollectionModal({
       setLoading(true)
       const token = getToken()
       
-      const response = await fetch(`http://127.0.0.1:8000/api/social/posts/${postId}/save/`, {
+      const response = await fetch(`${API_BASE_URL}/social/posts/${postId}/save/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

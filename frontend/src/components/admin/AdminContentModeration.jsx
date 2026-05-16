@@ -15,6 +15,7 @@ import {
     Trash2,
 } from 'lucide-react';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
+import { API_ORIGIN } from '../../config/apiBase';
 import AdminLayout from './AdminLayout';
 import '../../style/admin/admin-content-moderation.css';
 import {
@@ -72,8 +73,8 @@ function getFullAudioUrl(url) {
     if (!raw) return '';
     if (/^https?:\/\//i.test(raw) || raw.startsWith('blob:')) return raw;
     if (raw.startsWith('//')) return `${window.location.protocol}${raw}`;
-    if (raw.startsWith('/')) return `http://127.0.0.1:8000${raw}`;
-    return `http://127.0.0.1:8000/${raw}`;
+    if (raw.startsWith('/')) return `${API_ORIGIN}${raw}`;
+    return `${API_ORIGIN}/${raw}`;
 }
 function getPostAudioUrl(post) {
     return (

@@ -91,7 +91,7 @@ CHANNEL_LAYERS = {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
             "hosts": [(
-                os.getenv("REDIS_HOST", "127.0.0.1"),
+                os.getenv("REDIS_HOST", ""),
                 int(os.getenv("REDIS_PORT", "6379")),
             )],
         },
@@ -124,10 +124,7 @@ DATABASES = {
 # ]
 
 CORS_ALLOWED_ORIGINS = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:5174",
-    "http://127.0.0.1:5174",
+    origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()
 ]
 
 # Password validation
@@ -182,7 +179,7 @@ SIMPLE_JWT = {
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': f"redis://{os.getenv('REDIS_HOST', '127.0.0.1')}:{os.getenv('REDIS_PORT', '6379')}/1",
+        'LOCATION': f"redis://{os.getenv('REDIS_HOST', '')}:{os.getenv('REDIS_PORT', '6379')}/1",
     }
 }
 
@@ -198,7 +195,7 @@ EMAIL_HOST_USER = (os.environ.get("SMTP_EMAIL") or os.environ.get("EMAIL_HOST_US
 # "mxlh rabh uqdh xflz"
 EMAIL_HOST_PASSWORD = (os.environ.get("SMTP_APP_PASSWORD") or os.environ.get("EMAIL_HOST_PASSWORD") or "").replace(" ", "").strip()
 
-DEFAULT_FROM_EMAIL = EMAIL_HOST_USER or "noreply@localhost"
+DEFAULT_FROM_EMAIL = EMAIL_HOST_USER
 SERVER_EMAIL = DEFAULT_FROM_EMAIL
 EMAIL_TIMEOUT = 20
 
@@ -238,6 +235,6 @@ CORS_ALLOW_CREDENTIALS = True
 GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip()
 GROQ_MODEL = (os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant").strip()
 
-BACKEND_BASE_URL = "http://127.0.0.1:8000"
+BACKEND_BASE_URL = (os.getenv("BACKEND_BASE_URL") or "").strip("/")
 GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip()
 GEMINI_MODEL = (os.getenv("GEMINI_MODEL") or "gemini-3.1-flash-lite").strip()
