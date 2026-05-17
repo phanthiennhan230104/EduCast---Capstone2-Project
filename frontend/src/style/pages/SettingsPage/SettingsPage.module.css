@@ -544,9 +544,7 @@
   }
 
   .sidePanel {
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
+    display: none !important;
   }
 
   .miniStats {
@@ -583,15 +581,7 @@
   }
 
   .sidePanel {
-    position: static;
-    top: auto;
-    right: auto;
-    width: 100%;
-    min-width: 0;
-    max-width: 100%;
-    max-height: none;
-    overflow: visible;
-    padding-right: 0;
+    display: none !important;
   }
 }
 
