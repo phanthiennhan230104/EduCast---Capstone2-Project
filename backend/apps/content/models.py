@@ -10,7 +10,7 @@ class Topic(models.Model):
 
     class Meta:
         db_table = "topics"
-        managed = False
+        managed = True
 
     def __str__(self):
         return self.name
@@ -24,7 +24,7 @@ class Tag(models.Model):
 
     class Meta:
         db_table = "tags"
-        managed = False
+        managed = True
 
     def __str__(self):
         return self.name
@@ -97,7 +97,7 @@ class Post(models.Model):
 
     class Meta:
         db_table = "posts"
-        managed = False
+        managed = True
 
     def __str__(self):
         return self.title
@@ -121,7 +121,7 @@ class PostTopic(models.Model):
 
     class Meta:
         db_table = "post_topics"
-        managed = False
+        managed = True
         unique_together = ("post", "topic")
 
     def __str__(self):
@@ -146,7 +146,7 @@ class PostTag(models.Model):
 
     class Meta:
         db_table = "post_tags"
-        managed = False
+        managed = True
         unique_together = ("post", "tag")
 
     def __str__(self):
@@ -172,7 +172,7 @@ class PostAudioVersion(models.Model):
 
     class Meta:
         db_table = "post_audio_versions"
-        managed = False
+        managed = True
 
     def __str__(self):
         return f"{self.post.id} - {self.voice_name}"
@@ -195,7 +195,7 @@ class PostDocument(models.Model):
 
     class Meta:
         db_table = "post_documents"
-        managed = False
+        managed = True
 
     def __str__(self):
         return self.file_name

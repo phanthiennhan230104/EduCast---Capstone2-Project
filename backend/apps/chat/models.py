@@ -31,7 +31,7 @@ class ChatRoom(models.Model):
 
     class Meta:
         db_table = "chat_rooms"
-        managed = False
+        managed = True
 
     def __str__(self):
         return f"{self.room_type}:{self.id}"
@@ -55,7 +55,7 @@ class ChatRoomMember(models.Model):
 
     class Meta:
         db_table = "chat_room_members"
-        managed = False
+        managed = True
         unique_together = ("room", "user")
 
     def __str__(self):
@@ -96,7 +96,7 @@ class Message(models.Model):
 
     class Meta:
         db_table = "messages"
-        managed = False
+        managed = True
         ordering = ["created_at"]
 
     def __str__(self):
@@ -121,7 +121,7 @@ class MessageRead(models.Model):
 
     class Meta:
         db_table = "message_reads"
-        managed = False
+        managed = True
         unique_together = ("message", "user")
 
     def __str__(self):
