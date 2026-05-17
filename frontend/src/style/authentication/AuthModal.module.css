@@ -421,3 +421,28 @@
   margin: 10px 0 22px;
   transform: translateY(-5px);
 }
+
+@media (max-width: 768px) {
+  .modal {
+    grid-template-columns: 1fr !important;
+    height: auto !important;
+    max-height: 85vh !important;
+    overflow-y: auto !important;
+    border-radius: 18px !important;
+  }
+  .leftPanel {
+    display: none !important;
+  }
+  .rightPanel {
+    padding: 24px 16px !important;
+  }
+  .brandTitle {
+    font-size: 2rem !important;
+  }
+  .brandStats {
+    margin-top: 20px !important;
+  }
+  .twoCols {
+    grid-template-columns: 1fr !important;
+  }
+}

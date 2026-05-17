@@ -109,3 +109,20 @@
   transform: translateY(-1px);
   box-shadow: 0 10px 24px rgba(244, 162, 39, 0.22);
 }
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 16px !important;
+  }
+  .nav {
+    display: none !important;
+  }
+  .logoImage {
+    width: 120px !important;
+  }
+  .loginBtn,
+  .freeBtn {
+    padding: 8px 14px !important;
+    font-size: 12px !important;
+  }
+}

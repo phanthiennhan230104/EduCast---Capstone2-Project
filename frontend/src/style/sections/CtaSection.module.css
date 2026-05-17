@@ -66,3 +66,21 @@
   color: #f5f0e8;
   border: 1px solid rgba(245, 240, 232, 0.2);
 }
+
+@media (max-width: 768px) {
+  .ctaSection {
+    padding: 60px 16px !important;
+  }
+  .ctaTitle {
+    font-size: 1.8rem !important;
+  }
+  .ctaSub {
+    font-size: 0.9rem !important;
+    margin-bottom: 24px !important;
+  }
+  .btnCtaLg,
+  .btnOutlineLg {
+    padding: 12px 24px !important;
+    font-size: 0.9rem !important;
+  }
+}
