@@ -1,5 +1,7 @@
-import { Search, Mic, AlertCircle, Lock, X, Volume2, Unlock } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { Search, Mic, AlertCircle, Lock, X, Volume2, Unlock, Play, Pause } from "lucide-react";
+import { useMemo, useState, useEffect, useRef } from "react";
+import { useAudioPlayer } from "../contexts/AudioPlayerContext";
+import { API_ORIGIN } from "../../config/apiBase";
 import AdminLayout from "./AdminLayout";
 import "../../style/admin/admin-moderation-page.css";
 import {
@@ -45,6 +47,127 @@ function getReportStatusBadge(status) {
   return statuses[status] || { label: status, className: 'pending' };
 }
 
+function getPostStatusLabel(status) {
+  const statuses = {
+    'processing': 'Chờ duyệt',
+    'published': 'Đã đăng',
+    'hidden': 'Ẩn',
+    'draft': 'Bản nháp',
+    'failed': 'Bị từ chối'
+  };
+  return statuses[status] || status;
+}
+
+function formatAudioTime(seconds) {
+  const total = Math.max(0, Math.floor(Number(seconds || 0)));
+  const mins = Math.floor(total / 60);
+  const secs = total % 60;
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+}
+
+function getFullAudioUrl(url) {
+  const raw = String(url || '').trim();
+  if (!raw) return '';
+  if (/^https?:\/\//i.test(raw) || raw.startsWith('blob:')) return raw;
+  if (raw.startsWith('//')) return `${window.location.protocol}${raw}`;
+  if (raw.startsWith('/')) return `${API_ORIGIN}${raw}`;
+  return `${API_ORIGIN}/${raw}`;
+}
+
+function getTrackProgressKey(track) {
+  if (!track) return null;
+  if (track.audioId) return `audio:${track.audioId}`;
+  if (track.audio_id) return `audio:${track.audio_id}`;
+  if (track.id && track.audioUrl) return `track:${track.id}:${track.audioUrl}`;
+  if (track.audioUrl) return `url:${track.audioUrl}`;
+  if (track.id) return `track:${track.id}`;
+  return null;
+}
+
+function AdminAudioPlayer({ post }) {
+  const progressBarRef = useRef(null);
+  const {
+    playTrack,
+    currentTrack,
+    playing,
+    togglePlay,
+    currentTime,
+    trackProgressMap,
+    seekToPercent,
+  } = useAudioPlayer();
+
+  const audioUrl = post?.audio_url || '';
+  const fullUrl = getFullAudioUrl(audioUrl);
+
+  // Create a temporary track object to get the correct progress key
+  const tempTrack = { id: post?.id, audioUrl: fullUrl };
+  const trackKey = getTrackProgressKey(tempTrack);
+
+  const isThisTrack = currentTrack?.audioUrl === fullUrl;
+  const isPlaying = isThisTrack && playing;
+
+  const progress = isThisTrack ? trackProgressMap[trackKey]?.progressPercent || 0 : 0;
+  const displayTime = isThisTrack ? currentTime : 0;
+  const displayDuration = isThisTrack
+    ? (trackProgressMap[trackKey]?.duration || post?.duration_seconds || 0)
+    : (post?.duration_seconds || 0);
+
+  const handlePlayPause = (e) => {
+    e.stopPropagation();
+    if (isThisTrack) {
+      togglePlay();
+    } else {
+      playTrack({
+        ...post,
+        audioUrl: fullUrl,
+        title: post.title || 'Admin Preview'
+      });
+    }
+  };
+
+  const handleProgressClick = (e) => {
+    e.stopPropagation();
+    if (!isThisTrack) return;
+    if (!progressBarRef.current) return;
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const percent = Math.max(0, Math.min(100, (x / rect.width) * 100));
+    seekToPercent(percent);
+  };
+
+  return (
+    <div className="admin-audio-player-custom">
+      <button
+        className={`admin-audio-play-btn ${isPlaying ? 'playing' : ''}`}
+        onClick={handlePlayPause}
+        type="button"
+      >
+        {isPlaying ? (
+          <Pause size={18} fill="currentColor" />
+        ) : (
+          <Play size={18} fill="currentColor" style={{ marginLeft: '2px' }} />
+        )}
+      </button>
+
+      <div className="admin-audio-info">
+        <span className="admin-audio-time">{formatAudioTime(displayTime)}</span>
+        <div
+          className="admin-audio-progress-container"
+          ref={progressBarRef}
+          onClick={handleProgressClick}
+        >
+          <div className="admin-audio-progress-bg" />
+          <div
+            className="admin-audio-progress-fill"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+        <span className="admin-audio-duration">{formatAudioTime(displayDuration)}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminContentModerationPage() {
   const [onlineUsers, setOnlineUsers] = useState(0);
   const [reports, setReports] = useState([]);
@@ -65,6 +188,19 @@ export default function AdminContentModerationPage() {
   // Fetch reports on component mount
   useEffect(() => {
     fetchReports();
+
+    const handleAdminUpdate = (event) => {
+      console.log(" Admin update received in AdminModeration:", event.detail);
+      const { type } = event.detail || {};
+      if (type === "post_change" || type === "new_post") {
+        fetchReports();
+      }
+    };
+
+    window.addEventListener("admin-update", handleAdminUpdate);
+    return () => {
+      window.removeEventListener("admin-update", handleAdminUpdate);
+    };
   }, []);
 
   const fetchReports = async () => {
@@ -318,7 +454,7 @@ export default function AdminContentModerationPage() {
                   );
                 })}
 
-                {totalPages > 1 && (
+                {totalPages > 0 && (
                   <div className="admin-moderation-pagination">
                     {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
                       <button
@@ -345,11 +481,11 @@ export default function AdminContentModerationPage() {
                     <h3>{selectedPost.title}</h3>
 
                     <div className="admin-moderation-detail-grid">
-                      <span>Tác giả</span>
+                      <span>Tác giả </span>
                       <strong>{selectedPost.author_username}</strong>
 
                       <span>Trạng thái</span>
-                      <strong>{selectedPost.status}</strong>
+                      <strong>{getPostStatusLabel(selectedPost.status)}</strong>
 
                       <span>Mô Tả</span>
                       <strong>{selectedPost.description || 'Không có'}</strong>
@@ -362,24 +498,7 @@ export default function AdminContentModerationPage() {
                           <span>Nghe audio</span>
                         </div>
 
-                        <audio
-                          ref={(el) => { audioRefs[selectedPost.id] = el; }}
-                          className="admin-moderation-audio-control"
-                          controls
-                          key={selectedPost.id}
-                          onTimeUpdate={(e) => {
-                            setAudioTime(prev => ({
-                              ...prev,
-                              [selectedPost.id]: e.target.currentTime
-                            }));
-                          }}
-                        >
-                          <source src={selectedPost.audio_url} type="audio/mpeg" />
-                          Trình duyệt của bạn không hỗ trợ audio tag.
-                        </audio>
-                        <div className="admin-moderation-audio-time">
-                          <span>{formatTime(audioTime[selectedPost.id] || 0)}</span>
-                        </div>
+                        <AdminAudioPlayer post={selectedPost} />
                       </div>
                     )}
                   </>

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, useContext } from 'react'
 import { useTagFilter } from '../contexts/TagFilterContext'
 import { fetchAvailableTags } from '../../utils/tagApi'
 import { Headphones, StickyNote, Bookmark, Plus, Check } from 'lucide-react'
@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { API_BASE_URL } from '../../config/apiBase'
 import { getToken, getCurrentUser } from '../../utils/auth'
 import styles from '../../style/library/FavoritesRightPanel.module.css'
+import { PodcastContext } from '../contexts/PodcastContext'
 
 const POST_SYNC_EVENT = 'post-sync-updated'
 
@@ -29,19 +30,19 @@ function getPostId(post) {
   return post?.post_id || post?.id
 }
 
-function getAuthorName(post) {
+function getAuthorName(post, t) {
   if (typeof post?.author === 'object') {
-    return post.author?.name || post.author?.username || 'Người dùng'
+    return post.author?.name || post.author?.username || t('common.user')
   }
-  return post?.author || post?.author_username || 'Người dùng'
+  return post?.author || post?.author_username || t('common.user')
 }
 
-function getTopicLabel(post) {
+function getTopicLabel(post, t) {
   const tags = Array.isArray(post?.tags) ? post.tags : []
   const first = tags[0]
-  if (!first) return post?.learning_field || 'Podcast'
+  if (!first) return post?.learning_field || t('common.podcast')
   if (typeof first === 'string') return first.replace(/^#/, '')
-  return first.name || first.slug || post?.learning_field || 'Podcast'
+  return first.name || first.slug || post?.learning_field || t('common.podcast')
 }
 
 function truncate(text, limit = 96) {
@@ -52,6 +53,7 @@ function truncate(text, limit = 96) {
 
 export default function LibraryRightPanel() {
   const { t } = useTranslation()
+  const { addSavedPost } = useContext(PodcastContext)
   const [savedPosts, setSavedPosts] = useState([])
   const [noteHighlights, setNoteHighlights] = useState([])
   const [suggestions, setSuggestions] = useState([])
@@ -96,7 +98,7 @@ export default function LibraryRightPanel() {
               }
               return {
                 id: getPostId(post),
-                tag: getTopicLabel(post),
+                tag: getTopicLabel(post, t),
                 text: noteData.data.note_content,
               }
             } catch {
@@ -178,8 +180,8 @@ export default function LibraryRightPanel() {
           const postTagIds = Array.isArray(post.tag_ids)
             ? post.tag_ids.map(String)
             : Array.isArray(post.tags) && post.tags.every((x) => x && x.id != null)
-            ? post.tags.map((x) => String(x.id))
-            : []
+              ? post.tags.map((x) => String(x.id))
+              : []
 
           if (postTagIds.length > 0) {
             for (const id of postTagIds) {
@@ -277,13 +279,29 @@ export default function LibraryRightPanel() {
       }
 
       const saved = Boolean(data.data?.saved)
-      const saveCount = Number(data.data?.save_count || 0)
+      const saveCount = saved 
+        ? Math.max(Number(data.data?.save_count || 0), 1)
+        : Number(data.data?.save_count || 0)
+
       if (saved) {
+        if (addSavedPost) addSavedPost(postId)
+
+        const oldSync = JSON.parse(
+          localStorage.getItem(`post-sync-${postId}`) || '{}'
+        )
+        const nextSync = {
+          ...oldSync,
+          saved: true,
+          saveCount: saveCount,
+        }
+        localStorage.setItem(`post-sync-${postId}`, JSON.stringify(nextSync))
+
         window.dispatchEvent(
           new CustomEvent(POST_SYNC_EVENT, {
             detail: { postId, saved: true, saveCount },
           })
         )
+        console.log('[FavoritesRightPanel] Fired post-sync-updated', { postId, saved: true, saveCount })
         setSuggestions((prev) =>
           prev.filter((item) => String(getPostId(item)) !== String(postId))
         )
@@ -321,14 +339,14 @@ export default function LibraryRightPanel() {
 
                 <div className={styles.info}>
                   <div className={styles.itemTitle}>{item.title}</div>
-                  <div className={styles.itemSub}>{getAuthorName(item)}</div>
+                  <div className={styles.itemSub}>{getAuthorName(item, t)}</div>
                 </div>
 
                 <span className={styles.time}>
                   {formatSeconds(
                     item.playback_history?.progress_seconds ||
-                      item.duration_seconds ||
-                      item.audio?.duration_seconds
+                    item.duration_seconds ||
+                    item.audio?.duration_seconds
                   )}
                 </span>
               </div>
@@ -336,7 +354,7 @@ export default function LibraryRightPanel() {
           ))}
 
           {recentListens.length === 0 && (
-            <div className={styles.emptyText}>Chưa có podcast đã lưu</div>
+            <div className={styles.emptyText}>{t('library.noSavedPodcasts')}</div>
           )}
         </div>
       </div>
@@ -362,7 +380,7 @@ export default function LibraryRightPanel() {
           ))}
 
           {noteHighlights.length === 0 && (
-            <div className={styles.emptyText}>Chưa có ghi chú nổi bật</div>
+            <div className={styles.emptyText}>{t('library.noHighlightNotes')}</div>
           )}
         </div>
       </div>
@@ -392,7 +410,7 @@ export default function LibraryRightPanel() {
                   <div className={styles.itemSub}>
                     {formatSeconds(item.audio?.duration_seconds || item.duration_seconds)}
                     {' · '}
-                    {getTopicLabel(item)}
+                    {getTopicLabel(item, t)}
                   </div>
                 </button>
 
@@ -410,7 +428,7 @@ export default function LibraryRightPanel() {
           })}
 
           {suggestions.length === 0 && (
-            <div className={styles.emptyText}>Chưa có gợi ý phù hợp</div>
+            <div className={styles.emptyText}>{t('library.noSuggestions')}</div>
           )}
         </div>
       </div>

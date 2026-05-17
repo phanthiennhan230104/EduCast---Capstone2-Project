@@ -7,6 +7,7 @@ import { getToken, getCurrentUser } from '../../utils/auth'
 import { API_BASE_URL } from '../../config/apiBase'
 import { getInitials } from '../../utils/getInitials'
 import styles from '../../style/feed/ProfileShareModal.module.css'
+import { useTranslation } from 'react-i18next'
 
 export default function ProfileShareModal({
     profileUser,
@@ -14,6 +15,7 @@ export default function ProfileShareModal({
     onClose,
     onShareSuccess,
 }) {
+    const { t } = useTranslation()
     const [friends, setFriends] = useState([])
     const [loading, setLoading] = useState(false)
     const [sending, setSending] = useState(false)
@@ -27,7 +29,7 @@ export default function ProfileShareModal({
         profileUser?.full_name ||
         profileUser?.name ||
         profileUser?.username ||
-        'Trang cá nhân'
+        t('profileShare.profileFallback')
 
     const username = profileUser?.username || ''
     const avatarUrl =
@@ -60,7 +62,7 @@ export default function ProfileShareModal({
             setFriends(mutualFriends)
         } catch (err) {
             console.error('Failed to fetch friends:', err)
-            toast.error('Không thể tải danh sách người nhận')
+            toast.error(t('profileShare.fetchRecipientsFailed'))
             setFriends([])
         } finally {
             setLoading(false)
@@ -102,12 +104,12 @@ export default function ProfileShareModal({
 
     const handleSend = async () => {
         if (!profileUserId) {
-            toast.error('Không tìm thấy trang cá nhân cần chia sẻ')
+            toast.error(t('profileShare.profileNotFound'))
             return
         }
 
         if (selectedUserIds.length === 0) {
-            toast.warning('Vui lòng chọn ít nhất một người nhận')
+            toast.warning(t('profileShare.selectAtLeastOne'))
             return
         }
 
@@ -150,11 +152,11 @@ export default function ProfileShareModal({
                 throw new Error(data?.message || `HTTP ${res.status}`)
             }
 
-            toast.success('Đã gửi trang cá nhân vào tin nhắn')
+            toast.success(t('profileShare.sendSuccess'))
             onShareSuccess?.(data?.data || data)
         } catch (err) {
             console.error('Share profile failed:', err)
-            toast.error(err.message || 'Không thể chia sẻ trang cá nhân')
+            toast.error(err.message || t('profileShare.sendFailed'))
         } finally {
             setSending(false)
         }
@@ -168,7 +170,7 @@ export default function ProfileShareModal({
             centered
             width={520}
             closeIcon={<X size={18} />}
-            title="Chia sẻ trang cá nhân"
+            title={t('profileShare.title')}
             wrapClassName="profile-share-modal"
         >
             <div className={styles.modal}>
@@ -215,7 +217,7 @@ export default function ProfileShareModal({
                         className={styles.textarea}
                         value={caption}
                         onChange={(e) => setCaption(e.target.value)}
-                        placeholder="Viết lời nhắn..."
+                        placeholder={t('profileShare.captionPlaceholder')}
                         rows={3}
                         maxLength={300}
                     />
@@ -228,7 +230,7 @@ export default function ProfileShareModal({
                     <Input
                         value={searchText}
                         onChange={(e) => setSearchText(e.target.value)}
-                        placeholder="Tìm người nhận..."
+                        placeholder={t('profileShare.searchPlaceholder')}
                         prefix={<Search size={16} />}
                         allowClear
                     />
@@ -240,7 +242,7 @@ export default function ProfileShareModal({
                             <Spin />
                         </div>
                     ) : filteredFriends.length === 0 ? (
-                        <Empty description="Không có người nhận" image={Empty.PRESENTED_IMAGE_SIMPLE} />
+                        <Empty description={t('profileShare.noRecipients')} image={Empty.PRESENTED_IMAGE_SIMPLE} />
                     ) : (
                         filteredFriends.map((friend) => {
                             const friendId = String(friend.id || friend.user_id || friend.username || '')
@@ -249,7 +251,7 @@ export default function ProfileShareModal({
                                 friend.name ||
                                 friend.full_name ||
                                 friend.username ||
-                                'Người dùng'
+                                t('profileShare.userFallback')
 
                             const friendUsername = friend.username || ''
                             const friendAvatar = friend.avatar_url || friend.avatar || ''
@@ -306,7 +308,7 @@ export default function ProfileShareModal({
 
                 <div className={styles.actions}>
                     <Button className={styles.cancelBtn} type="text" onClick={onClose}>
-                        Hủy
+                        {t('profileShare.cancel')}
                     </Button>
 
                     <Button
@@ -317,7 +319,7 @@ export default function ProfileShareModal({
                         onClick={handleSend}
                     >
                         <Send size={16} />
-                        Gửi
+                        {t('profileShare.send')}
                     </Button>
                 </div>
             </div>

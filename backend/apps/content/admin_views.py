@@ -9,6 +9,7 @@ from .models import Post, PostAudioVersion
 from apps.users.permissions import IsAdminRole
 from apps.users.models import User
 from apps.social.models import Report, Notification
+from apps.social.views import _create_notification
 
 
 def _generate_id(prefix="obj"):
@@ -39,6 +40,10 @@ class AdminPostsListView(APIView):
         # Apply filters
         if status_filter and status_filter in dict(Post.StatusChoices.choices):
             posts_qs = posts_qs.filter(status=status_filter)
+        else:
+            # Mặc định (hoặc khi chọn 'Tất cả'), chỉ hiện các bài viết thực sự cần kiểm duyệt (thường là 'processing')
+            # Ẩn các bài đã bị từ chối (failed) và các bài đã được duyệt (published)
+            posts_qs = posts_qs.exclude(status__in=['failed', 'published'])
 
         if visibility_filter and visibility_filter in dict(Post.VisibilityChoices.choices):
             posts_qs = posts_qs.filter(visibility=visibility_filter)
@@ -135,7 +140,7 @@ class AdminPostsListView(APIView):
                 'username': post.user.username if post.user else 'Unknown',
                 'display_name': post.user.profile.display_name if post.user and hasattr(post.user, 'profile') and post.user.profile else (post.user.username if post.user else 'Unknown'),
                 'user_avatar': post.user.profile.avatar_url if post.user and hasattr(post.user, 'profile') else None,
-                'description': post.description[:100] + '...' if post.description and len(post.description) > 100 else post.description,
+                'description': post.description,
                 'duration_seconds': resolved_duration_seconds,
                 'view_count': post.view_count,
                 'listen_count': post.listen_count,
@@ -266,7 +271,7 @@ class AdminPostRestoreView(APIView):
 
 class AdminPostRequestRepublishView(APIView):
     """
-    Admin moves a rejected post (status 'failed') back to 'processing' queue.
+    Admin gửi yêu cầu đăng lại cho user (gửi notification realtime qua WebSocket).
     """
     permission_classes = [IsAuthenticated, IsAdminRole]
 
@@ -279,14 +284,25 @@ class AdminPostRequestRepublishView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Move back to processing
+        # Cập nhật trạng thái bài viết và gửi thông báo
         post.status = 'processing'
         post.updated_at = timezone.now()
         post.save()
 
+        if post.user_id:
+            _create_notification(
+                recipient_id=post.user_id,
+                actor_user_id=request.user.id,
+                notification_type='system',
+                title='Yêu cầu đăng lại bài viết',
+                body=f"Người kiểm duyệt yêu cầu bạn chỉnh sửa và đăng lại bài viết: {post.title}",
+                reference_type='post',
+                reference_id=post.id,
+            )
+
         return Response(
             {
-                'message': 'Đã chuyển bài viết về hàng đợi kiểm duyệt.',
+                'message': 'Đã gửi yêu cầu đăng lại cho người dùng.',
                 'post': {
                     'id': post.id,
                     'status': post.status
@@ -512,7 +528,7 @@ class AdminNotificationsListView(APIView):
         page_size = int(request.query_params.get('page_size', 20))
 
         notifications_qs = Notification.objects.filter(
-            type='new_post'
+            type__in=['new_post', 'report_update']
         ).select_related('actor_user', 'user')
 
         if is_read_filter == 'true':
@@ -568,7 +584,7 @@ class AdminNotificationDetailView(APIView):
         try:
             notification = Notification.objects.select_related('actor_user').get(
             id=notification_id,
-            type='new_post',
+            type__in=['new_post', 'report_update'],
         )
         except Notification.DoesNotExist:
             return Response(
@@ -607,7 +623,7 @@ class AdminMarkNotificationAsReadView(APIView):
         try:
             notification = Notification.objects.get(
                 id=notification_id,
-                type='new_post',
+                type__in=['new_post', 'report_update'],
             )
         except Notification.DoesNotExist:
             return Response(
@@ -632,7 +648,7 @@ class AdminMarkAllNotificationsAsReadView(APIView):
     def post(self, request):
         # Mark all unread notifications as read for the current admin
         notifications = Notification.objects.filter(
-        type='new_post',
+        type__in=['new_post', 'report_update'],
         is_read=False
     )
         
@@ -651,7 +667,7 @@ class AdminGetUnreadNotificationCountView(APIView):
 
     def get(self, request):
         unread_count = Notification.objects.filter(
-            type='new_post',
+            type__in=['new_post', 'report_update'],
             is_read=False
         ).count()
 
@@ -667,7 +683,7 @@ class AdminDeleteNotificationView(APIView):
         try:
             notification = Notification.objects.get(
                 id=notification_id,
-                type='new_post',
+                type__in=['new_post', 'report_update'],
             )
         except Notification.DoesNotExist:
             return Response(
@@ -689,7 +705,7 @@ class AdminDebugNotificationsView(APIView):
 
         latest_new_posts = list(
             Notification.objects
-            .filter(type='new_post')
+            .filter(type__in=['new_post', 'report_update'])
             .order_by('-created_at')
             .values(
                 'id',
@@ -711,8 +727,8 @@ class AdminDebugNotificationsView(APIView):
                 'role': getattr(admin_user, 'role', None),
             },
             'total_notifications_in_db': Notification.objects.count(),
-            'total_new_post_notifications': Notification.objects.filter(type='new_post').count(),
-            'total_unread_new_post_notifications': Notification.objects.filter(type='new_post', is_read=False).count(),
+            'total_new_post_notifications': Notification.objects.filter(type__in=['new_post', 'report_update']).count(),
+            'total_unread_new_post_notifications': Notification.objects.filter(type__in=['new_post', 'report_update'], is_read=False).count(),
             'latest_new_posts': latest_new_posts,
             'all_admins': list(
                 User.objects

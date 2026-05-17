@@ -103,15 +103,34 @@
 }
 
 .admin-topic-fill-gold,
-.admin-topic-percent-gold { color: #ffb545; background: linear-gradient(90deg, #ffb545 0%, #f0a51b 100%); }
+.admin-topic-percent-gold {
+  color: #ffb545;
+  background: linear-gradient(90deg, #ffb545 0%, #f0a51b 100%);
+}
+
 .admin-topic-fill-cyan,
-.admin-topic-percent-cyan { color: #11d7d2; background: linear-gradient(90deg, #11d7d2 0%, #19b8ff 100%); }
+.admin-topic-percent-cyan {
+  color: #11d7d2;
+  background: linear-gradient(90deg, #11d7d2 0%, #19b8ff 100%);
+}
+
 .admin-topic-fill-violet,
-.admin-topic-percent-violet { color: #8f7cff; background: linear-gradient(90deg, #8f7cff 0%, #6b65ff 100%); }
+.admin-topic-percent-violet {
+  color: #8f7cff;
+  background: linear-gradient(90deg, #8f7cff 0%, #6b65ff 100%);
+}
+
 .admin-topic-fill-orange,
-.admin-topic-percent-orange { color: #ff7148; background: linear-gradient(90deg, #ff7148 0%, #ff5e3a 100%); }
+.admin-topic-percent-orange {
+  color: #ff7148;
+  background: linear-gradient(90deg, #ff7148 0%, #ff5e3a 100%);
+}
+
 .admin-topic-fill-peach,
-.admin-topic-percent-peach { color: #ffd27a; background: linear-gradient(90deg, #ffd27a 0%, #f3c26b 100%); }
+.admin-topic-percent-peach {
+  color: #ffd27a;
+  background: linear-gradient(90deg, #ffd27a 0%, #f3c26b 100%);
+}
 
 .admin-topic-percent {
   min-width: 42px;

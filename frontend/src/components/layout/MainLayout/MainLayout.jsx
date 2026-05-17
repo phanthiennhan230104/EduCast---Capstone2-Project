@@ -116,6 +116,8 @@ function mapPostDetail(raw, preview = {}) {
     shared_at: raw.shared_at || preview.shared_at,
     commentModalScope: raw.commentModalScope || preview.commentModalScope,
     sharedBy: raw.sharedBy || preview.sharedBy,
+    status: raw.status || preview.status || 'published',
+    learning_field: raw.learning_field || preview.learning_field,
   }
 }
 
@@ -304,6 +306,19 @@ export default function MainLayout({
         if (res.ok && json.data) {
           const detail = mapPostDetail(json.data)
           detail.id = postId // Giữ ID tổng hợp
+          const notifTitle = e.detail?.notifTitle
+          const notifBody = e.detail?.notifBody
+          if (notifType === 'system' && notifTitle?.toLowerCase().includes('từ chối')) {
+            detail.rejectionInfo = {
+              title: notifTitle,
+              body: notifBody || 'Bài viết của bạn đã bị người kiểm duyệt từ chối.',
+            }
+          } else if (json.data?.status === 'failed') {
+            detail.rejectionInfo = {
+              title: 'Bài viết bị từ chối',
+              body: 'Bài viết của bạn đã bị người kiểm duyệt từ chối.',
+            }
+          }
           setFallbackPostDetail(detail)
           setFallbackLiked(Boolean(detail.is_liked))
           setFallbackSaved(Boolean(detail.is_saved))
@@ -372,18 +387,20 @@ export default function MainLayout({
       liked: nextLiked,
       likeCount: nextLikeCount,
     })
-    if (data.data?.canonical_post_id) {
-      dispatchPostSync({
-        postId: String(data.data.canonical_post_id),
-        liked: nextLiked,
-        likeCount: nextLikeCount,
-      })
-    } else if (fallbackPostDetail?.post_id) {
-      dispatchPostSync({
-        postId: String(fallbackPostDetail.post_id),
-        liked: nextLiked,
-        likeCount: nextLikeCount,
-      })
+    if (fallbackPostDetail?.type !== 'shared') {
+      if (data.data?.canonical_post_id) {
+        dispatchPostSync({
+          postId: String(data.data.canonical_post_id),
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        })
+      } else if (fallbackPostDetail?.post_id) {
+        dispatchPostSync({
+          postId: String(fallbackPostDetail.post_id),
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        })
+      }
     }
     return { liked: nextLiked, likeCount: nextLikeCount }
   }, [dispatchPostSync, fallbackPostDetail])
@@ -433,18 +450,20 @@ export default function MainLayout({
       saved: nextSaved,
       saveCount: nextSaveCount,
     })
-    if (data.data?.canonical_post_id) {
-      dispatchPostSync({
-        postId: String(data.data.canonical_post_id),
-        saved: nextSaved,
-        saveCount: nextSaveCount,
-      })
-    } else if (fallbackPostDetail?.post_id) {
-      dispatchPostSync({
-        postId: String(fallbackPostDetail.post_id),
-        saved: nextSaved,
-        saveCount: nextSaveCount,
-      })
+    if (fallbackPostDetail?.type !== 'shared') {
+      if (data.data?.canonical_post_id) {
+        dispatchPostSync({
+          postId: String(data.data.canonical_post_id),
+          saved: nextSaved,
+          saveCount: nextSaveCount,
+        })
+      } else if (fallbackPostDetail?.post_id) {
+        dispatchPostSync({
+          postId: String(fallbackPostDetail.post_id),
+          saved: nextSaved,
+          saveCount: nextSaveCount,
+        })
+      }
     }
     return { saved: nextSaved, saveCount: nextSaveCount }
   }, [dispatchPostSync, fallbackPostDetail])

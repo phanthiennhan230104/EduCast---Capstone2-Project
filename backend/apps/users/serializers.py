@@ -258,6 +258,8 @@ class AdminUserListSerializer(serializers.ModelSerializer):
     avatar_url = serializers.CharField(source="profile.avatar_url", read_only=True)
     lock_history = serializers.SerializerMethodField()
     current_lock = serializers.SerializerMethodField()
+    podcast_count = serializers.SerializerMethodField()
+    followers_count = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -273,10 +275,21 @@ class AdminUserListSerializer(serializers.ModelSerializer):
             "updated_at",
             "display_name",
             "avatar_url",
-            
+            "podcast_count",
+            "followers_count",
             "current_lock",
             "lock_history",
         ]
+
+    def get_podcast_count(self, obj):
+        if hasattr(obj, 'podcast_count'):
+            return obj.podcast_count
+        return obj.posts.count()
+
+    def get_followers_count(self, obj):
+        if hasattr(obj, 'followers_count'):
+            return obj.followers_count
+        return obj.follower_relations.count()
 
     def get_lock_history(self, obj):
         logs = obj.lock_logs.all()[:10]

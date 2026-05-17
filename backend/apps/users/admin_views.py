@@ -4,7 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from django.db import transaction
 
-from django.db.models import Count, Sum, Q, OuterRef, Subquery, IntegerField, Value
+from django.db.models import Count, Sum, Q, OuterRef, Subquery, IntegerField, Value, Avg
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
 from datetime import timedelta, datetime, time
@@ -246,6 +246,7 @@ class AdminReportsListView(APIView):
                     "description": post.description,
                     "thumbnail_url": post.thumbnail_url,
                     "audio_url": post.audio_url,
+                    "duration_seconds": post.duration_seconds or 0,
                     "created_at": post.created_at.isoformat() if post.created_at else None,
                     "author_id": post.user_id,
                     "author_username": post.user.username if post.user else "Unknown",
@@ -320,14 +321,58 @@ class AdminOverviewView(APIView):
             "ai_generated_posts": posts_qs.filter(is_ai_generated=True).count(),
             "new_posts_30d": posts_qs.filter(created_at__gte=thirty_days_ago).count(),
         }
+        
+        # Rolling 7 days logic
+        now_dt = timezone.now()
+        seven_days_ago = now_dt - timedelta(days=7)
+        fourteen_days_ago = now_dt - timedelta(days=14)
 
-        engagement_data = posts_qs.aggregate(
+        # 1. Total Posts Change (New in 7d / Total all time * 100)
+        total_all_time = posts_qs.count()
+        current_7d_posts = Post.objects.filter(created_at__gte=seven_days_ago)
+        last_7d_posts = Post.objects.filter(created_at__gte=fourteen_days_ago, created_at__lt=seven_days_ago)
+        
+        c_posts_count = current_7d_posts.count()
+        
+        if total_all_time > 0:
+            total_posts_change = (c_posts_count / total_all_time) * 100
+        else:
+            total_posts_change = 0
+
+        l_posts_count = last_7d_posts.count()
+
+        # 2. AI Content Rate Change (Difference logic for rates: Current - Last)
+        c_ai_posts = current_7d_posts.filter(is_ai_generated=True).count()
+        c_ai_rate = (c_ai_posts / c_posts_count * 100) if c_posts_count > 0 else 0
+        
+        l_ai_posts = last_7d_posts.filter(is_ai_generated=True).count()
+        l_ai_rate = (l_ai_posts / l_posts_count * 100) if l_posts_count > 0 else 0
+        
+        ai_rate_change = c_ai_rate - l_ai_rate
+
+        # 3. Completion Rate Change (Difference logic for rates: Current - Last)
+        current_7d_playbacks = PlaybackHistory.objects.filter(last_played_at__gte=seven_days_ago)
+        last_7d_playbacks = PlaybackHistory.objects.filter(last_played_at__gte=fourteen_days_ago, last_played_at__lt=seven_days_ago)
+        
+        c_comp_avg = float(current_7d_playbacks.aggregate(avg=Avg('completed_ratio'))['avg'] or 0) * 100
+        l_comp_avg = float(last_7d_playbacks.aggregate(avg=Avg('completed_ratio'))['avg'] or 0) * 100
+        
+        comp_rate_change = c_comp_avg - l_comp_avg
+
+        posts_data["ai_content_rate_change"] = ai_rate_change
+        posts_data["total_posts_change"] = total_posts_change
+        posts_data["new_posts_7d"] = c_posts_count
+        engagement_data = {}
+        engagement_data["avg_completion_rate"] = c_comp_avg
+        engagement_data["completion_rate_change"] = comp_rate_change
+
+        engagement_data.update(posts_qs.aggregate(
             total_views=Coalesce(Sum("view_count"), 0),
             total_listens=Coalesce(Sum("listen_count"), 0),
             total_post_saves=Coalesce(Sum("save_count"), 0),
             total_post_shares=Coalesce(Sum("share_count"), 0),
             total_downloads=Coalesce(Sum("download_count"), 0),
-        )
+        ))
 
         engagement_data["total_post_likes"] = PostLike.objects.count()
         engagement_data["total_post_comments"] = Comment.objects.filter(status="active").count()
@@ -575,6 +620,10 @@ class AdminUsersListView(APIView):
             User.objects.select_related("profile")
             .prefetch_related("lock_logs")
             .filter(role="user")
+            .annotate(
+                podcast_count=Count('posts', distinct=True),
+                followers_count=Count('follower_relations', distinct=True)
+            )
             .order_by("-created_at")
         )
 

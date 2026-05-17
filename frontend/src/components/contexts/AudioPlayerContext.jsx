@@ -9,6 +9,7 @@ import {
 } from 'react'
 import { AuthContext } from './AuthContext'
 import { getToken } from '../../utils/auth'
+import { apiRequest } from '../../utils/api'
 import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
 import { API_BASE_URL } from '../../config/apiBase'
 
@@ -488,34 +489,15 @@ const seekTrackToPercent = useCallback((track, percent, trackQueue = []) => {
       }
 
       try {
-        const token = getToken()
+        const data = await apiRequest(`/social/posts/${listenPostId}/listen/`, {
+          method: 'POST',
+          body: JSON.stringify({
+            progress_seconds: Math.floor(currentTime),
+            duration_seconds: Math.floor(duration),
+          }),
+        })
 
-        const response = await fetch(
-          `${API_BASE_URL}/social/posts/${listenPostId}/listen/`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              ...(token
-                ? {
-                  Authorization: `Bearer ${token}`,
-                }
-                : {}),
-            },
-            body: JSON.stringify({
-              progress_seconds: Math.floor(currentTime),
-              duration_seconds: Math.floor(duration),
-            }),
-          }
-        )
-
-        const data = await response.json().catch(() => null)
-
-        console.log('track_listen response:', response.status, data)
-
-        if (!response.ok) {
-          throw new Error(`Listen tracking failed: ${response.status}`)
-        }
+        console.log('track_listen response:', data)
       } catch (error) {
         console.error('Track listen failed:', error)
       }

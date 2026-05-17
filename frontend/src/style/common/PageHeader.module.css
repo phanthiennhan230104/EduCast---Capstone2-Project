@@ -77,6 +77,7 @@
   background: var(--accent-light);
 }
 
+
 .actions {
   display: flex;
   align-items: center;
@@ -117,12 +118,15 @@
   .header {
     padding: 0 16px !important;
   }
+
   .nav {
     display: none !important;
   }
+
   .logoImage {
     width: 120px !important;
   }
+
   .loginBtn,
   .freeBtn {
     padding: 8px 14px !important;

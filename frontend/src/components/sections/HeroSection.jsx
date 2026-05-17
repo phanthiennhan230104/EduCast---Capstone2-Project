@@ -4,7 +4,7 @@ export default function HeroSection({ id, onOpenLogin }) {
   return (
     <section className={styles.hero}>
       <div className={styles.heroContent} id={id}>
-        
+
 
         <h1 className={styles.heroTitle}>
           Nghe · Học <br />
@@ -24,10 +24,10 @@ export default function HeroSection({ id, onOpenLogin }) {
             <ArrowRight size={16} />
           </button>
 
-          
+
         </div>
 
-        
+
       </div>
 
       <div className={styles.heroVisual}>
@@ -67,9 +67,9 @@ export default function HeroSection({ id, onOpenLogin }) {
           </div>
         </div>
 
-        
 
-        
+
+
 
       </div>
     </section>

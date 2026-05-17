@@ -57,7 +57,7 @@ export const NotificationProvider = ({ children }) => {
     const connectWS = () => {
       if (wsRef.current) wsRef.current.close();
 
-      const wsUrl = token 
+      const wsUrl = token
         ? `${WS_ORIGIN}/ws/notifications/?token=${token}`
         : `${WS_ORIGIN}/ws/notifications/`;
       const ws = new WebSocket(wsUrl);
@@ -71,7 +71,7 @@ export const NotificationProvider = ({ children }) => {
             setUnreadCount((prev) => prev + 1);
             setNotifications((prev) => [newNotif, ...prev]);
 
-            if (newNotif.reference_type === 'post' && newNotif.post_counts) {
+            if (newNotif.post_counts) {
               const counts = newNotif.post_counts;
               const payload = {
                 postId: String(newNotif.reference_id),
@@ -82,11 +82,7 @@ export const NotificationProvider = ({ children }) => {
               };
               window.dispatchEvent(new CustomEvent('post-sync-updated', { detail: payload }));
 
-              if (newNotif.canonical_post_id) {
-                window.dispatchEvent(new CustomEvent('post-sync-updated', {
-                  detail: { ...payload, postId: String(newNotif.canonical_post_id) }
-                }));
-              }
+
             }
           } else if (data.type === 'social_update' && data.social_update) {
             const update = data.social_update;

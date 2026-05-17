@@ -15,7 +15,7 @@ from django.utils import timezone
 from .permissions import IsAdminRole
 from datetime import timedelta
 from django.shortcuts import get_object_or_404
-from django.db.models import Q
+from django.db.models import Q, Count
 
 
 from .models import User, UserProfile, UserSettings
@@ -800,7 +800,15 @@ class AdminUsersListView(APIView):
     permission_classes = [IsAuthenticated, IsAdminRole]
 
     def get(self, request):
-        users = User.objects.select_related("profile").filter(role="user").order_by("-created_at")
+        users = (
+            User.objects.select_related("profile")
+            .filter(role="user")
+            .annotate(
+                podcast_count=Count('posts', distinct=True),
+                followers_count=Count('follower_relations', distinct=True)
+            )
+            .order_by("-created_at")
+        )
         serializer = AdminUserListSerializer(users, many=True)
 
         total_users = users.count()

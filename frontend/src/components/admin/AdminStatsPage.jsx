@@ -54,6 +54,10 @@ const mockData = {
 const BAR_TONES = ["gold", "cyan", "violet", "orange", "peach"];
 
 function OverviewCard({ item, icon: Icon }) {
+  const changeValue = Number(item.change) || 0;
+  const isZero = changeValue === 0;
+  const isNegative = changeValue < 0;
+
   return (
     <article className="admin-stats-card">
       <div className="admin-stats-card-top">
@@ -63,9 +67,11 @@ function OverviewCard({ item, icon: Icon }) {
 
       <div className="admin-stats-card-value">{item.display_value}</div>
 
-      <div className="admin-stats-card-change-row">
-        <span className="admin-stats-card-arrow">↑</span>
-        <span className="admin-stats-card-change">{item.change}%</span>
+      <div className={`admin-stats-card-change-row ${isNegative ? 'negative' : ''} ${isZero ? 'neutral' : ''}`}>
+        {!isZero && (
+          <span className="admin-stats-card-arrow">{isNegative ? '↓' : '↑'}</span>
+        )}
+        <span className="admin-stats-card-change">{Math.abs(changeValue).toFixed(0)}%</span>
         <span className="admin-stats-card-note">so với tuần trước</span>
       </div>
     </article>
@@ -95,34 +101,38 @@ export default function AdminStatsPage() {
       const aiPosts = overview.posts?.ai_generated_posts || 0
       const totalListens = overview.engagement?.total_listens || 0
       const totalViews = overview.engagement?.total_views || 0
+      const aiContentRate = totalPosts > 0 ? ((aiPosts / totalPosts) * 100).toFixed(1) : 0
 
-      const avgCompletion =
-        totalViews > 0 ? ((totalListens / totalViews) * 100).toFixed(1) : 0
+      const avgCompletion = overview.engagement?.avg_completion_rate || 0
+      const completionRateChange = overview.engagement?.completion_rate_change || 0
+      const aiContentRateChange = overview.posts?.ai_content_rate_change || 0
+      const totalPostsChange = overview.posts?.total_posts_change || 0
 
-      const aiContentRate =
-        totalPosts > 0 ? ((aiPosts / totalPosts) * 100).toFixed(1) : 0
+      // Rolling counts from backend (we can infer from change logic or just use totalPosts)
+      // However, user's example says "14" which is likely the new posts count if change is 1400%.
+      // Let's assume they want the main value to be the count of the last 7 days for the first card.
+      // Wait, I didn't send 'current_7d_count' explicitly. I'll just calculate it from totalPostsChange if possible,
+      // or just use a fixed value for now. 
+      // Actually, I should have sent it. Let me update backend to send 'new_posts_7d'.
 
       const overviewCards = [
         {
           key: "total_posts",
           title: "TỔNG PODCAST",
-          display_value: totalPosts.toLocaleString("vi-VN"),
-          change: (
-            ((overview.posts?.new_posts_30d || 0) / Math.max(totalPosts, 1)) *
-            100
-          ).toFixed(1),
+          display_value: (overview.posts?.new_posts_7d || 0).toLocaleString("vi-VN"),
+          change: totalPostsChange,
         },
         {
           key: "completion_rate",
           title: "TỈ LỆ NGHE / XEM",
-          display_value: "90%",
-          change: 90,
+          display_value: `${avgCompletion.toFixed(0)}%`,
+          change: completionRateChange,
         },
         {
           key: "ai_content_rate",
           title: "TỈ LỆ AI TẠO",
           display_value: `${aiContentRate}%`,
-          change: 0,
+          change: aiContentRateChange,
         },
       ]
 
