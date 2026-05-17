@@ -34,26 +34,26 @@ class ChatConsumer(AsyncWebsocketConsumer):
             await self.close(code=4001)
             return
 
-        is_member = await self._is_member()
-        logger.info("WS membership check room_id=%s user_id=%s is_member=%s", self.room_id, self.user.id, is_member)
+        try:
+            is_member = await self._is_member()
+            logger.info("WS membership check room_id=%s user_id=%s is_member=%s", self.room_id, self.user.id, is_member)
 
-        if not is_member:
-            logger.warning("WS rejected")
+            if not is_member:
+                logger.warning("WS rejected")
+                await self.accept()
+                await self.send(text_data="NOT MEMBER")
+                await self.close(code=4003)
+                return
             
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
             await self.accept()
 
-            await self.send(text_data="NOT MEMBER")
-
-            await self.close(code=4003)
-
-            return
-        
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.accept()
-
-        became_online = await self._mark_online()
-        if became_online:
-            await self._broadcast_presence("online")
+            became_online = await self._mark_online()
+            if became_online:
+                await self._broadcast_presence("online")
+        except Exception as e:
+            logger.error("CHAT CONSUMER CONNECT ERROR: %s", e, exc_info=True)
+            await self.close(code=1011)
 
     async def disconnect(self, close_code):
         logger.info(
