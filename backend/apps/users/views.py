@@ -812,3 +812,12 @@ class AdminUsersListView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class ListLoginHistoryView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        history = LoginHistory.objects.filter(user=request.user).order_by("-created_at")[:10]
+        serializer = LoginHistorySerializer(history, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)

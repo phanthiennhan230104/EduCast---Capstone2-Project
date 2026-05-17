@@ -8,20 +8,24 @@ import {
   Flame,
   Home,
   Link2,
-  
+
   LogOut,
   Settings,
-  ShieldAlert,
-  Star,
-  Upload,
-  UserRound,
   Loader,
+  Heart,
+  Save,
+  UserPlus,
+  MessageSquare,
+  Share2,
+  UserRound,
+  ShieldAlert,
 } from 'lucide-react'
 import MainLayout from '../../components/layout/MainLayout/MainLayout'
 import { useAuth } from '../../components/contexts/AuthContext'
 import { getInitials } from '../../utils/getInitials'
 import { showToast } from '../../utils/toast'
-import { updateUserProfile, updateUserSettings, changePassword, deleteAccount, exportUserData } from '../../utils/usersApi'
+import { updateUserProfile, updateUserSettings, changePassword, deleteAccount, exportUserData, getActivityLogs } from '../../utils/usersApi'
+
 import { apiRequest } from '../../utils/api'
 import { Select, ConfigProvider } from 'antd'
 import styles from '../../style/pages/SettingsPage/SettingsPage.module.css'
@@ -51,6 +55,52 @@ function AccountSummaryCard() {
 
 function SettingsRightPanel({ onLogout }) {
   const { t } = useTranslation()
+  const [activities, setActivities] = useState([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    const fetchActivities = async () => {
+      try {
+        const result = await getActivityLogs()
+        if (result.success && Array.isArray(result.data)) {
+          setActivities(result.data)
+        }
+      } catch (error) {
+        console.error('Failed to fetch activity logs', error)
+      } finally {
+        setLoading(false)
+      }
+    }
+    fetchActivities()
+  }, [])
+
+  const getTimeAgo = (dateStr) => {
+    const date = new Date(dateStr)
+    const now = new Date()
+    const diffInSeconds = Math.floor((now - date) / 1000)
+    
+    if (diffInSeconds < 60) return t('common.time.justNow')
+    const diffInMinutes = Math.floor(diffInSeconds / 60)
+    if (diffInMinutes < 60) return `${diffInMinutes} ${t('common.time.minutesAgo')}`
+    const diffInHours = Math.floor(diffInMinutes / 60)
+    if (diffInHours < 24) return `${diffInHours} ${t('common.time.hoursAgo')}`
+    const diffInDays = Math.floor(diffInHours / 24)
+    if (diffInDays < 30) return `${diffInDays} ${t('common.time.daysAgo')}`
+    return date.toLocaleDateString()
+  }
+
+  const getActivityIcon = (type) => {
+    switch (type) {
+      case 'created_post': return <Bell size={14} />
+      case 'liked_post': return <Heart size={14} />
+      case 'saved_post': return <Save size={14} />
+      case 'followed_user': return <UserPlus size={14} />
+      case 'commented_post': return <MessageSquare size={14} />
+      case 'shared_post': return <Share2 size={14} />
+      default: return <Bell size={14} />
+    }
+  }
+
   return (
     <aside className={styles.sidePanel}>
       <div className={styles.sideTitle}>
@@ -80,37 +130,29 @@ function SettingsRightPanel({ onLogout }) {
         </div>
       </div>
 
-
-
       <div className={styles.activityCard}>
         <h4>{t('settings.rightPanel.recentActivity')}</h4>
 
         <div className={styles.activityList}>
-          <div className={styles.activityItem}>
-            <Bell size={14} />
-            <div>
-              <b>Đổi email thành công</b>
-              <span>2 ngày trước</span>
+          {loading ? (
+            <div className={styles.loadingActivity}>
+              <Loader size={16} className={styles.spin} />
             </div>
-          </div>
-
-          
-
-          <div className={styles.activityItem}>
-            <ShieldAlert size={14} />
-            <div>
-              <b>Đăng nhập từ thiết bị mới</b>
-              <span>18 ngày trước</span>
+          ) : activities.length > 0 ? (
+            activities.map((item) => (
+              <div key={item.id} className={styles.activityItem}>
+                {getActivityIcon(item.activity_type)}
+                <div>
+                  <b>{t(`settings.rightPanel.activities.${item.activity_type}`)}</b>
+                  <span>{getTimeAgo(item.created_at)}</span>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className={styles.noActivity}>
+              <span>{t('settings.rightPanel.noActivity')}</span>
             </div>
-          </div>
-
-          <div className={styles.activityItem}>
-            <Link2 size={14} />
-            <div>
-              <b>Liên kết Google thành công</b>
-              <span>12 ngày trước</span>
-            </div>
-          </div>
+          )}
         </div>
       </div>
 
@@ -875,19 +917,19 @@ export default function SettingsPage() {
   }
 
   const renderContent = () => {
-  if (!profile) {
-    return <div className={styles.loading}>{t('common.loading')}</div>
-  }
+    if (!profile) {
+      return <div className={styles.loading}>{t('common.loading')}</div>
+    }
 
-  switch (activeTab) {
-    case 'account':
-      return <AccountSettings profile={profile} onProfileUpdate={handleProfileUpdate} />
-    case 'other':
-      return <OtherSettings />
-    default:
-      return <AccountSettings profile={profile} onProfileUpdate={handleProfileUpdate} />
+    switch (activeTab) {
+      case 'account':
+        return <AccountSettings profile={profile} onProfileUpdate={handleProfileUpdate} />
+      case 'other':
+        return <OtherSettings />
+      default:
+        return <AccountSettings profile={profile} onProfileUpdate={handleProfileUpdate} />
+    }
   }
-}
 
   return (
     <MainLayout rightPanel={<SettingsRightPanel onLogout={handleLogout} />}>

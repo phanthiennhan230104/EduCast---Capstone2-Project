@@ -7,25 +7,25 @@ import styles from '../../style/community/CommunityRightPanel.module.css'
 
 export const COMMUNITY_FOLLOW_CHANGED_EVENT = 'community-follow-changed'
 
-function formatTimeAgo(raw) {
+function formatTimeAgo(raw, t) {
   if (!raw) return ''
   const date = new Date(raw)
   const diffMs = Date.now() - date.getTime()
   const diffMinutes = Math.max(0, Math.floor(diffMs / 60000))
-  if (diffMinutes < 1) return 'Vừa xong'
-  if (diffMinutes < 60) return `${diffMinutes} phút trước`
+  if (diffMinutes < 1) return t('feed.time.justNow')
+  if (diffMinutes < 60) return t('feed.time.minutesAgo', { count: diffMinutes })
   const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) return `${diffHours} giờ trước`
-  return `${Math.floor(diffHours / 24)} ngày trước`
+  if (diffHours < 24) return t('feed.time.hoursAgo', { count: diffHours })
+  return t('feed.time.daysAgo', { count: Math.floor(diffHours / 24) })
 }
 
-function normalizeActivityText(text) {
+function normalizeActivityText(text, t) {
   return String(text || '')
-    .replace(/\bvua dang podcast moi\b/gi, 'vừa đăng podcast mới')
-    .replace(/\bstarted following\b/gi, 'đã bắt đầu theo dõi')
+    .replace(/\bvua dang podcast moi\b/gi, t('communityRightPanel.activityNewPodcast'))
+    .replace(/\bstarted following\b/gi, t('communityRightPanel.following').toLowerCase())
 }
 
-function UserRow({ item, onToggle }) {
+function UserRow({ item, onToggle, t }) {
   const navigate = useNavigate()
 
   return (
@@ -34,7 +34,7 @@ function UserRow({ item, onToggle }) {
         type="button"
         className={styles.avatarButton}
         onClick={() => item.id && navigate(`/profile/${item.id}`)}
-        aria-label="Mở trang cá nhân"
+        aria-label={t('personal.viewProfile')}
       >
         {item.avatar_url ? (
           <img src={item.avatar_url} alt={item.name} className={styles.avatarImg} />
@@ -47,7 +47,7 @@ function UserRow({ item, onToggle }) {
         className={styles.userInfoButton}
       >
         <div className={styles.name}>{item.name || item.display_name || item.username}</div>
-        <div className={styles.meta}>{item.followers_count || 0} người theo dõi</div>
+        <div className={styles.meta}>{t('communityRightPanel.followers', { count: item.followers_count || 0 })}</div>
       </div>
 
       <button
@@ -55,7 +55,7 @@ function UserRow({ item, onToggle }) {
         className={`${styles.followBtn} ${item.is_following ? styles.following : ''}`}
         onClick={() => onToggle(item.id)}
       >
-        {item.is_following ? 'Đang theo dõi' : 'Theo dõi'}
+        {item.is_following ? t('communityRightPanel.following') : t('communityRightPanel.follow')}
       </button>
     </div>
   )
@@ -159,10 +159,10 @@ export default function CommunityRightPanel() {
 
         <div className={styles.userList}>
           {followingList.slice(0, 3).map((item) => (
-            <UserRow key={item.id} item={item} onToggle={toggleUser} />
+            <UserRow key={item.id} item={item} onToggle={toggleUser} t={t} />
           ))}
           {followingList.length === 0 && (
-            <div className={styles.emptyText}>Bạn chưa theo dõi ai</div>
+            <div className={styles.emptyText}>{t('communityRightPanel.noFollowing', { defaultValue: 'Bạn chưa theo dõi ai' })}</div>
           )}
         </div>
       </div>
@@ -178,10 +178,10 @@ export default function CommunityRightPanel() {
             .filter((item) => String(item.role || '').toLowerCase() !== 'admin')
             .slice(0, 3)
             .map((item) => (
-            <UserRow key={item.id} item={item} onToggle={toggleUser} />
+            <UserRow key={item.id} item={item} onToggle={toggleUser} t={t} />
           ))}
           {suggestions.length === 0 && (
-            <div className={styles.emptyText}>Chưa có gợi ý phù hợp</div>
+            <div className={styles.emptyText}>{t('communityRightPanel.noSuggestions', { defaultValue: 'Chưa có gợi ý phù hợp' })}</div>
           )}
         </div>
       </div>
@@ -197,13 +197,13 @@ export default function CommunityRightPanel() {
             <div key={item.id} className={styles.activityRow}>
               <div className={styles.dot} />
               <div className={styles.activityContent}>
-                <div className={styles.activityText}>{normalizeActivityText(item.text)}</div>
-                <div className={styles.activityTime}>{formatTimeAgo(item.created_at)}</div>
+                <div className={styles.activityText}>{normalizeActivityText(item.text, t)}</div>
+                <div className={styles.activityTime}>{formatTimeAgo(item.created_at, t)}</div>
               </div>
             </div>
           ))}
           {activities.length === 0 && (
-            <div className={styles.emptyText}>Chưa có hoạt động mới</div>
+            <div className={styles.emptyText}>{t('communityRightPanel.noActivities', { defaultValue: 'Chưa có hoạt động mới' })}</div>
           )}
         </div>
       </div>

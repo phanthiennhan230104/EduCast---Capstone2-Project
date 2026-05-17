@@ -1,25 +1,53 @@
 import { Link } from 'react-router-dom'
-import { Music } from 'lucide-react'
+
 import { useTranslation } from 'react-i18next'
 import styles from '../../style/common/PageHeader.module.css'
+import logoImage from '../../assets/images/educast-logo.png'
 
 
 export default function PageHeader({ onOpenLogin, onOpenSignup }) {
   const { t } = useTranslation()
+
+  const handleScroll = (e, id) => {
+    e.preventDefault()
+    const element = document.getElementById(id)
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' })
+    }
+  }
+
   return (
     <header className={styles.header}>
       <Link to="/" className={styles.logo}>
-        <div className={styles.logoBox}>
-          <Music size={20} />
-        </div>
-        <span className={styles.logoText}>EduCast</span>
+        <img
+          src={logoImage}
+          alt="EduCast Logo"
+          className={styles.logoImage}
+        />
       </Link>
 
       <nav className={styles.nav}>
-        <a href="#explore" className={styles.navLink}>Khám Phá</a>
-        <a href="#topics" className={styles.navLink}>Chủ Đề</a>
-        <a href="#community" className={styles.navLink}>Cộng Đồng</a>
-        <a href="#ranking" className={styles.navLink}>Xếp Hạng</a>
+        <a 
+          href="#topics" 
+          className={styles.navLink} 
+          onClick={(e) => handleScroll(e, 'topics')}
+        >
+          Chủ Đề
+        </a>
+        <a 
+          href="#community" 
+          className={styles.navLink} 
+          onClick={(e) => handleScroll(e, 'community')}
+        >
+          Cộng Đồng
+        </a>
+        <a 
+          href="#ranking" 
+          className={styles.navLink} 
+          onClick={(e) => handleScroll(e, 'ranking')}
+        >
+          Yêu Thích
+        </a>
       </nav>
 
       <div className={styles.actions}>

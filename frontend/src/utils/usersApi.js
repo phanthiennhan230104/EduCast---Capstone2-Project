@@ -23,12 +23,12 @@ export async function updateUserSettings(settings) {
     'theme_mode': settings.theme_mode,
     'language_code': settings.language_code,
   }
-  
+
   // Remove undefined values
   const payload = Object.fromEntries(
     Object.entries(validFields).filter(([_, v]) => v !== undefined)
   )
-  
+
   return apiRequest('/auth/settings/update/', {
     method: 'POST',
     body: JSON.stringify(payload),
@@ -77,6 +77,18 @@ export async function exportUserData() {
 
 export async function getAdminOverview() {
   return apiRequest('/auth/admin/overview/', {
+    method: 'GET',
+  })
+}
+
+export async function getLoginHistory() {
+  return apiRequest('/auth/login-history/', {
+    method: 'GET',
+  })
+}
+
+export async function getActivityLogs() {
+  return apiRequest('/social/activity-logs/', {
     method: 'GET',
   })
 }

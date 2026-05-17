@@ -143,6 +143,23 @@ def _create_notification(
 
     return notification
 
+def _log_activity(user_id, activity_type, reference_type, reference_id):
+    from apps.users.utils import log_user_activity
+    log_user_activity(user_id, activity_type, reference_type, reference_id)
+
+@require_http_methods(["GET"])
+def list_activity_logs(request):
+    user = _get_current_user(request)
+    if not user:
+        return _json_error("Authentication required", 401)
+    
+    from apps.users.models import ActivityLog
+    from apps.users.serializers import ActivityLogSerializer
+    
+    logs = ActivityLog.objects.filter(user=user).order_by("-created_at")[:3]
+    serializer = ActivityLogSerializer(logs, many=True)
+    return _json_success("Activity logs fetched successfully", serializer.data)
+
 def _send_social_update(user_id, update_type, data):
     try:
         channel_layer = get_channel_layer()
@@ -562,6 +579,8 @@ def toggle_like_post(request, post_id):
             reference_id=ref_id
         )
 
+        _log_activity(user.id, 'liked_post', 'post', post.id)
+
         return _json_success(
             "Liked post successfully",
             {
@@ -658,6 +677,8 @@ def toggle_save_post(request, post_id):
                 post=post,
                 added_at=timezone.now()
             )
+
+        _log_activity(user.id, 'saved_post', 'post', post.id)
 
         return _json_success(
             "Saved post successfully",
@@ -877,6 +898,8 @@ def create_comment(request, post_id):
         reference_type="comment",
         reference_id=ref_id
     )
+
+    _log_activity(user.id, 'commented_post', 'post', post.id)
 
     comment = Comment.objects.filter(id=comment.id).select_related("user").first()
 
@@ -1465,6 +1488,8 @@ def toggle_follow_user(request, target_user_id):
         reference_id=user.id
     )
 
+    _log_activity(user.id, 'followed_user', 'user', target_user.id)
+
     # Broadcast real-time update via WebSocket
     update_data = {
         "follower_id": user.id,
@@ -1639,6 +1664,8 @@ def share_post(request, post_id):
             reference_type=notification_reference_type,
             reference_id=notification_reference_id
         )
+
+        _log_activity(user.id, 'shared_post', 'post', post.id)
 
         return _json_success(
             "Post shared successfully",

@@ -1685,6 +1685,9 @@ class PublishPostView(APIView):
             # CREATE NOTIFICATIONS FOR ADMINS
             create_new_post_notifications_for_admins(post, request.user)
 
+            from apps.users.utils import log_user_activity
+            log_user_activity(request.user.id, 'created_post', 'post', post.id)
+
             return Response(
                 {
                     "message": "Bài viết đã được lưu và gửi cho admin kiểm duyệt",

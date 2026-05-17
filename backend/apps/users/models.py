@@ -241,3 +241,83 @@ class UserTagPreference(models.Model):
 
     def __str__(self):
         return f"{self.user_id} - Tag {self.tag.name} (score: {self.score})"
+
+
+class LoginHistory(models.Model):
+    id = models.CharField(primary_key=True, max_length=26, default=generate_id, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="login_history")
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.TextField(null=True, blank=True)
+    device_type = models.CharField(max_length=50, null=True, blank=True)  # Desktop, Mobile, Tablet
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "login_history"
+        app_label = "users"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"LoginHistory - {self.user.username} - {self.created_at}"
+
+
+class ActivityLog(models.Model):
+    ACTIVITY_TYPE_CHOICES = (
+        ('created_post', 'Created Post'),
+        ('liked_post', 'Liked Post'),
+        ('saved_post', 'Saved Post'),
+        ('followed_user', 'Followed User'),
+        ('commented_post', 'Commented Post'),
+        ('shared_post', 'Shared Post'),
+    )
+
+    id = models.CharField(primary_key=True, max_length=26, default=generate_id, editable=False)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="activity_logs")
+    activity_type = models.CharField(max_length=50, choices=ACTIVITY_TYPE_CHOICES)
+    reference_type = models.CharField(max_length=50)  # e.g., 'post', 'user'
+    reference_id = models.CharField(max_length=26)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "activity_logs"
+        app_label = "users"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"ActivityLog - {self.user.username} - {self.activity_type}"
+
+
+class AdminAction(models.Model):
+    ACTION_TYPE_CHOICES = (
+        ('suspend_user', 'Suspend User'),
+        ('ban_user', 'Ban User'),
+        ('activate_user', 'Activate User'),
+        ('hide_post', 'Hide Post'),
+        ('delete_post', 'Delete Post'),
+        ('delete_comment', 'Delete Comment'),
+        ('resolve_report', 'Resolve Report'),
+        ('update_system_setting', 'Update System Setting'),
+    )
+
+    TARGET_TYPE_CHOICES = (
+        ('user', 'User'),
+        ('post', 'Post'),
+        ('comment', 'Comment'),
+        ('report', 'Report'),
+        ('system', 'System'),
+    )
+
+    id = models.CharField(primary_key=True, max_length=26, default=generate_id, editable=False)
+    admin = models.ForeignKey(User, on_delete=models.CASCADE, related_name="admin_actions")
+    action_type = models.CharField(max_length=50, choices=ACTION_TYPE_CHOICES)
+    target_type = models.CharField(max_length=20, choices=TARGET_TYPE_CHOICES)
+    target_id = models.CharField(max_length=26, null=True, blank=True)
+    note = models.TextField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "admin_actions"
+        app_label = "users"
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"AdminAction - {self.admin.username} - {self.action_type}"

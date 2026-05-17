@@ -12,6 +12,7 @@ import {
   EyeOff,
   Flag,
 } from 'lucide-react'
+import { useTranslation } from 'react-i18next'
 import { apiRequest } from '../../utils/api'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { PodcastContext } from '../contexts/PodcastContext'
@@ -38,16 +39,16 @@ function formatCount(value) {
   return String(n)
 }
 
-function formatTimeAgo(raw) {
+function formatTimeAgo(raw, t) {
   if (!raw) return ''
   const date = new Date(raw)
   const diffMs = Date.now() - date.getTime()
   const diffMinutes = Math.max(0, Math.floor(diffMs / 60000))
-  if (diffMinutes < 1) return 'Vừa xong'
-  if (diffMinutes < 60) return `${diffMinutes} phút trước`
+  if (diffMinutes < 1) return t('feed.time.justNow')
+  if (diffMinutes < 60) return t('feed.time.minutesAgo', { count: diffMinutes })
   const diffHours = Math.floor(diffMinutes / 60)
-  if (diffHours < 24) return `${diffHours} giờ trước`
-  return `${Math.floor(diffHours / 24)} ngày trước`
+  if (diffHours < 24) return t('feed.time.hoursAgo', { count: diffHours })
+  return t('feed.time.daysAgo', { count: Math.floor(diffHours / 24) })
 }
 
 function toCommentPodcast(post) {
@@ -86,6 +87,7 @@ function PostCard({
   onHide,
   onReport,
 }) {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
@@ -181,12 +183,12 @@ function PostCard({
               <span
                 className={styles.authorNameText}
               >
-                {author.name || author.username || 'Người dùng'}
+                {author.name || author.username || t('personal.userFallback')}
               </span>
               <span className={styles.dot}>•</span>
-              <span>{formatTimeAgo(post.created_at)}</span>
+              <span>{formatTimeAgo(post.created_at, t)}</span>
               <span className={styles.dot}>•</span>
-              <span>{formatCount(post.listen_count)} lượt nghe</span>
+              <span>{t('library.content.listens', { count: formatCount(post.listen_count) })}</span>
             </div>
 
             <div className={styles.authorTags}>
@@ -219,7 +221,7 @@ function PostCard({
                   }}
                 >
                   <EyeOff size={14} />
-                  <span>Ẩn bài viết</span>
+                  <span>{t('feed.hidePost')}</span>
                 </button>
                 <button
                   type="button"
@@ -230,7 +232,7 @@ function PostCard({
                   }}
                 >
                   <Flag size={14} />
-                  <span>Báo cáo</span>
+                  <span>{t('feed.report')}</span>
                 </button>
               </div>
             )}
@@ -259,7 +261,7 @@ function PostCard({
             type="button"
             className={`${styles.audioBtn} ${isPlaying ? styles.audioBtnPlaying : ''}`}
             onClick={handlePlay}
-            aria-label={isPlaying ? 'Tạm dừng' : 'Phát'}
+            aria-label={t(isPlaying ? 'feed.pause' : 'feed.play')}
           >
             {isPlaying ? <Pause size={16} /> : <Play size={16} />}
           </button>
@@ -303,12 +305,12 @@ function PostCard({
           onClick={() => onOpenComments(post)}
         >
           <MessageCircle size={16} />
-          <span>{formatCount(post.stats?.comments)} Bình luận</span>
+          <span>{t('feed.comments', { count: formatCount(post.stats?.comments) })}</span>
         </button>
 
         <button type="button" className={styles.actionBtn} onClick={() => onShare(post)}>
           <Share2 size={16} />
-          <span>Chia sẻ</span>
+          <span>{t('feed.shareCount', { count: '' }).trim()}</span>
         </button>
 
         <button
@@ -317,7 +319,7 @@ function PostCard({
           onClick={() => onToggleSave(postId)}
         >
           <Bookmark size={16} fill={post.viewer_state?.is_saved ? 'currentColor' : 'none'} />
-          <span>{post.viewer_state?.is_saved ? 'Đã lưu' : 'Lưu'}</span>
+          <span>{post.viewer_state?.is_saved ? t('library.content.saved') : t('library.content.save', { count: '' }).trim()}</span>
         </button>
       </div>
     </article>
@@ -325,6 +327,7 @@ function PostCard({
 }
 
 export default function Community() {
+  const { t } = useTranslation()
   const [activeTab, setActiveTab] = useState('all')
   const [posts, setPosts] = useState([])
   const [followingPreview, setFollowingPreview] = useState([])
@@ -341,11 +344,11 @@ export default function Community() {
 
   const tabMeta = useMemo(
     () => [
-      { key: 'all', label: 'Tất cả bài viết mới' },
-      { key: 'today', label: 'Hôm nay' },
-      { key: 'week', label: 'Tuần này' },
+      { key: 'all', label: t('pages.community.allNewPosts') },
+      { key: 'today', label: t('pages.community.today') },
+      { key: 'week', label: t('pages.community.thisWeek') },
     ],
-    []
+    [t]
   )
 
   useEffect(() => {
@@ -685,7 +688,7 @@ export default function Community() {
       <div className={styles.content}>
         <div className={styles.topCard}>
           <div className={styles.sectionTitleRow}>
-            <h2 className={styles.sectionTitle}>Đang theo dõi</h2>
+            <h2 className={styles.sectionTitle}>{t('pages.community.following')}</h2>
             <div className={styles.sectionLine} />
           </div>
 
@@ -735,16 +738,16 @@ export default function Community() {
 
           <div className={styles.newPostRow}>
             <span className={styles.newPostHint}>
-              {newPostsCount} bài viết mới từ lần cuối truy cập
+              {t('pages.community.newPostsSinceLastVisit', { count: newPostsCount })}
             </span>
             <div className={styles.newPostLine} />
           </div>
         </div>
 
         <div className={styles.feed}>
-          {loading && <div className={styles.emptyState}>Đang tải cộng đồng...</div>}
+          {loading && <div className={styles.emptyState}>{t('common.loading')}</div>}
           {!loading && posts.length === 0 && (
-            <div className={styles.emptyState}>Chưa có bài viết cộng đồng</div>
+            <div className={styles.emptyState}>{t('pages.community.noCommunityPosts')}</div>
           )}
           {!loading &&
             posts.map((post) => (

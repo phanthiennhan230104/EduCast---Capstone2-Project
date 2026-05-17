@@ -12,28 +12,15 @@
 .logo {
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-.logoBox {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  background: var(--accent);
-  border-radius: 8px;
-  color: #fff;
+  text-decoration: none;
   flex-shrink: 0;
 }
 
-.logoText {
-  font-size: 20px;
-  font-weight: 800;
-  background: linear-gradient(135deg, #F0A84C, #E8943A);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  letter-spacing: -0.3px;
+.logoImage {
+  width: 160px;
+  height: auto;
+  object-fit: contain;
+  display: block;
 }
 
 .nav {
@@ -43,13 +30,31 @@
 }
 
 .navLink {
+  position: relative;
   font-size: 14px;
   color: var(--text-secondary);
   transition: color 0.2s;
+  text-decoration: none;
+  padding: 4px 0;
 }
 
 .navLink:hover {
   color: var(--text-primary);
+}
+
+.navLink::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0;
+  height: 2px;
+  background-color: #f4a227;
+  transition: width 0.3s ease;
+}
+
+.navLink:hover::after {
+  width: 100%;
 }
 
 .ctaBtn {
@@ -68,6 +73,7 @@
 .ctaBtn:hover {
   background: var(--accent-light);
 }
+
 .actions {
   display: flex;
   align-items: center;

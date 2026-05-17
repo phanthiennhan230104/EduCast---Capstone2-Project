@@ -1,9 +1,9 @@
 import { Play, ArrowRight, SkipBack, SkipForward, Users, Sparkles } from 'lucide-react'
 import styles from "../../style/sections/HeroSection.module.css";
-export default function HeroSection() {
+export default function HeroSection({ id }) {
   return (
     <section className={styles.hero}>
-      <div className={styles.heroContent}>
+      <div className={styles.heroContent} id={id}>
         
 
         <h1 className={styles.heroTitle}>

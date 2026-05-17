@@ -63,5 +63,7 @@ urlpatterns = [
     # Reports
     path("reports/create/", views.create_report, name="create_report"),
 
+    path("activity-logs/", views.list_activity_logs, name="list_activity_logs"),
+
     path("profiles/<str:profile_user_id>/share-to-user/", views.share_profile_to_user,name="share_profile_to_user",),
 ]
