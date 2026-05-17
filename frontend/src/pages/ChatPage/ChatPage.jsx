@@ -789,6 +789,7 @@ export default function ChatPage() {
                 peer={activeConversation.peer}
                 rightPanelOpen={rightPanelOpen}
                 onToggleInfoPanel={() => setRightPanelOpen((prev) => !prev)}
+                onBack={() => setActiveRoomId(null)}
               />
 
               <div className="chat-messages">

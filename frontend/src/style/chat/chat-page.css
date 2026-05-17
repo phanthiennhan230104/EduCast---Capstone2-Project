@@ -1179,7 +1179,32 @@
   }
 
   .right-panel {
-    display: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 320px;
+    z-index: 200;
+    box-shadow: -8px 0 24px rgba(2, 8, 23, 0.42);
+    border-radius: 20px 0 0 20px !important;
+    border-left: 1px solid rgba(148, 163, 184, 0.16) !important;
+    transform: translateX(100%);
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1), opacity 320ms ease;
+    opacity: 0;
+    pointer-events: none;
+    display: flex !important;
+  }
+
+  .right-panel.is-open {
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .right-panel.is-hidden {
+    transform: translateX(100%);
+    opacity: 0;
+    pointer-events: none;
   }
 }
 
@@ -1190,8 +1215,27 @@
     padding: 10px;
   }
 
-  .chat-sidebar {
-    display: none;
+  /* When NO room is active, show list and hide messaging card */
+  .chat-layout.no-active-room .chat-sidebar {
+    display: flex !important;
+    width: 100% !important;
+  }
+  .chat-layout.no-active-room .chat-messages-wrap {
+    display: none !important;
+  }
+
+  /* When room IS active, hide list and show messaging card */
+  .chat-layout.has-active-room .chat-sidebar {
+    display: none !important;
+  }
+  .chat-layout.has-active-room .chat-messages-wrap {
+    display: flex !important;
+    width: 100% !important;
+  }
+
+  .right-panel {
+    width: 100% !important;
+    border-radius: 0 !important;
   }
 
   .chat-card {
@@ -1508,4 +1552,49 @@
 .recording-box audio {
   height: 32px;
   max-width: 220px;
+}
+
+/* Mobile responsive navigation & close buttons */
+.chat-header-back-btn {
+  display: none !important;
+}
+
+.right-panel-header-mobile {
+  display: none;
+  width: 100%;
+  justify-content: flex-end;
+  margin-bottom: 8px;
+}
+
+.right-panel-close-btn {
+  color: #cbd5e1 !important;
+  font-size: 16px;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.06) !important;
+  border: 1px solid rgba(255, 255, 255, 0.08) !important;
+}
+
+.right-panel-close-btn:hover {
+  background: rgba(255, 255, 255, 0.12) !important;
+  color: #ffffff !important;
+}
+
+@media (max-width: 1100px) {
+  .right-panel-header-mobile {
+    display: flex !important;
+  }
+}
+
+@media (max-width: 768px) {
+  .chat-header-back-btn {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+    color: #f8fafc !important;
+    background: rgba(255, 255, 255, 0.08) !important;
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    margin-right: 8px;
+  }
 }

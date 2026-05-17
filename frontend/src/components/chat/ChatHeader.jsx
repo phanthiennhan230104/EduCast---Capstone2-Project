@@ -1,11 +1,11 @@
 import { Avatar, Button, Space, Typography } from "antd";
-import { InfoCircleOutlined, UserOutlined } from "@ant-design/icons";
+import { InfoCircleOutlined, UserOutlined, ArrowLeftOutlined } from "@ant-design/icons";
 import { useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 
 const { Text } = Typography;
 
-export default function ChatHeader({ peer, onToggleInfoPanel, rightPanelOpen }) {
+export default function ChatHeader({ peer, onToggleInfoPanel, rightPanelOpen, onBack }) {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const openPeerProfile = () => {
@@ -19,6 +19,16 @@ export default function ChatHeader({ peer, onToggleInfoPanel, rightPanelOpen }) 
         <Space
           className="chat-header-profile-link"
         >
+          {onBack && (
+            <Button
+              type="text"
+              shape="circle"
+              className="chat-header-back-btn"
+              icon={<ArrowLeftOutlined />}
+              onClick={onBack}
+              aria-label="Back"
+            />
+          )}
           <Avatar 
             size={44} 
             src={peer?.avatar_url} 
