@@ -375,6 +375,14 @@ def get_user_profile(request, user_id):
         followers_count = Follow.objects.filter(following_id=user_id).count()
         following_count = Follow.objects.filter(follower_id=user_id).count()
         
+        # Check if the current user is following this profile
+        is_following = False
+        if current_user:
+            is_following = Follow.objects.filter(
+                follower_id=current_user.id,
+                following_id=user_id
+            ).exists()
+        
         # Get podcast count (published posts by this user)
         podcast_count = Post.objects.filter(
             user_id=user_id,
@@ -396,6 +404,7 @@ def get_user_profile(request, user_id):
                     "podcast_count": podcast_count,
                     "preferred_language": profile.preferred_language if profile else "vi",
                     "profile_visibility": user_settings.profile_visibility,
+                    "is_following": is_following,
                 },
                 "is_accessible": True,
             },

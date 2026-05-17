@@ -1224,6 +1224,8 @@ export default function PersonalPage() {
     toast.success(t('personal.hideSuccess'))
   }
 
+  const isFollowing = followingIds.has(String(profileUserId)) || Boolean(userProfile?.is_following);
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
@@ -1305,7 +1307,7 @@ export default function PersonalPage() {
                   className={`${styles.followBtnMain} ${userProfile?.is_following ? styles.following : ''}`}
                   onClick={() => handleToggleFollowFriend(profileUserId)}
                 >
-                  {userProfile?.is_following ? (
+                  {isFollowing ? (
                     <>
                       <UserCheck size={16} />
                       {t('personal.following')}
