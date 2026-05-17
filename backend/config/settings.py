@@ -86,16 +86,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'    
 
-redis_host = os.getenv('REDIS_HOST', '127.0.0.1')
-redis_port = os.getenv('REDIS_PORT', '6379')
+redis_url = os.getenv("REDIS_URL")
 
-# Kết nối nội bộ Render qua Host/Port ở cổng 6379 là không mã hóa (plain TCP)
-# Do đó ta dùng giao thức redis:// (không dùng rediss:// để tránh bị treo kết nối SSL)
-redis_url = f"redis://{redis_host}:{redis_port}"
+if not redis_url:
+    redis_host = os.getenv('REDIS_HOST', '127.0.0.1')
+    redis_port = os.getenv('REDIS_PORT', '6379')
+    redis_url = f"redis://{redis_host}:{redis_port}"
 
-# Vẫn ưu tiên biến REDIS_URL nếu được định nghĩa trực tiếp (ví dụ khi kết nối ngoài có SSL)
-redis_url = os.getenv("REDIS_URL", redis_url)
-
+# Đảm bảo nếu dùng rediss:// (mã hóa SSL) thì tự động bỏ qua xác thực chứng chỉ tự ký (hữu ích cho Render/Valkey)
 if redis_url.startswith("rediss://") and "ssl_cert_reqs" not in redis_url:
     redis_url += "&ssl_cert_reqs=none" if "?" in redis_url else "?ssl_cert_reqs=none"
 
@@ -195,10 +193,19 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
+# Cấu hình cache cũng dùng chung URL Redis tối ưu này (DB 1 để phân biệt với DB 0 của Channels)
+cache_url = redis_url
+if not cache_url.split("?")[0].endswith("/1"):
+    parts = cache_url.split("?")
+    if len(parts) == 2:
+        cache_url = f"{parts[0].rstrip('/')}/1?{parts[1]}"
+    else:
+        cache_url = f"{cache_url.rstrip('/')}/1"
+
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': f"redis://{os.getenv('REDIS_HOST', '')}:{os.getenv('REDIS_PORT', '6379')}/1",
+        'LOCATION': cache_url,
     }
 }
 
