@@ -80,15 +80,16 @@ export function ChatProvider({ children }) {
       prev.map((conversation) =>
         conversation.peer?.id === user_id
           ? {
-              ...conversation,
-              peer: {
-                ...conversation.peer,
-                is_online: status === "online",
-              },
-            }
+            ...conversation,
+            peer: {
+              ...conversation.peer,
+              is_online: status === "online",
+            },
+          }
           : conversation
       )
     );
+    console.log("IS ONLINE?", is_online);
   }, []);
 
   useChatInboxSocket(

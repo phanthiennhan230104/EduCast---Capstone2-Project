@@ -32,9 +32,6 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = ["*"]
 
-ASGI_APPLICATION = "config.asgi.application"
-# Application definition
-
 INSTALLED_APPS = [
     "daphne",
     'django.contrib.admin',

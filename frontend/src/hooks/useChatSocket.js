@@ -15,15 +15,18 @@ export default function useChatSocket(roomId, handlers = {}) {
     socket.onopen = () => {
       setStatus("open");
       handlers.onOpen?.();
+      console.log("WS OPEN");
     };
 
-    socket.onclose = () => {
+    socket.onclose = (error) => {
       setStatus("closed");
       handlers.onClose?.();
+      console.log("WS CLOSE", error.code, error.reason);
     };
 
     socket.onerror = (error) => {
       handlers.onError?.(error);
+      console.log("WS ERROR", error);
     };
 
     socket.onmessage = (event) => {
@@ -44,6 +47,7 @@ export default function useChatSocket(roomId, handlers = {}) {
       } catch (error) {
         console.error("WS parse error:", error);
       }
+      console.log("WS MESSAGE", event.data);
     };
 
     return () => {
@@ -98,3 +102,4 @@ export default function useChatSocket(roomId, handlers = {}) {
     markRead,
   };
 }
+
