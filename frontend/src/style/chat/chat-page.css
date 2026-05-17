@@ -1174,8 +1174,9 @@
 }
 
 @media (max-width: 1100px) {
-  .chat-layout {
-    grid-template-columns: 220px minmax(0, 1fr);
+  .chat-layout,
+  .chat-layout.right-panel-hidden {
+    grid-template-columns: 220px minmax(0, 1fr) !important;
   }
 
   .right-panel {
@@ -1209,8 +1210,9 @@
 }
 
 @media (max-width: 768px) {
-  .chat-layout {
-    grid-template-columns: 1fr;
+  .chat-layout,
+  .chat-layout.right-panel-hidden {
+    grid-template-columns: 1fr !important;
     gap: 10px;
     padding: 10px;
   }
