@@ -86,10 +86,18 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'    
 
-redis_url = os.getenv(
-    "REDIS_URL",
-    f"redis://{os.getenv('REDIS_HOST', '127.0.0.1')}:{os.getenv('REDIS_PORT', '6379')}"
-)
+redis_host = os.getenv('REDIS_HOST', '127.0.0.1')
+redis_port = os.getenv('REDIS_PORT', '6379')
+
+# Tự động dùng rediss:// (bảo mật SSL) cho Render/Cloud Redis
+if redis_host not in ("127.0.0.1", "localhost"):
+    redis_url = f"rediss://{redis_host}:{redis_port}"
+else:
+    redis_url = f"redis://{redis_host}:{redis_port}"
+
+# Vẫn ưu tiên biến REDIS_URL nếu được định nghĩa trực tiếp
+redis_url = os.getenv("REDIS_URL", redis_url)
+
 if redis_url.startswith("rediss://") and "ssl_cert_reqs" not in redis_url:
     redis_url += "&ssl_cert_reqs=none" if "?" in redis_url else "?ssl_cert_reqs=none"
 
