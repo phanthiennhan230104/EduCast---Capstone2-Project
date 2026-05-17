@@ -34,8 +34,9 @@ import {
   Bookmark,
   AlertCircle,
   RotateCcw,
-  UserPlus,
   UserCheck,
+  UserPlus,
+  Clock,
   Archive,
   EyeOff,
   Flag,
@@ -139,8 +140,8 @@ export default function PersonalPage() {
               // since it's the source of truth for the whole system
               return {
                 ...prev,
-                following_count: followed 
-                  ? (prev.following_count || 0) + 1 
+                following_count: followed
+                  ? (prev.following_count || 0) + 1
                   : Math.max(0, (prev.following_count || 0) - 1)
               }
             })
@@ -154,21 +155,21 @@ export default function PersonalPage() {
             return {
               ...prev,
               is_following: myIdStr === followerIdStr ? followed : prev.is_following,
-              followers_count: followed 
-                ? (prev.followers_count || 0) + 1 
+              followers_count: followed
+                ? (prev.followers_count || 0) + 1
                 : Math.max(0, (prev.followers_count || 0) - 1)
             }
           })
         }
-        
+
         // Case 3: The profile being viewed is the follower (and it's not me)
         if (profileIdStr === followerIdStr && profileIdStr !== myIdStr) {
           setUserProfile(prev => {
             if (!prev) return prev
             return {
               ...prev,
-              following_count: followed 
-                ? (prev.following_count || 0) + 1 
+              following_count: followed
+                ? (prev.following_count || 0) + 1
                 : Math.max(0, (prev.following_count || 0) - 1)
             }
           })
@@ -345,7 +346,21 @@ export default function PersonalPage() {
         prev.map((p) => {
           if (String(p.id) === String(d.postId)) return mergePostFields(p)
 
-          // Cập nhật bài nhúng bên trong bài share nếu postId trùng với post_id của bài share
+          if (p.type === 'shared') {
+            if (p.post_id != null && String(p.post_id) === String(d.postId)) {
+              return {
+                ...p,
+                saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+                saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+                ...(textUpdate ? {
+                  title: typeof d.title === 'string' ? d.title : p.title,
+                  description: typeof d.description === 'string' ? d.description : p.description,
+                } : {}),
+              }
+            }
+            return p
+          }
+
           if (p.post_id != null && String(p.post_id) === String(d.postId)) {
             return mergePostFields(p)
           }
@@ -354,10 +369,10 @@ export default function PersonalPage() {
         })
       )
 
-      setPostStates((prev) => ({
-        ...prev,
-        [d.postId]: {
-          ...prev[d.postId],
+      setPostStates((prev) => {
+        const next = { ...prev }
+        next[d.postId] = {
+          ...next[d.postId],
           ...(typeof d.liked === 'boolean' ? { liked: d.liked } : {}),
           ...(typeof d.likeCount === 'number' ? { likeCount: d.likeCount } : {}),
           ...(typeof d.saved === 'boolean' ? { saved: d.saved } : {}),
@@ -366,8 +381,21 @@ export default function PersonalPage() {
             ? { commentCount: d.commentCount }
             : {}),
           ...(typeof d.shareCount === 'number' ? { shareCount: d.shareCount } : {}),
-        },
-      }))
+        }
+
+        // Also update any shared posts that embed this original post
+        Object.keys(next).forEach((key) => {
+          if (key.startsWith('share_') && key.endsWith(`_${d.postId}`)) {
+            next[key] = {
+              ...next[key],
+              ...(typeof d.saved === 'boolean' ? { saved: d.saved } : {}),
+              ...(typeof d.saveCount === 'number' ? { saveCount: d.saveCount } : {}),
+            }
+          }
+        })
+
+        return next
+      })
     }
 
     window.addEventListener(POST_SYNC_EVENT, handlePostSync)
@@ -507,7 +535,7 @@ export default function PersonalPage() {
           durationSeconds: post.duration_seconds || 0,
           cover: post.thumbnail_url,
           thumbnail_url: post.thumbnail_url,
-          
+
           tags: (post.tags || post.post_tags || [])
             .map((tag) => {
               if (tag == null) return ''
@@ -521,7 +549,7 @@ export default function PersonalPage() {
           tagIds: (post.tags || post.post_tags || [])
             .map((tag) => (tag && typeof tag === 'object' ? tag.id : null))
             .filter(Boolean),
-            
+
           aiGenerated: false,
           timeAgo: post.shared_at
             ? formatTimeAgo(post.shared_at, t)
@@ -532,7 +560,7 @@ export default function PersonalPage() {
           postTimeAgo: post.created_at
             ? formatTimeAgo(post.created_at, t)
             : (post.timeAgo || ''),
-          
+
           listens: t('feed.listens', { count: post.listen_count || 0 }),
           likes: finalLikeCount,
           comments: commentCount,
@@ -678,7 +706,7 @@ export default function PersonalPage() {
     // Nếu là ID bài share (share_xxx_yyy), chúng ta cần bóc tách để lấy ID bài gốc cho API chi tiết
     let postIdForApi = targetId
     let shareId = null
-    
+
     if (String(targetId).startsWith('share_')) {
       const parts = String(targetId).split('_')
       if (parts.length >= 3) {
@@ -834,24 +862,59 @@ export default function PersonalPage() {
         )
       )
 
-      dispatchPostSync({
-        postId,
-        liked: nextLiked,
-        likeCount: nextLikeCount,
-      })
-      if (data.data?.canonical_post_id) {
+      if (post.type === 'shared') {
+        const canonicalId = engagementPostIdProfile(post)
+
+        setSelectedPost((prev) => {
+          if (!prev) return prev
+          const prevCanonical = engagementPostIdProfile(prev)
+          if (String(prev.id) === String(post.id) || String(prevCanonical) === String(canonicalId)) {
+            return { ...prev, liked: nextLiked, likes: nextLikeCount }
+          }
+          return prev
+        })
+
         dispatchPostSync({
-          postId: String(data.data.canonical_post_id),
+          postId,
           liked: nextLiked,
           likeCount: nextLikeCount,
         })
-      } else if (post.type === 'shared' && post.post_id) {
+
+        if (canonicalId) {
+          dispatchPostSync({
+            postId: canonicalId,
+            liked: nextLiked,
+            likeCount: nextLikeCount,
+          })
+
+          window.dispatchEvent(
+            new CustomEvent('audio-track-like-updated', {
+              detail: {
+                postId: canonicalId,
+                liked: nextLiked,
+                likeCount: nextLikeCount,
+              },
+            })
+          )
+        }
+      } else {
         dispatchPostSync({
-          postId: String(post.post_id),
+          postId,
           liked: nextLiked,
           likeCount: nextLikeCount,
         })
+
+        window.dispatchEvent(
+          new CustomEvent('audio-track-like-updated', {
+            detail: {
+              postId,
+              liked: nextLiked,
+              likeCount: nextLikeCount,
+            },
+          })
+        )
       }
+
     } catch (err) {
       console.error(t('personal.likeError'), err)
       toast.error(t('personal.likeError'))
@@ -1215,14 +1278,14 @@ export default function PersonalPage() {
               <p className={styles.profileStats}>
 
                 <span>{t('personal.podcastCount', { count: userProfile?.podcast_count || 0 })}</span>
-                <span 
-                  className={styles.clickableStat} 
+                <span
+                  className={styles.clickableStat}
                   onClick={() => setFollowModal({ isOpen: true, type: 'followers' })}
                 >
                   {t('personal.followersCount', { count: userProfile?.followers_count || 0 })}
                 </span>
-                <span 
-                  className={styles.clickableStat} 
+                <span
+                  className={styles.clickableStat}
                   onClick={() => setFollowModal({ isOpen: true, type: 'following' })}
                 >
                   {t('personal.followingCount', { count: userProfile?.following_count || 0 })}
@@ -1238,8 +1301,8 @@ export default function PersonalPage() {
               )}
 
               {!isOwnProfile && (
-                <button 
-                  className={`${styles.followBtnMain} ${userProfile?.is_following ? styles.following : ''}`} 
+                <button
+                  className={`${styles.followBtnMain} ${userProfile?.is_following ? styles.following : ''}`}
                   onClick={() => handleToggleFollowFriend(profileUserId)}
                 >
                   {userProfile?.is_following ? (
@@ -1394,6 +1457,13 @@ export default function PersonalPage() {
                                           </button>
                                         </div>
                                       </div>
+                                    ) : post.status === 'processing' ? (
+                                      <div className={styles.reviewingBanner}>
+                                        <div className={styles.reviewingText}>
+                                          <Clock size={18} />
+                                          <span>{t('personal.postReviewing', { defaultValue: 'Bài viết đang được người kiểm duyệt xem xét' })}</span>
+                                        </div>
+                                      </div>
                                     ) : null
                                   }
                                 />
@@ -1407,9 +1477,9 @@ export default function PersonalPage() {
                           const avatarKey = `share-${post.viewId || post.id}`
                           const shareAuthorName = sharedBy.display_name || sharedBy.name || sharedBy.username || t('feed.anonymous')
                           const shareAuthorInitials = getInitials(sharedBy || shareAuthorName)
-                          
+
                           const sharedByUserId = sharedBy.id ?? sharedBy.user_id ?? sharedBy.pk ?? sharedBy.userId
-                          
+
                           const openSharedAuthorProfile = (event) => {
                             event?.stopPropagation?.()
                             if (sharedByUserId == null || sharedByUserId === '') return
@@ -1464,74 +1534,74 @@ export default function PersonalPage() {
                                     </div>
                                   </div>
 
-                                <div className={styles.shareMenuWrap} data-profile-share-menu>
-                                  <button
-                                    className={styles.postShareMenuBtn}
-                                    onClick={(e) => {
-                                      e.stopPropagation()
-                                      setOpenMenuPostId(openMenuPostId === rowKey ? null : rowKey)
-                                    }}
-                                  >
-                                    <MoreHorizontal size={20} />
-                                  </button>
-                                  {openMenuPostId === rowKey && (
-                                    <div className={styles.shareMenuDropdown}>
-                                      {isOwnProfile ? (
-                                        <>
-                                          <button
-                                            className={styles.shareMenuOption}
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              e.preventDefault()
-                                              setOpenMenuPostId(null)
-                                              setEditShareCaptionPost(post)
-                                            }}
-                                          >
-                                            <Edit size={14} />
-                                            <span>{t('personal.edit')}</span>
-                                          </button>
-                                          <button
-                                            className={`${styles.shareMenuOption} ${styles.danger}`}
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              setOpenMenuPostId(null)
-                                              handleDeletePost(post.id)
-                                            }}
-                                          >
-                                            <Trash2 size={14} />
-                                            <span>{t('common.delete')}</span>
-                                          </button>
-                                        </>
-                                      ) : (
-                                        <>
-                                          <button
-                                            className={styles.shareMenuOption}
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              setOpenMenuPostId(null)
-                                              handleHidePost(post.id)
-                                            }}
-                                          >
-                                            <EyeOff size={14} />
-                                            <span>{t('feed.hidePost')}</span>
-                                          </button>
-                                          <button
-                                            className={`${styles.shareMenuOption} ${styles.danger}`}
-                                            onClick={(e) => {
-                                              e.stopPropagation()
-                                              setOpenMenuPostId(null)
-                                              setReportPostModalPost(post)
-                                            }}
-                                          >
-                                            <Flag size={14} />
-                                            <span>{t('feed.report')}</span>
-                                          </button>
-                                        </>
-                                      )}
-                                    </div>
-                                  )}
+                                  <div className={styles.shareMenuWrap} data-profile-share-menu>
+                                    <button
+                                      className={styles.postShareMenuBtn}
+                                      onClick={(e) => {
+                                        e.stopPropagation()
+                                        setOpenMenuPostId(openMenuPostId === rowKey ? null : rowKey)
+                                      }}
+                                    >
+                                      <MoreHorizontal size={20} />
+                                    </button>
+                                    {openMenuPostId === rowKey && (
+                                      <div className={styles.shareMenuDropdown}>
+                                        {isOwnProfile ? (
+                                          <>
+                                            <button
+                                              className={styles.shareMenuOption}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                e.preventDefault()
+                                                setOpenMenuPostId(null)
+                                                setEditShareCaptionPost(post)
+                                              }}
+                                            >
+                                              <Edit size={14} />
+                                              <span>{t('personal.edit')}</span>
+                                            </button>
+                                            <button
+                                              className={`${styles.shareMenuOption} ${styles.danger}`}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                setOpenMenuPostId(null)
+                                                handleDeletePost(post.id)
+                                              }}
+                                            >
+                                              <Trash2 size={14} />
+                                              <span>{t('common.delete')}</span>
+                                            </button>
+                                          </>
+                                        ) : (
+                                          <>
+                                            <button
+                                              className={styles.shareMenuOption}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                setOpenMenuPostId(null)
+                                                handleHidePost(post.id)
+                                              }}
+                                            >
+                                              <EyeOff size={14} />
+                                              <span>{t('feed.hidePost')}</span>
+                                            </button>
+                                            <button
+                                              className={`${styles.shareMenuOption} ${styles.danger}`}
+                                              onClick={(e) => {
+                                                e.stopPropagation()
+                                                setOpenMenuPostId(null)
+                                                setReportPostModalPost(post)
+                                              }}
+                                            >
+                                              <Flag size={14} />
+                                              <span>{t('feed.report')}</span>
+                                            </button>
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
 
                                 {post.share_caption && (
                                   <div className={styles.shareCaption}>
@@ -1655,11 +1725,11 @@ export default function PersonalPage() {
                                       )}
                                   </div>
 
-                                  </div>
                                 </div>
                               </div>
-                            )
-                          })
+                            </div>
+                          )
+                        })
                       ) : (
                         <div className={styles.emptyState}>
                           <p>{t('personal.noPosts')}</p>

@@ -5,6 +5,21 @@ const resources = {
   vi: {
 
     translation: {
+      profileShare: {
+        profileFallback: 'Trang cá nhân',
+        fetchRecipientsFailed: 'Không thể tải danh sách người nhận',
+        profileNotFound: 'Không tìm thấy trang cá nhân cần chia sẻ',
+        selectAtLeastOne: 'Vui lòng chọn ít nhất một người nhận',
+        sendSuccess: 'Đã gửi trang cá nhân vào tin nhắn',
+        sendFailed: 'Không thể chia sẻ trang cá nhân',
+        title: 'Chia sẻ trang cá nhân',
+        captionPlaceholder: 'Viết lời nhắn...',
+        searchPlaceholder: 'Tìm người nhận...',
+        noRecipients: 'Không có người nhận',
+        userFallback: 'Người dùng',
+        cancel: 'Hủy',
+        send: 'Gửi',
+      },
       chatAssistant: {
         welcome: {
           summary: 'Xin chào, mình là EduCast Assistant.',
@@ -193,6 +208,8 @@ const resources = {
         cancel: 'Hủy',
       },
       common: {
+        user: 'Người dùng',
+        podcast: 'Podcast',
         loading: 'Đang tải...',
         error: 'Đã xảy ra lỗi',
         success: 'Thành công',
@@ -422,7 +439,7 @@ const resources = {
         deleteError: 'Lỗi khi xóa bài viết: {{message}}',
         hideSuccess: 'Đã ẩn bài đăng',
         editCover: 'Chỉnh sửa ảnh bìa',
-        defaultBio: 'Podcaster | AI Enthusiast | Chia sẻ kiến thức công nghệ mỗi ngày 🎙️🚀',
+        defaultBio: 'Podcaster | AI Enthusiast | Chia sẻ kiến thức mỗi ngày 🎙️🚀',
         podcastCount: '{{count}} Podcast',
         followersCount: '{{count}} Người theo dõi',
         followingCount: '{{count}} Đang theo dõi',
@@ -432,7 +449,10 @@ const resources = {
         reportPost: 'Báo cáo bài đăng',
         report: 'Báo cáo',
         deletePost: 'Xóa bài đăng',
+        postRejectedTitle: 'Bài viết bị từ chối',
         postRejected: 'Bài viết của bạn đã bị người kiểm duyệt từ chối',
+        postReviewing: 'Bài viết đang được người kiểm duyệt xem xét',
+        postReviewingDesc: 'Yêu cầu đăng lại của bạn đã được gửi. Vui lòng chờ phản hồi từ ban quản trị.',
         comments: '{{count}} Bình luận',
         shares: '{{count}} Chia sẻ',
         saves: '{{count}} Lưu',
@@ -466,6 +486,10 @@ const resources = {
         archiveDescription: 'Chỉ bạn mới có thể xem các podcast đã lưu trữ của mình trừ khi bạn chọn chia sẻ chúng.',
         restore: 'Khôi phục',
       },
+      admin: {
+        noImage: 'Chưa có ảnh hiển thị',
+        noAudio: 'Không có audio',
+      },
       header: {
         placeholder: 'Tìm kiếm Podcast, chủ đề, người tạo...',
         create_podcast: 'Tạo Podcast',
@@ -495,6 +519,8 @@ const resources = {
       },
       library: {
         allSavedPodcasts: 'Tất cả podcast đã lưu ({{count}})',
+        noHighlightNotes: 'Chưa có ghi chú nổi bật',
+        noSuggestions: 'Chưa có gợi ý phù hợp',
         close: 'Đóng',
         noSavedPodcasts: 'Chưa có podcast nào được lưu',
 
@@ -1295,6 +1321,11 @@ const resources = {
       },
 
       communityRightPanel: {
+        startedFollowing: 'đã bắt đầu theo dõi',
+        openProfile: 'Mở trang cá nhân',
+        noFollowing: 'Bạn chưa theo dõi ai',
+        noSuggestions: 'Chưa có gợi ý phù hợp',
+        noActivities: 'Chưa có hoạt động mới',
         followingTitle: 'Đang theo dõi',
         followers: '{{count}} người theo dõi',
         following: 'Đang theo dõi',
@@ -1310,6 +1341,16 @@ const resources = {
         activityNewPodcast: 'vừa đăng podcast mới',
         activityLikedPost: 'Bạch Thiên thích bài của Nhân',
         minutesAgo: '{{count}} phút trước',
+      },
+      community: {
+        tabs: {
+          allNew: 'Tất cả bài viết mới',
+          today: 'Hôm nay',
+          thisWeek: 'Tuần này',
+        },
+        newPostsHint: '{{count}} bài viết mới từ lần cuối truy cập',
+        loading: 'Đang tải cộng đồng...',
+        emptyFeed: 'Chưa có bài viết cộng đồng',
       },
       draftsPanel: {
         status: {
@@ -1415,6 +1456,21 @@ const resources = {
 
   en: {
     translation: {
+      profileShare: {
+        profileFallback: 'Profile',
+        fetchRecipientsFailed: 'Could not load recipients',
+        profileNotFound: 'Could not find the profile to share',
+        selectAtLeastOne: 'Please select at least one recipient',
+        sendSuccess: 'Profile sent to messages',
+        sendFailed: 'Could not share profile',
+        title: 'Share profile',
+        captionPlaceholder: 'Write a message...',
+        searchPlaceholder: 'Search recipients...',
+        noRecipients: 'No recipients found',
+        userFallback: 'User',
+        cancel: 'Cancel',
+        send: 'Send',
+      },
       chatAssistant: {
         welcome: {
           summary: 'Hello, I’m EduCast Assistant.',
@@ -1606,6 +1662,8 @@ const resources = {
         cancel: 'Cancel',
       },
       common: {
+        user: 'User',
+        podcast: 'Podcast',
         loading: 'Loading...',
         error: 'An error occurred',
         success: 'Success',
@@ -1711,6 +1769,7 @@ const resources = {
         unknownUser: "Unknown user",
       },
       personal: {
+        favoriteTopics: 'Favorite topics',
         requestRepublish: 'Request republish',
         requestRepublishSuccess: 'Republish request has been sent for admin review.',
         requestRepublishFailed: 'Could not send republish request',
@@ -1753,6 +1812,8 @@ const resources = {
           about: 'About',
           friends: 'Friends',
           photos: 'Photos',
+          followers: 'Followers',
+          following: 'Following',
         },
         profileShareText: 'View {{username}}’s profile on EduCast',
         copiedLink: 'Link copied',
@@ -1770,7 +1831,7 @@ const resources = {
         deleteError: 'Failed to delete post: {{message}}',
         hideSuccess: 'Post hidden',
         editCover: 'Edit cover photo',
-        defaultBio: 'Podcaster | AI Enthusiast | Sharing technology knowledge every day 🎙️🚀',
+        defaultBio: 'Podcaster | AI Enthusiast | Sharing knowledge every day 🎙️🚀',
         podcastCount: '{{count}} Podcast',
         followersCount: '{{count}} Followers',
         followingCount: '{{count}} Following',
@@ -1780,7 +1841,10 @@ const resources = {
         reportPost: 'Report post',
         report: 'Report',
         deletePost: 'Delete post',
+        postRejectedTitle: 'Post rejected',
         postRejected: 'Your post has been rejected by the moderator',
+        postReviewing: 'Your post is currently being reviewed by the moderator',
+        postReviewingDesc: 'Your republish request has been sent. Please wait for a response from the administration.',
         comments: '{{count}} Comments',
         shares: '{{count}} Shares',
         saves: '{{count}} Save',
@@ -1810,6 +1874,10 @@ const resources = {
         minutesShort: '{{count}}m',
         hoursShort: '{{count}}h',
         daysShort: '{{count}}d',
+      },
+      admin: {
+        noImage: 'No image to display',
+        noAudio: 'No audio available',
       },
       header: {
         placeholder: 'Search Podcasts, topics, creators...',
@@ -2260,6 +2328,8 @@ const resources = {
       },
       library: {
         allSavedPodcasts: 'All saved podcasts ({{count}})',
+        noHighlightNotes: 'No highlighted notes yet',
+        noSuggestions: 'No suitable suggestions',
         close: 'Close',
         noSavedPodcasts: 'No saved podcasts yet',
 
@@ -2663,6 +2733,11 @@ const resources = {
         errorPrefix: 'Error: ',
       },
       communityRightPanel: {
+        startedFollowing: 'started following',
+        openProfile: 'Open profile',
+        noFollowing: 'You are not following anyone yet',
+        noSuggestions: 'No suitable suggestions',
+        noActivities: 'No recent activities',
         followingTitle: 'Following',
         followers: '{{count}} followers',
         following: 'Following',
@@ -2678,6 +2753,16 @@ const resources = {
         activityNewPodcast: 'just posted a new podcast',
         activityLikedPost: 'Bach Thien liked Nhan’s post',
         minutesAgo: '{{count}} minutes ago',
+      },
+      community: {
+        tabs: {
+          allNew: 'All new posts',
+          today: 'Today',
+          thisWeek: 'This week',
+        },
+        newPostsHint: '{{count}} new posts since last visit',
+        loading: 'Loading community...',
+        emptyFeed: 'No community posts yet',
       },
       draftsPanel: {
         status: {

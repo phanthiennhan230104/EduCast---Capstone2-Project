@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useRef, useState, useContext } from 'react'
-import { X, MoreHorizontal, Heart, MessageCircle, Share2, Bookmark, Edit, Trash2, EyeOff, Flag, Play, Pause } from 'lucide-react'
+import { X, MoreHorizontal, Heart, MessageCircle, Share2, Bookmark, Edit, Trash2, EyeOff, Flag, Play, Pause, Clock, AlertCircle, RotateCcw } from 'lucide-react'
 import { toast } from 'react-toastify'
 import ConfirmModal from './ConfirmModal'
 import ShareModal from './ShareModal'
@@ -445,6 +445,23 @@ export default function CommentModal({
   disableAutoScroll = true,
 }) {
   const { t } = useTranslation()
+
+  const getTranslatedRejectionTitle = (title) => {
+    if (!title || title === 'Bài viết bị từ chối') {
+      return t('personal.postRejectedTitle')
+    }
+    return title
+  }
+
+  const getTranslatedRejectionBody = (body) => {
+    if (!body) return t('personal.postRejected')
+    const viPrefix = 'Bài viết của bạn đã bị người kiểm duyệt từ chối'
+    if (body.includes(viPrefix)) {
+      return body.replace(viPrefix, t('personal.postRejected'))
+    }
+    return body
+  }
+
   const navigate = useNavigate()
   const location = useLocation()
   const { playTrack, currentTrack, playing, togglePlay, currentTime, formattedCurrentTime, trackProgressMap, seekToPercent, isSeeking } = useAudioPlayer()
@@ -582,6 +599,7 @@ export default function CommentModal({
   const [isDeleting, setIsDeleting] = useState(false)
   const [editShareCaptionOpen, setEditShareCaptionOpen] = useState(false)
   const [deleteShareConfirmOpen, setDeleteShareConfirmOpen] = useState(false)
+  const [currentStatus, setCurrentStatus] = useState(podcast.status || 'draft')
   const [liveShareCaption, setLiveShareCaption] = useState(
     podcast?.share_caption || ''
   )
@@ -1768,6 +1786,37 @@ export default function CommentModal({
     onClose?.()
   }
 
+  const handleRequestRepublish = async () => {
+    try {
+      const token = getToken();
+      if (!token) return;
+
+      const res = await fetch(`${API_BASE_URL}/content/posts/${engagementPostIdForApi(podcast)}/request-republish/`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        }
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || t('personal.requestRepublishFailed'))
+      }
+
+      toast.success(t('personal.requestRepublishSuccess'));
+      setCurrentStatus('processing');
+    } catch (err) {
+      console.error(t('personal.requestRepublishErrorLog'), err)
+      toast.error(err.message || t('personal.requestRepublishFailed'))
+    }
+  };
+
+  const engagementPostIdForApi = (post) => {
+    return isShareCommentModal ? post.id : canonicalPostId;
+  }
+
   const engagement = modalEngagement
   const displayLiked = engagement.liked
   const displayLikeCount = engagement.likeCount
@@ -2020,6 +2069,70 @@ export default function CommentModal({
             )}
 
             <div className={isShareCommentModal ? styles.sharedPostCard : undefined}>
+              {currentStatus === 'processing' && (
+                <div style={{ padding: '16px', backgroundColor: 'rgba(102, 126, 234, 0.15)', border: '1px solid #667eea', borderRadius: '12px', marginBottom: '20px', color: '#fff' }}>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#a5b4fc', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <Clock size={18} /> {t('personal.postReviewing')}
+                  </h3>
+                  <p style={{ margin: '0', fontSize: '14px', lineHeight: '1.5', color: '#e0e0e0' }}>
+                    {t('personal.postReviewingDesc')}
+                  </p>
+                </div>
+              )}
+
+              {(podcast.rejectionInfo || currentStatus === 'failed') && currentStatus !== 'processing' && (
+                <div style={{ padding: '16px', backgroundColor: 'rgba(235, 87, 87, 0.15)', border: '1px solid #eb5757', borderRadius: '12px', marginBottom: '20px', color: '#fff' }}>
+                  <h3 style={{ margin: '0 0 8px 0', fontSize: '16px', color: '#eb5757', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    ⚠️ {getTranslatedRejectionTitle(podcast.rejectionInfo?.title)}
+                  </h3>
+                  <p style={{ margin: '0 0 16px 0', fontSize: '14px', lineHeight: '1.5', color: '#e0e0e0' }}>
+                    {getTranslatedRejectionBody(podcast.rejectionInfo?.body)}
+                  </p>
+                  <div style={{ display: 'flex', gap: '12px' }}>
+                    {podcast.learning_field !== '2' && (
+                      <button
+                        style={{
+                          padding: '8px 16px',
+                          backgroundColor: '#27ae60',
+                          color: '#fff',
+                          border: 'none',
+                          borderRadius: '8px',
+                          fontSize: '14px',
+                          fontWeight: '600',
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          cursor: 'pointer'
+                        }}
+                        onClick={handleRequestRepublish}
+                      >
+                        <RotateCcw size={16} />
+                        {t('personal.requestRepublish')}
+                      </button>
+                    )}
+                    <button
+                      style={{
+                        padding: '8px 16px',
+                        backgroundColor: '#eb5757',
+                        color: '#fff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        fontWeight: '600',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '8px',
+                        cursor: 'pointer'
+                      }}
+                      onClick={handleDeletePost}
+                    >
+                      <Trash2 size={16} />
+                      {t('personal.deletePost')}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               <div className={styles.postHeader}>
                 <div className={styles.authorBlock}>
                   <Avatar
@@ -2062,7 +2175,7 @@ export default function CommentModal({
                           onClick={handleEditPost}
                         >
                           <Edit size={14} />
-                          <span>Chỉnh sửa</span>
+                          <span>{t('feed.edit')}</span>
                         </button>
                         <button
                           type="button"
@@ -2289,7 +2402,7 @@ export default function CommentModal({
                     >
 
                       {statsPopupLoading ? (
-                        <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                        <div className={styles.statsPopupEmpty}>{t('feed.loadingText')}</div>
                       ) : statsPopupData.comments.length > 0 ? (
                         statsPopupData.comments.map((user) => (
                           <div key={user.user_id} className={styles.statsPopupItem}>
@@ -2327,7 +2440,7 @@ export default function CommentModal({
                       >
 
                         {statsPopupLoading ? (
-                          <div className={styles.statsPopupEmpty}>Đang tải...</div>
+                          <div className={styles.statsPopupEmpty}>{t('feed.loadingText')}</div>
                         ) : getUniqueUsersById(statsPopupData.shares).length > 0 ? (
                           getUniqueUsersById(statsPopupData.shares).map((user) => (
                             <div key={user.user_id || user.username} className={styles.statsPopupItem}>

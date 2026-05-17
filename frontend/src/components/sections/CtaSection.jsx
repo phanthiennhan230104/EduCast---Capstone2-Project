@@ -23,7 +23,7 @@ export default function CtaSection({ onOpenSignup, onOpenLogin }) {
           Tạo tài khoản miễn phí
         </button>
 
-        
+
       </div>
     </section>
   )

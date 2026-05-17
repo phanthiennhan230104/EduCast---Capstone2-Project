@@ -125,7 +125,7 @@ export default function AdminSystemPage() {
     >
       <div className="adminsystem-page">
         <Section title="CẤU HÌNH AI">
-          <SettingRow label="Thời lượng Podcast tối đa" value="3 phút" />
+          <SettingRow label="Thời lượng Podcast tối đa" value="15 phút" />
           <SettingRow label="Mô hình giọng AI" value="Edge" />
           <SettingRow label="Độ nhạy kiểm duyệt tự động" value="Medium" />
         </Section>

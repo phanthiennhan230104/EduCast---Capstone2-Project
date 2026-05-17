@@ -47,6 +47,7 @@
     opacity: 0;
     transform: translateY(20px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -95,6 +96,7 @@
     transform: scale(1);
     opacity: 0.8;
   }
+
   100% {
     transform: scale(2.5);
     opacity: 0;
@@ -240,6 +242,7 @@
     opacity: 0;
     transform: scale(0.96) translateX(30px);
   }
+
   to {
     opacity: 1;
     transform: scale(1) translateX(0);
@@ -254,7 +257,7 @@
   background: rgba(15, 23, 42, 0.65);
   backdrop-filter: blur(24px);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: 
+  box-shadow:
     0 30px 60px -15px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.08);
   position: relative;
@@ -338,34 +341,136 @@
 }
 
 @keyframes wave {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: scaleY(1);
   }
+
   50% {
     transform: scaleY(var(--h));
   }
 }
 
-.waveBar:nth-child(1)  { height: 25px; --h: 1.5; animation-delay: 0.02s; }
-.waveBar:nth-child(2)  { height: 35px; --h: 1.35; animation-delay: 0.08s; }
-.waveBar:nth-child(3)  { height: 50px; --h: 1.15; animation-delay: 0.14s; }
-.waveBar:nth-child(4)  { height: 65px; --h: 0.9; animation-delay: 0.20s; }
-.waveBar:nth-child(5)  { height: 45px; --h: 1.3; animation-delay: 0.26s; }
-.waveBar:nth-child(6)  { height: 58px; --h: 0.85; animation-delay: 0.32s; }
-.waveBar:nth-child(7)  { height: 40px; --h: 1.25; animation-delay: 0.38s; }
-.waveBar:nth-child(8)  { height: 48px; --h: 1.05; animation-delay: 0.44s; }
-.waveBar:nth-child(9)  { height: 30px; --h: 1.4; animation-delay: 0.50s; }
-.waveBar:nth-child(10) { height: 20px; --h: 1.6; animation-delay: 0.56s; }
-.waveBar:nth-child(11) { height: 38px; --h: 1.1; animation-delay: 0.62s; }
-.waveBar:nth-child(12) { height: 28px; --h: 1.35; animation-delay: 0.68s; }
-.waveBar:nth-child(13) { height: 52px; --h: 0.92; animation-delay: 0.74s; }
-.waveBar:nth-child(14) { height: 22px; --h: 1.5; animation-delay: 0.80s; }
-.waveBar:nth-child(15) { height: 46px; --h: 1.0; animation-delay: 0.86s; }
-.waveBar:nth-child(16) { height: 24px; --h: 1.4; animation-delay: 0.92s; }
-.waveBar:nth-child(17) { height: 34px; --h: 1.2; animation-delay: 0.98s; }
-.waveBar:nth-child(18) { height: 26px; --h: 1.35; animation-delay: 1.04s; }
-.waveBar:nth-child(19) { height: 42px; --h: 1.05; animation-delay: 1.10s; }
-.waveBar:nth-child(20) { height: 32px; --h: 1.25; animation-delay: 1.16s; }
+.waveBar:nth-child(1) {
+  height: 25px;
+  --h: 1.5;
+  animation-delay: 0.02s;
+}
+
+.waveBar:nth-child(2) {
+  height: 35px;
+  --h: 1.35;
+  animation-delay: 0.08s;
+}
+
+.waveBar:nth-child(3) {
+  height: 50px;
+  --h: 1.15;
+  animation-delay: 0.14s;
+}
+
+.waveBar:nth-child(4) {
+  height: 65px;
+  --h: 0.9;
+  animation-delay: 0.20s;
+}
+
+.waveBar:nth-child(5) {
+  height: 45px;
+  --h: 1.3;
+  animation-delay: 0.26s;
+}
+
+.waveBar:nth-child(6) {
+  height: 58px;
+  --h: 0.85;
+  animation-delay: 0.32s;
+}
+
+.waveBar:nth-child(7) {
+  height: 40px;
+  --h: 1.25;
+  animation-delay: 0.38s;
+}
+
+.waveBar:nth-child(8) {
+  height: 48px;
+  --h: 1.05;
+  animation-delay: 0.44s;
+}
+
+.waveBar:nth-child(9) {
+  height: 30px;
+  --h: 1.4;
+  animation-delay: 0.50s;
+}
+
+.waveBar:nth-child(10) {
+  height: 20px;
+  --h: 1.6;
+  animation-delay: 0.56s;
+}
+
+.waveBar:nth-child(11) {
+  height: 38px;
+  --h: 1.1;
+  animation-delay: 0.62s;
+}
+
+.waveBar:nth-child(12) {
+  height: 28px;
+  --h: 1.35;
+  animation-delay: 0.68s;
+}
+
+.waveBar:nth-child(13) {
+  height: 52px;
+  --h: 0.92;
+  animation-delay: 0.74s;
+}
+
+.waveBar:nth-child(14) {
+  height: 22px;
+  --h: 1.5;
+  animation-delay: 0.80s;
+}
+
+.waveBar:nth-child(15) {
+  height: 46px;
+  --h: 1.0;
+  animation-delay: 0.86s;
+}
+
+.waveBar:nth-child(16) {
+  height: 24px;
+  --h: 1.4;
+  animation-delay: 0.92s;
+}
+
+.waveBar:nth-child(17) {
+  height: 34px;
+  --h: 1.2;
+  animation-delay: 0.98s;
+}
+
+.waveBar:nth-child(18) {
+  height: 26px;
+  --h: 1.35;
+  animation-delay: 1.04s;
+}
+
+.waveBar:nth-child(19) {
+  height: 42px;
+  --h: 1.05;
+  animation-delay: 1.10s;
+}
+
+.waveBar:nth-child(20) {
+  height: 32px;
+  --h: 1.25;
+  animation-delay: 1.16s;
+}
 
 .cardControls {
   display: flex;
@@ -442,6 +547,7 @@
     opacity: 0;
     transform: translate(-30px, 20px) scale(0.9);
   }
+
   100% {
     opacity: 1;
     transform: translate(0, 0) scale(1);
@@ -484,12 +590,25 @@
 }
 
 @keyframes cardFloat {
-  0%, 100% {
+
+  0%,
+  100% {
     transform: translateY(0px) rotate(0deg);
   }
+
   50% {
     transform: translateY(-10px) rotate(-0.5deg);
   }
+}
+
+.floatMain {
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.floatSub {
+  font-size: 0.75rem;
+  color: rgba(245, 240, 232, 0.55);
 }
 
 @media (max-width: 992px) {
@@ -536,32 +655,39 @@
     font-size: 2.2rem !important;
     line-height: 1.15 !important;
   }
+
   .heroDesc {
     font-size: 0.95rem !important;
     line-height: 1.6 !important;
     margin-bottom: 24px !important;
   }
+
   .heroCta {
     gap: 12px !important;
   }
+
   .btnCta,
   .btnOutlineCta {
     padding: 12px 20px !important;
     font-size: 13.5px !important;
   }
+
   .heroStats {
     margin-top: 32px !important;
     gap: 18px !important;
   }
+
   .podcastCardMain {
     width: 100% !important;
     max-width: 320px !important;
     padding: 18px !important;
   }
+
   .waveform {
     height: 56px !important;
     gap: 4px !important;
   }
+
   .waveBar {
     width: 6px !important;
   }

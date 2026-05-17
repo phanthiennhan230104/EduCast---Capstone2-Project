@@ -23,6 +23,13 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             self.channel_name
         )
 
+        if getattr(self.user, "role", "").lower() == "admin":
+            await self.channel_layer.group_add(
+                "admin_notifications",
+                self.channel_name
+            )
+            logger.info(f"NotificationConsumer: Admin {self.user.id} joined admin_notifications.")
+
         await self.accept()
         logger.info(f"NotificationConsumer: Connected (User: {self.user.id if self.user and self.user.is_authenticated else 'Guest'})")
 
@@ -38,6 +45,13 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                 self.channel_name
             )
             logger.info(f"NotificationConsumer: User {self.user.id} disconnected from {self.group_name}.")
+
+        if getattr(self.user, "role", "").lower() == "admin":
+            await self.channel_layer.group_discard(
+                "admin_notifications",
+                self.channel_name
+            )
+            logger.info(f"NotificationConsumer: Admin {self.user.id} left admin_notifications.")
 
     # Receive message from room group
     async def send_notification(self, event):
@@ -55,4 +69,11 @@ class NotificationConsumer(AsyncWebsocketConsumer):
         await self.send(text_data=json.dumps({
             "type": "social_update",
             "social_update": social_update
+        }))
+
+    async def admin_update(self, event):
+        admin_update = event["admin_update"]
+        await self.send(text_data=json.dumps({
+            "type": "admin_update",
+            "admin_update": admin_update
         }))

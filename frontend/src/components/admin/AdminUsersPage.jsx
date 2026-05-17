@@ -232,6 +232,19 @@ export default function AdminUsersPage() {
   }
   useEffect(() => {
     fetchAdminUsers();
+
+    const handleAdminUpdate = (event) => {
+      console.log(" Admin update received in AdminUsersPage:", event.detail);
+      const { type } = event.detail || {};
+      if (type === "user_change" || type === "new_post" || type === "post_change") {
+        fetchAdminUsers();
+      }
+    };
+
+    window.addEventListener("admin-update", handleAdminUpdate);
+    return () => {
+      window.removeEventListener("admin-update", handleAdminUpdate);
+    };
   }, []);
 
   function openLockModal(user) {

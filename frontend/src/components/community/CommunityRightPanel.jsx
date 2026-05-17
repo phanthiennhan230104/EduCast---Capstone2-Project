@@ -12,6 +12,7 @@ function formatTimeAgo(raw, t) {
   const date = new Date(raw)
   const diffMs = Date.now() - date.getTime()
   const diffMinutes = Math.max(0, Math.floor(diffMs / 60000))
+
   if (diffMinutes < 1) return t('feed.time.justNow')
   if (diffMinutes < 60) return t('feed.time.minutesAgo', { count: diffMinutes })
   const diffHours = Math.floor(diffMinutes / 60)
@@ -39,7 +40,7 @@ function UserRow({ item, onToggle, t }) {
         {item.avatar_url ? (
           <img src={item.avatar_url} alt={item.name} className={styles.avatarImg} />
         ) : (
-          <span>{item.initials || 'U'}</span>
+          <span>{item.initials || t('common.user').charAt(0)}</span>
         )}
       </button>
 
@@ -161,52 +162,52 @@ export default function CommunityRightPanel() {
           {followingList.slice(0, 3).map((item) => (
             <UserRow key={item.id} item={item} onToggle={toggleUser} t={t} />
           ))}
-          {followingList.length === 0 && (
-            <div className={styles.emptyText}>{t('communityRightPanel.noFollowing', { defaultValue: 'Bạn chưa theo dõi ai' })}</div>
-          )}
-        </div>
-      </div>
-
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>
-          <UserPlus size={16} />
-          <span>{t('communityRightPanel.suggestionsTitle')}</span>
-        </h3>
-
-        <div className={styles.userList}>
-          {suggestions
-            .filter((item) => String(item.role || '').toLowerCase() !== 'admin')
-            .slice(0, 3)
-            .map((item) => (
-            <UserRow key={item.id} item={item} onToggle={toggleUser} t={t} />
-          ))}
-          {suggestions.length === 0 && (
-            <div className={styles.emptyText}>{t('communityRightPanel.noSuggestions', { defaultValue: 'Chưa có gợi ý phù hợp' })}</div>
-          )}
-        </div>
-      </div>
-
-      <div className={styles.card}>
-        <h3 className={styles.cardTitle}>
-          <Bell size={16} />
-          <span>{t('communityRightPanel.recentActivities')}</span>
-        </h3>
-
-        <div className={styles.activityList}>
-          {activities.map((item) => (
-            <div key={item.id} className={styles.activityRow}>
-              <div className={styles.dot} />
-              <div className={styles.activityContent}>
-                <div className={styles.activityText}>{normalizeActivityText(item.text, t)}</div>
-                <div className={styles.activityTime}>{formatTimeAgo(item.created_at, t)}</div>
+                {followingList.length === 0 && (
+                  <div className={styles.emptyText}>{t('communityRightPanel.noFollowing', { defaultValue: 'Bạn chưa theo dõi ai' })}</div>
+                )}
               </div>
             </div>
-          ))}
-          {activities.length === 0 && (
-            <div className={styles.emptyText}>{t('communityRightPanel.noActivities', { defaultValue: 'Chưa có hoạt động mới' })}</div>
-          )}
-        </div>
-      </div>
-    </aside>
-  )
-}
+
+            <div className={styles.card}>
+              <h3 className={styles.cardTitle}>
+                <UserPlus size={16} />
+                <span>{t('communityRightPanel.suggestionsTitle')}</span>
+              </h3>
+
+              <div className={styles.userList}>
+                {suggestions
+                  .filter((item) => String(item.role || '').toLowerCase() !== 'admin')
+                  .slice(0, 3)
+                  .map((item) => (
+                    <UserRow key={item.id} item={item} onToggle={toggleUser} t={t} />
+                  ))}
+                {suggestions.length === 0 && (
+                  <div className={styles.emptyText}>{t('communityRightPanel.noSuggestions', { defaultValue: 'Chưa có gợi ý phù hợp' })}</div>
+                )}
+              </div>
+            </div>
+
+            <div className={styles.card}>
+              <h3 className={styles.cardTitle}>
+                <Bell size={16} />
+                <span>{t('communityRightPanel.recentActivities')}</span>
+              </h3>
+
+              <div className={styles.activityList}>
+                {activities.map((item) => (
+                  <div key={item.id} className={styles.activityRow}>
+                    <div className={styles.dot} />
+                    <div className={styles.activityContent}>
+                      <div className={styles.activityText}>{normalizeActivityText(item.text, t)}</div>
+                      <div className={styles.activityTime}>{formatTimeAgo(item.created_at, t)}</div>
+                    </div>
+                  </div>
+                ))}
+                {activities.length === 0 && (
+                  <div className={styles.emptyText}>{t('communityRightPanel.noActivities', { defaultValue: 'Chưa có hoạt động mới' })}</div>
+                )}
+              </div>
+            </div>
+          </aside>
+        )
+      }

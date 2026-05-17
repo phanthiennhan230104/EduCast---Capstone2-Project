@@ -1953,38 +1953,46 @@
     text-align: center !important;
     gap: 16px !important;
   }
+
   .avatar {
     width: 80px !important;
     height: 80px !important;
   }
+
   .avatarInitialsLarge {
     font-size: 28px !important;
   }
+
   .profileInfo {
     min-width: 0 !important;
     text-align: center !important;
     width: 100% !important;
   }
+
   .profileName {
     justify-content: center !important;
     font-size: 20px !important;
   }
+
   .profileStats {
     justify-content: center !important;
     gap: 16px !important;
     font-size: 13px !important;
   }
+
   .bio {
     text-align: center !important;
     font-size: 13px !important;
     margin-top: 8px !important;
   }
+
   .actions {
     justify-content: center !important;
     width: 100% !important;
     flex-wrap: wrap !important;
     gap: 8px !important;
   }
+
   .editBtn,
   .shareBtn,
   .followBtnMain,
@@ -1993,13 +2001,16 @@
     font-size: 12px !important;
     padding: 6px 12px !important;
   }
+
   .tabsContainer {
     padding: 0 8px !important;
   }
+
   .tabBtn {
     padding: 12px 14px !important;
     font-size: 13px !important;
   }
+
   .contentWrapper {
     padding: 12px !important;
   }

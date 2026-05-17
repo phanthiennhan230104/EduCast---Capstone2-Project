@@ -79,12 +79,14 @@ export default function NotificationPanel() {
 
   const handleNotificationClick = (notif) => {
     // Chúng ta chỉ xử lý click cho các loại liên quan đến bài viết
-    if (['like', 'comment', 'share', 'new_post'].includes(notif.type) && notif.reference_id) {
+    if (['like', 'comment', 'share', 'new_post', 'system'].includes(notif.type) && notif.reference_id) {
       // Bắn một Custom Event để các trang (Feed, PersonalPage) có thể lắng nghe và mở Modal
       const event = new CustomEvent('openPostModal', {
         detail: {
           postId: notif.reference_id,
-          notifType: notif.type
+          notifType: notif.type,
+          notifTitle: notif.title,
+          notifBody: notif.body,
         }
       })
       window.dispatchEvent(event)

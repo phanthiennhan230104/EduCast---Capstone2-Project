@@ -72,7 +72,8 @@ export default function AdminSidebar() {
 </div>
 
       <nav className="admin-nav">
-        {menuItems.map((item) => {
+        <p className="admin-section-label">CHÍNH</p>
+        {menuItems.slice(0, 5).map((item) => {
           const Icon = item.icon;
           const isActive = location.pathname === item.path;
 
@@ -83,7 +84,25 @@ export default function AdminSidebar() {
               className={`admin-nav-item ${isActive ? "admin-nav-item-active" : ""
                 }`}
             >
-              <Icon className="admin-nav-icon" size={16} strokeWidth={2} />
+              <Icon className="admin-nav-icon" size={17} strokeWidth={2} />
+              <span className="admin-nav-label">{item.label}</span>
+            </Link>
+          );
+        })}
+
+        <p className="admin-section-label">KHÁC</p>
+        {menuItems.slice(5).map((item) => {
+          const Icon = item.icon;
+          const isActive = location.pathname === item.path;
+
+          return (
+            <Link
+              key={item.path}
+              to={item.path}
+              className={`admin-nav-item ${isActive ? "admin-nav-item-active" : ""
+                }`}
+            >
+              <Icon className="admin-nav-icon" size={17} strokeWidth={2} />
               <span className="admin-nav-label">{item.label}</span>
             </Link>
           );

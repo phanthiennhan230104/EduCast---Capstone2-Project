@@ -1308,7 +1308,8 @@ class UserPostsAPIView(APIView):
                     "post_id": post.id,
                     "shared_at": share.created_at.isoformat(),
                     "share_caption": share.caption,
-                    "type": "shared"
+                    "type": "shared",
+                    "commentModalScope": "share"
                 }
                 
                 post_data = self._build_post_data(post, current_user_id, share_info)
@@ -1390,7 +1391,11 @@ class UserSharedPostsAPIView(APIView):
                     reshare_count = 0
                 
                 posts_data.append({
-                    "id": post.id,
+                    "id": f"share_{share.id}_{post.id}",
+                    "share_id": share.id,
+                    "post_id": post.id,
+                    "type": "shared",
+                    "commentModalScope": "share",
                     "title": post.title,
                     "description": post.description,
                     "author": author_name,
@@ -1492,7 +1497,12 @@ class PostDetailView(APIView):
                     share_id = parts[1]
                     actual_post_id = parts[-1]
 
-            post = Post.objects.get(id=actual_post_id, status="published", visibility="public")
+            post = Post.objects.get(id=actual_post_id)
+            if post.status != "published" or post.visibility != "public":
+                # Cho phép tác giả hoặc admin xem bài viết bị từ chối/riêng tư
+                is_admin = getattr(request.user, 'role', '').lower() == 'admin' if request.user else False
+                if not current_user_id or (post.user.id != current_user_id and not is_admin):
+                    raise Post.DoesNotExist
             
             if share_id:
                 share = PostShare.objects.select_related("user", "user__profile").get(id=share_id)
@@ -1570,6 +1580,8 @@ class PostDetailView(APIView):
                 "download_count": post.download_count,
                 "duration_seconds": post.duration_seconds,
                 "learning_field": post.learning_field,
+                "status": post.status,
+                "visibility": post.visibility,
                 "language_code": post.language_code,
                 "source_type": post.source_type,
                 "is_ai_generated": post.is_ai_generated,

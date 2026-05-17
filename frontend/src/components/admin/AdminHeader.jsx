@@ -302,7 +302,14 @@ export default function AdminHeader({
                     className={`admin-notification-item ${
                       item.is_read ? "" : "unread"
                     }`}
-                    onClick={() => markAsRead(item.id)}
+                    onClick={() => {
+                      markAsRead(item.id);
+                      if (item.type === 'report_update') {
+                        window.location.href = '/admin/moderation';
+                      } else if (item.type === 'new_post') {
+                        window.location.href = '/admin/content-moderation';
+                      }
+                    }}
                   >
                     <div className="admin-notification-item-title">
                       {item.title || "Thông báo mới"}

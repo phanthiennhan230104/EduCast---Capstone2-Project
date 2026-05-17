@@ -558,6 +558,12 @@ export default function PodcastCard({
     e.stopPropagation()
 
     if (loadingLike) return
+    
+    // Không cho phép like khi đang hiển thị bài viết dưới dạng share embed
+    // Like cho share được quản lý riêng bởi Feed component
+    if (embedInShare) {
+      return
+    }
 
     try {
       setLoadingLike(true)
@@ -597,6 +603,8 @@ export default function PodcastCard({
         likeCount: nextLikeCount,
       })
 
+      // Chỉ dispatch audio-track-like-updated cho bài viết gốc, không phải share
+      // Share được xử lý riêng bởi Feed component
       window.dispatchEvent(
         new CustomEvent('audio-track-like-updated', {
           detail: {
@@ -624,6 +632,11 @@ export default function PodcastCard({
     e.stopPropagation()
 
     if (loadingSave) return
+    
+    // Không cho phép save khi đang hiển thị bài viết dưới dạng share embed
+    if (embedInShare) {
+      return
+    }
 
     if (saved) {
       try {
@@ -1089,8 +1102,9 @@ export default function PodcastCard({
               <button
                 className={`${styles.actionBtn} ${liked ? styles.liked : ''}`}
                 onClick={handleToggleLike}
-                disabled={loadingLike}
+                disabled={loadingLike || embedInShare}
                 type="button"
+                title={embedInShare ? t('feed.likeDisabledForShare') : ''}
               >
                 <Heart size={16} fill={liked ? 'currentColor' : 'none'} />
                 <span
@@ -1131,6 +1145,8 @@ export default function PodcastCard({
                 className={styles.actionBtn}
                 type="button"
                 onClick={() => setShowCommentModal(true)}
+                disabled={embedInShare}
+                title={embedInShare ? t('feed.commentDisabledForShare') : ''}
               >
                 <MessageCircle size={16} />
                 <span
@@ -1171,7 +1187,8 @@ export default function PodcastCard({
                 className={styles.actionBtn}
                 type="button"
                 onClick={handleShare}
-                disabled={loadingShare}
+                disabled={loadingShare || embedInShare}
+                title={embedInShare ? t('feed.shareDisabledForShare') : ''}
               >
                 <Share2 size={16} />
                 <span
@@ -1209,7 +1226,8 @@ export default function PodcastCard({
               type="button"
               className={`${styles.actionBtn} ${saved ? styles.saved : ''}`}
               onClick={handleToggleSave}
-              disabled={loadingSave}
+              disabled={loadingSave || embedInShare}
+              title={embedInShare ? t('feed.saveDisabledForShare') : ''}
             >
               <Bookmark size={16} fill={saved ? 'currentColor' : 'none'} />
               <span>{t('feed.save', { count: saveCount })}</span>

@@ -78,7 +78,7 @@ function SettingsRightPanel({ onLogout }) {
     const date = new Date(dateStr)
     const now = new Date()
     const diffInSeconds = Math.floor((now - date) / 1000)
-    
+
     if (diffInSeconds < 60) return t('common.time.justNow')
     const diffInMinutes = Math.floor(diffInSeconds / 60)
     if (diffInMinutes < 60) return `${diffInMinutes} ${t('common.time.minutesAgo')}`
@@ -197,8 +197,8 @@ function AccountSettings({ profile, onProfileUpdate }) {
   }, [])
 
   const toggleTopic = (topicId) => {
-    setFavoriteTopics(prev => 
-      prev.includes(topicId) 
+    setFavoriteTopics(prev =>
+      prev.includes(topicId)
         ? prev.filter(id => id !== topicId)
         : [...prev, topicId]
     )
@@ -357,7 +357,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
                 placeholder={t('settings.account.bio')}
                 className={styles.textarea}
               />
-              
+
               <div className={styles.topicsSection} style={{ marginTop: '10px' }}>
                 <ConfigProvider
                   theme={{
@@ -382,7 +382,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
                 >
                   <Select
                     mode="multiple"
-                    placeholder={t('personal.favoriteTopics') || 'Chọn chủ đề yêu thích'}
+                    placeholder={t('personal.favoriteTopics')}
                     value={favoriteTopics}
                     onChange={(values) => setFavoriteTopics(values)}
                     className={styles.customSelect}
@@ -487,7 +487,7 @@ function AccountSettings({ profile, onProfileUpdate }) {
           </div>
 
           <div className={styles.infoRow} style={{ borderBottom: 'none' }}>
-            <span>{t('personal.favoriteTopics') || 'Chủ đề yêu thích'}</span>
+            <span>{t('personal.favoriteTopics')}</span>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
               {profile.favorite_topics && profile.favorite_topics.length > 0 ? (
                 profile.favorite_topics.map(t => (

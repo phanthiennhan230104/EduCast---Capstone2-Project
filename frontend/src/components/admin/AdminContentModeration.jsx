@@ -14,6 +14,7 @@ import {
     RotateCcw,
     Trash2,
 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import { useAudioPlayer } from '../contexts/AudioPlayerContext';
 import { API_ORIGIN } from '../../config/apiBase';
 import AdminLayout from './AdminLayout';
@@ -42,7 +43,7 @@ function getStatusBadge(status, post) {
     const statuses = {
         processing: { label: 'Chờ duyệt', className: 'status-processing' },
         published: { label: 'Đã đăng', className: 'status-published' },
-        hidden: { label: 'Ẩn', className: 'status-hidden' },
+
         draft: { label: 'Bản nháp', className: 'status-draft' },
         failed: {
             label: post?.learning_field && ['1', '2'].includes(String(post.learning_field)) ? 'Bị từ chối' : 'Lỗi',
@@ -209,12 +210,13 @@ function AdminFeedAudioPlayer({ post }) {
     );
 }
 export default function AdminContentModeration() {
+    const { t } = useTranslation();
     const [posts, setPosts] = useState([]);
     const [totalPages, setTotalPages] = useState(1);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [searchKeyword, setSearchKeyword] = useState('');
-    const [statusFilter, setStatusFilter] = useState('all');
+    const [statusFilter, setStatusFilter] = useState('processing');
     const [isStatusDropdownOpen, setIsStatusDropdownOpen] = useState(false);
     const [actionLoading, setActionLoading] = useState(null);
     const [currentPage, setCurrentPage] = useState(1);
@@ -223,15 +225,13 @@ export default function AdminContentModeration() {
     const statusDropdownRef = useRef(null);
     const itemsPerPage = 3;
 
-    const [showVisibilityModal, setShowVisibilityModal] = useState(false);
-    const [selectedPostForPublish, setSelectedPostForPublish] = useState(null);
-    const [selectedVisibility, setSelectedVisibility] = useState('public');
+
 
     const statusOptions = [
         { value: 'processing', label: 'Chờ duyệt' },
         { value: 'published', label: 'Đã đăng' },
-        { value: 'hidden', label: 'Ẩn' },
-        { value: 'all', label: 'Tất cả' },
+
+
     ];
 
     const selectedStatus =
@@ -239,6 +239,19 @@ export default function AdminContentModeration() {
 
     useEffect(() => {
         fetchPosts();
+
+        const handleAdminUpdate = (event) => {
+            console.log(" Admin update received in AdminContentModeration:", event.detail);
+            const { type } = event.detail || {};
+            if (type === "post_change" || type === "new_post") {
+                fetchPosts();
+            }
+        };
+
+        window.addEventListener("admin-update", handleAdminUpdate);
+        return () => {
+            window.removeEventListener("admin-update", handleAdminUpdate);
+        };
     }, [statusFilter, searchKeyword, currentPage]);
 
     useEffect(() => {
@@ -302,28 +315,15 @@ export default function AdminContentModeration() {
     const handlePublish = async (postId) => {
         try {
             setActionLoading(postId);
-            await publishPost(postId, selectedVisibility);
+            await publishPost(postId, 'public');
             notify.success('Bài viết đã được duyệt và công bố!');
             fetchPosts();
-            setShowVisibilityModal(false);
-            setSelectedPostForPublish(null);
         } catch (err) {
             notify.error(err.message || 'Lỗi khi duyệt bài viết');
             console.error('Error publishing post:', err);
         } finally {
             setActionLoading(null);
         }
-    };
-
-    const openPublishModal = (post) => {
-        setSelectedPostForPublish(post);
-        setSelectedVisibility('public');
-        setShowVisibilityModal(true);
-    };
-
-    const closePublishModal = () => {
-        setShowVisibilityModal(false);
-        setSelectedPostForPublish(null);
     };
 
     const handleReject = async (postId) => {
@@ -483,9 +483,7 @@ export default function AdminContentModeration() {
                                             </span>
                                         </div>
 
-                                        {post.description && (
-                                            <p className="post-description">{post.description}</p>
-                                        )}
+                                        <p className="post-description">{post.description || ''}</p>
 
                                         <div className="post-author-info">
                                             {post.user_avatar && (
@@ -496,7 +494,7 @@ export default function AdminContentModeration() {
                                                 />
                                             )}
                                             <p className="post-author">
-                                                Tác giả: <strong>{post.display_name || post.username}</strong>
+                                                Tác giả:&nbsp;&nbsp;<strong>{post.display_name || post.username}</strong>
                                             </p>
                                         </div>
 
@@ -505,27 +503,37 @@ export default function AdminContentModeration() {
                                             <span className="meta-item"><Calendar size={14} /> {new Date(post.created_at).toLocaleDateString('vi-VN')}</span>
                                         </div>
 
-                                        {getPostAudioUrl(post) && (
-                                            <AdminFeedAudioPlayer post={post} />
-                                        )}
+                                        <div className="admin-audio-wrapper" style={{ height: '48px', marginBottom: '10px', flexShrink: 0 }}>
+                                            {getPostAudioUrl(post) ? (
+                                                <AdminFeedAudioPlayer post={post} />
+                                            ) : (
+                                                <div style={{ height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.3)', borderRadius: '14px', color: '#888', fontSize: '13px', fontWeight: '700', textTransform: 'uppercase', border: '1px dashed rgba(255,255,255,0.1)' }}>
+                                                    {t('admin.noAudio')}
+                                                </div>
+                                            )}
+                                        </div>
 
-                                        {post.thumbnail_url && (
-                                            <div className="post-content-image">
+                                        <div className="post-content-image">
+                                            {post.thumbnail_url ? (
                                                 <img src={post.thumbnail_url} alt={post.title} />
-                                            </div>
-                                        )}
+                                            ) : (
+                                                <div className="no-image-placeholder">
+                                                    <span>{t('admin.noImage')}</span>
+                                                </div>
+                                            )}
+                                        </div>
 
                                         {post.status === 'processing' && (
                                             <div className="post-actions">
                                                 <button
                                                     className="btn-publish"
-                                                    onClick={() => openPublishModal(post)}
+                                                    onClick={() => handlePublish(post.id)}
                                                     disabled={actionLoading === post.id}
                                                 >
                                                     <CheckCircle size={18} />
                                                     {actionLoading === post.id
                                                         ? 'Đang...'
-                                                        : (post.learning_field === '1' ? 'Đăng lại' : 'Duyệt')}
+                                                        : 'Duyệt'}
                                                 </button>
                                                 <button
                                                     className="btn-delete"
@@ -539,16 +547,7 @@ export default function AdminContentModeration() {
                                         )}
                                         {post.status === 'failed' && (
                                             <div className="post-actions">
-                                                {post.learning_field === '1' && (
-                                                    <button
-                                                        className="btn-republish-admin"
-                                                        onClick={() => handleAdminRequestRepublish(post.id)}
-                                                        disabled={actionLoading === post.id}
-                                                    >
-                                                        <RotateCcw size={18} />
-                                                        {actionLoading === post.id ? 'Đang...' : 'Yêu cầu đăng lại'}
-                                                    </button>
-                                                )}
+
                                                 <button
                                                     className="btn-delete"
                                                     onClick={() => handleReject(post.id)}
@@ -559,18 +558,7 @@ export default function AdminContentModeration() {
                                                 </button>
                                             </div>
                                         )}
-                                        {post.status === 'hidden' && (
-                                            <div className="post-actions">
-                                                <button
-                                                    className="btn-republish"
-                                                    onClick={() => handleRepublish(post.id)}
-                                                    disabled={actionLoading === post.id}
-                                                >
-                                                    <RotateCcw size={18} />
-                                                    {actionLoading === post.id ? 'Đang...' : 'Khôi phục'}
-                                                </button>
-                                            </div>
-                                        )}
+
                                     </div>
                                 </div>
                             ))}
@@ -598,83 +586,7 @@ export default function AdminContentModeration() {
                     </div>
                 )}
 
-                {showVisibilityModal && selectedPostForPublish && (
-                    <div className="modal-overlay" onClick={closePublishModal}>
-                        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-                            <div className="modal-header">
-                                <h3>Chọn mức độ hiển thị</h3>
-                                <button className="modal-close" onClick={closePublishModal}>
-                                    <X size={20} />
-                                </button>
-                            </div>
 
-                            <div className="modal-body">
-                                <p className="modal-subtitle">
-                                    Bài viết: <strong>{selectedPostForPublish.title}</strong>
-                                </p>
-
-                                <div className="visibility-options">
-                                    <label className="radio-option">
-                                        <input
-                                            type="radio"
-                                            name="visibility"
-                                            value="public"
-                                            checked={selectedVisibility === 'public'}
-                                            onChange={(e) => setSelectedVisibility(e.target.value)}
-                                        />
-                                        <span className="radio-label">
-                                            <strong>🌐 Công khai</strong>
-                                            <small>Tất cả mọi người có thể xem</small>
-                                        </span>
-                                    </label>
-                                    <label className="radio-option">
-                                        <input
-                                            type="radio"
-                                            name="visibility"
-                                            value="unlisted"
-                                            checked={selectedVisibility === 'unlisted'}
-                                            onChange={(e) => setSelectedVisibility(e.target.value)}
-                                        />
-                                        <span className="radio-label">
-                                            <strong>🔗 Không liệt kê</strong>
-                                            <small>Chỉ những người có liên kết mới xem được</small>
-                                        </span>
-                                    </label>
-                                    <label className="radio-option">
-                                        <input
-                                            type="radio"
-                                            name="visibility"
-                                            value="private"
-                                            checked={selectedVisibility === 'private'}
-                                            onChange={(e) => setSelectedVisibility(e.target.value)}
-                                        />
-                                        <span className="radio-label">
-                                            <strong>🔒 Riêng tư</strong>
-                                            <small>Chỉ tác giả mới xem được</small>
-                                        </span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div className="modal-actions">
-                                <button
-                                    className="btn-cancel"
-                                    onClick={closePublishModal}
-                                    disabled={actionLoading === selectedPostForPublish.id}
-                                >
-                                    Hủy
-                                </button>
-                                <button
-                                    className="btn-confirm"
-                                    onClick={() => handlePublish(selectedPostForPublish.id)}
-                                    disabled={actionLoading === selectedPostForPublish.id}
-                                >
-                                    {actionLoading === selectedPostForPublish.id ? 'Đang duyệt...' : 'Duyệt & Đăng'}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )}
             </div>
         </AdminLayout>
     );

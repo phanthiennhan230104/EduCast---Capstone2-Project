@@ -178,6 +178,23 @@ def _send_social_update(user_id, update_type, data):
     except Exception as e:
         print(f"❌ Error broadcasting social update: {str(e)}")
 
+def _send_admin_update(update_type, data):
+    try:
+        channel_layer = get_channel_layer()
+        if channel_layer:
+            async_to_sync(channel_layer.group_send)(
+                "admin_notifications",
+                {
+                    "type": "admin_update",
+                    "admin_update": {
+                        "type": update_type,
+                        "data": data
+                    }
+                }
+            )
+    except Exception as e:
+        print(f"❌ Error broadcasting admin update: {str(e)}")
+
 # Helper để đếm like/comment/save/share cho post
 def _post_counts(post_id, share_id=None):
     if share_id:
@@ -220,7 +237,7 @@ def _post_counts(post_id, share_id=None):
     else:
         # For original posts, return counts specific to the original post instance
         try:
-            like_count = PostLike.objects.filter(post_id=post_id).count()
+            like_count = PostLike.objects.filter(post_id=post_id, share_id__isnull=True).count()
         except Exception:
             like_count = PostLike.objects.filter(post_id=post_id).count()
 
@@ -230,7 +247,7 @@ def _post_counts(post_id, share_id=None):
             comment_count = Comment.objects.filter(post_id=post_id).count()
 
         try:
-            save_count = SavedPost.objects.filter(post_id=post_id).count()
+            save_count = SavedPost.objects.filter(post_id=post_id, share_id__isnull=True).count()
         except Exception:
             # DB schema may not have saved_posts.share_id; count by post only.
             save_count = SavedPost.objects.filter(post_id=post_id).count()
@@ -444,7 +461,7 @@ def _notification_to_dict(notification):
     if notification.actor_user and hasattr(notification.actor_user, "username"):
         data["actor_username"] = notification.actor_user.username
 
-    if notification.reference_type == "post" and notification.reference_id:
+    if notification.reference_type in ["post", "comment", "like", "share"] and notification.reference_id:
         ref_id = str(notification.reference_id)
         share_id = None
         actual_post_id = ref_id
@@ -491,33 +508,26 @@ def toggle_like_post(request, post_id):
         if share_id:
             share = get_object_or_404(PostShare, id=share_id, post_id=post.id)
 
-        # Do SQLite có ràng buộc UNIQUE(post_id, user_id), trạng thái Like của user
-        # trên một bài viết là duy nhất toàn cục (dù like qua bài share hay bài gốc).
-        # Do đó, khi kiểm tra existing_like để Unlike, ta chỉ cần lọc theo (post_id, user_id)
-        # để tránh lỗi người dùng bấm Unlike nhưng hệ thống không tìm thấy do sai share_id.
-        existing_like = PostLike.objects.filter(
-            post_id=post.id,
-            user_id=user.id,
-        ).first()
+        # Lọc chính xác theo scope: nếu like bài share thì tìm theo share_id, nếu like bài gốc thì tìm share_id__isnull=True
+        if share_id:
+            existing_like = PostLike.objects.filter(post_id=post.id, user_id=user.id, share_id=share_id).first()
+        else:
+            existing_like = PostLike.objects.filter(post_id=post.id, user_id=user.id, share_id__isnull=True).first()
 
         if existing_like:
             existing_like.delete()
-            if share_id:
-                like_count = PostLike.objects.filter(post_id=post.id, share_id=share_id).count()
-                viewer_like_on_share = PostLike.objects.filter(user_id=user.id, post_id=post.id, share_id=share_id).exists()
-                if not viewer_like_on_share and PostLike.objects.filter(user_id=user.id, post_id=post.id).exists():
-                    like_count += 1
-            else:
-                like_count = PostLike.objects.filter(post_id=post.id).count()
             
-            total_like_count = PostLike.objects.filter(post_id=post.id).count()
-            Post.objects.filter(id=post.id).update(like_count=total_like_count)
+            # Cập nhật số like bài gốc trong bảng Post (chỉ tính like trực tiếp của bài gốc)
+            total_orig_like = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
+            Post.objects.filter(id=post.id).update(like_count=total_orig_like)
+
+            counts = _post_counts(post.id, share_id)
 
             return _json_success(
                 "Unliked post successfully",
                 {
                     "liked": False,
-                    "like_count": like_count,
+                    "like_count": counts["like_count"],
                     "canonical_post_id": str(post.id),
                 }
             )
@@ -545,16 +555,11 @@ def toggle_like_post(request, post_id):
                 share_id=share_id,
             )
 
-        if share_id:
-            like_count = PostLike.objects.filter(post_id=post.id, share_id=share_id).count()
-            viewer_like_on_share = PostLike.objects.filter(user_id=user.id, post_id=post.id, share_id=share_id).exists()
-            if not viewer_like_on_share and PostLike.objects.filter(user_id=user.id, post_id=post.id).exists():
-                like_count += 1
-        else:
-            like_count = PostLike.objects.filter(post_id=post.id).count()
+        # Cập nhật số like bài gốc trong bảng Post (chỉ tính like trực tiếp của bài gốc)
+        total_orig_like = PostLike.objects.filter(post_id=post.id, share_id__isnull=True).count()
+        Post.objects.filter(id=post.id).update(like_count=total_orig_like)
 
-        total_like_count = PostLike.objects.filter(post_id=post.id).count()
-        Post.objects.filter(id=post.id).update(like_count=total_like_count)
+        counts = _post_counts(post.id, share_id)
 
         # Notify the correct person: sharer if it's a like on share, else author
         notification_recipient = share.user_id if share else post.user_id
@@ -585,7 +590,7 @@ def toggle_like_post(request, post_id):
             "Liked post successfully",
             {
                 "liked": True,
-                "like_count": like_count,
+                "like_count": counts["like_count"],
                 "canonical_post_id": str(post.id),
             }
         )
@@ -742,18 +747,12 @@ def list_post_comments(request, post_id):
     viewer_is_liked = False
     viewer_is_saved = False
     if user:
-        viewer_is_liked = PostLike.objects.filter(
-            user_id=user.id, post_id=post.id
-        ).exists()
-        viewer_is_saved = SavedPost.objects.filter(
-            user_id=user.id, post_id=post.id, share_id=share_id
-        ).exists()
-        if viewer_is_liked and share_id:
-            viewer_like_on_share = PostLike.objects.filter(
-                user_id=user.id, post_id=post.id, share_id=share_id
-            ).exists()
-            if not viewer_like_on_share:
-                counts["like_count"] += 1
+        if share_id:
+            viewer_is_liked = PostLike.objects.filter(user_id=user.id, post_id=post.id, share_id=share_id).exists()
+            viewer_is_saved = SavedPost.objects.filter(user_id=user.id, post_id=post.id, share_id=share_id).exists()
+        else:
+            viewer_is_liked = PostLike.objects.filter(user_id=user.id, post_id=post.id, share_id__isnull=True).exists()
+            viewer_is_saved = SavedPost.objects.filter(user_id=user.id, post_id=post.id, share_id__isnull=True).exists()
 
     return _json_success(
         "Comments fetched successfully",
@@ -3143,6 +3142,9 @@ def create_report(request):
             created_at=timezone.now(),
             updated_at=timezone.now(),
         )
+        # Tạo thông báo cho admin
+        from .services import create_new_report_notifications_for_admins
+        create_new_report_notifications_for_admins(report, reporter)
         
         return _json_success(
     "feed.reportModal.success",
@@ -3154,7 +3156,10 @@ def create_report(request):
             201
         )
     except Exception as e:
-        return _json_error("feed.reportModal.failed", 500)
+        import traceback
+        print(f"❌ Error creating report: {str(e)}")
+        print(traceback.format_exc())
+        return _json_error(f"feed.reportModal.failed: {str(e)}", 500)
 
 @csrf_exempt
 @require_http_methods(["GET"])

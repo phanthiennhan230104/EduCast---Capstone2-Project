@@ -1,5 +1,6 @@
 import { useContext, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { useTranslation } from 'react-i18next'
 import {
   Sparkles,
   MessageCircle,
@@ -12,7 +13,6 @@ import {
   EyeOff,
   Flag,
 } from 'lucide-react'
-import { useTranslation } from 'react-i18next'
 import { apiRequest } from '../../utils/api'
 import { useAudioPlayer } from '../contexts/AudioPlayerContext'
 import { PodcastContext } from '../contexts/PodcastContext'
@@ -86,8 +86,8 @@ function PostCard({
   onShare,
   onHide,
   onReport,
+  t,
 }) {
-  const { t } = useTranslation()
   const navigate = useNavigate()
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
@@ -188,7 +188,7 @@ function PostCard({
               <span className={styles.dot}>•</span>
               <span>{formatTimeAgo(post.created_at, t)}</span>
               <span className={styles.dot}>•</span>
-              <span>{t('library.content.listens', { count: formatCount(post.listen_count) })}</span>
+              <span>{t('feed.listens', { count: formatCount(post.listen_count) })}</span>
             </div>
 
             <div className={styles.authorTags}>
@@ -204,7 +204,7 @@ function PostCard({
             <button
               type="button"
               className={styles.menuBtn}
-              aria-label="Thêm tùy chọn"
+              aria-label={t('feed.options')}
               onClick={() => setMenuOpen((open) => !open)}
             >
               <MoreHorizontal size={18} />
@@ -221,7 +221,7 @@ function PostCard({
                   }}
                 >
                   <EyeOff size={14} />
-                  <span>{t('feed.hidePost')}</span>
+                  <span>{t('feed.confirm.hide')}</span>
                 </button>
                 <button
                   type="button"
@@ -260,8 +260,7 @@ function PostCard({
           <button
             type="button"
             className={`${styles.audioBtn} ${isPlaying ? styles.audioBtnPlaying : ''}`}
-            onClick={handlePlay}
-            aria-label={t(isPlaying ? 'feed.pause' : 'feed.play')}
+            aria-label={isPlaying ? t('buttons.pause') : t('buttons.play')}
           >
             {isPlaying ? <Pause size={16} /> : <Play size={16} />}
           </button>
@@ -310,7 +309,7 @@ function PostCard({
 
         <button type="button" className={styles.actionBtn} onClick={() => onShare(post)}>
           <Share2 size={16} />
-          <span>{t('feed.share', { count: formatCount(post.stats?.shares) })}</span>
+          <span>{t('buttons.share')}</span>
         </button>
 
         <button
@@ -319,7 +318,7 @@ function PostCard({
           onClick={() => onToggleSave(postId)}
         >
           <Bookmark size={16} fill={post.viewer_state?.is_saved ? 'currentColor' : 'none'} />
-          <span>{t('feed.save', { count: formatCount(post.stats?.saves) })}</span>
+          <span>{post.viewer_state?.is_saved ? t('library.content.saved') : t('library.postDetail.save')}</span>
         </button>
       </div>
     </article>
@@ -344,9 +343,9 @@ export default function Community() {
 
   const tabMeta = useMemo(
     () => [
-      { key: 'all', label: t('pages.community.allNewPosts') },
-      { key: 'today', label: t('pages.community.today') },
-      { key: 'week', label: t('pages.community.thisWeek') },
+      { key: 'all', label: t('community.tabs.allNew') },
+      { key: 'today', label: t('community.tabs.today') },
+      { key: 'week', label: t('community.tabs.thisWeek') },
     ],
     [t]
   )
@@ -365,7 +364,31 @@ export default function Community() {
         if (cancelled) return
 
         const data = response.data || {}
-        setPosts(Array.isArray(data.posts) ? data.posts : [])
+        const fetchedPosts = Array.isArray(data.posts) ? data.posts : []
+        const mappedPosts = fetchedPosts.map(p => {
+          const syncKey = p.post_id || p.id
+          const syncData = JSON.parse(localStorage.getItem(`post-sync-${syncKey}`) || '{}')
+          
+          if (Object.keys(syncData).length === 0) return p
+          
+          return {
+            ...p,
+            stats: {
+              ...p.stats,
+              likes: typeof syncData.likeCount === 'number' ? syncData.likeCount : p.stats?.likes,
+              saves: typeof syncData.saveCount === 'number' ? syncData.saveCount : p.stats?.saves,
+              comments: typeof syncData.commentCount === 'number' ? syncData.commentCount : p.stats?.comments,
+              shares: typeof syncData.shareCount === 'number' ? syncData.shareCount : p.stats?.shares,
+            },
+            viewer_state: {
+              ...p.viewer_state,
+              is_liked: typeof syncData.liked === 'boolean' ? syncData.liked : p.viewer_state?.is_liked,
+              is_saved: typeof syncData.saved === 'boolean' ? syncData.saved : p.viewer_state?.is_saved,
+            }
+          }
+        })
+
+        setPosts(mappedPosts)
         setFollowingPreview(Array.isArray(data.following_preview) ? data.following_preview : [])
         setFollowingCount(Number(data.following_count || 0))
         setNewPostsCount(Number(data.new_posts_count || 0))
@@ -455,6 +478,63 @@ export default function Community() {
     return () => window.removeEventListener('post-sync-updated', handlePostSync)
   }, [])
 
+  useEffect(() => {
+    const handlePostSync = (event) => {
+      const d = event.detail || {}
+      if (!d.postId) return
+
+      setPosts((prev) =>
+        prev.map((post) => {
+          const postId = String(post.post_id || post.id)
+          if (postId !== String(d.postId)) return post
+
+          const nextViewerState = { ...post.viewer_state }
+          const nextStats = { ...post.stats }
+
+          if (typeof d.liked === 'boolean') nextViewerState.is_liked = d.liked
+          if (typeof d.likeCount === 'number') nextStats.likes = d.likeCount
+          if (typeof d.saved === 'boolean') nextViewerState.is_saved = d.saved
+          if (typeof d.saveCount === 'number') nextStats.saves = d.saveCount
+          if (typeof d.commentCount === 'number') nextStats.comments = d.commentCount
+          if (typeof d.shareCount === 'number') nextStats.shares = d.shareCount
+
+          return {
+            ...post,
+            viewer_state: nextViewerState,
+            stats: nextStats,
+          }
+        })
+      )
+
+      setSelectedPost((prev) => {
+        if (!prev) return prev
+        const postId = String(prev.post_id || prev.id)
+        if (postId !== String(d.postId)) return prev
+
+        const nextViewerState = { ...prev.viewer_state }
+        const nextStats = { ...prev.stats }
+
+        if (typeof d.liked === 'boolean') nextViewerState.is_liked = d.liked
+        if (typeof d.likeCount === 'number') nextStats.likes = d.likeCount
+        if (typeof d.saved === 'boolean') nextViewerState.is_saved = d.saved
+        if (typeof d.saveCount === 'number') nextStats.saves = d.saveCount
+        if (typeof d.commentCount === 'number') nextStats.comments = d.commentCount
+        if (typeof d.shareCount === 'number') nextStats.shares = d.shareCount
+
+        return {
+          ...prev,
+          viewer_state: nextViewerState,
+          stats: nextStats,
+        }
+      })
+    }
+
+    window.addEventListener('post-sync-updated', handlePostSync)
+    return () => {
+      window.removeEventListener('post-sync-updated', handlePostSync)
+    }
+  }, [])
+
   const audioQueue = useMemo(
     () =>
       posts
@@ -524,6 +604,15 @@ export default function Community() {
             : post
         )
       )
+      window.dispatchEvent(
+        new CustomEvent('post-sync-updated', {
+          detail: {
+            postId: String(id),
+            saved,
+            saveCount: count,
+          },
+        })
+      )
     } catch (error) {
       console.error('Community save failed:', error)
       setPosts(previous)
@@ -572,6 +661,15 @@ export default function Community() {
             : post
         )
       )
+      window.dispatchEvent(
+        new CustomEvent('post-sync-updated', {
+          detail: {
+            postId: String(id),
+            liked,
+            likeCount: count,
+          },
+        })
+      )
     } catch (error) {
       console.error('Community like failed:', error)
       setPosts(previous)
@@ -593,6 +691,15 @@ export default function Community() {
             }
           : post
       )
+    )
+    window.dispatchEvent(
+      new CustomEvent('post-sync-updated', {
+        detail: {
+          postId: String(id),
+          saved: true,
+          saveCount: count,
+        },
+      })
     )
     setSavingPost(null)
   }
@@ -728,6 +835,15 @@ export default function Community() {
           }
         : prev
     )
+    window.dispatchEvent(
+      new CustomEvent('post-sync-updated', {
+        detail: {
+          postId: String(id),
+          liked,
+          likeCount,
+        },
+      })
+    )
     return { liked, likeCount }
   }
 
@@ -762,6 +878,15 @@ export default function Community() {
           }
         : prev
     )
+    window.dispatchEvent(
+      new CustomEvent('post-sync-updated', {
+        detail: {
+          postId: String(id),
+          saved,
+          saveCount,
+        },
+      })
+    )
     return { saved, saveCount }
   }
 
@@ -774,7 +899,7 @@ export default function Community() {
       <div className={styles.content}>
         <div className={styles.topCard}>
           <div className={styles.sectionTitleRow}>
-            <h2 className={styles.sectionTitle}>{t('pages.community.following')}</h2>
+            <h2 className={styles.sectionTitle}>{t('communityRightPanel.followingTitle')}</h2>
             <div className={styles.sectionLine} />
           </div>
 
@@ -824,16 +949,16 @@ export default function Community() {
 
           <div className={styles.newPostRow}>
             <span className={styles.newPostHint}>
-              {t('pages.community.newPostsSinceLastVisit', { count: newPostsCount })}
+              {t('community.newPostsHint', { count: newPostsCount })}
             </span>
             <div className={styles.newPostLine} />
           </div>
         </div>
 
         <div className={styles.feed}>
-          {loading && <div className={styles.emptyState}>{t('common.loading')}</div>}
+          {loading && <div className={styles.emptyState}>{t('community.loading')}</div>}
           {!loading && posts.length === 0 && (
-            <div className={styles.emptyState}>{t('pages.community.noCommunityPosts')}</div>
+            <div className={styles.emptyState}>{t('community.emptyFeed')}</div>
           )}
           {!loading &&
             posts.map((post) => (
@@ -847,6 +972,7 @@ export default function Community() {
                 onShare={(post) => setSharingPost(post)}
                 onHide={hidePost}
                 onReport={(post) => setReportPost(post)}
+                t={t}
               />
             ))}
         </div>

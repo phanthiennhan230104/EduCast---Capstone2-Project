@@ -54,7 +54,7 @@ const TABS = [
 const POST_SYNC_EVENT = 'post-sync-updated'
 
 // Bộ nhớ đệm toàn cục (trong phạm vi module) để giữ dữ liệu khi chuyển trang
-const globalPodcastsCache = {} 
+const globalPodcastsCache = {}
 let globalLastFetchedNonce = -1
 let globalLastFetchedFilters = ''
 
@@ -173,6 +173,15 @@ export default function Feed() {
       const d = event.detail || {}
       if (!d.postId) return
 
+      const rowMatches = (p) => {
+        const pid = String(d.postId)
+        // Match by row id (includes share composite ids)
+        if (String(p.id) === pid) return true
+        // Match by underlying post_id (canonical post)
+        if (p.post_id != null && String(p.post_id) === pid) return true
+        return false
+      }
+
       const mergePostFields = (p) => ({
         ...p,
         liked: typeof d.liked === 'boolean' ? d.liked : p.liked,
@@ -185,17 +194,44 @@ export default function Feed() {
         description: typeof d.description === 'string' ? d.description : p.description,
       })
 
-      setPodcasts((prev) =>
-        prev.map((p) => {
-          if (String(p.id) === String(d.postId)) return mergePostFields(p)
-          
-          // Cập nhật cả bài share nếu post_id của nó khớp với bài được tương tác
+      const textUpdate =
+        typeof d.title === 'string' || typeof d.description === 'string'
+
+      const processPostItem = (p) => {
+        if (String(p.id) === String(d.postId)) return mergePostFields(p)
+
+        if (p.type === 'shared') {
           if (p.post_id != null && String(p.post_id) === String(d.postId)) {
-            return mergePostFields(p)
+            return {
+              ...p,
+              saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+              saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+              ...(textUpdate ? {
+                title: typeof d.title === 'string' ? d.title : p.title,
+                description: typeof d.description === 'string' ? d.description : p.description,
+              } : {}),
+            }
           }
           return p
+        }
+
+        if (p.post_id != null && String(p.post_id) === String(d.postId)) {
+          return mergePostFields(p)
+        }
+
+        return p
+      }
+
+      setPodcasts((prev) => {
+        const matched = prev.filter(rowMatches)
+        console.log('[Feed] post-sync-updated received', { postId: d.postId, saveCount: d.saveCount, matchedRows: matched.length })
+        const updated = prev.map(processPostItem)
+        // Also keep the global cache in sync so tab-switches don't revert the count
+        Object.keys(globalPodcastsCache).forEach((tabKey) => {
+          globalPodcastsCache[tabKey] = (globalPodcastsCache[tabKey] || []).map(processPostItem)
         })
-      )
+        return updated
+      })
     }
 
     window.addEventListener(POST_SYNC_EVENT, handleFeedPostSync)
@@ -239,12 +275,12 @@ export default function Feed() {
     const handleRefresh = () => {
       // Xóa bộ nhớ đệm toàn cục
       Object.keys(globalPodcastsCache).forEach(key => delete globalPodcastsCache[key])
-      
+
       // Đánh dấu cần cuộn lên đầu sau khi load xong
       pendingScrollFeedTopAfterShareRef.current = true
       writeFeedScrollSessionKeys(0)
       feedLastMainScrollRef.current = 0
-      
+
       // Kích hoạt load lại dữ liệu
       setFeedReloadNonce((n) => n + 1)
     }
@@ -413,7 +449,7 @@ export default function Feed() {
             : {}),
         })
 
-        const updateList = (list) => 
+        const updateList = (list) =>
           list.map((p) => {
             if (String(p.id) === String(d.postId)) {
               const next = mergeEngagement(p)
@@ -425,7 +461,16 @@ export default function Feed() {
               }
               return next
             }
-            if (p.type === 'shared') return p
+            if (p.type === 'shared') {
+              if (feedRowMatchesCanonicalPost(p, d.postId)) {
+                return {
+                  ...p,
+                  saved: typeof d.saved === 'boolean' ? d.saved : p.saved,
+                  saveCount: typeof d.saveCount === 'number' ? d.saveCount : p.saveCount,
+                }
+              }
+              return p
+            }
             if (feedRowMatchesCanonicalPost(p, d.postId)) {
               return mergeEngagement(p)
             }
@@ -478,7 +523,7 @@ export default function Feed() {
       setPodcasts((prev) =>
         prev.filter((p) => !matchesRemovedPost(p, removedId))
       )
-      
+
       // Cập nhật tất cả các tab trong cache để xóa bài này đi
       Object.keys(globalPodcastsCache).forEach(tabIndex => {
         globalPodcastsCache[tabIndex] = (globalPodcastsCache[tabIndex] || []).filter(
@@ -509,7 +554,36 @@ export default function Feed() {
 
       // Nếu tab này đã có dữ liệu và không phải là reload bắt buộc thì dùng luôn
       if (globalPodcastsCache[activeTab] && !isManualReload && !isFilterChange) {
-        setPodcasts(globalPodcastsCache[activeTab])
+        const cached = globalPodcastsCache[activeTab].map(p => {
+          const syncKey = p.type === 'shared' ? p.id : engagementPostId(p)
+          const syncData = JSON.parse(localStorage.getItem(`post-sync-${syncKey}`) || '{}')
+          const originalSyncKey = engagementPostId(p)
+          const originalSyncData = JSON.parse(localStorage.getItem(`post-sync-${originalSyncKey}`) || '{}')
+
+          const mergedSync = p.type === 'shared'
+            ? { ...originalSyncData, ...syncData }
+            : syncData
+
+          const isSaved = typeof mergedSync.saved === 'boolean'
+            ? mergedSync.saved
+            : (savedPostIds && savedPostIds.has(String(originalSyncKey)))
+              ? true
+              : p.saved
+
+          return {
+            ...p,
+            saved: isSaved,
+            saveCount: typeof mergedSync.saveCount === 'number'
+              ? mergedSync.saveCount
+              : (isSaved && !p.saved ? Math.max(Number(p.saveCount || 0), 1) : p.saveCount),
+            liked: typeof mergedSync.liked === 'boolean' ? mergedSync.liked : p.liked,
+            likes: typeof mergedSync.likeCount === 'number' ? mergedSync.likeCount : p.likes,
+            comments: typeof mergedSync.commentCount === 'number' ? mergedSync.commentCount : p.comments,
+            comment_count: typeof mergedSync.commentCount === 'number' ? mergedSync.commentCount : p.comment_count,
+            shares: typeof mergedSync.shareCount === 'number' ? mergedSync.shareCount : p.shares,
+          }
+        })
+        setPodcasts(cached)
         setLoading(false)
         return
       }
@@ -734,10 +808,14 @@ export default function Feed() {
           return podcast
         }
 
+        // Read actual saveCount from localStorage sync data written by any save action
+        const syncData = JSON.parse(localStorage.getItem(`post-sync-${key}`) || '{}')
+        const syncedSaveCount = typeof syncData.saveCount === 'number' ? syncData.saveCount : null
+
         return {
           ...podcast,
           saved: true,
-          saveCount: Math.max(Number(podcast.saveCount || 0), 1),
+          saveCount: syncedSaveCount ?? Math.max(Number(podcast.saveCount || 0), 1),
         }
       })
     )
@@ -747,10 +825,13 @@ export default function Feed() {
       const key = engagementPostId(prev)
       if (!key || !savedPostIds.has(String(key)) || prev.saved) return prev
 
+      const syncData = JSON.parse(localStorage.getItem(`post-sync-${key}`) || '{}')
+      const syncedSaveCount = typeof syncData.saveCount === 'number' ? syncData.saveCount : null
+
       return {
         ...prev,
         saved: true,
-        saveCount: Math.max(Number(prev.saveCount || 0), 1),
+        saveCount: syncedSaveCount ?? Math.max(Number(prev.saveCount || 0), 1),
       }
     })
   }, [savedPostIds])
@@ -1017,7 +1098,13 @@ export default function Feed() {
 
     setPodcasts((prev) =>
       prev.map((p) => {
-        if (!feedRowMatchesCanonicalPost(p, canonicalId) || p.type === 'shared') {
+        if (p.type === 'shared') {
+          if (feedRowMatchesCanonicalPost(p, canonicalId)) {
+            return { ...p, saved: nextSaved, saveCount: nextSaveCount }
+          }
+          return p
+        }
+        if (!feedRowMatchesCanonicalPost(p, canonicalId)) {
           return p
         }
 
@@ -1081,27 +1168,44 @@ export default function Feed() {
         })
       )
 
-      dispatchPostSync({
-        postId: post.type === 'shared' ? post.id : canonicalId,
-        liked: nextLiked,
-        likeCount: nextLikeCount,
-      })
+      if (post.type === 'shared') {
+        setSelectedPodcast((prev) => {
+          if (!prev) return prev
+          const prevCanonical = engagementPostId(prev)
+          if (String(prev.id) === String(post.id) || String(prevCanonical) === String(canonicalId)) {
+            return { ...prev, liked: nextLiked, likes: nextLikeCount }
+          }
+          return prev
+        })
 
-      if (data.data?.canonical_post_id) {
         dispatchPostSync({
-          postId: String(data.data.canonical_post_id),
+          postId: post.id,
           liked: nextLiked,
           likeCount: nextLikeCount,
         })
-      } else if (post.type === 'shared' && canonicalId) {
+
         dispatchPostSync({
           postId: canonicalId,
           liked: nextLiked,
           likeCount: nextLikeCount,
         })
-      }
 
-      if (post.type !== 'shared') {
+        window.dispatchEvent(
+          new CustomEvent('audio-track-like-updated', {
+            detail: {
+              postId: canonicalId,
+              liked: nextLiked,
+              likeCount: nextLikeCount,
+            },
+          })
+        )
+      } else {
+        dispatchPostSync({
+          postId: canonicalId,
+          liked: nextLiked,
+          likeCount: nextLikeCount,
+        })
+
         window.dispatchEvent(
           new CustomEvent('audio-track-like-updated', {
             detail: {
@@ -1392,7 +1496,7 @@ export default function Feed() {
               className={styles.postShareAuthor}
             >
               {sharedBy.avatar_url && !failedAvatarUrls.has(avatarKey) ? (
-                <div 
+                <div
                   className={`${styles.postShareAvatarWrapper} ${sharedByUserId ? styles.postShareAuthorClickable : ''}`}
                   role={sharedByUserId ? 'button' : undefined}
                   tabIndex={sharedByUserId ? 0 : undefined}
@@ -1414,7 +1518,7 @@ export default function Feed() {
                   />
                 </div>
               ) : (
-                <div 
+                <div
                   className={`${styles.postShareAvatarWrapper} ${sharedByUserId ? styles.postShareAuthorClickable : ''}`}
                   role={sharedByUserId ? 'button' : undefined}
                   tabIndex={sharedByUserId ? 0 : undefined}
