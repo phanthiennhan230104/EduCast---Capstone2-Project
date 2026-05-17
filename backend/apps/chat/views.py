@@ -19,6 +19,7 @@ from .services import (
     user_is_room_member,
 )
 from .storage import save_chat_attachment
+from apps.content.services.cloudinary_service import upload_file_to_cloudinary
 
 
 class ConversationListView(generics.ListAPIView):
@@ -28,7 +29,13 @@ class ConversationListView(generics.ListAPIView):
     def get_queryset(self):
         return (
             ChatRoom.objects.filter(members__user=self.request.user)
-            .prefetch_related("members__user", "messages__sender", "messages__reads")
+            .prefetch_related(
+                "members__user",
+                "members__user__profile",
+                "messages__sender",
+                "messages__sender__profile",
+                "messages__reads"
+            )
             .distinct()
             .order_by("-created_at")
         )
@@ -44,7 +51,7 @@ class MessagesView(generics.ListAPIView):
             return Message.objects.none()
         return (
             Message.objects.filter(room_id=room_id)
-            .select_related("sender", "room")
+            .select_related("sender", "sender__profile", "room")
             .prefetch_related("reads")
             .order_by("created_at")
         )
@@ -124,7 +131,13 @@ class UploadAttachmentView(APIView):
         else:
             message_type = "file"
 
-        attachment_url = request.build_absolute_uri(save_chat_attachment(file_obj))
+        try:
+            # Tải tệp tin lên Cloudinary (hỗ trợ tự động nhận dạng ảnh, âm thanh, tài liệu)
+            uploaded = upload_file_to_cloudinary(file_obj, folder="educast/chat_attachments", resource_type="auto")
+            attachment_url = uploaded["secure_url"]
+        except Exception as e:
+            # Fallback lưu trữ cục bộ nếu Cloudinary gặp lỗi (ví dụ lúc test offline ở local)
+            attachment_url = request.build_absolute_uri(save_chat_attachment(file_obj))
 
         return Response(
             {

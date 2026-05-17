@@ -1,4 +1,3 @@
-from turtle import mode
 import uuid
 import requests 
 import logging

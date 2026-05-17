@@ -3,15 +3,22 @@ from urllib.parse import parse_qs
 from channels.db import database_sync_to_async
 from rest_framework_simplejwt.tokens import UntypedToken
 
+from django.core.cache import cache
+
 from apps.users.models import User
 
 
 @database_sync_to_async
 def get_user_by_id(user_id):
-    try:
-        return User.objects.get(id=user_id)
-    except User.DoesNotExist:
-        return None
+    cache_key = f"ws_user_{user_id}"
+    user = cache.get(cache_key)
+    if user is None:
+        try:
+            user = User.objects.get(id=user_id)
+            cache.set(cache_key, user, timeout=300)  # Cache for 5 minutes
+        except User.DoesNotExist:
+            return None
+    return user
 
 
 class JwtQueryAuthMiddleware:

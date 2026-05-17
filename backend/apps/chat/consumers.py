@@ -1,5 +1,6 @@
 import json
 import logging
+import traceback
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
@@ -28,27 +29,39 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         logger.info("WS connect room_id=%s user=%s", self.room_id, getattr(self.user, "id", None))
 
-        if not self.user:
-            logger.warning("WS rejected: no user in scope")
+        if not self.user or self.user.is_anonymous:
+            logger.warning("WS rejected: anonymous user")
             await self.close(code=4001)
             return
 
-        is_member = await self._is_member()
-        logger.info("WS membership check room_id=%s user_id=%s is_member=%s", self.room_id, self.user.id, is_member)
+        try:
+            is_member = await self._is_member()
+            logger.info("WS membership check room_id=%s user_id=%s is_member=%s", self.room_id, self.user.id, is_member)
 
-        if not is_member:
-            logger.warning("WS rejected: user %s not in room %s", self.user.id, self.room_id)
-            await self.close(code=4003)
-            return
-        
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.accept()
+            if not is_member:
+                logger.warning("WS rejected")
+                await self.accept()
+                await self.send(text_data="NOT MEMBER")
+                await self.close(code=4003)
+                return
+            
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            await self.accept()
 
-        became_online = await self._mark_online()
-        if became_online:
-            await self._broadcast_presence("online")
+            became_online = await self._mark_online()
+            if became_online:
+                await self._broadcast_presence("online")
+        except Exception as e:
+            logger.error("CHAT CONSUMER CONNECT ERROR: %s", e, exc_info=True)
+            await self.close(code=1011)
 
     async def disconnect(self, close_code):
+        logger.info(
+            "WS disconnect room_id=%s user=%s code=%s",
+            self.room_id,
+            getattr(self.user, "id", None),
+            close_code,
+        )
         if getattr(self, "user", None):
             became_offline = await self._mark_offline()
             if became_offline:
@@ -186,20 +199,39 @@ class ChatConsumer(AsyncWebsocketConsumer):
     
 class ChatInboxConsumer(AsyncWebsocketConsumer):
     async def connect(self):
-        self.user = self.scope.get("user")
-        if not self.user:
-            await self.close(code=4001)
-            return
+        try:
+            logger.info("CHAT INBOX CONNECT START")
+            self.user = self.scope.get("user")
+            logger.info(
+                "CHAT INBOX USER=%s",
+                getattr(self.user, "id", None),
+            )    
+            if not self.user:
+                await self.close(code=4001)
+                return
 
-        self.group_name = inbox_group_name(self.user.id)
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
-        await self.accept()
+            self.group_name = inbox_group_name(self.user.id)
+            await self.channel_layer.group_add(self.group_name, self.channel_name)
+            await self.accept()
+
+        except Exception as e:
+            print("INBOX CONNECT ERROR:", e)
+
+            traceback.print_exc()
+
+            await self.close(code=1011)
+
+        logger.info("CHAT INBOX ACCEPTED")  
 
         became_online = await self._mark_online()
         if became_online:
             await self._broadcast_presence("online")
 
     async def disconnect(self, close_code):
+        logger.info(
+            "CHAT INBOX DISCONNECT code=%s",
+            close_code,
+        )
         if getattr(self, "user", None):
             became_offline = await self._mark_offline()
             if became_offline:

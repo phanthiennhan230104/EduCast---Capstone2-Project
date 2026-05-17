@@ -538,3 +538,9 @@
 .sendBtn:hover {
   background: rgba(132,146,255,0.20);
 }
+
+@media (max-width: 768px) {
+  .panel {
+    display: none !important;
+  }
+}

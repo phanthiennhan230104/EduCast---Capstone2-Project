@@ -14,6 +14,8 @@ from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
 
+from pathlib import Path
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
@@ -30,9 +32,6 @@ DEBUG = os.getenv("DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = ["*"]
 
-ASGI_APPLICATION = "config.asgi.application"
-# Application definition
-
 INSTALLED_APPS = [
     "daphne",
     'django.contrib.admin',
@@ -41,6 +40,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'apps.users.apps.UsersConfig',
     'rest_framework_simplejwt',
     # Cloudinary
@@ -56,7 +56,7 @@ INSTALLED_APPS = [
 
 
 MIDDLEWARE = [
-    'config.middleware.SimpleCORSMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -86,14 +86,22 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'    
 
+redis_url = os.getenv("REDIS_URL")
+
+if not redis_url:
+    redis_host = os.getenv('REDIS_HOST', '127.0.0.1')
+    redis_port = os.getenv('REDIS_PORT', '6379')
+    redis_url = f"redis://{redis_host}:{redis_port}"
+
+# Đảm bảo nếu dùng rediss:// (mã hóa SSL) thì tự động bỏ qua xác thực chứng chỉ tự ký (hữu ích cho Render/Valkey)
+if redis_url.startswith("rediss://") and "ssl_cert_reqs" not in redis_url:
+    redis_url += "&ssl_cert_reqs=none" if "?" in redis_url else "?ssl_cert_reqs=none"
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [(
-                os.getenv("REDIS_HOST", ""),
-                int(os.getenv("REDIS_PORT", "6379")),
-            )],
+            "hosts": [redis_url],
         },
     }
 }
@@ -111,11 +119,15 @@ DATABASES = {
         'PASSWORD': os.getenv("DB_PASSWORD"),
         'HOST': os.getenv("DB_HOST"),
         'PORT': os.getenv("DB_PORT"),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
+        "OPTIONS": {
+            "ssl": {
+                "ca": os.path.join(BASE_DIR, "certificate", "ca.pem"),
+            }
         }
     }
 }
+
+print("BASE_DIR: ",BASE_DIR)
 
 # AUTH_PASSWORD_VALIDATORS = [#     {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
 #     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
@@ -124,7 +136,12 @@ DATABASES = {
 # ]
 
 CORS_ALLOWED_ORIGINS = [
-    origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()
+    origin.strip().rstrip("/")
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS",
+        "https://edu-cast-capstone2-project.vercel.app"
+    ).split(",")
+    if origin.strip()
 ]
 
 # Password validation
@@ -176,10 +193,19 @@ SIMPLE_JWT = {
     'USER_ID_CLAIM': 'user_id',
 }
 
+# Cấu hình cache cũng dùng chung URL Redis tối ưu này (DB 1 để phân biệt với DB 0 của Channels)
+cache_url = redis_url
+if not cache_url.split("?")[0].endswith("/1"):
+    parts = cache_url.split("?")
+    if len(parts) == 2:
+        cache_url = f"{parts[0].rstrip('/')}/1?{parts[1]}"
+    else:
+        cache_url = f"{cache_url.rstrip('/')}/1"
+
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': f"redis://{os.getenv('REDIS_HOST', '')}:{os.getenv('REDIS_PORT', '6379')}/1",
+        'LOCATION': cache_url,
     }
 }
 

@@ -396,3 +396,53 @@
   border-left: 3px solid #8492ff;
   padding-left: 11px;
 }
+
+@media (max-width: 768px) {
+  .header {
+    padding: 0 10px !important;
+    gap: 8px !important;
+  }
+  .logo {
+    min-width: auto !important;
+    padding-left: 4px !important;
+  }
+  .logoImage {
+    height: 38px !important;
+  }
+  .searchWrap {
+    max-width: 160px !important;
+  }
+  .searchInput {
+    height: 36px !important;
+    padding: 0 10px 0 32px !important;
+    font-size: 12px !important;
+  }
+  .searchIcon {
+    left: 10px !important;
+  }
+  .createBtn {
+    display: none !important;
+  }
+  .actions {
+    gap: 6px !important;
+  }
+  .iconBtn {
+    width: 34px !important;
+    height: 34px !important;
+  }
+  .userTrigger {
+    width: 36px !important;
+    height: 36px !important;
+  }
+  .avatar {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  .userChevron {
+    display: none !important;
+  }
+  .dropdownMenu {
+    right: -10px !important;
+    width: 220px !important;
+  }
+}

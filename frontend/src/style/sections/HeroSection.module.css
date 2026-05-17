@@ -373,3 +373,39 @@
     flex-direction: column;
   }
 }
+
+@media (max-width: 768px) {
+  .heroTitle {
+    font-size: 2.2rem !important;
+    line-height: 1.15 !important;
+  }
+  .heroDesc {
+    font-size: 0.95rem !important;
+    line-height: 1.6 !important;
+    margin-bottom: 24px !important;
+  }
+  .heroCta {
+    gap: 12px !important;
+  }
+  .btnCta,
+  .btnOutlineCta {
+    padding: 12px 20px !important;
+    font-size: 13.5px !important;
+  }
+  .heroStats {
+    margin-top: 32px !important;
+    gap: 18px !important;
+  }
+  .podcastCardMain {
+    width: 100% !important;
+    max-width: 320px !important;
+    padding: 18px !important;
+  }
+  .waveform {
+    height: 56px !important;
+    gap: 4px !important;
+  }
+  .waveBar {
+    width: 6px !important;
+  }
+}

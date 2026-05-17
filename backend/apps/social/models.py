@@ -10,7 +10,7 @@ class PostLike(models.Model):
     class Meta:
         db_table = 'post_likes'
         unique_together = ('post', 'user', 'share')
-        managed = False
+        managed = True
         ordering = ['-created_at']
     def __str__(self):
         if self.share:
@@ -26,7 +26,7 @@ class SavedPost(models.Model):
     class Meta:
         db_table = 'saved_posts'
         unique_together = ('post', 'user', 'share')
-        managed = False
+        managed = True
         ordering = ['-created_at']
     def __str__(self):
         if self.share:
@@ -51,7 +51,7 @@ class Comment(models.Model):
     like_count = models.IntegerField(default=0)
     class Meta:
         db_table = 'comments'
-        managed = False
+        managed = True
         ordering = ['-created_at']
     def __str__(self):
         if self.share:
@@ -91,7 +91,7 @@ class Follow(models.Model):
     class Meta: 
         db_table = 'follows'
         unique_together = ('follower', 'following')
-        managed = False
+        managed = True
         ordering = ['-created_at']
     def __str__(self):
         return f"{self.follower} follows {self.following}"
@@ -130,7 +130,7 @@ class Notification(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     class Meta:
         db_table = 'notifications'
-        managed = False
+        managed = True
         ordering = ['-created_at']
     def __str__(self):
         return f"Notification for {self.user} - {self.type}"
@@ -152,7 +152,7 @@ class PostShare(models.Model):
 
     class Meta:
         db_table = 'post_shares'
-        managed = False
+        managed = True
         ordering = ['-created_at']
 
     def __str__(self):
@@ -178,7 +178,7 @@ class PlaybackHistory(models.Model):
 
     class Meta:
         db_table = "playback_history"
-        managed = False
+        managed = True
         ordering = ["-last_played_at"]
 
 class PostNote(models.Model):
@@ -192,7 +192,7 @@ class PostNote(models.Model):
     class Meta:
         db_table = 'post_notes'
         unique_together = ('post', 'user')
-        managed = False
+        managed = True
         ordering = ['-updated_at']
 
     def __str__(self):
@@ -236,7 +236,7 @@ class Report(models.Model):
 
     class Meta:
         db_table = 'reports'
-        managed = False
+        managed = True
         ordering = ['-created_at']
 
     def __str__(self):
@@ -266,7 +266,7 @@ class HiddenPost(models.Model):
     class Meta:
         db_table = 'hidden_posts'
         unique_together = ('post', 'user')
-        managed = False
+        managed = True
 
 
 class Collection(models.Model):
@@ -281,7 +281,7 @@ class Collection(models.Model):
     class Meta:
         db_table = 'collections'
         unique_together = ('user', 'name')
-        managed = False
+        managed = True
         ordering = ['-created_at']
 
     def __str__(self):
@@ -298,7 +298,7 @@ class CollectionPost(models.Model):
     class Meta:
         db_table = 'collection_items'
         unique_together = ('collection', 'post')
-        managed = False
+        managed = True
         ordering = ['-added_at']
 
     def __str__(self):
