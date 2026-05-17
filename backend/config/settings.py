@@ -89,13 +89,11 @@ ASGI_APPLICATION = 'config.asgi.application'
 redis_host = os.getenv('REDIS_HOST', '127.0.0.1')
 redis_port = os.getenv('REDIS_PORT', '6379')
 
-# Tự động dùng rediss:// (bảo mật SSL) cho Render/Cloud Redis
-if redis_host not in ("127.0.0.1", "localhost"):
-    redis_url = f"rediss://{redis_host}:{redis_port}"
-else:
-    redis_url = f"redis://{redis_host}:{redis_port}"
+# Kết nối nội bộ Render qua Host/Port ở cổng 6379 là không mã hóa (plain TCP)
+# Do đó ta dùng giao thức redis:// (không dùng rediss:// để tránh bị treo kết nối SSL)
+redis_url = f"redis://{redis_host}:{redis_port}"
 
-# Vẫn ưu tiên biến REDIS_URL nếu được định nghĩa trực tiếp
+# Vẫn ưu tiên biến REDIS_URL nếu được định nghĩa trực tiếp (ví dụ khi kết nối ngoài có SSL)
 redis_url = os.getenv("REDIS_URL", redis_url)
 
 if redis_url.startswith("rediss://") and "ssl_cert_reqs" not in redis_url:
