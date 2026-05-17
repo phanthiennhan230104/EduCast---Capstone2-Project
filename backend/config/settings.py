@@ -86,16 +86,18 @@ TEMPLATES = [
 WSGI_APPLICATION = 'config.wsgi.application'
 ASGI_APPLICATION = 'config.asgi.application'    
 
+redis_url = os.getenv(
+    "REDIS_URL",
+    f"redis://{os.getenv('REDIS_HOST', '127.0.0.1')}:{os.getenv('REDIS_PORT', '6379')}"
+)
+if redis_url.startswith("rediss://") and "ssl_cert_reqs" not in redis_url:
+    redis_url += "&ssl_cert_reqs=none" if "?" in redis_url else "?ssl_cert_reqs=none"
+
 CHANNEL_LAYERS = {
     "default": {
         "BACKEND": "channels_redis.core.RedisChannelLayer",
         "CONFIG": {
-            "hosts": [
-                os.getenv(
-                    "REDIS_URL",
-                    f"redis://{os.getenv('REDIS_HOST', '127.0.0.1')}:{os.getenv('REDIS_PORT', '6379')}"
-                )
-            ],
+            "hosts": [redis_url],
         },
     }
 }
