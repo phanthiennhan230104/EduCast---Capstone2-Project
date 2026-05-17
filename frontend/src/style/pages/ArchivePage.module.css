@@ -139,3 +139,26 @@
   padding-top: 10px;
   height: 480px;
 }
+
+@media (max-width: 640px) {
+  .archiveContainer {
+    padding: 12px !important;
+  }
+  .archiveGrid {
+    grid-template-columns: 1fr !important;
+    gap: 20px !important;
+  }
+  .cardContainer {
+    height: auto !important;
+  }
+  .header {
+    margin-bottom: 16px !important;
+  }
+  .tabs {
+    margin-bottom: 16px !important;
+  }
+  .tabItem {
+    padding: 10px 16px !important;
+    font-size: 12px !important;
+  }
+}

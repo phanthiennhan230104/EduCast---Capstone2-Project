@@ -210,3 +210,9 @@
   font-size: 12px;
   line-height: 1.45;
 }
+
+@media (max-width: 768px) {
+  .panel {
+    display: none !important;
+  }
+}

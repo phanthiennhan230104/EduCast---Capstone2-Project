@@ -806,3 +806,10 @@
   color: #9ca0c0;
   font-size: 14px;
 }
+
+@media (max-width: 768px) {
+  .page {
+    height: auto !important;
+    padding: 12px 8px 30px !important;
+  }
+}
