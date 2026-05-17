@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'corsheaders',
     'apps.users.apps.UsersConfig',
     'rest_framework_simplejwt',
     # Cloudinary
@@ -58,7 +59,7 @@ INSTALLED_APPS = [
 
 
 MIDDLEWARE = [
-    'config.middleware.SimpleCORSMiddleware',
+    'corsheaders.middleware.CorsMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
