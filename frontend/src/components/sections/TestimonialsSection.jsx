@@ -26,8 +26,8 @@ const testimonials = [
 
 export default function TestimonialsSection({ id }) {
   return (
-    <section className={styles.testimonialsSection}>
-      <div className={styles.headingBlock} id={id}>
+    <section className={styles.testimonialsSection} id={id}>
+      <div className={styles.headingBlock}>
         <div className={styles.sectionEyebrow}>NGƯỜI HỌC NÓI GÌ</div>
 
         <h2 className={styles.sectionTitle}>

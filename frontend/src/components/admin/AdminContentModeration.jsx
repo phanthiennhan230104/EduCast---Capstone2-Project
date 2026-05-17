@@ -489,10 +489,10 @@ export default function AdminContentModeration() {
 
                                         <div className="post-author-info">
                                             {post.user_avatar && (
-                                                <img 
-                                                    src={post.user_avatar} 
-                                                    alt={post.display_name} 
-                                                    className="author-avatar" 
+                                                <img
+                                                    src={post.user_avatar}
+                                                    alt={post.display_name}
+                                                    className="author-avatar"
                                                 />
                                             )}
                                             <p className="post-author">

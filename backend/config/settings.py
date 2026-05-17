@@ -258,8 +258,8 @@ LOGGING = {
 GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID")
 CORS_ALLOW_CREDENTIALS = True
 
-GROQ_API_KEY = (os.getenv("GROQ_API_KEY") or "").strip()
-GROQ_MODEL = (os.getenv("GROQ_MODEL") or "llama-3.1-8b-instant").strip()
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "").strip()
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant").strip()
 
 BACKEND_BASE_URL = (os.getenv("BACKEND_BASE_URL") or "").strip("/")
 GEMINI_API_KEY = (os.getenv("GEMINI_API_KEY") or "").strip()

@@ -21,3 +21,15 @@ export function getCanonicalPostIdForEngagement(entity) {
   }
   return null
 }
+
+export function getShareIdForEngagement(entity) {
+  if (!entity) return null
+  if (entity.id != null) {
+    const s = String(entity.id)
+    if (s.startsWith('share_')) {
+      const parts = s.split('_')
+      if (parts.length >= 2) return parts[1]
+    }
+  }
+  return null
+}

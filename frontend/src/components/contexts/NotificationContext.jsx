@@ -50,20 +50,16 @@ export const NotificationProvider = ({ children }) => {
   const token = getToken();
 
   useEffect(() => {
-    if (!token) {
-      if (wsRef.current) {
-        wsRef.current.close();
-        wsRef.current = null;
-      }
-      return;
+    if (token) {
+      fetchUnreadCount();
     }
-
-    fetchUnreadCount();
 
     const connectWS = () => {
       if (wsRef.current) wsRef.current.close();
 
-      const wsUrl = `${WS_ORIGIN}/ws/notifications/?token=${token}`;
+      const wsUrl = token 
+        ? `${WS_ORIGIN}/ws/notifications/?token=${token}`
+        : `${WS_ORIGIN}/ws/notifications/`;
       const ws = new WebSocket(wsUrl);
       wsRef.current = ws;
 
@@ -92,10 +88,23 @@ export const NotificationProvider = ({ children }) => {
                 }));
               }
             }
-          } else if (data.type === 'social_update') {
+          } else if (data.type === 'social_update' && data.social_update) {
+            const update = data.social_update;
             window.dispatchEvent(new CustomEvent('social-update', {
-              detail: data.social_update
+              detail: update
             }));
+
+            // Nếu là like_change, đồng bộ luôn qua post-sync-updated để các component đang nghe update
+            if (update.type === 'like_change' && update.data) {
+              window.dispatchEvent(new CustomEvent('post-sync-updated', {
+                detail: {
+                  postId: update.data.post_id,
+                  shareId: update.data.share_id,
+                  likeCount: update.data.like_count,
+                  liked: update.data.liked
+                }
+              }));
+            }
           }
         } catch (err) {
           console.error('Error parsing notification message', err);
@@ -103,10 +112,8 @@ export const NotificationProvider = ({ children }) => {
       };
 
       ws.onclose = () => {
-        // Tự động kết nối lại sau 5 giây nếu bị ngắt và vẫn còn token
-        if (getToken()) {
-          setTimeout(connectWS, 5000);
-        }
+        // Tự động kết nối lại sau 5 giây nếu bị ngắt
+        setTimeout(connectWS, 5000);
       };
     };
 

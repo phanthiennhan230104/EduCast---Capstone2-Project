@@ -11,8 +11,18 @@ export default function PageHeader({ onOpenLogin, onOpenSignup }) {
   const handleScroll = (e, id) => {
     e.preventDefault()
     const element = document.getElementById(id)
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' })
+    if (!element) return
+
+    if (id === 'topics') {
+      // Marquee nằm ở mép dưới viewport
+      const rect = element.getBoundingClientRect()
+      const targetY = window.scrollY + rect.bottom - window.innerHeight
+      window.scrollTo({ top: targetY, behavior: 'smooth' })
+    } else {
+      // Community & Ranking: scroll sao cho phần section bắt đầu cách mép trên cách header
+      const rect = element.getBoundingClientRect()
+      const targetY = window.scrollY + rect.top - 64
+      window.scrollTo({ top: targetY, behavior: 'smooth' })
     }
   }
 
@@ -27,23 +37,23 @@ export default function PageHeader({ onOpenLogin, onOpenSignup }) {
       </Link>
 
       <nav className={styles.nav}>
-        <a 
-          href="#topics" 
-          className={styles.navLink} 
+        <a
+          href="#topics"
+          className={styles.navLink}
           onClick={(e) => handleScroll(e, 'topics')}
         >
           Chủ Đề
         </a>
-        <a 
-          href="#community" 
-          className={styles.navLink} 
+        <a
+          href="#community"
+          className={styles.navLink}
           onClick={(e) => handleScroll(e, 'community')}
         >
           Cộng Đồng
         </a>
-        <a 
-          href="#ranking" 
-          className={styles.navLink} 
+        <a
+          href="#ranking"
+          className={styles.navLink}
           onClick={(e) => handleScroll(e, 'ranking')}
         >
           Yêu Thích

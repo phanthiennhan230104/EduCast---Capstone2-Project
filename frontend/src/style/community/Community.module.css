@@ -509,6 +509,7 @@
   border-radius: 10px;
   color: var(--text-secondary);
   font-size: 13px;
+  font-weight: 600;
   transition: background 0.15s, color 0.15s;
   background: none;
   border: none;

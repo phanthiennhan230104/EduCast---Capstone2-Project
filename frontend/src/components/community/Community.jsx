@@ -310,7 +310,7 @@ function PostCard({
 
         <button type="button" className={styles.actionBtn} onClick={() => onShare(post)}>
           <Share2 size={16} />
-          <span>{t('feed.shareCount', { count: '' }).trim()}</span>
+          <span>{t('feed.share', { count: formatCount(post.stats?.shares) })}</span>
         </button>
 
         <button
@@ -319,7 +319,7 @@ function PostCard({
           onClick={() => onToggleSave(postId)}
         >
           <Bookmark size={16} fill={post.viewer_state?.is_saved ? 'currentColor' : 'none'} />
-          <span>{post.viewer_state?.is_saved ? t('library.content.saved') : t('library.content.save', { count: '' }).trim()}</span>
+          <span>{t('feed.save', { count: formatCount(post.stats?.saves) })}</span>
         </button>
       </div>
     </article>
@@ -419,6 +419,40 @@ export default function Community() {
     return () => {
       window.removeEventListener(COMMUNITY_FOLLOW_CHANGED_EVENT, handleFollowChanged)
     }
+  }, [])
+  
+  useEffect(() => {
+    const handlePostSync = (event) => {
+      const d = event.detail || {}
+      if (!d.postId) return
+
+      setPosts((prev) =>
+        prev.map((post) => {
+          const canon = (post.post_id || post.id)
+          if (String(canon) !== String(d.postId)) return post
+
+          const eventShareId = d.shareId || null
+          const postShareId = (post.type === 'shared' || String(post.id || '').startsWith('share_'))
+            ? (String(post.id || '').split('_')[1] || null)
+            : null
+
+          if (eventShareId && String(eventShareId) !== String(postShareId)) {
+            return post
+          }
+
+          return {
+            ...post,
+            ...(typeof d.liked === 'boolean' ? { viewer_state: { ...post.viewer_state, is_liked: d.liked } } : {}),
+            ...(typeof d.likeCount === 'number' ? { stats: { ...post.stats, likes: d.likeCount } } : {}),
+            ...(typeof d.saved === 'boolean' ? { viewer_state: { ...post.viewer_state, is_saved: d.saved } } : {}),
+            ...(typeof d.saveCount === 'number' ? { stats: { ...post.stats, saves: d.saveCount } } : {}),
+          }
+        })
+      )
+    }
+
+    window.addEventListener('post-sync-updated', handlePostSync)
+    return () => window.removeEventListener('post-sync-updated', handlePostSync)
   }, [])
 
   const audioQueue = useMemo(
@@ -576,6 +610,58 @@ export default function Community() {
         ? { ...prev, stats: { ...prev.stats, comments: nextCount } }
         : prev
     )
+  }
+
+  const handleOpenOriginalPost = async (post) => {
+    const targetId = post.post_id || post.id
+    if (!targetId) return
+
+    let postIdForApi = targetId
+
+    if (String(targetId).startsWith('share_')) {
+      const parts = String(targetId).split('_')
+      if (parts.length >= 3) {
+        postIdForApi = parts[parts.length - 1]
+      }
+    }
+
+    try {
+      const data = await apiRequest(`/content/posts/${postIdForApi}/`)
+      if (data && data.data) {
+        const origPost = data.data
+
+        const mappedPost = {
+          ...post,
+          id: targetId,
+          post_id: targetId,
+          title: origPost.title,
+          description: origPost.description,
+          author: origPost.author || {},
+          audio: {
+            audio_url: origPost.audio_url || '',
+            duration_seconds: origPost.duration_seconds || 0
+          },
+          thumbnail_url: origPost.thumbnail_url,
+          tags: origPost.tags || [],
+          stats: {
+            likes: origPost.like_count || 0,
+            comments: origPost.comment_count || 0,
+            shares: origPost.share_count || 0,
+            saves: origPost.save_count || 0,
+          },
+          viewer_state: {
+            is_liked: origPost.is_liked || false,
+            is_saved: origPost.is_saved || false,
+          }
+        }
+        setSelectedPost(mappedPost)
+      } else {
+        setSelectedPost(post)
+      }
+    } catch (err) {
+      console.error('Fetch original post failed', err)
+      setSelectedPost(post)
+    }
   }
 
   const handleShareSuccess = (postId, data = {}) => {
@@ -757,7 +843,7 @@ export default function Community() {
                 queue={audioQueue}
                 onToggleSave={toggleSavePost}
                 onToggleLike={toggleLikePost}
-                onOpenComments={(post) => setSelectedPost(post)}
+                onOpenComments={handleOpenOriginalPost}
                 onShare={(post) => setSharingPost(post)}
                 onHide={hidePost}
                 onReport={(post) => setReportPost(post)}

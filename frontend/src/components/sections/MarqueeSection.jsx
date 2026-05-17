@@ -10,14 +10,18 @@ const items = [
   'Khoa học & Vũ trụ',
 ]
 
-export default function MarqueeSection() {
+export default function MarqueeSection({ id, onOpenLogin }) {
   const loopItems = [...items, ...items]
 
   return (
-    <div className={styles.marqueeSection}>
+    <div className={styles.marqueeSection} id={id}>
       <div className={styles.marqueeTrack}>
         {loopItems.map((item, index) => (
-          <span key={index} className={styles.marqueeItem}>
+          <span 
+            key={index} 
+            className={styles.marqueeItem} 
+            onClick={() => onOpenLogin && onOpenLogin(item)}
+          >
             <span className={styles.marqueeDot}></span>
             {item}
           </span>

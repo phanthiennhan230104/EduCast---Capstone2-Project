@@ -48,6 +48,11 @@ class RegisterSerializer(serializers.Serializer):
         if password != confirm_password:
             raise serializers.ValidationError({"confirm_password": "Mật khẩu xác nhận không khớp."})
 
+        
+        # email_domain = email.split('@')[-1].lower()
+        # if email_domain in ['dtu.edu.vn', 'gmail.com']:
+        #     raise serializers.ValidationError({"email": "Tên miền email này đã bị chặn đăng ký trên hệ thống."})
+
         if User.objects.filter(email__iexact=email).exists():
             raise serializers.ValidationError({"email": "Email đã tồn tại."})
 
@@ -108,6 +113,15 @@ class MyTokenObtainPairSerializer(serializers.Serializer):
         if not user:
             error = {"detail": "Sai email/username hoặc mật khẩu."}
             logger.error(f"Login validation failed: user not found for identifier {identifier}")
+        #     raise serializers.ValidationError(error)
+
+        
+        # if user.role != "admin":
+        #     user_email = user.email.lower()
+        #     email_domain = user_email.split('@')[-1]
+        #     if email_domain in ['dtu.edu.vn', 'gmail.com']:
+        #         error = {"detail": "Tài khoản email thuộc tên miền này đã bị chặn đăng nhập."}
+        #         logger.error(f"Login validation failed: email domain {email_domain} is blacklisted for user {user.id}")
             raise serializers.ValidationError(error)
 
         if not check_password(password, user.password_hash):

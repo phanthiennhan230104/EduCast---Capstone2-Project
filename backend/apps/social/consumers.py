@@ -7,27 +7,34 @@ logger = logging.getLogger(__name__)
 class NotificationConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         self.user = self.scope.get("user")
-        
-        if not self.user or not self.user.is_authenticated:
-            logger.warning("NotificationConsumer: WebSocket connection rejected (unauthenticated).")
-            await self.close()
-            return
+        self.global_group_name = "social_updates"
+        self.group_name = None
 
-        self.group_name = f"user_notifications_{self.user.id}"
+        if self.user and self.user.is_authenticated:
+            self.group_name = f"user_notifications_{self.user.id}"
+            await self.channel_layer.group_add(
+                self.group_name,
+                self.channel_name
+            )
         
-        # Join room group
+        # All users (including guests) join global group for public updates
         await self.channel_layer.group_add(
-            self.group_name,
+            self.global_group_name,
             self.channel_name
         )
 
         await self.accept()
-        logger.info(f"NotificationConsumer: User {self.user.id} connected to {self.group_name}.")
+        logger.info(f"NotificationConsumer: Connected (User: {self.user.id if self.user and self.user.is_authenticated else 'Guest'})")
 
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
             await self.channel_layer.group_discard(
                 self.group_name,
+                self.channel_name
+            )
+        if hasattr(self, "global_group_name"):
+            await self.channel_layer.group_discard(
+                self.global_group_name,
                 self.channel_name
             )
             logger.info(f"NotificationConsumer: User {self.user.id} disconnected from {self.group_name}.")

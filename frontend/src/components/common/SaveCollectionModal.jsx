@@ -177,6 +177,15 @@ export default function SaveCollectionModal({
       if (!response.ok) throw new Error(data.message || `HTTP ${response.status}`)
 
       if (data.success) {
+        // Phát sự kiện đồng bộ để Feed/PersonalPage cập nhật số lượng lưu ngay lập tức
+        const newSaveCount = Number(data.data?.save_count ?? 0)
+        window.dispatchEvent(new CustomEvent('post-sync-updated', {
+          detail: {
+            postId: String(postId),
+            saved: true,
+            saveCount: newSaveCount,
+          }
+        }))
         onSave?.(selectedCollectionId, data.data)
         onClose()
       }
