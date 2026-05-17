@@ -19,6 +19,7 @@ from .services import (
     user_is_room_member,
 )
 from .storage import save_chat_attachment
+from apps.content.services.cloudinary_service import upload_file_to_cloudinary
 
 
 class ConversationListView(generics.ListAPIView):
@@ -130,7 +131,13 @@ class UploadAttachmentView(APIView):
         else:
             message_type = "file"
 
-        attachment_url = request.build_absolute_uri(save_chat_attachment(file_obj))
+        try:
+            # Tải tệp tin lên Cloudinary (hỗ trợ tự động nhận dạng ảnh, âm thanh, tài liệu)
+            uploaded = upload_file_to_cloudinary(file_obj, folder="educast/chat_attachments", resource_type="auto")
+            attachment_url = uploaded["secure_url"]
+        except Exception as e:
+            # Fallback lưu trữ cục bộ nếu Cloudinary gặp lỗi (ví dụ lúc test offline ở local)
+            attachment_url = request.build_absolute_uri(save_chat_attachment(file_obj))
 
         return Response(
             {
