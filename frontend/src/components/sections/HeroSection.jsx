@@ -1,6 +1,6 @@
 import { Play, ArrowRight, SkipBack, SkipForward, Users, Sparkles } from 'lucide-react'
 import styles from "../../style/sections/HeroSection.module.css";
-export default function HeroSection({ id }) {
+export default function HeroSection({ id, onOpenLogin }) {
   return (
     <section className={styles.hero}>
       <div className={styles.heroContent} id={id}>
@@ -19,7 +19,7 @@ export default function HeroSection({ id }) {
         </p>
 
         <div className={styles.heroCta}>
-          <button className={styles.btnCta}>
+          <button className={styles.btnCta} onClick={onOpenLogin}>
             Bắt đầu học ngay
             <ArrowRight size={16} />
           </button>

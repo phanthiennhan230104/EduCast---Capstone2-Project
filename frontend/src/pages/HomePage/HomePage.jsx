@@ -28,8 +28,8 @@ export default function HomePage() {
       <PageHeader onOpenLogin={openLogin} onOpenSignup={openSignup} />
 
       <main className={styles.main}>
-        <HeroSection id="topics" />
-        <MarqueeSection />
+        <HeroSection onOpenLogin={openLogin} />
+        <MarqueeSection id="topics" onOpenLogin={openLogin} />
         <FeaturesSection id="community" />
         <TestimonialsSection id="ranking" />
         <CtaSection onOpenSignup={openSignup} onOpenLogin={openLogin} />

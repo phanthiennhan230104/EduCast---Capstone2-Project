@@ -16,6 +16,7 @@ import ShareModal from '../feed/ShareModal'
 import ProfileShareModal from '../feed/ProfileShareModal'
 import EditShareCaptionModal from '../feed/EditShareCaptionModal'
 import EditPostModal from '../feed/EditPostModal'
+import ReportPostModal from '../feed/ReportPostModal'
 import SaveCollectionModal from '../common/SaveCollectionModal'
 import FollowListModal from '../personal/FollowListModal'
 import { useTranslation } from 'react-i18next'
@@ -36,6 +37,8 @@ import {
   UserPlus,
   UserCheck,
   Archive,
+  EyeOff,
+  Flag,
 } from 'lucide-react'
 import styles from '../../style/personal/PersonalPage.module.css'
 
@@ -68,6 +71,7 @@ export default function PersonalPage() {
   const [editShareCaptionPost, setEditShareCaptionPost] = useState(null)
   const [editPostModalPost, setEditPostModalPost] = useState(null)
   const [selectedPost, setSelectedPost] = useState(null)
+  const [reportPostModalPost, setReportPostModalPost] = useState(null)
   const [showCollectionModal, setShowCollectionModal] = useState(false)
   const [followModal, setFollowModal] = useState({ isOpen: false, type: 'followers' })
   const [followingIds, setFollowingIds] = useState(new Set())
@@ -341,17 +345,7 @@ export default function PersonalPage() {
         prev.map((p) => {
           if (String(p.id) === String(d.postId)) return mergePostFields(p)
 
-          if (
-            p.type === 'shared' &&
-            textUpdate &&
-            p.post_id != null &&
-            String(p.post_id) === String(d.postId)
-          ) {
-            return mergePostFields(p)
-          }
-
-          if (p.type === 'shared') return p
-
+          // Cập nhật bài nhúng bên trong bài share nếu postId trùng với post_id của bài share
           if (p.post_id != null && String(p.post_id) === String(d.postId)) {
             return mergePostFields(p)
           }
@@ -935,7 +929,7 @@ export default function PersonalPage() {
     }
   }
 
-  const handleCollectionModalSave = () => {
+  const handleCollectionModalSave = (_collectionId, apiData) => {
     const post = selectedPost
     if (!post) return
 
@@ -943,7 +937,10 @@ export default function PersonalPage() {
     const apiId =
       post.type === 'shared' ? post.id : engagementPostIdProfile(post)
 
-    const newSaveCount = (postStates[rowId]?.saveCount || 0) + 1
+    // Dùng save_count thực từ API, tránh cộng dồn sai khi lưu lại sau khi hủy
+    const newSaveCount = typeof apiData?.save_count === 'number'
+      ? apiData.save_count
+      : (postStates[rowId]?.saveCount || 0) + 1
 
     setPostStates((prev) => ({
       ...prev,
@@ -962,11 +959,14 @@ export default function PersonalPage() {
       )
     )
 
-    dispatchPostSync({
-      postId: rowId,
-      saved: true,
-      saveCount: newSaveCount,
-    })
+    // Sự kiện sync đã được SaveCollectionModal dispatch. Chỉ dispatch thêm nếu không có giá trị thực
+    if (typeof apiData?.save_count !== 'number') {
+      dispatchPostSync({
+        postId: rowId,
+        saved: true,
+        saveCount: newSaveCount,
+      })
+    }
 
     setShowCollectionModal(false)
   }
@@ -1464,19 +1464,20 @@ export default function PersonalPage() {
                                     </div>
                                   </div>
 
-                                  {isOwnProfile && (
-                                    <div className={styles.shareMenuWrap} data-profile-share-menu>
-                                      <button
-                                        className={styles.postShareMenuBtn}
-                                        onClick={(e) => {
-                                          e.stopPropagation()
-                                          setOpenMenuPostId(openMenuPostId === rowKey ? null : rowKey)
-                                        }}
-                                      >
-                                        <MoreHorizontal size={20} />
-                                      </button>
-                                      {openMenuPostId === rowKey && (
-                                        <div className={styles.shareMenuDropdown}>
+                                <div className={styles.shareMenuWrap} data-profile-share-menu>
+                                  <button
+                                    className={styles.postShareMenuBtn}
+                                    onClick={(e) => {
+                                      e.stopPropagation()
+                                      setOpenMenuPostId(openMenuPostId === rowKey ? null : rowKey)
+                                    }}
+                                  >
+                                    <MoreHorizontal size={20} />
+                                  </button>
+                                  {openMenuPostId === rowKey && (
+                                    <div className={styles.shareMenuDropdown}>
+                                      {isOwnProfile ? (
+                                        <>
                                           <button
                                             className={styles.shareMenuOption}
                                             onClick={(e) => {
@@ -1500,11 +1501,37 @@ export default function PersonalPage() {
                                             <Trash2 size={14} />
                                             <span>{t('common.delete')}</span>
                                           </button>
-                                        </div>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <button
+                                            className={styles.shareMenuOption}
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              setOpenMenuPostId(null)
+                                              handleHidePost(post.id)
+                                            }}
+                                          >
+                                            <EyeOff size={14} />
+                                            <span>{t('feed.hidePost')}</span>
+                                          </button>
+                                          <button
+                                            className={`${styles.shareMenuOption} ${styles.danger}`}
+                                            onClick={(e) => {
+                                              e.stopPropagation()
+                                              setOpenMenuPostId(null)
+                                              setReportPostModalPost(post)
+                                            }}
+                                          >
+                                            <Flag size={14} />
+                                            <span>{t('feed.report')}</span>
+                                          </button>
+                                        </>
                                       )}
                                     </div>
                                   )}
                                 </div>
+                              </div>
 
                                 {post.share_caption && (
                                   <div className={styles.shareCaption}>
@@ -1587,7 +1614,7 @@ export default function PersonalPage() {
                                       className={styles.shareActionBtn}
                                       onClick={(e) => {
                                         e.stopPropagation()
-                                        handleOpenCommentModal(post)
+                                        handleOpenCommentModal({ ...post, commentModalScope: 'share' })
                                       }}
                                     >
                                       <MessageCircle size={16} />
@@ -1628,69 +1655,11 @@ export default function PersonalPage() {
                                       )}
                                   </div>
 
-                                  <div className={styles.shareStatWrap}>
-                                    <button
-                                      type="button"
-                                      className={styles.shareActionBtn}
-                                      onClick={(e) => {
-                                        e.stopPropagation()
-                                        handleOpenShareModal(post)
-                                      }}
-                                    >
-                                      <Share2 size={16} />
-                                      <span
-                                        onMouseEnter={() => handleSharedRowStatsEnter(post, 'shares')}
-                                        onMouseLeave={handleSharedRowStatsLeave}
-                                      >
-                                        {t('personal.shares', { count: postStates[post.id]?.shareCount ?? post.shares ?? 0 })}
-                                      </span>
-                                    </button>
-
-                                    {sharedActionHover.rowKey === rowKey &&
-                                      sharedActionHover.kind === 'shares' && (
-                                        <div
-                                          className={styles.shareSharerPopup}
-                                          onMouseEnter={handleSharedRowStatsPopupEnter}
-                                          onMouseLeave={handleSharedRowStatsLeave}
-                                        >
-                                          {sharedActionHover.loading ? (
-                                            <div className={styles.shareSharerEmpty}>
-                                              {t('common.loading')}
-                                            </div>
-                                          ) : sharedActionHover.items.length > 0 ? (
-                                            sharedActionHover.items.map((u) => (
-                                              <div
-                                                key={u.user_id || u.username}
-                                                className={styles.shareSharerRow}
-                                              >
-                                                {hoverUserLabel(u)}
-                                              </div>
-                                            ))
-                                          ) : (
-                                            <div className={styles.shareSharerEmpty}>
-                                              {sharedHoverEmptyLabel('shares')}
-                                            </div>
-                                          )}
-                                        </div>
-                                      )}
                                   </div>
-
-                                  <button
-                                    ref={saveBookmarkRef}
-                                    className={`${styles.shareActionBtn} ${postStates[post.id]?.saved ? styles.saved : ''}`}
-                                    onClick={() => handleToggleSave(post.id)}
-                                  >
-                                    <Bookmark size={16} fill={postStates[post.id]?.saved ? 'currentColor' : 'none'} />
-                                    <span>
-                                      {t('personal.saves', {
-                                        count: postStates[post.id]?.saveCount ?? post.saveCount ?? 0,
-                                      })}
-                                    </span>                              </button>
                                 </div>
                               </div>
-                            </div>
-                          )
-                        })
+                            )
+                          })
                       ) : (
                         <div className={styles.emptyState}>
                           <p>{t('personal.noPosts')}</p>
@@ -1913,6 +1882,23 @@ export default function PersonalPage() {
         isOwnProfile={isOwnProfile}
         onUpdateStats={fetchUserProfile}
       />
+
+      {reportPostModalPost && (
+        <ReportPostModal
+          postId={reportPostModalPost.post_id || reportPostModalPost.id}
+          postTitle={reportPostModalPost.title}
+          authorId={reportPostModalPost.authorId || reportPostModalPost.author?.id}
+          authorName={
+            typeof reportPostModalPost.author === 'object' &&
+              reportPostModalPost.author != null
+              ? reportPostModalPost.author.name ||
+              reportPostModalPost.author.username ||
+              t('feed.anonymous')
+              : reportPostModalPost.author || t('feed.anonymous')
+          }
+          onClose={() => setReportPostModalPost(null)}
+        />
+      )}
     </div>
   )
 }

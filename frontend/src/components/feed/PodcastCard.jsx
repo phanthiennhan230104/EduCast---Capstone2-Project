@@ -198,16 +198,37 @@ export default function PodcastCard({
   const isActive = isCurrentTrack(podcast.id)
   const isPlaying = isActive && playing
 
-  const audioSrc =
+  const audioSrc = (
     podcast.audio?.audio_url ||
     podcast.audioUrl ||
     podcast.audio_url ||
+    podcast.post?.audio?.audio_url ||
+    podcast.post?.audioUrl ||
+    podcast.post?.audio_url ||
+    podcast.original_post?.audio?.audio_url ||
+    podcast.original_post?.audioUrl ||
+    podcast.original_post?.audio_url ||
+    podcast.originalPost?.audio?.audio_url ||
+    podcast.originalPost?.audioUrl ||
+    podcast.originalPost?.audio_url ||
     ''
+  )
+
   const queueWithAudio = queue.filter(
-    (item) =>
+    (item) => (
       item.audio?.audio_url ||
       item.audioUrl ||
-      item.audio_url
+      item.audio_url ||
+      item.post?.audio?.audio_url ||
+      item.post?.audioUrl ||
+      item.post?.audio_url ||
+      item.original_post?.audio?.audio_url ||
+      item.original_post?.audioUrl ||
+      item.original_post?.audio_url ||
+      item.originalPost?.audio?.audio_url ||
+      item.originalPost?.audioUrl ||
+      item.originalPost?.audio_url
+    )
   )
 
   const savedProgress = trackProgressMap?.[podcast.id]

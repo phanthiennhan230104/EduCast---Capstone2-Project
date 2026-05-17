@@ -188,7 +188,9 @@ export default function Feed() {
       setPodcasts((prev) =>
         prev.map((p) => {
           if (String(p.id) === String(d.postId)) return mergePostFields(p)
-          if (p.type !== 'shared' && p.post_id != null && String(p.post_id) === String(d.postId)) {
+          
+          // Cập nhật cả bài share nếu post_id của nó khớp với bài được tương tác
+          if (p.post_id != null && String(p.post_id) === String(d.postId)) {
             return mergePostFields(p)
           }
           return p
@@ -1206,13 +1208,85 @@ export default function Feed() {
     return t('feed.noShares')
   }
 
-  const handleOpenPostModal = (podcast) => {
-    setDisableModalAutoScroll(true)
-    setSelectedPodcast({
-      ...podcast,
-      commentModalScope: 'original',
-      timeAgo: podcast.type === 'shared' ? podcast.postTimeAgo : podcast.timeAgo,
-    })
+  const handleOpenPostModal = async (podcast) => {
+    const targetId = podcast.post_id || podcast.id
+    if (!targetId) return
+
+    let postIdForApi = targetId
+    let shareId = null
+
+    if (String(targetId).startsWith('share_')) {
+      const parts = String(targetId).split('_')
+      if (parts.length >= 3) {
+        shareId = parts[1]
+        postIdForApi = parts[parts.length - 1]
+      }
+    }
+
+    try {
+      const token = getToken()
+      const res = await fetch(`${API_BASE_URL}/content/posts/${postIdForApi}/`, {
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      })
+      if (!res.ok) throw new Error('Fetch failed')
+      const data = await res.json()
+
+      if (data && data.data) {
+        const origPost = data.data
+
+        const mappedPost = {
+          ...origPost,
+          id: targetId,
+          title: origPost.title,
+          description: origPost.description,
+          author: origPost.author || '',
+          authorUsername: origPost.author_username || '',
+          authorId: origPost.author_id || '',
+          audioUrl: origPost.audio_url || '',
+          durationSeconds: origPost.duration_seconds || 0,
+          cover: origPost.thumbnail_url,
+          thumbnail_url: origPost.thumbnail_url,
+          tags: (origPost.tags || origPost.post_tags || [])
+            .map((tag) => {
+              if (tag == null) return ''
+              if (typeof tag === 'string') {
+                return tag.startsWith('#') ? tag : `#${tag}`
+              }
+              const n = tag.name ?? tag.slug ?? tag.tag_name ?? ''
+              return n ? `#${n}` : ''
+            })
+            .filter(Boolean),
+          aiGenerated: false,
+          timeAgo: podcast.postTimeAgo || podcast.timeAgo || '',
+          listens: origPost.listen_count || 0,
+          likes: origPost.like_count || 0,
+          comments: origPost.comment_count || 0,
+          shares: origPost.share_count || 0,
+          saveCount: origPost.save_count || 0,
+          liked: origPost.is_liked || false,
+          saved: origPost.is_saved || false,
+        }
+
+        setDisableModalAutoScroll(true)
+        setSelectedPodcast({
+          ...mappedPost,
+          commentModalScope: 'original',
+        })
+      } else {
+        throw new Error('No data')
+      }
+    } catch (err) {
+      console.error('Fetch original post failed', err)
+      setDisableModalAutoScroll(true)
+      setSelectedPodcast({
+        ...podcast,
+        commentModalScope: 'original',
+        timeAgo: podcast.type === 'shared' ? podcast.postTimeAgo : podcast.timeAgo,
+      })
+    }
   }
 
   const closeSharedRowConfirm = () => {

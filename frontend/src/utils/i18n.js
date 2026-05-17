@@ -434,7 +434,7 @@ const resources = {
         deletePost: 'Xóa bài đăng',
         postRejected: 'Bài viết của bạn đã bị người kiểm duyệt từ chối',
         comments: '{{count}} Bình luận',
-        shares: '{{count}} lượt chia sẻ',
+        shares: '{{count}} Chia sẻ',
         saves: '{{count}} Lưu',
         noPosts: 'Chưa có bài đăng nào',
         myPodcasts: 'Podcast của tôi',
@@ -1132,7 +1132,7 @@ const resources = {
         comments: '{{count}} Bình luận',
         commentsLower: '{{count}} bình luận',
         share: '{{count}} Chia sẻ',
-        shareCount: '{{count}} lượt chia sẻ',
+        shareCount: '{{count}} Chia sẻ',
         save: '{{count}} Lưu',
         saved: '{{count}} Lưu',
         play: 'Phát',
@@ -1141,7 +1141,7 @@ const resources = {
         loadingText: 'Đang tải...',
         noLikes: 'Chưa có lượt thích',
         noComments: 'Chưa có bình luận',
-        noShares: 'Chưa có lượt chia sẻ',
+        noShares: 'Chưa có chia sẻ',
         commentAction: 'Bình luận',
 
         confirm: {

@@ -10,7 +10,7 @@ import SaveCollectionModal from '../common/SaveCollectionModal'
 import { API_BASE_URL, API_ORIGIN } from '../../config/apiBase'
 import styles from '../../style/feed/CommentModal.module.css'
 import { getToken, getCurrentUser } from '../../utils/auth'
-import { getCanonicalPostIdForEngagement } from '../../utils/canonicalPostId'
+import { getCanonicalPostIdForEngagement, getShareIdForEngagement } from '../../utils/canonicalPostId'
 import { writeFeedScrollSessionKeys } from '../../utils/feedScrollSession'
 import { publicDisplayName } from '../../utils/publicDisplayName'
 import { getInitials } from '../../utils/getInitials'
@@ -455,6 +455,7 @@ export default function CommentModal({
   const isShareCommentModal =
     podcast.type === 'shared' && podcast.commentModalScope === 'share'
   const commentsApiPostId = isShareCommentModal ? podcast.id : canonicalPostId
+  const modalShareId = getShareIdForEngagement(podcast)
   /** Like/lưu trong modal: theo scope (share row vs bài gốc). */
   const saveApiPostId = isShareCommentModal ? podcast.id : canonicalPostId
   const progressBarRef = useRef(null)
@@ -512,8 +513,14 @@ export default function CommentModal({
     const handleExternalPostSync = (event) => {
       const d = event.detail || {}
       if (!d.postId) return
+
       const syncId = isShareCommentModal ? commentsApiPostId : canonicalPostId
       if (String(d.postId) !== String(syncId)) return
+
+      // Kiểm tra shareId để tách biệt bài gốc và bài share
+      const syncShareId = d.shareId || null
+      const currentShareId = modalShareId || null
+      if (String(syncShareId) !== String(currentShareId)) return
 
       if (typeof d.title === 'string' || typeof d.description === 'string') {
         setLivePostMeta((prev) => ({
@@ -553,11 +560,7 @@ export default function CommentModal({
     canonicalPostId,
     commentsApiPostId,
     isShareCommentModal,
-    liked,
-    likeCount,
-    saved,
-    saveCount,
-    shareCount,
+    modalShareId,
   ])
 
   useEffect(() => {
@@ -956,6 +959,20 @@ export default function CommentModal({
       thumbnail_url: podcast.cover || podcast.thumbnail_url || podcast.thumbnailUrl || '',
       liked: trackLiked,
       saved: trackSaved,
+      onLikeChange: (result) => {
+        setModalEngagement((prev) => ({
+          ...prev,
+          liked: result.liked,
+          likeCount: result.likeCount,
+        }))
+      },
+      onSaveChange: (result) => {
+        setModalEngagement((prev) => ({
+          ...prev,
+          saved: result.saved,
+          saveCount: result.saveCount,
+        }))
+      },
     })
   }
 
@@ -1161,6 +1178,14 @@ export default function CommentModal({
 
       setCommentCount(nextCount)
       onCommentCountChange?.(nextCount)
+      window.dispatchEvent(
+        new CustomEvent('post-sync-updated', {
+          detail: {
+            postId: canonicalPostId,
+            commentCount: nextCount,
+          },
+        })
+      )
       setCommentInput('')
     } catch (err) {
       console.error('Create comment failed:', err)
@@ -1258,6 +1283,14 @@ export default function CommentModal({
 
       setCommentCount(nextCount)
       onCommentCountChange?.(nextCount)
+      window.dispatchEvent(
+        new CustomEvent('post-sync-updated', {
+          detail: {
+            postId: canonicalPostId,
+            commentCount: nextCount,
+          },
+        })
+      )
       closeReplyBox()
     } catch (err) {
       console.error('Reply comment failed:', err)
@@ -1382,6 +1415,14 @@ export default function CommentModal({
       setComments((prev) => removeCommentFromTree(prev, commentToDelete.id))
       setCommentCount(nextCount)
       onCommentCountChange?.(nextCount)
+      window.dispatchEvent(
+        new CustomEvent('post-sync-updated', {
+          detail: {
+            postId: canonicalPostId,
+            commentCount: nextCount,
+          },
+        })
+      )
 
       if (editingCommentId === commentToDelete.id) {
         cancelEditComment()
@@ -1544,15 +1585,19 @@ export default function CommentModal({
       saveCount: nextSaveCount,
     }))
     addSavedPost(canonicalPostId)
-    window.dispatchEvent(
-      new CustomEvent('post-sync-updated', {
-        detail: {
-          postId: canonicalPostId,
-          saved: true,
-          saveCount: nextSaveCount,
-        },
-      })
-    )
+    // SaveCollectionModal đã dispatch post-sync-updated với giá trị thực từ API.
+    // Chỉ dispatch thêm nếu không có save_count thực (fallback an toàn)
+    if (typeof saveData.save_count !== 'number') {
+      window.dispatchEvent(
+        new CustomEvent('post-sync-updated', {
+          detail: {
+            postId: canonicalPostId,
+            saved: true,
+            saveCount: nextSaveCount,
+          },
+        })
+      )
+    }
     setShowCollectionModal(false)
   }
 
@@ -2270,7 +2315,7 @@ export default function CommentModal({
                         onMouseLeave={handleStatsMouseLeave}
                         className={styles.statsText}
                       >
-                        {displayShareCount ?? 0} lượt chia sẻ
+                        {t('feed.shareCount', { count: displayShareCount ?? 0 })}
                       </span>
                     </button>
 

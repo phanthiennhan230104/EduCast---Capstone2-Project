@@ -8,7 +8,7 @@ import {
 import styles from '../../../style/layout/AudioPlayer.module.css'
 import { useAudioPlayer } from "../../contexts/AudioPlayerContext";
 import { getToken, getCurrentUser } from '../../../utils/auth'
-import { getCanonicalPostIdForEngagement } from '../../../utils/canonicalPostId'
+import { getCanonicalPostIdForEngagement, getShareIdForEngagement } from '../../../utils/canonicalPostId'
 import { API_BASE_URL } from '../../../config/apiBase'
 import { useNavigate, useLocation } from 'react-router-dom'
 

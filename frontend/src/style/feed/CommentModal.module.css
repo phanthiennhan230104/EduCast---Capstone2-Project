@@ -26,7 +26,7 @@
     flex-direction: column;
     color: #eef2ff;
     background:
-      linear-gradient(180deg, rgba(255,255,255,0.035), rgba(255,255,255,0.018)),
+      linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0.018)),
       #141c37;
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 24px 80px rgba(0, 0, 0, 0.42);
@@ -103,11 +103,11 @@
     top: 100%;
     right: 0;
     min-width: 138px;
-    background: linear-gradient(180deg, rgba(20,28,55,0.98), rgba(15,20,45,0.95));
+    background: linear-gradient(180deg, rgba(20, 28, 55, 0.98), rgba(15, 20, 45, 0.95));
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 10px;
     padding: 4px;
-    box-shadow: 0 20px 44px rgba(0,0,0,0.38), inset 0 1px 0 rgba(255,255,255,0.06);
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.38), inset 0 1px 0 rgba(255, 255, 255, 0.06);
     z-index: 9999;
     animation: slideDown 0.2s ease;
     white-space: nowrap;
@@ -164,6 +164,7 @@
       opacity: 0;
       transform: translateY(-8px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -485,7 +486,7 @@
     gap: 0;
     padding: 0 8px;
     border-bottom: none !important;
-    background: rgba(255,255,255,0.015);
+    background: rgba(255, 255, 255, 0.015);
   }
 
   .actionBtn {
@@ -633,8 +634,8 @@
     max-width: min(620px, 100%);
     padding: 6px 10px;
     border-radius: 16px;
-    background: rgba(255,255,255,0.06);
-    border: 1px solid rgba(255,255,255,0.04);
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid rgba(255, 255, 255, 0.04);
   }
 
   .commentBubble:has(.editBox) {
@@ -734,8 +735,8 @@
     gap: 8px;
     padding: 0 8px 0 14px;
     border-radius: 999px;
-    background: rgba(255,255,255,0.08);
-    border: 1px solid rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.08);
+    border: 1px solid rgba(255, 255, 255, 0.06);
   }
 
   .commentInput {
@@ -800,7 +801,7 @@
   }
 
   .commentMoreBtn:hover {
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
     color: #fff;
   }
 
@@ -827,8 +828,8 @@
     padding: 3px 5px;
     border-radius: 8px;
     background: rgba(20, 28, 55, 0.98);
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.28);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.28);
     z-index: 40;
     display: flex;
     flex-direction: column;
@@ -843,8 +844,8 @@
     width: 8px;
     height: 8px;
     background: rgba(20, 28, 55, 0.98);
-    border-left: 1px solid rgba(255,255,255,0.08);
-    border-bottom: 1px solid rgba(255,255,255,0.08);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     transform: rotate(45deg);
   }
 
@@ -868,7 +869,7 @@
   }
 
   .commentDropdownItem:hover {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
   }
 
   .commentDropdownItemDanger {
@@ -1113,7 +1114,7 @@
     outline: none;
     border-radius: 8px;
     padding: 6px 9px;
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
     color: #f0f2f5;
     font-size: 13px;
   }
@@ -1144,7 +1145,7 @@
   }
 
   .editActionBtnSecondary {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
     color: #d7def5;
   }
 
@@ -1159,7 +1160,7 @@
   }
 
   .editActionBtnSecondary:hover:not(:disabled) {
-    background: rgba(255,255,255,0.12);
+    background: rgba(255, 255, 255, 0.12);
     color: #eef2ff;
   }
 
@@ -1199,8 +1200,8 @@
     padding: 5px;
     border-radius: 14px;
     background: rgba(20, 28, 55, 0.98);
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 20px 40px rgba(0,0,0,0.34);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.34);
     z-index: 600;
   }
 
@@ -1216,7 +1217,7 @@
   }
 
   .statsPopupItem:hover {
-    background: rgba(255,255,255,0.06);
+    background: rgba(255, 255, 255, 0.06);
   }
 
   .statsPopupName {
@@ -1447,6 +1448,7 @@
     border-radius: inherit;
     background: linear-gradient(90deg, #8c97ff 0%, #b8beff 100%);
   }
+
   .avatarImage {
     width: 100%;
     height: 100%;

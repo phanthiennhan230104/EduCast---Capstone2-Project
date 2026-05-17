@@ -596,6 +596,14 @@ class GoogleLoginView(APIView):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+        
+        # email_domain = email.split('@')[-1].lower()
+        # if email_domain in ['dtu.edu.vn', 'gmail.com']:
+        #     return Response(
+        #         {"detail": "Tài khoản email thuộc tên miền này đã bị chặn đăng nhập trên hệ thống."},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
+
         user = User.objects.filter(email=email).first()
 
         if user:

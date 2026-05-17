@@ -13,8 +13,8 @@ const features = [
   },
   {
     icon: "📚",
-    title: "Hành trình học tập",
-    desc: "Theo dõi tiến độ, xây dựng streak hàng ngày và nhận phần thưởng khi đạt cột mốc học tập mới.",
+    title: "Thư viện yêu thích",
+    desc: "Lưu trữ những tập podcast hay, quản lý bộ sưu tập cá nhân và dễ dàng truy cập lại mọi lúc mọi nơi.",
   },
   {
     icon: "✍️",
@@ -35,8 +35,8 @@ const features = [
 
 export default function FeaturesSection({ id }) {
   return (
-    <section className={styles.featuresSection}>
-      <div className={styles.headingBlock} id={id}>
+    <section className={styles.featuresSection} id={id}>
+      <div className={styles.headingBlock}>
         <div className={styles.sectionEyebrow}>TÍNH NĂNG NỔI BẬT</div>
 
         <h2 className={styles.sectionTitle}>

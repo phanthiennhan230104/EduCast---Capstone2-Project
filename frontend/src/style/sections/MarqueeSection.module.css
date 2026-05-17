@@ -1,9 +1,14 @@
 .marqueeSection {
   overflow: hidden;
-  padding: 18px 0;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
-  background: rgba(255, 255, 255, 0.025);
+  padding: 20px 0;
+  margin: 64px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  transform: translateX(-50%);
 }
 
 .marqueeTrack {
@@ -22,6 +27,16 @@
   background: rgba(255, 255, 255, 0.05);
   color: #f5f0e8;
   white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  border: 1px solid rgba(255, 255, 255, 0.03);
+}
+
+.marqueeItem:hover {
+  background: rgba(244, 162, 39, 0.12);
+  color: #ffc061;
+  border-color: rgba(244, 162, 39, 0.25);
+  transform: translateY(-1px);
 }
 
 .marqueeDot {
@@ -32,6 +47,11 @@
 }
 
 @keyframes scroll {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
 }
