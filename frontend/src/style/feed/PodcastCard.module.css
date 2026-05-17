@@ -1192,3 +1192,53 @@
 .archivedCard .description {
   flex: 1 !important;
 }
+
+@media (max-width: 768px) {
+  .card {
+    padding: 12px 12px 10px !important;
+    border-radius: 14px !important;
+  }
+  .body {
+    gap: 10px !important;
+  }
+  .cover {
+    width: 64px !important;
+    height: 64px !important;
+    border-radius: 10px !important;
+  }
+  .title {
+    font-size: 15px !important;
+    margin-bottom: 4px !important;
+  }
+  .description {
+    font-size: 12.5px !important;
+    line-height: 1.55 !important;
+  }
+  .player {
+    padding: 8px 10px !important;
+    border-radius: 12px !important;
+    gap: 8px !important;
+    margin-bottom: 8px !important;
+  }
+  .playBtn {
+    width: 32px !important;
+    height: 32px !important;
+  }
+  .playBtn svg {
+    width: 14px !important;
+    height: 14px !important;
+  }
+  .actions {
+    padding-top: 8px !important;
+    gap: 6px !important;
+  }
+  .actionBtn {
+    font-size: 12px !important;
+    padding: 5px 8px !important;
+    gap: 5px !important;
+  }
+  .time {
+    font-size: 11px !important;
+    width: 32px !important;
+  }
+}

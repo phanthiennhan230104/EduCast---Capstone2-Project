@@ -47,3 +47,13 @@
   height: 0;
   display: none;
 }
+
+@media (max-width: 768px) {
+  .main {
+    top: var(--header-height, 74px) !important;
+    left: 0 !important;
+    right: 0 !important;
+    bottom: calc(var(--player-height, 70px) + 60px) !important;
+    padding: 12px !important;
+  }
+}

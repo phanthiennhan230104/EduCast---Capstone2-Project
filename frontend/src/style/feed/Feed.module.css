@@ -558,3 +558,40 @@
   background: rgba(255, 84, 112, 0.08);
   border: 1px solid rgba(255, 84, 112, 0.16);
 }
+
+@media (max-width: 768px) {
+  .tabs {
+    display: flex !important;
+    flex-wrap: nowrap !important;
+    overflow-x: auto !important;
+    scrollbar-width: none !important;
+    -ms-overflow-style: none !important;
+    gap: 8px !important;
+    padding: 6px !important;
+  }
+  .tabs::-webkit-scrollbar {
+    display: none !important;
+  }
+  .tab {
+    flex: 0 0 auto !important;
+    min-width: 90px !important;
+    padding: 0 12px !important;
+    font-size: 13px !important;
+    min-height: 38px !important;
+  }
+  .postShareInfo {
+    padding: 8px 12px 10px !important;
+  }
+  .shareCaption {
+    padding: 0 12px 10px !important;
+    font-size: 13px !important;
+  }
+  .postShareActions {
+    padding: 10px 12px !important;
+    gap: 8px !important;
+  }
+  .shareActionBtn {
+    font-size: 12px !important;
+    padding: 5px 8px !important;
+  }
+}
