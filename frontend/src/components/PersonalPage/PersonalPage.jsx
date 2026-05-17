@@ -1332,12 +1332,6 @@ export default function PersonalPage() {
                   {t('personal.archived')}
                 </button>
               )}
-
-              {!isOwnProfile && (
-                <button className={styles.moreBtn} onClick={handleMoreOptions}>
-                  <MoreHorizontal size={16} />
-                </button>
-              )}
             </div>
           </div>
 
