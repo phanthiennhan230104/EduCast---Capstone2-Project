@@ -28,7 +28,13 @@ class ConversationListView(generics.ListAPIView):
     def get_queryset(self):
         return (
             ChatRoom.objects.filter(members__user=self.request.user)
-            .prefetch_related("members__user", "messages__sender", "messages__reads")
+            .prefetch_related(
+                "members__user",
+                "members__user__profile",
+                "messages__sender",
+                "messages__sender__profile",
+                "messages__reads"
+            )
             .distinct()
             .order_by("-created_at")
         )
@@ -44,7 +50,7 @@ class MessagesView(generics.ListAPIView):
             return Message.objects.none()
         return (
             Message.objects.filter(room_id=room_id)
-            .select_related("sender", "room")
+            .select_related("sender", "sender__profile", "room")
             .prefetch_related("reads")
             .order_by("created_at")
         )
